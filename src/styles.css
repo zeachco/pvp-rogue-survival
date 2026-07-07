@@ -1,0 +1,167 @@
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e8f9ff;
+  background: #101418;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+#hud {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+}
+
+#hud button,
+#hud input {
+  pointer-events: auto;
+}
+
+.hud-top,
+.hud-bottom {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.hud-top {
+  top: 16px;
+}
+
+.hud-bottom {
+  bottom: 16px;
+  align-items: flex-end;
+}
+
+.join-panel,
+.stats-panel,
+.neighbor-panel,
+.notice,
+.buy-panel {
+  border: 1px solid rgba(138, 216, 255, 0.35);
+  background: rgba(13, 20, 24, 0.82);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.join-panel {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+}
+
+.join-panel input {
+  width: min(58vw, 260px);
+  border: 1px solid #4d6268;
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: #e8f9ff;
+  background: #0f171b;
+}
+
+.join-panel button,
+.buy-panel button {
+  border: 1px solid #3affd4;
+  border-radius: 4px;
+  color: #06211f;
+  background: #3affd4;
+  cursor: pointer;
+}
+
+.join-panel button {
+  padding: 10px 14px;
+}
+
+.stats-panel,
+.neighbor-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 10px 12px;
+}
+
+.neighbor-panel {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.stats-panel span,
+.neighbor-panel span {
+  color: #bbd2d9;
+}
+
+.notice {
+  max-width: min(56vw, 520px);
+  padding: 12px;
+  color: #bbd2d9;
+}
+
+.buy-panel {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+}
+
+.buy-panel button {
+  display: grid;
+  gap: 2px;
+  min-width: 108px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.buy-panel button span {
+  font-size: 12px;
+}
+
+.is-hidden {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .hud-top,
+  .hud-bottom {
+    left: 8px;
+    right: 8px;
+    flex-direction: column;
+  }
+
+  .neighbor-panel {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .notice {
+    max-width: none;
+    width: 100%;
+  }
+
+  .buy-panel {
+    width: 100%;
+    overflow-x: auto;
+  }
+}
