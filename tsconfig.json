@@ -8,10 +8,14 @@
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
+    "types": ["bun-types", "node"],
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
     "strict": true
   },
-  "include": ["src", "common"]
+  "include": ["src", "common", "server"]
 }

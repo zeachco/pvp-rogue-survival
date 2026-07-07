@@ -127,6 +127,7 @@ export class Game {
   }
 
   private update(deltaSeconds: number): void {
+    const previousPlayerState = this.player ? this.playerSnapshot() : "";
     this.updateCamera(deltaSeconds);
     this.updateIncome(deltaSeconds);
     this.updateSpawning(deltaSeconds);
@@ -155,7 +156,9 @@ export class Game {
 
     removeInactive(this.creeps);
     removeInactive(this.projectiles);
-    if (this.player) this.hud.setPlayer(this.player);
+    if (this.player && this.playerSnapshot() !== previousPlayerState) {
+      this.hud.setPlayer(this.player);
+    }
   }
 
   private updateIncome(deltaSeconds: number): void {
@@ -204,6 +207,7 @@ export class Game {
     pad.occupied = true;
     this.player.gold -= cost;
     this.towers.push(new Tower(this.map.tileCenter(pad.x, pad.y), this.projectiles));
+    this.hud.setPlayer(this.player);
   }
 
   private updateCamera(deltaSeconds: number): void {
@@ -233,6 +237,11 @@ export class Game {
     this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
     this.camera.width = window.innerWidth;
     this.camera.height = window.innerHeight;
+  }
+
+  private playerSnapshot(): string {
+    if (!this.player) return "";
+    return `${this.player.score}|${Math.floor(this.player.gold)}|${this.player.income}|${this.player.lives}`;
   }
 }
 

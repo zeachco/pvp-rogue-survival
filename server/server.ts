@@ -1,9 +1,30 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer, type RawData } from "ws";
+import {
+  CREEP_DEFINITIONS,
+  type ClientMessage,
+  type CreepKind,
+  type PlayerId,
+  type PublicPlayer,
+  type ServerMessage
+} from "../common/protocol.ts";
+
+interface Player {
+  id: PlayerId;
+  name: string;
+  score: number;
+  income: number;
+  neighbors: Set<PlayerId>;
+}
+
+interface PlayerSocket extends WebSocket {
+  playerId?: PlayerId;
+}
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const root = normalize(join(__dirname, ".."));
@@ -15,18 +36,10 @@ const MATCH_SCORE_GAP = 80;
 const MAX_NEIGHBORS = 2;
 const INCOME_INTERVAL_MS = 8000;
 
-const creepDefinitions = {
-  basic: { cost: 18, incomeGain: 1, scoreValue: 2 },
-  runner: { cost: 36, incomeGain: 3, scoreValue: 4 },
-  brute: { cost: 62, incomeGain: 6, scoreValue: 9 }
-};
+const sockets = new Map<string, PlayerSocket>();
+const players = new Map<PlayerId, Player>();
 
-/** @type {Map<string, import("ws").WebSocket & { playerId?: string }>} */
-const sockets = new Map();
-/** @type {Map<string, { id: string, name: string, score: number, income: number, neighbors: Set<string> }>} */
-const players = new Map();
-
-const server = createServer(async (request, response) => {
+const server = createServer(async (request: IncomingMessage, response: ServerResponse) => {
   const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
   const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
   const filePath = normalize(join(publicRoot, pathname));
@@ -50,15 +63,13 @@ const server = createServer(async (request, response) => {
 
 const wss = new WebSocketServer({ server });
 
-wss.on("connection", (socket) => {
+wss.on("connection", (socket: PlayerSocket) => {
   const connectionId = crypto.randomUUID();
   sockets.set(connectionId, socket);
 
-  socket.on("message", (raw) => {
-    let message;
-    try {
-      message = JSON.parse(String(raw));
-    } catch {
+  socket.on("message", (raw: RawData) => {
+    const message = parseClientMessage(raw);
+    if (!message) {
       send(socket, { type: "serverNotice", message: "Ignored invalid message." });
       return;
     }
@@ -68,17 +79,18 @@ wss.on("connection", (socket) => {
   socket.on("close", () => {
     const playerId = socket.playerId;
     sockets.delete(connectionId);
-    if (playerId) {
-      const player = players.get(playerId);
-      if (player) {
-        for (const neighborId of player.neighbors) {
-          players.get(neighborId)?.neighbors.delete(playerId);
-        }
+    if (!playerId) return;
+
+    const player = players.get(playerId);
+    if (player) {
+      for (const neighborId of player.neighbors) {
+        players.get(neighborId)?.neighbors.delete(playerId);
       }
-      players.delete(playerId);
-      rebalanceNeighbors();
-      broadcastNeighborSummaries();
     }
+
+    players.delete(playerId);
+    rebalanceNeighbors();
+    broadcastNeighborSummaries();
   });
 });
 
@@ -86,18 +98,20 @@ server.listen(PORT, HOST, () => {
   console.log(`Multi-Line Tower server listening on http://${HOST}:${PORT}`);
 });
 
-function handleMessage(socket, message) {
+function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
   if (message.type === "join") {
-    const player = {
+    const player: Player = {
       id: crypto.randomUUID(),
-      name: String(message.name ?? "Player").slice(0, 20),
+      name: message.name.trim().slice(0, 20) || "Player",
       score: 0,
       income: 10,
       neighbors: new Set()
     };
+
     socket.playerId = player.id;
     players.set(player.id, player);
     rebalanceNeighbors();
+
     send(socket, {
       type: "welcome",
       playerId: player.id,
@@ -109,6 +123,7 @@ function handleMessage(socket, message) {
         maxNeighbors: MAX_NEIGHBORS
       }
     });
+
     broadcastNeighborSummaries();
     if (player.neighbors.size === 0) {
       send(socket, { type: "serverNotice", message: "No close-score neighbors yet. Neutral creeps will spawn locally." });
@@ -123,53 +138,84 @@ function handleMessage(socket, message) {
   }
 
   if (message.type === "buyCreep") {
-    const definition = creepDefinitions[message.creepKind];
-    if (!definition) return;
-    player.income += definition.incomeGain;
-    send(socket, {
-      type: "purchaseAccepted",
-      creepKind: message.creepKind,
-      income: player.income,
-      goldSpent: definition.cost
-    });
-    const targets = [...player.neighbors].map((id) => players.get(id)).filter(Boolean);
-    if (targets.length === 0) {
-      send(socket, { type: "serverNotice", message: "No neighbors yet. Purchase increased income but sent no wave." });
-      return;
-    }
-    for (const target of targets) {
-      sendToPlayer(target.id, {
-        type: "incomingWave",
-        wave: {
-          id: crypto.randomUUID(),
-          emitterId: player.id,
-          emitterName: player.name,
-          targetId: target.id,
-          creepKind: message.creepKind,
-          count: message.creepKind === "brute" ? 2 : 4,
-          delayMs: 900
-        }
-      });
-    }
+    handleBuyCreep(socket, player, message.creepKind);
+    return;
+  }
+
+  if (message.type === "creepKilled") {
+    handleCreepKilled(player, message.creepKind);
     return;
   }
 
   if (message.type === "creepLeaked") {
-    const emitter = players.get(message.emitterId);
-    if (!emitter || emitter.id === player.id) return;
-    const definition = creepDefinitions[message.creepKind] ?? creepDefinitions.basic;
-    emitter.score += definition.scoreValue;
-    sendToPlayer(emitter.id, {
-      type: "scoreAwarded",
-      score: emitter.score,
-      reason: `${player.name} leaked your ${message.creepKind}.`
-    });
-    rebalanceNeighbors();
-    broadcastNeighborSummaries();
+    handleCreepLeaked(player, message.emitterId, message.creepKind);
   }
 }
 
-function rebalanceNeighbors() {
+function handleBuyCreep(socket: PlayerSocket, player: Player, creepKind: CreepKind): void {
+  const definition = CREEP_DEFINITIONS[creepKind];
+  player.income += definition.incomeGain;
+
+  send(socket, {
+    type: "purchaseAccepted",
+    creepKind,
+    income: player.income,
+    goldSpent: definition.cost
+  });
+
+  const targets = [...player.neighbors].map((id) => players.get(id)).filter(isPlayer);
+  if (targets.length === 0) {
+    send(socket, { type: "serverNotice", message: "No neighbors yet. Purchase increased income but sent no wave." });
+    return;
+  }
+
+  for (const target of targets) {
+    sendToPlayer(target.id, {
+      type: "incomingWave",
+      wave: {
+        id: crypto.randomUUID(),
+        emitterId: player.id,
+        emitterName: player.name,
+        targetId: target.id,
+        creepKind,
+        count: creepKind === "brute" ? 2 : 4,
+        delayMs: 900
+      }
+    });
+  }
+}
+
+function handleCreepKilled(defender: Player, creepKind: CreepKind): void {
+  const definition = CREEP_DEFINITIONS[creepKind];
+  defender.score += definition.scoreValue;
+  sendToPlayer(defender.id, {
+    type: "scoreAwarded",
+    score: defender.score,
+    reason: `Killed a ${creepKind}.`
+  });
+
+  rebalanceNeighbors();
+  broadcastNeighborSummaries();
+}
+
+function handleCreepLeaked(defender: Player, emitterId: PlayerId | "neutral", creepKind: CreepKind): void {
+  if (emitterId === "neutral" || emitterId === defender.id) return;
+  const emitter = players.get(emitterId);
+  if (!emitter) return;
+
+  const definition = CREEP_DEFINITIONS[creepKind];
+  emitter.score += definition.scoreValue;
+  sendToPlayer(emitter.id, {
+    type: "scoreAwarded",
+    score: emitter.score,
+    reason: `${defender.name} leaked your ${creepKind}.`
+  });
+
+  rebalanceNeighbors();
+  broadcastNeighborSummaries();
+}
+
+function rebalanceNeighbors(): void {
   for (const player of players.values()) {
     player.neighbors.clear();
   }
@@ -190,7 +236,7 @@ function rebalanceNeighbors() {
   }
 }
 
-function broadcastNeighborSummaries() {
+function broadcastNeighborSummaries(): void {
   for (const socket of sockets.values()) {
     const player = socket.playerId ? players.get(socket.playerId) : undefined;
     if (!player) continue;
@@ -198,14 +244,11 @@ function broadcastNeighborSummaries() {
   }
 }
 
-function neighborSummaries(player) {
-  return [...player.neighbors]
-    .map((id) => players.get(id))
-    .filter(Boolean)
-    .map((neighbor) => publicPlayer(neighbor));
+function neighborSummaries(player: Player): PublicPlayer[] {
+  return [...player.neighbors].map((id) => players.get(id)).filter(isPlayer).map(publicPlayer);
 }
 
-function publicPlayer(player) {
+function publicPlayer(player: Player): PublicPlayer {
   return {
     id: player.id,
     name: player.name,
@@ -214,7 +257,7 @@ function publicPlayer(player) {
   };
 }
 
-function sendToPlayer(playerId, message) {
+function sendToPlayer(playerId: PlayerId, message: ServerMessage): void {
   for (const socket of sockets.values()) {
     if (socket.playerId === playerId) {
       send(socket, message);
@@ -222,13 +265,27 @@ function sendToPlayer(playerId, message) {
   }
 }
 
-function send(socket, message) {
-  if (socket.readyState === socket.OPEN) {
+function send(socket: WebSocket, message: ServerMessage): void {
+  if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message));
   }
 }
 
-function contentType(filePath) {
+function parseClientMessage(raw: RawData): ClientMessage | undefined {
+  try {
+    const parsed = JSON.parse(String(raw)) as ClientMessage;
+    if (!parsed || typeof parsed !== "object" || !("type" in parsed)) return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+function isPlayer(player: Player | undefined): player is Player {
+  return Boolean(player);
+}
+
+function contentType(filePath: string): string {
   const extension = extname(filePath);
   if (extension === ".html") return "text/html; charset=utf-8";
   if (extension === ".js") return "text/javascript; charset=utf-8";

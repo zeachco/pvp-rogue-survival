@@ -7,9 +7,10 @@ Multi-Line Tower is a browser-based HTML5 tower defense game inspired by Warcraf
 ## 2. Core Goals
 
 - Run as a Vite TypeScript client with no UI framework.
+- Use Bun for development tooling, dependency installation, scripts, and the local TypeScript server runtime.
 - Render the game on a full-window responsive canvas.
 - Use HTML overlays for forms, score panels, and purchase controls where this improves layout.
-- Run a simple Node.js server that serves the built or dev client and opens WebSocket connections.
+- Run a simple Bun TypeScript server that serves the built or dev client and opens WebSocket connections.
 - Match players into shared game rooms by nearby score.
 - Keep authoritative multiplayer state on the server for player identity, score, income, queued creep transfers, and neighbor links.
 - Share WebSocket message types through a `common/` folder.
@@ -60,8 +61,9 @@ The server owns multiplayer coordination:
 - Gold is generated locally every income interval from the player's current income.
 - Buying creeps costs gold and sends a wave to neighbors.
 - Buying creeps also increases the buyer's future income.
+- Killing a creep awards the defender gold bounty locally and score value through the server.
 - Score is awarded by the server when a client reports that a non-neutral, non-self creep leaked through its lane.
-- Neutral basic creeps do not award score to any player.
+- Neutral basic creeps award score only when killed, never when leaked.
 
 ## 7. Combat Rules
 
@@ -71,6 +73,10 @@ The server owns multiplayer coordination:
 - All competing players receive the same map.
 - Towers attack within range on cooldown.
 - Creeps have health, speed, bounty, score value, and visual attributes.
+- If a creep is killed:
+  - Local player gains the creep's bounty.
+  - Client reports the kill to the server.
+  - Server awards the defender the creep's score value.
 - If a creep reaches the end:
   - Local player loses a life.
   - If the emitter is another player, the client reports a leak to the server.
@@ -96,11 +102,11 @@ The server owns multiplayer coordination:
 - `src/game/Projectile.ts`: projectile animation and damage application.
 - `src/game/Map.ts`: grid, path, and build pads.
 - `src/net/SocketClient.ts`: typed WebSocket client wrapper.
-- `src/ui/Hud.ts`: DOM overlay events and state.
+- `src/ui/Hud.tsx`: stable JSX-built DOM overlay components and granular HUD updates.
 
 ### Server
 
-- `server/server.js`: HTTP static server and WebSocket server.
+- `server/server.ts`: typed Bun HTTP static server and WebSocket server.
 - Tracks connected players, neighbor links, queued wave events, and score updates.
 - Uses JSON messages whose TypeScript shapes live in `common/protocol.ts`.
 
@@ -114,6 +120,7 @@ Client to server:
 
 - `join`: `{ name }`
 - `buyCreep`: `{ creepKind }`
+- `creepKilled`: `{ creepKind }`
 - `creepLeaked`: `{ emitterId, creepKind }`
 - `scoreSnapshot`: `{ score, lives }`
 
@@ -139,6 +146,7 @@ The first implementation must provide:
 - Local neutral rounds when solo.
 - WebSocket neighbor summaries.
 - Creep transfer from buyer to neighbors.
+- Score awards when creeps are killed.
 - Score awards when transferred creeps leak.
 
 ## 12. Future Scope
@@ -151,3 +159,13 @@ The first implementation must provide:
 - Server-side simulation validation.
 - Replay logs.
 - Mobile placement controls.
+
+## 13. Development Process
+
+This project follows spec-driven development:
+
+- Every implementation request must be checked against `SPEC.md` before code changes.
+- If the requested behavior, architecture, workflow, or constraint is already specified, confirm that and implement within the documented intent.
+- If the request is not specified, update `SPEC.md` first with the new decision, then implement the code change.
+- Keep `SPEC.md` synchronized when filenames, runtime choices, protocol shapes, game rules, or UX expectations change.
+- Prefer small, explicit spec additions over broad rewrites.

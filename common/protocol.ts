@@ -28,6 +28,7 @@ export interface CreepWave {
 export type ClientMessage =
   | { type: "join"; name: string }
   | { type: "buyCreep"; creepKind: CreepKind }
+  | { type: "creepKilled"; creepKind: CreepKind }
   | { type: "creepLeaked"; emitterId: PlayerId | "neutral"; creepKind: CreepKind }
   | { type: "scoreSnapshot"; score: number; lives: number };
 
