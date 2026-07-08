@@ -1,10 +1,12 @@
 import type { ClientMessage, ServerMessage } from "../../common/protocol";
 
 type MessageHandler = (message: ServerMessage) => void;
+type OpenHandler = () => void;
 
 export class SocketClient {
   private socket?: WebSocket;
   private handlers: MessageHandler[] = [];
+  private openHandlers: OpenHandler[] = [];
   connected = false;
 
   connect(): void {
@@ -12,6 +14,9 @@ export class SocketClient {
     this.socket = new WebSocket(`${protocol}//${window.location.host}`);
     this.socket.addEventListener("open", () => {
       this.connected = true;
+      for (const handler of this.openHandlers) {
+        handler();
+      }
     });
     this.socket.addEventListener("close", () => {
       this.connected = false;
@@ -26,6 +31,10 @@ export class SocketClient {
 
   onMessage(handler: MessageHandler): void {
     this.handlers.push(handler);
+  }
+
+  onOpen(handler: OpenHandler): void {
+    this.openHandlers.push(handler);
   }
 
   send(message: ClientMessage): void {

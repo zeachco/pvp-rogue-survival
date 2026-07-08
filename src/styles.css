@@ -124,6 +124,44 @@ input {
   color: #bbd2d9;
 }
 
+.wave-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  min-width: min(420px, calc(100vw - 32px));
+  gap: 6px;
+  border: 1px solid rgba(58, 255, 212, 0.5);
+  padding: 18px 22px;
+  text-align: center;
+  background: rgba(13, 20, 24, 0.9);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.98);
+  transition:
+    opacity 2600ms ease,
+    transform 2600ms ease;
+}
+
+.wave-banner strong {
+  color: #e8f9ff;
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.wave-banner span {
+  color: #bbd2d9;
+}
+
+.wave-banner.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
 .buy-panel {
   display: flex;
   gap: 8px;

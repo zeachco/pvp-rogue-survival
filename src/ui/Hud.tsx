@@ -27,13 +27,19 @@ export class Hud {
   private readonly hudBottom: HTMLElement;
   private readonly neighborList: HTMLElement;
   private readonly noticeNode: HTMLElement;
+  private readonly waveBanner: HTMLElement;
+  private readonly waveBannerTitle: HTMLElement;
+  private readonly waveBannerDetail: HTMLElement;
+  private readonly nameInput: HTMLInputElement;
   private readonly playerNameNode: HTMLElement;
   private readonly scoreNode: HTMLElement;
+  private readonly waveNode: HTMLElement;
   private readonly goldNode: HTMLElement;
   private readonly incomeNode: HTMLElement;
   private readonly livesNode: HTMLElement;
   private lastPlayerText = "";
   private lastNeighborText = "";
+  private waveBannerTimer?: number;
 
   constructor(
     private readonly root: HTMLDivElement,
@@ -45,8 +51,13 @@ export class Hud {
     this.hudBottom = view.hudBottom;
     this.neighborList = view.neighborList;
     this.noticeNode = view.noticeNode;
+    this.waveBanner = view.waveBanner;
+    this.waveBannerTitle = view.waveBannerTitle;
+    this.waveBannerDetail = view.waveBannerDetail;
+    this.nameInput = view.nameInput;
     this.playerNameNode = view.playerNameNode;
     this.scoreNode = view.scoreNode;
+    this.waveNode = view.waveNode;
     this.goldNode = view.goldNode;
     this.incomeNode = view.incomeNode;
     this.livesNode = view.livesNode;
@@ -61,6 +72,7 @@ export class Hud {
     const nextText = [
       player.name,
       player.score,
+      player.waveNumber,
       Math.floor(player.gold),
       player.income,
       player.lives
@@ -69,6 +81,7 @@ export class Hud {
     if (nextText !== this.lastPlayerText) {
       this.playerNameNode.textContent = player.name;
       this.scoreNode.textContent = `Score ${player.score}`;
+      this.waveNode.textContent = `Wave ${player.waveNumber}`;
       this.goldNode.textContent = `Gold ${Math.floor(player.gold)}`;
       this.incomeNode.textContent = `Income ${player.income}`;
       this.livesNode.textContent = `Lives ${player.lives}`;
@@ -80,7 +93,7 @@ export class Hud {
 
   setNeighbors(neighbors: PublicPlayer[]): void {
     this.neighbors = neighbors;
-    const nextText = neighbors.map((neighbor) => `${neighbor.id}:${neighbor.name}:${neighbor.score}`).join("|");
+    const nextText = neighbors.map((neighbor) => `${neighbor.id}:${neighbor.name}:${neighbor.score}:${neighbor.waveNumber}`).join("|");
     if (nextText === this.lastNeighborText) return;
 
     this.neighborList.replaceChildren();
@@ -88,7 +101,7 @@ export class Hud {
       this.neighborList.append(<span>Solo queue</span>);
     } else {
       for (const neighbor of neighbors) {
-        this.neighborList.append(<span>{neighbor.name}: {neighbor.score}</span>);
+        this.neighborList.append(<span>{neighbor.name}: {neighbor.score} / Wave {neighbor.waveNumber}</span>);
       }
     }
     this.lastNeighborText = nextText;
@@ -100,6 +113,23 @@ export class Hud {
     this.noticeNode.textContent = notice;
   }
 
+  setJoinName(name: string): void {
+    this.nameInput.value = name;
+  }
+
+  showWaveBanner(title: string, detail: string): void {
+    window.clearTimeout(this.waveBannerTimer);
+    this.waveBannerTitle.textContent = title;
+    this.waveBannerDetail.textContent = detail;
+    this.waveBanner.classList.remove("is-visible");
+    window.requestAnimationFrame(() => {
+      this.waveBanner.classList.add("is-visible");
+    });
+    this.waveBannerTimer = window.setTimeout(() => {
+      this.waveBanner.classList.remove("is-visible");
+    }, 3200);
+  }
+
   private createView(): {
     node: DocumentFragment;
     joinPanel: HTMLElement;
@@ -107,15 +137,21 @@ export class Hud {
     hudBottom: HTMLElement;
     neighborList: HTMLElement;
     noticeNode: HTMLElement;
+    waveBanner: HTMLElement;
+    waveBannerTitle: HTMLElement;
+    waveBannerDetail: HTMLElement;
+    nameInput: HTMLInputElement;
     playerNameNode: HTMLElement;
     scoreNode: HTMLElement;
+    waveNode: HTMLElement;
     goldNode: HTMLElement;
     incomeNode: HTMLElement;
     livesNode: HTMLElement;
   } {
+    const nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
     const joinPanel = (
       <form class="join-panel">
-        <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" />
+        {nameInput}
         <button type="submit">Join</button>
       </form>
     ) as HTMLFormElement;
@@ -129,6 +165,7 @@ export class Hud {
 
     const playerNameNode = <strong /> as HTMLElement;
     const scoreNode = <span>Score 0</span> as HTMLElement;
+    const waveNode = <span>Wave 0</span> as HTMLElement;
     const goldNode = <span>Gold 0</span> as HTMLElement;
     const incomeNode = <span>Income 0</span> as HTMLElement;
     const livesNode = <span>Lives 0</span> as HTMLElement;
@@ -136,6 +173,7 @@ export class Hud {
       <div class="stats-panel">
         {playerNameNode}
         {scoreNode}
+        {waveNode}
         {goldNode}
         {incomeNode}
         {livesNode}
@@ -144,12 +182,20 @@ export class Hud {
 
     const neighborList = <div class="neighbor-list" /> as HTMLElement;
     const noticeNode = <div class="notice" /> as HTMLElement;
+    const waveBannerTitle = <strong /> as HTMLElement;
+    const waveBannerDetail = <span /> as HTMLElement;
+    const waveBanner = (
+      <div class="wave-banner" aria-live="polite">
+        {waveBannerTitle}
+        {waveBannerDetail}
+      </div>
+    ) as HTMLElement;
     const hudBottom = (
       <section class="hud-bottom">
         {noticeNode}
         <div class="buy-panel">
           {Object.values(CREEP_DEFINITIONS).map((creep) => {
-            const tooltip = `${creep.label} creep: costs ${creep.cost} gold, adds ${creep.incomeGain} income, sends a wave to each neighbor.`;
+            const tooltip = `${creep.label} creep: costs ${creep.cost} gold, adds ${creep.incomeGain} income, queues creeps for each neighbor's next wave.`;
             const button = (
               <button data-creep={creep.kind} data-tooltip={tooltip} title={tooltip} type="button">
                 <strong>Send {creep.label}</strong>
@@ -173,6 +219,7 @@ export class Hud {
             {neighborList}
           </div>
         </section>
+        {waveBanner}
         {hudBottom}
       </>
     ) as DocumentFragment;
@@ -184,8 +231,13 @@ export class Hud {
       hudBottom,
       neighborList,
       noticeNode,
+      waveBanner,
+      waveBannerTitle,
+      waveBannerDetail,
+      nameInput,
       playerNameNode,
       scoreNode,
+      waveNode,
       goldNode,
       incomeNode,
       livesNode

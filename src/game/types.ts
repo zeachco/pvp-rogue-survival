@@ -14,6 +14,7 @@ export interface PlayerState {
   id: string;
   name: string;
   score: number;
+  waveNumber: number;
   lives: number;
   gold: number;
   income: number;

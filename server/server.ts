@@ -8,6 +8,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import {
   CREEP_DEFINITIONS,
   type ClientMessage,
+  type CreepWaveGroup,
   type CreepKind,
   type PlayerId,
   type PublicPlayer,
@@ -19,7 +20,10 @@ interface Player {
   name: string;
   score: number;
   income: number;
+  waveNumber: number;
+  pendingWave: CreepWaveGroup[];
   neighbors: Set<PlayerId>;
+  connected: boolean;
 }
 
 interface PlayerSocket extends WebSocket {
@@ -35,6 +39,10 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 const MATCH_SCORE_GAP = 80;
 const MAX_NEIGHBORS = 2;
 const INCOME_INTERVAL_MS = 8000;
+const WAVE_INTERVAL_MS = 12000;
+const WAVE_DELAY_MS = 700;
+const WAVE_SPAWN_INTERVAL_MS = 460;
+const BASELINE_BASIC_COUNT = 4;
 
 const sockets = new Map<string, PlayerSocket>();
 const players = new Map<PlayerId, Player>();
@@ -83,12 +91,9 @@ wss.on("connection", (socket: PlayerSocket) => {
 
     const player = players.get(playerId);
     if (player) {
-      for (const neighborId of player.neighbors) {
-        players.get(neighborId)?.neighbors.delete(playerId);
-      }
+      player.connected = hasOpenSocketForPlayer(playerId);
     }
 
-    players.delete(playerId);
     rebalanceNeighbors();
     broadcastNeighborSummaries();
   });
@@ -98,18 +103,12 @@ server.listen(PORT, HOST, () => {
   console.log(`Multi-Line Tower server listening on http://${HOST}:${PORT}`);
 });
 
+setInterval(dispatchWaves, WAVE_INTERVAL_MS);
+
 function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
   if (message.type === "join") {
-    const player: Player = {
-      id: crypto.randomUUID(),
-      name: message.name.trim().slice(0, 20) || "Player",
-      score: 0,
-      income: 10,
-      neighbors: new Set()
-    };
-
+    const player = joinPlayer(socket, message.name, message.sessionId);
     socket.playerId = player.id;
-    players.set(player.id, player);
     rebalanceNeighbors();
 
     send(socket, {
@@ -120,7 +119,8 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
       config: {
         incomeIntervalMs: INCOME_INTERVAL_MS,
         matchScoreGap: MATCH_SCORE_GAP,
-        maxNeighbors: MAX_NEIGHBORS
+        maxNeighbors: MAX_NEIGHBORS,
+        waveIntervalMs: WAVE_INTERVAL_MS
       }
     });
 
@@ -152,6 +152,32 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
   }
 }
 
+function joinPlayer(socket: PlayerSocket, name: string, sessionId: PlayerId | undefined): Player {
+  const trimmedName = name.trim().slice(0, 20) || "Player";
+  const existing = sessionId ? players.get(sessionId) : undefined;
+  if (existing) {
+    existing.name = trimmedName;
+    existing.connected = true;
+    socket.playerId = existing.id;
+    return existing;
+  }
+
+  const player: Player = {
+    id: crypto.randomUUID(),
+    name: trimmedName,
+    score: 0,
+    income: 10,
+    waveNumber: 0,
+    pendingWave: [],
+    neighbors: new Set(),
+    connected: true
+  };
+
+  socket.playerId = player.id;
+  players.set(player.id, player);
+  return player;
+}
+
 function handleBuyCreep(socket: PlayerSocket, player: Player, creepKind: CreepKind): void {
   const definition = CREEP_DEFINITIONS[creepKind];
   player.income += definition.incomeGain;
@@ -170,18 +196,48 @@ function handleBuyCreep(socket: PlayerSocket, player: Player, creepKind: CreepKi
   }
 
   for (const target of targets) {
-    sendToPlayer(target.id, {
+    target.pendingWave.push({
+      emitterId: player.id,
+      emitterName: player.name,
+      creepKind,
+      count: creepKind === "brute" ? 2 : 4
+    });
+  }
+}
+
+function dispatchWaves(): void {
+  let sentWave = false;
+  for (const player of players.values()) {
+    if (!player.connected) continue;
+    player.waveNumber += 1;
+    const purchasedCreeps = player.pendingWave;
+    player.pendingWave = [];
+    const creeps: CreepWaveGroup[] = [
+      {
+        emitterId: "neutral",
+        emitterName: "Neutral",
+        creepKind: "basic",
+        count: BASELINE_BASIC_COUNT
+      },
+      ...purchasedCreeps
+    ];
+
+    sendToPlayer(player.id, {
       type: "incomingWave",
       wave: {
         id: crypto.randomUUID(),
-        emitterId: player.id,
-        emitterName: player.name,
-        targetId: target.id,
-        creepKind,
-        count: creepKind === "brute" ? 2 : 4,
-        delayMs: 900
+        targetId: player.id,
+        waveNumber: player.waveNumber,
+        creeps,
+        delayMs: WAVE_DELAY_MS,
+        spawnIntervalMs: WAVE_SPAWN_INTERVAL_MS
       }
     });
+    sentWave = true;
+  }
+
+  if (sentWave) {
+    broadcastNeighborSummaries();
   }
 }
 
@@ -221,8 +277,9 @@ function rebalanceNeighbors(): void {
   }
 
   for (const player of players.values()) {
+    if (!player.connected) continue;
     const candidates = [...players.values()]
-      .filter((candidate) => candidate.id !== player.id)
+      .filter((candidate) => candidate.connected && candidate.id !== player.id)
       .map((candidate) => ({ candidate, delta: Math.abs(candidate.score - player.score) }))
       .filter(({ delta }) => delta <= MATCH_SCORE_GAP)
       .sort((a, b) => a.delta - b.delta);
@@ -253,7 +310,8 @@ function publicPlayer(player: Player): PublicPlayer {
     id: player.id,
     name: player.name,
     score: player.score,
-    income: player.income
+    income: player.income,
+    waveNumber: player.waveNumber
   };
 }
 
@@ -263,6 +321,15 @@ function sendToPlayer(playerId: PlayerId, message: ServerMessage): void {
       send(socket, message);
     }
   }
+}
+
+function hasOpenSocketForPlayer(playerId: PlayerId): boolean {
+  for (const socket of sockets.values()) {
+    if (socket.playerId === playerId && socket.readyState === WebSocket.OPEN) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function send(socket: WebSocket, message: ServerMessage): void {

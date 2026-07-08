@@ -7,6 +7,13 @@ import { SocketClient } from "../net/SocketClient";
 import { Hud } from "../ui/Hud";
 import type { Camera, PlayerState } from "./types";
 
+const SAVED_SESSION_KEY = "multi-line-tower.session";
+
+interface SavedSession {
+  playerId: string;
+  name: string;
+}
+
 export class Game {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly map = new GameMap();
@@ -18,10 +25,10 @@ export class Game {
   private readonly keys = new Set<string>();
   private camera: Camera = { x: 0, y: 0, width: 1, height: 1 };
   private player?: PlayerState;
+  private savedSession = loadSavedSession();
   private lastTimestamp = performance.now();
-  private spawnTimer = 1;
   private incomeTimer = 0;
-  private waveQueue: Array<{ wave: CreepWave; spawnAt: number }> = [];
+  private waveQueue: Array<{ kind: CreepKind; emitterId: string | "neutral"; emitterName: string; spawnAt: number }> = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -34,6 +41,9 @@ export class Game {
       onJoin: (name) => this.join(name),
       onBuyCreep: (kind) => this.buyCreep(kind)
     });
+    if (this.savedSession) {
+      this.hud.setJoinName(this.savedSession.name);
+    }
   }
 
   start(): void {
@@ -43,14 +53,20 @@ export class Game {
     window.addEventListener("keyup", (event) => this.keys.delete(event.key));
     this.canvas.addEventListener("click", (event) => this.handleCanvasClick(event));
 
+    this.socket.onOpen(() => this.restoreSavedSession());
     this.socket.onMessage((message) => this.handleServerMessage(message));
     this.socket.connect();
     requestAnimationFrame((timestamp) => this.tick(timestamp));
   }
 
-  private join(name: string): void {
-    this.socket.send({ type: "join", name });
+  private join(name: string, sessionId?: string): void {
+    this.socket.send({ type: "join", name, sessionId });
     this.hud.setNotice("Joining matchmaking...");
+  }
+
+  private restoreSavedSession(): void {
+    if (!this.savedSession || this.player) return;
+    this.join(this.savedSession.name, this.savedSession.playerId);
   }
 
   private buyCreep(kind: CreepKind): void {
@@ -73,10 +89,13 @@ export class Game {
         id: message.playerId,
         name: message.player.name,
         score: message.player.score,
+        waveNumber: message.player.waveNumber,
         income: message.player.income,
         gold: 120,
         lives: 30
       };
+      this.savedSession = { playerId: message.playerId, name: message.player.name };
+      saveSession(this.savedSession);
       this.hud.setPlayer(this.player);
       this.hud.setNeighbors(message.neighbors);
       this.hud.setNotice("Click cyan build pads to place towers. Arrow keys move the camera.");
@@ -90,7 +109,12 @@ export class Game {
 
     if (message.type === "incomingWave") {
       this.enqueueWave(message.wave);
-      this.hud.setNotice(`${message.wave.emitterName} sent ${message.wave.count} ${message.wave.creepKind} creeps.`);
+      if (this.player) {
+        this.player.waveNumber = message.wave.waveNumber;
+        this.hud.setPlayer(this.player);
+      }
+      const creepCount = message.wave.creeps.reduce((total, group) => total + group.count, 0);
+      this.hud.showWaveBanner(`Wave ${message.wave.waveNumber}`, `${creepCount} creeps incoming`);
       return;
     }
 
@@ -113,8 +137,17 @@ export class Game {
 
   private enqueueWave(wave: CreepWave): void {
     const now = performance.now();
-    for (let index = 0; index < wave.count; index += 1) {
-      this.waveQueue.push({ wave, spawnAt: now + wave.delayMs + index * 520 });
+    let spawnIndex = 0;
+    for (const group of wave.creeps) {
+      for (let index = 0; index < group.count; index += 1) {
+        this.waveQueue.push({
+          kind: group.creepKind,
+          emitterId: group.emitterId,
+          emitterName: group.emitterName,
+          spawnAt: now + wave.delayMs + spawnIndex * wave.spawnIntervalMs
+        });
+        spawnIndex += 1;
+      }
     }
   }
 
@@ -130,10 +163,9 @@ export class Game {
     const previousPlayerState = this.player ? this.playerSnapshot() : "";
     this.updateCamera(deltaSeconds);
     this.updateIncome(deltaSeconds);
-    this.updateSpawning(deltaSeconds);
 
     for (const queued of this.waveQueue.filter((entry) => entry.spawnAt <= performance.now())) {
-      this.spawnCreep(queued.wave.creepKind, queued.wave.emitterId, queued.wave.emitterName);
+      this.spawnCreep(queued.kind, queued.emitterId, queued.emitterName);
     }
     this.waveQueue = this.waveQueue.filter((entry) => entry.spawnAt > performance.now());
 
@@ -150,7 +182,7 @@ export class Game {
       if (creep.hasLeaked()) {
         this.handleLeak(creep);
       } else if (!creep.active && this.player) {
-        this.player.gold += creep.bounty;
+        this.handleKill(creep);
       }
     }
 
@@ -169,15 +201,6 @@ export class Game {
     this.player.gold += this.player.income;
   }
 
-  private updateSpawning(deltaSeconds: number): void {
-    this.spawnTimer -= deltaSeconds;
-    if (this.spawnTimer > 0) return;
-    this.spawnTimer = 4.5;
-    if (this.waveQueue.length === 0) {
-      this.spawnCreep("basic", "neutral", "Neutral");
-    }
-  }
-
   private spawnCreep(kind: CreepKind, emitterId: string | "neutral", emitterName: string): void {
     this.creeps.push(new Creep(kind, emitterId, emitterName, this.map.getWaypoints()));
   }
@@ -188,6 +211,12 @@ export class Game {
     if (creep.emitterId !== "neutral" && creep.emitterId !== this.player.id) {
       this.socket.send({ type: "creepLeaked", emitterId: creep.emitterId, creepKind: creep.kind });
     }
+  }
+
+  private handleKill(creep: Creep): void {
+    if (!this.player) return;
+    this.player.gold += creep.bounty;
+    this.socket.send({ type: "creepKilled", creepKind: creep.kind });
   }
 
   private handleCanvasClick(event: MouseEvent): void {
@@ -241,7 +270,7 @@ export class Game {
 
   private playerSnapshot(): string {
     if (!this.player) return "";
-    return `${this.player.score}|${Math.floor(this.player.gold)}|${this.player.income}|${this.player.lives}`;
+    return `${this.player.score}|${this.player.waveNumber}|${Math.floor(this.player.gold)}|${this.player.income}|${this.player.lives}`;
   }
 }
 
@@ -253,4 +282,26 @@ function removeInactive<T extends { active: boolean }>(items: T[]): void {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function loadSavedSession(): SavedSession | undefined {
+  try {
+    const raw = window.localStorage.getItem(SAVED_SESSION_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as Partial<SavedSession>;
+    if (typeof parsed.playerId !== "string" || typeof parsed.name !== "string") return undefined;
+    const name = parsed.name.trim();
+    if (!parsed.playerId || !name) return undefined;
+    return { playerId: parsed.playerId, name };
+  } catch {
+    return undefined;
+  }
+}
+
+function saveSession(session: SavedSession): void {
+  try {
+    window.localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(session));
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
 }

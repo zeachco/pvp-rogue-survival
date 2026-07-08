@@ -29,13 +29,13 @@ The server owns multiplayer coordination:
 - Connection lifecycle and player profile.
 - Score and income persistence for the active session.
 - Neighbor assignment.
-- Creep purchases and delayed delivery to neighbors.
+- Creep purchases, delayed delivery to neighbors, and authoritative wave turns.
 - Broadcasts of neighbor summaries and incoming creep waves.
 
 ## 4. Player Flow
 
 1. Player opens the game.
-2. Player enters a display name.
+2. Player enters a display name, or the client restores a saved display name and session id from browser local storage.
 3. Client sends `join`.
 4. Server creates or resumes a player session.
 5. Server searches active players for closest score matches within `MATCH_SCORE_GAP`.
@@ -43,7 +43,7 @@ The server owns multiplayer coordination:
 7. If no match exists, the player remains solo and receives neutral basic creep waves.
 8. Player builds towers on dedicated pads.
 9. Player buys creeps to increase future income.
-10. Purchased creeps are sent to one or more neighbor games, not to the buyer's own field.
+10. Purchased creeps are queued for one or more neighbor games, not to the buyer's own field unless there's no other players.
 11. If an emitted creep escapes through a neighbor's map, the emitter gains score.
 
 ## 5. Matching Rules
@@ -59,13 +59,24 @@ The server owns multiplayer coordination:
 
 - Each player starts with gold, score, lives, and income.
 - Gold is generated locally every income interval from the player's current income.
-- Buying creeps costs gold and sends a wave to neighbors.
+- Buying creeps costs gold and queues creeps for neighbors.
 - Buying creeps also increases the buyer's future income.
+- Creep purchases are never injected into an already-running wave. They are queued for each eligible neighbor's next server-authored wave turn.
 - Killing a creep awards the defender gold bounty locally and score value through the server.
 - Score is awarded by the server when a client reports that a non-neutral, non-self creep leaked through its lane.
 - Neutral basic creeps award score only when killed, never when leaked.
 
-## 7. Combat Rules
+## 7. Wave Rules
+
+- The server advances a numbered wave turn for each connected player.
+- At each wave turn, the server sends the target client one `incomingWave` message containing every creep group that should run that lane during that wave.
+- Each wave contains the server's baseline neutral basic creeps plus any purchases that were queued for that target before the wave was assembled.
+- Purchases made while a wave is active are kept in the server queue and appear in the target's next wave.
+- The client does not request or independently create basic wave creeps. It only schedules creeps from the server's `incomingWave` payload.
+- The client throttles local spawning from the wave payload over short intervals so the wave appears as a continuous stream while still being delivered as one server message.
+- The local player and all visible neighbors display their current wave number next to their scores.
+
+## 8. Combat Rules
 
 - The map is grid-based.
 - Creeps move along fixed waypoint centers rather than tile-by-tile turns.
@@ -82,14 +93,15 @@ The server owns multiplayer coordination:
   - If the emitter is another player, the client reports a leak to the server.
   - Server awards the emitter score after validating the emitter is not the defender.
 
-## 8. Visual Direction
+## 9. Visual Direction
 
 - Futuristic, simple geometric shapes.
 - Creeps use shape, fill color, outline color, size, and inner marks for differentiation.
 - Towers use clean geometry, range rings, and directional barrels.
 - No external art pipeline is required for the initial version.
+- Wave starts are announced by a centered notification banner that fades out slowly without blocking play.
 
-## 9. Architecture
+## 10. Architecture
 
 ### Client
 
@@ -103,22 +115,26 @@ The server owns multiplayer coordination:
 - `src/game/Map.ts`: grid, path, and build pads.
 - `src/net/SocketClient.ts`: typed WebSocket client wrapper.
 - `src/ui/Hud.tsx`: stable JSX-built DOM overlay components and granular HUD updates.
+- The client stores only the last accepted player session id and display name in local storage so a browser refresh can rejoin the same server-side session.
+- The client must not persist local creeps, queued waves, projectiles, or other transient combat entities; creep continuity remains a server-side concern.
 
 ### Server
 
 - `server/server.ts`: typed Bun HTTP static server and WebSocket server.
-- Tracks connected players, neighbor links, queued wave events, and score updates.
+- Tracks connected players, neighbor links, pending creep purchases, wave numbers, wave events, and score updates.
+- Keeps disconnected player sessions resumable by session id for browser refreshes while only connected players participate in neighbor matching and creep delivery.
 - Uses JSON messages whose TypeScript shapes live in `common/protocol.ts`.
 
 ### Shared
 
 - `common/protocol.ts`: message names, payload types, creep kinds, and public player summaries.
+- `PublicPlayer` summaries include `waveNumber` so local and neighbor HUD rows can display wave progress next to score.
 
-## 10. WebSocket Protocol
+## 11. WebSocket Protocol
 
 Client to server:
 
-- `join`: `{ name }`
+- `join`: `{ name, sessionId? }`
 - `buyCreep`: `{ creepKind }`
 - `creepKilled`: `{ creepKind }`
 - `creepLeaked`: `{ emitterId, creepKind }`
@@ -128,12 +144,12 @@ Server to client:
 
 - `welcome`: `{ playerId, player, neighbors, config }`
 - `neighbors`: `{ neighbors }`
-- `incomingWave`: `{ wave }`
+- `incomingWave`: `{ wave }`, where `wave` includes `waveNumber`, `targetId`, `creeps`, and `spawnIntervalMs`
 - `purchaseAccepted`: `{ creepKind, income, goldSpent }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
 
-## 11. Initial Scope
+## 12. Initial Scope
 
 The first implementation must provide:
 
@@ -144,12 +160,14 @@ The first implementation must provide:
 - Build towers by clicking build pads.
 - Creep purchases through HTML buttons.
 - Local neutral rounds when solo.
+- Server-authored wave messages for baseline neutral creeps and queued purchased creeps.
+- Center-screen fading wave announcement banner.
 - WebSocket neighbor summaries.
 - Creep transfer from buyer to neighbors.
 - Score awards when creeps are killed.
 - Score awards when transferred creeps leak.
 
-## 12. Future Scope
+## 13. Future Scope
 
 - Account persistence.
 - Matchmaking queues with rating.
@@ -160,7 +178,7 @@ The first implementation must provide:
 - Replay logs.
 - Mobile placement controls.
 
-## 13. Development Process
+## 14. Development Process
 
 This project follows spec-driven development:
 
@@ -169,3 +187,4 @@ This project follows spec-driven development:
 - If the request is not specified, update `SPEC.md` first with the new decision, then implement the code change.
 - Keep `SPEC.md` synchronized when filenames, runtime choices, protocol shapes, game rules, or UX expectations change.
 - Prefer small, explicit spec additions over broad rewrites.
+- Browser debugging agents should use the Chrome DevTools MCP server named `chrome-devtools`, launched with `npx chrome-devtools-mcp@latest`.

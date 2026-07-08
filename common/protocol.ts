@@ -7,26 +7,34 @@ export interface PublicPlayer {
   name: string;
   score: number;
   income: number;
+  waveNumber: number;
 }
 
 export interface ServerConfig {
   incomeIntervalMs: number;
   matchScoreGap: number;
   maxNeighbors: number;
+  waveIntervalMs: number;
+}
+
+export interface CreepWaveGroup {
+  emitterId: PlayerId | "neutral";
+  emitterName: string;
+  creepKind: CreepKind;
+  count: number;
 }
 
 export interface CreepWave {
   id: string;
-  emitterId: PlayerId | "neutral";
-  emitterName: string;
   targetId: PlayerId;
-  creepKind: CreepKind;
-  count: number;
+  waveNumber: number;
+  creeps: CreepWaveGroup[];
   delayMs: number;
+  spawnIntervalMs: number;
 }
 
 export type ClientMessage =
-  | { type: "join"; name: string }
+  | { type: "join"; name: string; sessionId?: PlayerId }
   | { type: "buyCreep"; creepKind: CreepKind }
   | { type: "creepKilled"; creepKind: CreepKind }
   | { type: "creepLeaked"; emitterId: PlayerId | "neutral"; creepKind: CreepKind }
