@@ -2,16 +2,20 @@ import type { ClientMessage, ServerMessage } from "../../common/protocol";
 
 type MessageHandler = (message: ServerMessage) => void;
 type OpenHandler = () => void;
+type CloseHandler = () => void;
+type ErrorHandler = (event: Event) => void;
 
 export class SocketClient {
   private socket?: WebSocket;
   private handlers: MessageHandler[] = [];
   private openHandlers: OpenHandler[] = [];
+  private closeHandlers: CloseHandler[] = [];
+  private errorHandlers: ErrorHandler[] = [];
   connected = false;
 
   connect(): void {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    this.socket = new WebSocket(`${protocol}//${window.location.host}`);
+    this.socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
     this.socket.addEventListener("open", () => {
       this.connected = true;
       for (const handler of this.openHandlers) {
@@ -20,6 +24,14 @@ export class SocketClient {
     });
     this.socket.addEventListener("close", () => {
       this.connected = false;
+      for (const handler of this.closeHandlers) {
+        handler();
+      }
+    });
+    this.socket.addEventListener("error", (event) => {
+      for (const handler of this.errorHandlers) {
+        handler(event);
+      }
     });
     this.socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data as string) as ServerMessage;
@@ -35,6 +47,14 @@ export class SocketClient {
 
   onOpen(handler: OpenHandler): void {
     this.openHandlers.push(handler);
+  }
+
+  onClose(handler: CloseHandler): void {
+    this.closeHandlers.push(handler);
+  }
+
+  onError(handler: ErrorHandler): void {
+    this.errorHandlers.push(handler);
   }
 
   send(message: ClientMessage): void {

@@ -69,7 +69,7 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
   }
 });
 
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: "/ws" });
 
 wss.on("connection", (socket: PlayerSocket) => {
   const connectionId = crypto.randomUUID();
@@ -110,6 +110,12 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
     const player = joinPlayer(socket, message.name, message.sessionId);
     socket.playerId = player.id;
     rebalanceNeighbors();
+    logPlayer(player, "joined", {
+      resumed: Boolean(message.sessionId),
+      score: player.score,
+      income: player.income,
+      neighbors: [...player.neighbors].length
+    });
 
     send(socket, {
       type: "welcome",
@@ -181,6 +187,11 @@ function joinPlayer(socket: PlayerSocket, name: string, sessionId: PlayerId | un
 function handleBuyCreep(socket: PlayerSocket, player: Player, creepKind: CreepKind): void {
   const definition = CREEP_DEFINITIONS[creepKind];
   player.income += definition.incomeGain;
+  logPlayer(player, "buy creep", {
+    creepKind,
+    income: player.income,
+    neighbors: [...player.neighbors].length
+  });
 
   send(socket, {
     type: "purchaseAccepted",
@@ -191,11 +202,17 @@ function handleBuyCreep(socket: PlayerSocket, player: Player, creepKind: CreepKi
 
   const targets = [...player.neighbors].map((id) => players.get(id)).filter(isPlayer);
   if (targets.length === 0) {
+    logPlayer(player, "buy had no targets", { creepKind });
     send(socket, { type: "serverNotice", message: "No neighbors yet. Purchase increased income but sent no wave." });
     return;
   }
 
   for (const target of targets) {
+    logPlayer(player, "queue creep for target", {
+      target: target.name,
+      creepKind,
+      count: creepKind === "brute" ? 2 : 4
+    });
     target.pendingWave.push({
       emitterId: player.id,
       emitterName: player.name,
@@ -222,6 +239,10 @@ function dispatchWaves(): void {
       ...purchasedCreeps
     ];
 
+    logPlayer(player, "dispatch wave", {
+      waveNumber: player.waveNumber,
+      groups: creeps.map((group) => `${group.emitterName}:${group.creepKind}:${group.count}`)
+    });
     sendToPlayer(player.id, {
       type: "incomingWave",
       wave: {
@@ -244,6 +265,7 @@ function dispatchWaves(): void {
 function handleCreepKilled(defender: Player, creepKind: CreepKind): void {
   const definition = CREEP_DEFINITIONS[creepKind];
   defender.score += definition.scoreValue;
+  logPlayer(defender, "creep killed", { creepKind, score: defender.score });
   sendToPlayer(defender.id, {
     type: "scoreAwarded",
     score: defender.score,
@@ -261,6 +283,8 @@ function handleCreepLeaked(defender: Player, emitterId: PlayerId | "neutral", cr
 
   const definition = CREEP_DEFINITIONS[creepKind];
   emitter.score += definition.scoreValue;
+  logPlayer(defender, "creep leaked", { creepKind, emitter: emitter.name });
+  logPlayer(emitter, "leak score awarded", { creepKind, score: emitter.score, defender: defender.name });
   sendToPlayer(emitter.id, {
     type: "scoreAwarded",
     score: emitter.score,
@@ -336,6 +360,10 @@ function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message));
   }
+}
+
+function logPlayer(player: Player, event: string, detail?: unknown): void {
+  console.log(`[MLT][${player.name}] ${event}`, detail ?? "");
 }
 
 function parseClientMessage(raw: RawData): ClientMessage | undefined {

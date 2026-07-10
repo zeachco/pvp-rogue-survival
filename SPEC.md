@@ -10,7 +10,7 @@ Multi-Line Tower is a browser-based HTML5 tower defense game inspired by Warcraf
 - Use Bun for development tooling, dependency installation, scripts, and the local TypeScript server runtime.
 - Render the game on a full-window responsive canvas.
 - Use HTML overlays for forms, score panels, and purchase controls where this improves layout.
-- Run a simple Bun TypeScript server that serves the built or dev client and opens WebSocket connections.
+- Run a simple Bun TypeScript server that serves the built client and opens gameplay WebSocket connections at `/ws`.
 - Match players into shared game rooms by nearby score.
 - Keep authoritative multiplayer state on the server for player identity, score, income, queued creep transfers, and neighbor links.
 - Share WebSocket message types through a `common/` folder.
@@ -121,6 +121,7 @@ The server owns multiplayer coordination:
 ### Server
 
 - `server/server.ts`: typed Bun HTTP static server and WebSocket server.
+- The gameplay WebSocket endpoint is `/ws`; the Vite development server proxies that path to the Bun server so the hot-reload client and multiplayer server can run as separate processes.
 - Tracks connected players, neighbor links, pending creep purchases, wave numbers, wave events, and score updates.
 - Keeps disconnected player sessions resumable by session id for browser refreshes while only connected players participate in neighbor matching and creep delivery.
 - Uses JSON messages whose TypeScript shapes live in `common/protocol.ts`.
@@ -131,6 +132,10 @@ The server owns multiplayer coordination:
 - `PublicPlayer` summaries include `waveNumber` so local and neighbor HUD rows can display wave progress next to score.
 
 ## 11. WebSocket Protocol
+
+Endpoint:
+
+- `/ws`
 
 Client to server:
 
@@ -188,3 +193,4 @@ This project follows spec-driven development:
 - Keep `SPEC.md` synchronized when filenames, runtime choices, protocol shapes, game rules, or UX expectations change.
 - Prefer small, explicit spec additions over broad rewrites.
 - Browser debugging agents should use the Chrome DevTools MCP server named `chrome-devtools`, launched with `npx chrome-devtools-mcp@latest`.
+- During manual multiplayer debugging, the client may expose a temporary `window.__mltDebug` object and emit concise `[MLT][player]` console logs for socket lifecycle, joins, server messages, purchases, waves, spawns, kills, leaks, builds, and income ticks. Server logs should use the same player-name tagging style for connection, matchmaking, purchase, wave, kill, and leak events.

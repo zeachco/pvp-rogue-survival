@@ -14,6 +14,18 @@ interface SavedSession {
   name: string;
 }
 
+declare global {
+  interface Window {
+    __mltDebug?: {
+      game: Game;
+      getState: () => Record<string, unknown>;
+      join: (name: string) => void;
+      buyCreep: (kind: CreepKind) => void;
+      clearSession: () => void;
+    };
+  }
+}
+
 export class Game {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly map = new GameMap();
@@ -26,6 +38,7 @@ export class Game {
   private camera: Camera = { x: 0, y: 0, width: 1, height: 1 };
   private player?: PlayerState;
   private savedSession = loadSavedSession();
+  private debugName = this.savedSession?.name ?? "unjoined";
   private lastTimestamp = performance.now();
   private incomeTimer = 0;
   private waveQueue: Array<{ kind: CreepKind; emitterId: string | "neutral"; emitterName: string; spawnAt: number }> = [];
@@ -44,6 +57,7 @@ export class Game {
     if (this.savedSession) {
       this.hud.setJoinName(this.savedSession.name);
     }
+    this.registerDebugGlobal();
   }
 
   start(): void {
@@ -53,13 +67,20 @@ export class Game {
     window.addEventListener("keyup", (event) => this.keys.delete(event.key));
     this.canvas.addEventListener("click", (event) => this.handleCanvasClick(event));
 
-    this.socket.onOpen(() => this.restoreSavedSession());
+    this.socket.onOpen(() => {
+      this.debugLog("socket open");
+      this.restoreSavedSession();
+    });
+    this.socket.onClose(() => this.debugLog("socket close"));
+    this.socket.onError((event) => this.debugLog("socket error", { type: event.type }));
     this.socket.onMessage((message) => this.handleServerMessage(message));
     this.socket.connect();
     requestAnimationFrame((timestamp) => this.tick(timestamp));
   }
 
   private join(name: string, sessionId?: string): void {
+    this.debugName = name.trim() || this.debugName;
+    this.debugLog("join", { name: this.debugName, sessionId: sessionId ?? null });
     this.socket.send({ type: "join", name, sessionId });
     this.hud.setNotice("Joining matchmaking...");
   }
@@ -73,17 +94,24 @@ export class Game {
     const definition = CREEP_DEFINITIONS[kind];
     if (!this.player) return;
     if (this.player.gold < definition.cost) {
+      this.debugLog("buy rejected locally", { kind, gold: this.player.gold, cost: definition.cost });
       this.hud.setNotice(`Need ${definition.cost} gold for ${definition.label}.`);
       return;
     }
 
     this.player.gold -= definition.cost;
     this.player.income += definition.incomeGain;
+    this.debugLog("buy optimistic", {
+      kind,
+      gold: this.player.gold,
+      income: this.player.income
+    });
     this.hud.setPlayer(this.player);
     this.socket.send({ type: "buyCreep", creepKind: kind });
   }
 
   private handleServerMessage(message: ServerMessage): void {
+    this.debugLog("server message", message);
     if (message.type === "welcome") {
       this.player = {
         id: message.playerId,
@@ -94,6 +122,7 @@ export class Game {
         gold: 120,
         lives: 30
       };
+      this.debugName = this.player.name;
       this.savedSession = { playerId: message.playerId, name: message.player.name };
       saveSession(this.savedSession);
       this.hud.setPlayer(this.player);
@@ -138,6 +167,12 @@ export class Game {
   private enqueueWave(wave: CreepWave): void {
     const now = performance.now();
     let spawnIndex = 0;
+    this.debugLog("enqueue wave", {
+      waveNumber: wave.waveNumber,
+      groups: wave.creeps,
+      delayMs: wave.delayMs,
+      spawnIntervalMs: wave.spawnIntervalMs
+    });
     for (const group of wave.creeps) {
       for (let index = 0; index < group.count; index += 1) {
         this.waveQueue.push({
@@ -199,15 +234,23 @@ export class Game {
     if (this.incomeTimer < 8) return;
     this.incomeTimer = 0;
     this.player.gold += this.player.income;
+    this.debugLog("income tick", { gold: this.player.gold, income: this.player.income });
   }
 
   private spawnCreep(kind: CreepKind, emitterId: string | "neutral", emitterName: string): void {
+    this.debugLog("spawn creep", { kind, emitterId, emitterName });
     this.creeps.push(new Creep(kind, emitterId, emitterName, this.map.getWaypoints()));
   }
 
   private handleLeak(creep: Creep): void {
     if (!this.player) return;
     this.player.lives = Math.max(0, this.player.lives - 1);
+    this.debugLog("creep leaked", {
+      kind: creep.kind,
+      emitterId: creep.emitterId,
+      emitterName: creep.emitterName,
+      lives: this.player.lives
+    });
     if (creep.emitterId !== "neutral" && creep.emitterId !== this.player.id) {
       this.socket.send({ type: "creepLeaked", emitterId: creep.emitterId, creepKind: creep.kind });
     }
@@ -216,6 +259,12 @@ export class Game {
   private handleKill(creep: Creep): void {
     if (!this.player) return;
     this.player.gold += creep.bounty;
+    this.debugLog("creep killed", {
+      kind: creep.kind,
+      emitterId: creep.emitterId,
+      emitterName: creep.emitterName,
+      gold: this.player.gold
+    });
     this.socket.send({ type: "creepKilled", creepKind: creep.kind });
   }
 
@@ -236,6 +285,7 @@ export class Game {
     pad.occupied = true;
     this.player.gold -= cost;
     this.towers.push(new Tower(this.map.tileCenter(pad.x, pad.y), this.projectiles));
+    this.debugLog("tower built", { pad, gold: this.player.gold, towerCount: this.towers.length });
     this.hud.setPlayer(this.player);
   }
 
@@ -271,6 +321,41 @@ export class Game {
   private playerSnapshot(): string {
     if (!this.player) return "";
     return `${this.player.score}|${this.player.waveNumber}|${Math.floor(this.player.gold)}|${this.player.income}|${this.player.lives}`;
+  }
+
+  private registerDebugGlobal(): void {
+    window.__mltDebug = {
+      game: this,
+      getState: () => ({
+        player: this.player ? { ...this.player } : null,
+        savedSession: this.savedSession ? { ...this.savedSession } : null,
+        connected: this.socket.connected,
+        creeps: this.creeps.map((creep) => ({
+          kind: creep.kind,
+          emitterId: creep.emitterId,
+          emitterName: creep.emitterName,
+          active: creep.active
+        })),
+        creepCount: this.creeps.length,
+        towerCount: this.towers.length,
+        projectileCount: this.projectiles.length,
+        queuedSpawns: this.waveQueue.length,
+        camera: { ...this.camera }
+      }),
+      join: (name: string) => this.join(name),
+      buyCreep: (kind: CreepKind) => this.buyCreep(kind),
+      clearSession: () => {
+        window.localStorage.removeItem(SAVED_SESSION_KEY);
+        this.savedSession = undefined;
+        this.debugName = "unjoined";
+        this.debugLog("saved session cleared");
+      }
+    };
+    this.debugLog("debug global registered", { global: "window.__mltDebug" });
+  }
+
+  private debugLog(event: string, detail?: unknown): void {
+    console.log(`[MLT][${this.debugName}] ${event}`, detail ?? "");
   }
 }
 
