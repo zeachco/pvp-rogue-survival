@@ -6,7 +6,6 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import {
-  CREEP_DEFINITIONS,
   type ClientMessage,
   type CreepWaveGroup,
   type CreepKind,
@@ -19,9 +18,7 @@ interface Player {
   id: PlayerId;
   name: string;
   score: number;
-  income: number;
   waveNumber: number;
-  pendingWave: CreepWaveGroup[];
   neighbors: Set<PlayerId>;
   connected: boolean;
 }
@@ -38,11 +35,10 @@ const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const MATCH_SCORE_GAP = 80;
 const MAX_NEIGHBORS = 2;
-const INCOME_INTERVAL_MS = 8000;
 const WAVE_INTERVAL_MS = 12000;
 const WAVE_DELAY_MS = 700;
 const WAVE_SPAWN_INTERVAL_MS = 460;
-const BASELINE_BASIC_COUNT = 4;
+const BASELINE_MELEE_COUNT = 4;
 
 const sockets = new Map<string, PlayerSocket>();
 const players = new Map<PlayerId, Player>();
@@ -100,7 +96,7 @@ wss.on("connection", (socket: PlayerSocket) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Multi-Line Tower server listening on http://${HOST}:${PORT}`);
+  console.log(`Multi-Line Hero server listening on http://${HOST}:${PORT}`);
 });
 
 setInterval(dispatchWaves, WAVE_INTERVAL_MS);
@@ -113,7 +109,6 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
     logPlayer(player, "joined", {
       resumed: Boolean(message.sessionId),
       score: player.score,
-      income: player.income,
       neighbors: [...player.neighbors].length
     });
 
@@ -123,7 +118,6 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
       player: publicPlayer(player),
       neighbors: neighborSummaries(player),
       config: {
-        incomeIntervalMs: INCOME_INTERVAL_MS,
         matchScoreGap: MATCH_SCORE_GAP,
         maxNeighbors: MAX_NEIGHBORS,
         waveIntervalMs: WAVE_INTERVAL_MS
@@ -143,19 +137,11 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
     return;
   }
 
-  if (message.type === "buyCreep") {
-    handleBuyCreep(socket, player, message.creepKind);
-    return;
-  }
-
   if (message.type === "creepKilled") {
     handleCreepKilled(player, message.creepKind);
     return;
   }
 
-  if (message.type === "creepLeaked") {
-    handleCreepLeaked(player, message.emitterId, message.creepKind);
-  }
 }
 
 function joinPlayer(socket: PlayerSocket, name: string, sessionId: PlayerId | undefined): Player {
@@ -172,9 +158,7 @@ function joinPlayer(socket: PlayerSocket, name: string, sessionId: PlayerId | un
     id: crypto.randomUUID(),
     name: trimmedName,
     score: 0,
-    income: 10,
     waveNumber: 0,
-    pendingWave: [],
     neighbors: new Set(),
     connected: true
   };
@@ -184,60 +168,23 @@ function joinPlayer(socket: PlayerSocket, name: string, sessionId: PlayerId | un
   return player;
 }
 
-function handleBuyCreep(socket: PlayerSocket, player: Player, creepKind: CreepKind): void {
-  const definition = CREEP_DEFINITIONS[creepKind];
-  player.income += definition.incomeGain;
-  logPlayer(player, "buy creep", {
-    creepKind,
-    income: player.income,
-    neighbors: [...player.neighbors].length
-  });
-
-  send(socket, {
-    type: "purchaseAccepted",
-    creepKind,
-    income: player.income,
-    goldSpent: definition.cost
-  });
-
-  const targets = [...player.neighbors].map((id) => players.get(id)).filter(isPlayer);
-  if (targets.length === 0) {
-    logPlayer(player, "buy had no targets", { creepKind });
-    send(socket, { type: "serverNotice", message: "No neighbors yet. Purchase increased income but sent no wave." });
-    return;
-  }
-
-  for (const target of targets) {
-    logPlayer(player, "queue creep for target", {
-      target: target.name,
-      creepKind,
-      count: creepKind === "brute" ? 2 : 4
-    });
-    target.pendingWave.push({
-      emitterId: player.id,
-      emitterName: player.name,
-      creepKind,
-      count: creepKind === "brute" ? 2 : 4
-    });
-  }
-}
-
 function dispatchWaves(): void {
   let sentWave = false;
   for (const player of players.values()) {
     if (!player.connected) continue;
     player.waveNumber += 1;
-    const purchasedCreeps = player.pendingWave;
-    player.pendingWave = [];
     const creeps: CreepWaveGroup[] = [
       {
         emitterId: "neutral",
         emitterName: "Neutral",
-        creepKind: "basic",
-        count: BASELINE_BASIC_COUNT
-      },
-      ...purchasedCreeps
+        creepKind: "melee",
+        count: BASELINE_MELEE_COUNT + Math.floor(player.waveNumber / 2)
+      }
     ];
+    if (player.waveNumber >= 3) creeps.push({
+      emitterId: "neutral", emitterName: "Neutral", creepKind: "bubbleShooter",
+      count: 1 + Math.floor((player.waveNumber - 3) / 3)
+    });
 
     logPlayer(player, "dispatch wave", {
       waveNumber: player.waveNumber,
@@ -263,32 +210,13 @@ function dispatchWaves(): void {
 }
 
 function handleCreepKilled(defender: Player, creepKind: CreepKind): void {
-  const definition = CREEP_DEFINITIONS[creepKind];
-  defender.score += definition.scoreValue;
+  const scoreValue = creepKind === "bubbleShooter" ? 4 : 2;
+  defender.score += scoreValue;
   logPlayer(defender, "creep killed", { creepKind, score: defender.score });
   sendToPlayer(defender.id, {
     type: "scoreAwarded",
     score: defender.score,
     reason: `Killed a ${creepKind}.`
-  });
-
-  rebalanceNeighbors();
-  broadcastNeighborSummaries();
-}
-
-function handleCreepLeaked(defender: Player, emitterId: PlayerId | "neutral", creepKind: CreepKind): void {
-  if (emitterId === "neutral" || emitterId === defender.id) return;
-  const emitter = players.get(emitterId);
-  if (!emitter) return;
-
-  const definition = CREEP_DEFINITIONS[creepKind];
-  emitter.score += definition.scoreValue;
-  logPlayer(defender, "creep leaked", { creepKind, emitter: emitter.name });
-  logPlayer(emitter, "leak score awarded", { creepKind, score: emitter.score, defender: defender.name });
-  sendToPlayer(emitter.id, {
-    type: "scoreAwarded",
-    score: emitter.score,
-    reason: `${defender.name} leaked your ${creepKind}.`
   });
 
   rebalanceNeighbors();
@@ -334,7 +262,6 @@ function publicPlayer(player: Player): PublicPlayer {
     id: player.id,
     name: player.name,
     score: player.score,
-    income: player.income,
     waveNumber: player.waveNumber
   };
 }

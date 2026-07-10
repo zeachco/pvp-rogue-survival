@@ -1,196 +1,135 @@
-# Multi-Line Tower SPEC
+# Multi-Line Hero SPEC
 
 ## 1. Product Summary
 
-Multi-Line Tower is a browser-based HTML5 tower defense game inspired by Warcraft 2 custom tower wars and the minimal futuristic feel of Screeps. Each player defends a private lane while indirectly attacking adjacent matched players by buying creeps. The game is multiplayer-first, but every player's field remains private except for neighbor names and scores.
+Multi-Line Hero is a multiplayer-first browser arena survival game. Each player controls a hero in a private fixed arena while server-authored creep waves enter from outside the arena edges and converge on the hero. Players survive, collect weapons, and indirectly pressure nearby matched players through future creep-wave systems.
 
 ## 2. Core Goals
 
-- Run as a Vite TypeScript client with no UI framework.
-- Use Bun for development tooling, dependency installation, scripts, and the local TypeScript server runtime.
-- Render the game on a full-window responsive canvas.
-- Use HTML overlays for forms, score panels, and purchase controls where this improves layout.
-- Run a simple Bun TypeScript server that serves the built client and opens gameplay WebSocket connections at `/ws`.
-- Match players into shared game rooms by nearby score.
-- Keep authoritative multiplayer state on the server for player identity, score, income, queued creep transfers, and neighbor links.
-- Share WebSocket message types through a `common/` folder.
+- Run as a Vite TypeScript client with Bun for all tooling and the local server runtime.
+- Render the arena and combat on a full-window responsive canvas.
+- Use stable HTML overlays for joining, player status, neighbors, wave notices, and inventory.
+- Run a Bun TypeScript server serving the built client and gameplay WebSockets at `/ws`.
+- Keep multiplayer identity, score, wave turns, and neighbor links authoritative on the server.
+- Share WebSocket message types through `common/protocol.ts`.
 
 ## 3. Game Loop
 
-The client owns local rendering and moment-to-moment tower defense simulation:
+- A fixed client update advances hero input, acceleration-based movement, creep steering, attack telegraphs, hit areas, projectiles, collisions, waves, and camera following.
+- Rendering draws the fixed arena, hero, creeps, attack areas, projectiles, health bars, and combat hints.
+- The hero is controlled with WASD (and equivalent lowercase/uppercase key events).
+- The camera follows the hero and remains clamped to the arena bounds. The arena edges do not move or expand.
+- With no obstacles in the initial slice, each creep continuously steers directly toward the hero.
 
-- A fixed update step advances creeps, towers, projectiles, rounds, income timers, and camera motion.
-- A render step draws the grid, path, build pads, creeps, towers, projectiles, range previews, and local UI hints.
-- The canvas dynamically resizes to the browser viewport.
-- Arrow keys move a virtual camera across the map.
+## 4. Movement Rules
 
-The server owns multiplayer coordination:
+- The hero and creeps use velocity-based movement rather than waypoint movement.
+- A desired movement direction is converted into velocity using acceleration and capped by maximum speed.
+- Direction changes occur over successive fixed updates, producing a turn/steering response instead of instantaneous full-speed changes.
+- Units decelerate when they have no desired movement.
+- Performing an attack temporarily slows the attacker. This applies to both the hero and attacking creeps.
+- Units are clamped inside the arena; creeps initially spawn just outside a randomly selected edge and enter immediately.
 
-- Connection lifecycle and player profile.
-- Score and income persistence for the active session.
-- Neighbor assignment.
-- Creep purchases, delayed delivery to neighbors, and authoritative wave turns.
-- Broadcasts of neighbor summaries and incoming creep waves.
+## 5. Hero and Inventory
 
-## 4. Player Flow
+- Every joined player controls one hero, initially placed at the arena center.
+- The hero has health instead of lane lives. Contact or resolved enemy attacks reduce health.
+- The hero automatically aims at the closest living creep.
+- The starting inventory contains one sword. The sword is shown in an inventory slot in the HUD.
+- Weapons will eventually be found randomly. The initial implementation grants the sword immediately and does not yet create world drops.
+- The sword automatically performs a short, narrow swipe toward the closest creep when one is in range.
+- A sword swipe has a visible wind-up area, then resolves damage against creeps still overlapping its arc. Creeps that leave the area before resolution dodge it.
+- Spells, additional weapons, and particle effects are future work.
 
-1. Player opens the game.
-2. Player enters a display name, or the client restores a saved display name and session id from browser local storage.
-3. Client sends `join`.
-4. Server creates or resumes a player session.
-5. Server searches active players for closest score matches within `MATCH_SCORE_GAP`.
-6. If matches exist, players become neighbors.
-7. If no match exists, the player remains solo and receives neutral basic creep waves.
-8. Player builds towers on dedicated pads.
-9. Player buys creeps to increase future income.
-10. Purchased creeps are queued for one or more neighbor games, not to the buyer's own field unless there's no other players.
-11. If an emitted creep escapes through a neighbor's map, the emitter gains score.
+## 6. Creep and Wave Rules
 
-## 5. Matching Rules
+- The server advances a numbered wave turn for each connected player and sends one `incomingWave` payload per turn.
+- The client only spawns creeps described by server-authored waves and staggers them using the supplied interval.
+- Creeps spawn from randomized positions just outside any of the four fixed map edges.
+- Early waves contain melee creeps. Beginning with wave 3, waves also contain ranged bubble shooters, with their presence increasing later.
+- Melee creeps pursue the hero, telegraph a circular attack area, then damage the hero only if the hero remains in that area when it resolves.
+- Bubble shooters maintain some distance, telegraph their shot, then launch a bubble toward the hero's position at firing time.
+- Bubble projectiles travel independently and deal damage only on circle collision with the hero; they can be dodged and expire at arena margins or after their lifetime.
+- Attack wind-up and recovery slow creep movement.
+- Killing a creep awards its bounty locally and its score value through the server.
+- A creep no longer leaks or exits through a lane. Player health reaching zero resets the local combat arena and hero after a short defeat notice; score and session identity remain.
 
-- A player can have up to `MAX_NEIGHBORS` active neighbors.
-- Eligible neighbors must be connected and have a score delta less than or equal to `MATCH_SCORE_GAP`.
-- Candidates are sorted by closest score delta.
-- Neighbor links are bidirectional for visibility and creep delivery eligibility.
-- If no neighbor is available, the current player receives neutral creeps generated by the server until neighbors join.
-- Players see adjacent players' names and scores only, not their layouts or queued purchases.
+## 7. Multiplayer and Economy
 
-## 6. Economy
+- Players are matched with up to `MAX_NEIGHBORS` connected players within `MATCH_SCORE_GAP`.
+- Neighbor links expose names, scores, and current waves only.
+- The former tower-building and creep-purchase economy is removed from the active UI and protocol.
+- Gold remains a local reward counter for creep bounties and future inventory systems. Passive income and purchasing are not part of this slice.
+- Neutral waves are always supplied by the server. Competitive wave modification can be redesigned with the future item system.
 
-- Each player starts with gold, score, lives, and income.
-- Gold is generated locally every income interval from the player's current income.
-- Buying creeps costs gold and queues creeps for neighbors.
-- Buying creeps also increases the buyer's future income.
-- Creep purchases are never injected into an already-running wave. They are queued for each eligible neighbor's next server-authored wave turn.
-- Killing a creep awards the defender gold bounty locally and score value through the server.
-- Score is awarded by the server when a client reports that a non-neutral, non-self creep leaked through its lane.
-- Neutral basic creeps award score only when killed, never when leaked.
+## 8. Visual and UX Direction
 
-## 7. Wave Rules
+- Use futuristic, simple geometric shapes with no required external art pipeline.
+- Telegraph every area-based attack clearly before it resolves, then briefly flash the resolved area.
+- Show the hero's facing/auto-aim direction and sword swipe.
+- Show controls and auto-attack behavior in the HUD notice.
+- Wave starts use a centered, non-blocking fading banner.
+- The inventory is a stable DOM HUD panel, beginning with a single equipped sword slot.
 
-- The server advances a numbered wave turn for each connected player.
-- At each wave turn, the server sends the target client one `incomingWave` message containing every creep group that should run that lane during that wave.
-- Each wave contains the server's baseline neutral basic creeps plus any purchases that were queued for that target before the wave was assembled.
-- Purchases made while a wave is active are kept in the server queue and appear in the target's next wave.
-- The client does not request or independently create basic wave creeps. It only schedules creeps from the server's `incomingWave` payload.
-- The client throttles local spawning from the wave payload over short intervals so the wave appears as a continuous stream while still being delivered as one server message.
-- The local player and all visible neighbors display their current wave number next to their scores.
-
-## 8. Combat Rules
-
-- The map is grid-based.
-- Creeps move along fixed waypoint centers rather than tile-by-tile turns.
-- Towers can only be placed on build pads outside the path.
-- All competing players receive the same map.
-- Towers attack within range on cooldown.
-- Creeps have health, speed, bounty, score value, and visual attributes.
-- If a creep is killed:
-  - Local player gains the creep's bounty.
-  - Client reports the kill to the server.
-  - Server awards the defender the creep's score value.
-- If a creep reaches the end:
-  - Local player loses a life.
-  - If the emitter is another player, the client reports a leak to the server.
-  - Server awards the emitter score after validating the emitter is not the defender.
-
-## 9. Visual Direction
-
-- Futuristic, simple geometric shapes.
-- Creeps use shape, fill color, outline color, size, and inner marks for differentiation.
-- Towers use clean geometry, range rings, and directional barrels.
-- No external art pipeline is required for the initial version.
-- Wave starts are announced by a centered notification banner that fades out slowly without blocking play.
-
-## 10. Architecture
+## 9. Architecture
 
 ### Client
 
-- `src/main.ts`: bootstraps the app.
-- `src/game/Game.ts`: main loop, state orchestration, input, networking hooks.
+- `src/game/Game.ts`: fixed-step orchestration, input, spawning, collisions, combat outcomes, networking, and camera following.
 - `src/game/GameObject.ts`: abstract update/render base.
-- `src/game/Unit.ts`: base class for moving or combat units.
-- `src/game/Creep.ts`: waypoint movement and leak behavior.
-- `src/game/Tower.ts`: targeting and shooting.
-- `src/game/Projectile.ts`: projectile animation and damage application.
-- `src/game/Map.ts`: grid, path, and build pads.
-- `src/net/SocketClient.ts`: typed WebSocket client wrapper.
-- `src/ui/Hud.tsx`: stable JSX-built DOM overlay components and granular HUD updates.
-- The client stores only the last accepted player session id and display name in local storage so a browser refresh can rejoin the same server-side session.
-- The client must not persist local creeps, queued waves, projectiles, or other transient combat entities; creep continuity remains a server-side concern.
+- `src/game/Unit.ts`: health and velocity-based steering shared by hero and creeps.
+- `src/game/Hero.ts`: WASD-controlled hero, closest-target auto-aim, and sword state.
+- `src/game/Creep.ts`: melee and bubble-shooter steering and attack state machines.
+- `src/game/AttackArea.ts`: telegraphed, dodgeable melee and sword attack areas.
+- `src/game/Projectile.ts`: moving collision-based enemy bubbles.
+- `src/game/Map.ts`: fixed arena dimensions, bounds, edge spawning, and arena rendering.
+- `src/ui/Hud.tsx`: stable join, status, neighbor, wave, notice, and inventory DOM.
+- `src/net/SocketClient.ts`: typed WebSocket wrapper.
+- Local storage persists only accepted session id and display name, never transient combat state.
 
-### Server
+### Server and Shared
 
-- `server/server.ts`: typed Bun HTTP static server and WebSocket server.
-- The gameplay WebSocket endpoint is `/ws`; the Vite development server proxies that path to the Bun server so the hot-reload client and multiplayer server can run as separate processes.
-- Tracks connected players, neighbor links, pending creep purchases, wave numbers, wave events, and score updates.
-- Keeps disconnected player sessions resumable by session id for browser refreshes while only connected players participate in neighbor matching and creep delivery.
-- Uses JSON messages whose TypeScript shapes live in `common/protocol.ts`.
+- `server/server.ts`: static HTTP server, `/ws`, sessions, matchmaking, score, and wave dispatch.
+- `common/protocol.ts`: message names, creep kinds, definitions, waves, and public player summaries.
+- Creep kinds in the initial arena slice are `melee` and `bubbleShooter`.
 
-### Shared
-
-- `common/protocol.ts`: message names, payload types, creep kinds, and public player summaries.
-- `PublicPlayer` summaries include `waveNumber` so local and neighbor HUD rows can display wave progress next to score.
-
-## 11. WebSocket Protocol
-
-Endpoint:
-
-- `/ws`
+## 10. WebSocket Protocol
 
 Client to server:
 
 - `join`: `{ name, sessionId? }`
-- `buyCreep`: `{ creepKind }`
 - `creepKilled`: `{ creepKind }`
-- `creepLeaked`: `{ emitterId, creepKind }`
-- `scoreSnapshot`: `{ score, lives }`
+- `scoreSnapshot`: `{ score, health }` (reserved for future validation)
 
 Server to client:
 
 - `welcome`: `{ playerId, player, neighbors, config }`
 - `neighbors`: `{ neighbors }`
-- `incomingWave`: `{ wave }`, where `wave` includes `waveNumber`, `targetId`, `creeps`, and `spawnIntervalMs`
-- `purchaseAccepted`: `{ creepKind, income, goldSpent }`
+- `incomingWave`: `{ wave }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
 
-## 12. Initial Scope
+## 11. Initial Scope
 
-The first implementation must provide:
+- Join/resume flow and fixed responsive arena.
+- WASD hero with acceleration, bounded movement, camera follow, and health.
+- Closest-creep auto-aim and automatic dodgeable sword swipe.
+- Randomized edge spawns aimed directly at the hero.
+- Melee creeps first, followed by ranged bubble shooters.
+- Telegraph/resolution attack areas and collision-based bubble projectiles.
+- Inventory HUD with the starting sword.
+- Server-authored waves, score awards, and neighbor summaries.
 
-- Join form.
-- Full-window canvas.
-- Camera movement with arrow keys.
-- Fixed map shared by all players.
-- Build towers by clicking build pads.
-- Creep purchases through HTML buttons.
-- Local neutral rounds when solo.
-- Server-authored wave messages for baseline neutral creeps and queued purchased creeps.
-- Center-screen fading wave announcement banner.
-- WebSocket neighbor summaries.
-- Creep transfer from buyer to neighbors.
-- Score awards when creeps are killed.
-- Score awards when transferred creeps leak.
+## 12. Future Scope
 
-## 13. Future Scope
+- Obstacles and pathfinding around them.
+- Random weapon drops, inventory management, spells, and particles.
+- Competitive wave modification redesigned around the item economy.
+- Account persistence, server-side simulation validation, replays, matchmaking ratings, and mobile controls.
 
-- Account persistence.
-- Matchmaking queues with rating.
-- More creep and tower types.
-- Upgrades and sell/refund controls.
-- Spectator mode.
-- Server-side simulation validation.
-- Replay logs.
-- Mobile placement controls.
+## 13. Development Process
 
-## 14. Development Process
-
-This project follows spec-driven development:
-
-- Every implementation request must be checked against `SPEC.md` before code changes.
-- If the requested behavior, architecture, workflow, or constraint is already specified, confirm that and implement within the documented intent.
-- If the request is not specified, update `SPEC.md` first with the new decision, then implement the code change.
-- Keep `SPEC.md` synchronized when filenames, runtime choices, protocol shapes, game rules, or UX expectations change.
-- Prefer small, explicit spec additions over broad rewrites.
-- Browser debugging agents should use the Chrome DevTools MCP server named `chrome-devtools`, launched with `npx chrome-devtools-mcp@latest`.
-- During manual multiplayer debugging, the client may expose a temporary `window.__mltDebug` object and emit concise `[MLT][player]` console logs for socket lifecycle, joins, server messages, purchases, waves, spawns, kills, leaks, builds, and income ticks. Server logs should use the same player-name tagging style for connection, matchmaking, purchase, wave, kill, and leak events.
+- `SPEC.md` is the source of truth. Update it before implementing behavior not already covered.
+- Keep filenames, runtime choices, protocols, game rules, and UX synchronized with implementation.
+- Use Bun for project scripts and tooling.
+- Debug builds may expose `window.__mltDebug` and concise `[MLH][player]` logs for socket, wave, spawn, combat, defeat, and score events.

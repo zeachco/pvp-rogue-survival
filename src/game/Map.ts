@@ -1,113 +1,39 @@
 import type { Camera, Vector2 } from "./types";
 
-export interface BuildPad {
-  id: string;
-  x: number;
-  y: number;
-  occupied: boolean;
-}
-
 export class GameMap {
-  readonly tileSize = 56;
-  readonly columns = 24;
-  readonly rows = 13;
-  readonly pathTiles: Vector2[] = [
-    { x: 0, y: 6 },
-    { x: 4, y: 6 },
-    { x: 4, y: 3 },
-    { x: 9, y: 3 },
-    { x: 9, y: 9 },
-    { x: 15, y: 9 },
-    { x: 15, y: 5 },
-    { x: 21, y: 5 },
-    { x: 23, y: 7 }
-  ];
+  readonly width = 1600;
+  readonly height = 1000;
+  readonly gridSize = 50;
 
-  readonly buildPads: BuildPad[] = [
-    { id: "a", x: 3, y: 4, occupied: false },
-    { id: "b", x: 6, y: 2, occupied: false },
-    { id: "c", x: 7, y: 6, occupied: false },
-    { id: "d", x: 11, y: 7, occupied: false },
-    { id: "e", x: 13, y: 10, occupied: false },
-    { id: "f", x: 17, y: 7, occupied: false },
-    { id: "g", x: 19, y: 4, occupied: false }
-  ];
+  get center(): Vector2 { return { x: this.width / 2, y: this.height / 2 }; }
 
-  get width(): number {
-    return this.columns * this.tileSize;
-  }
-
-  get height(): number {
-    return this.rows * this.tileSize;
-  }
-
-  getWaypoints(): Vector2[] {
-    return this.pathTiles.map((tile) => this.tileCenter(tile.x, tile.y));
-  }
-
-  tileCenter(x: number, y: number): Vector2 {
-    return {
-      x: x * this.tileSize + this.tileSize / 2,
-      y: y * this.tileSize + this.tileSize / 2
-    };
-  }
-
-  findPadAt(world: Vector2): BuildPad | undefined {
-    return this.buildPads.find((pad) => {
-      if (pad.occupied) return false;
-      const center = this.tileCenter(pad.x, pad.y);
-      return Math.hypot(center.x - world.x, center.y - world.y) <= this.tileSize * 0.45;
-    });
+  randomEdgeSpawn(): Vector2 {
+    const margin = 24;
+    const edge = Math.floor(Math.random() * 4);
+    if (edge === 0) return { x: Math.random() * this.width, y: -margin };
+    if (edge === 1) return { x: this.width + margin, y: Math.random() * this.height };
+    if (edge === 2) return { x: Math.random() * this.width, y: this.height + margin };
+    return { x: -margin, y: Math.random() * this.height };
   }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
-    ctx.fillStyle = "#101418";
+    ctx.fillStyle = "#0b1116";
     ctx.fillRect(0, 0, this.width, this.height);
-
-    ctx.strokeStyle = "#222b31";
+    ctx.strokeStyle = "#18262d";
     ctx.lineWidth = 1;
-    for (let x = 0; x <= this.columns; x += 1) {
-      ctx.beginPath();
-      ctx.moveTo(x * this.tileSize, 0);
-      ctx.lineTo(x * this.tileSize, this.height);
-      ctx.stroke();
+    for (let x = 0; x <= this.width; x += this.gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, this.height); ctx.stroke();
     }
-    for (let y = 0; y <= this.rows; y += 1) {
-      ctx.beginPath();
-      ctx.moveTo(0, y * this.tileSize);
-      ctx.lineTo(this.width, y * this.tileSize);
-      ctx.stroke();
+    for (let y = 0; y <= this.height; y += this.gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(this.width, y); ctx.stroke();
     }
-
-    const waypoints = this.getWaypoints();
-    ctx.strokeStyle = "#4d6268";
-    ctx.lineWidth = 34;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    waypoints.forEach((point, index) => {
-      if (index === 0) ctx.moveTo(point.x, point.y);
-      else ctx.lineTo(point.x, point.y);
-    });
-    ctx.stroke();
-
-    ctx.strokeStyle = "#8ad8ff";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    for (const pad of this.buildPads) {
-      const center = this.tileCenter(pad.x, pad.y);
-      ctx.fillStyle = pad.occupied ? "#263238" : "#182a2c";
-      ctx.strokeStyle = pad.occupied ? "#4f6970" : "#3affd4";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.rect(center.x - 18, center.y - 18, 36, 36);
-      ctx.fill();
-      ctx.stroke();
-    }
-
+    const glow = ctx.createRadialGradient(this.width / 2, this.height / 2, 20, this.width / 2, this.height / 2, 430);
+    glow.addColorStop(0, "rgba(40, 255, 205, .07)");
+    glow.addColorStop(1, "rgba(40, 255, 205, 0)");
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, this.width, this.height);
+    ctx.strokeStyle = "#3affd4"; ctx.lineWidth = 5; ctx.strokeRect(0, 0, this.width, this.height);
     ctx.restore();
   }
 }

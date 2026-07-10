@@ -1,35 +1,30 @@
 import { GameObject } from "./GameObject";
-import type { Camera, Vector2 } from "./types";
+import { normalize, type Camera, type Vector2 } from "./types";
 
 export class Projectile extends GameObject {
-  private readonly start: Vector2;
-  private readonly end: Vector2;
-  private age = 0;
-  private readonly duration = 0.12;
+  readonly position: Vector2;
+  readonly radius = 11;
+  readonly damage = 12;
+  private readonly velocity: Vector2;
+  private lifetime = 4;
 
-  constructor(start: Vector2, end: Vector2) {
-    super();
-    this.start = { ...start };
-    this.end = { ...end };
+  constructor(start: Vector2, target: Vector2) {
+    super(); this.position = { ...start };
+    const direction = normalize({ x: target.x - start.x, y: target.y - start.y });
+    this.velocity = { x: direction.x * 245, y: direction.y * 245 };
   }
 
   update(deltaSeconds: number): void {
-    this.age += deltaSeconds;
-    if (this.age >= this.duration) {
-      this.active = false;
-    }
+    this.position.x += this.velocity.x * deltaSeconds;
+    this.position.y += this.velocity.y * deltaSeconds;
+    this.lifetime -= deltaSeconds;
+    if (this.lifetime <= 0) this.active = false;
   }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-    const alpha = Math.max(0, 1 - this.age / this.duration);
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = "#f7ff7a";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(this.start.x - camera.x, this.start.y - camera.y);
-    ctx.lineTo(this.end.x - camera.x, this.end.y - camera.y);
-    ctx.stroke();
-    ctx.restore();
+    ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
+    ctx.fillStyle = "rgba(143,213,255,.72)"; ctx.strokeStyle = "#d9f5ff"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.beginPath(); ctx.arc(-3, -4, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   }
 }

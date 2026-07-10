@@ -1,6 +1,6 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
-import { CREEP_DEFINITIONS, type CreepKind, type PublicPlayer } from "../../common/protocol";
+import type { PublicPlayer } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
 
 declare global {
@@ -13,7 +13,6 @@ declare global {
 
 interface HudCallbacks {
   onJoin(name: string): void;
-  onBuyCreep(kind: CreepKind): void;
 }
 
 type Child = Node | string | number | boolean | null | undefined;
@@ -35,8 +34,7 @@ export class Hud {
   private readonly scoreNode: HTMLElement;
   private readonly waveNode: HTMLElement;
   private readonly goldNode: HTMLElement;
-  private readonly incomeNode: HTMLElement;
-  private readonly livesNode: HTMLElement;
+  private readonly healthNode: HTMLElement;
   private lastPlayerText = "";
   private lastNeighborText = "";
   private waveBannerTimer?: number;
@@ -59,8 +57,7 @@ export class Hud {
     this.scoreNode = view.scoreNode;
     this.waveNode = view.waveNode;
     this.goldNode = view.goldNode;
-    this.incomeNode = view.incomeNode;
-    this.livesNode = view.livesNode;
+    this.healthNode = view.healthNode;
     this.root.append(view.node);
     this.updateVisibility();
     this.setNotice(this.notice);
@@ -74,8 +71,7 @@ export class Hud {
       player.score,
       player.waveNumber,
       Math.floor(player.gold),
-      player.income,
-      player.lives
+      player.health
     ].join("|");
 
     if (nextText !== this.lastPlayerText) {
@@ -83,8 +79,7 @@ export class Hud {
       this.scoreNode.textContent = `Score ${player.score}`;
       this.waveNode.textContent = `Wave ${player.waveNumber}`;
       this.goldNode.textContent = `Gold ${Math.floor(player.gold)}`;
-      this.incomeNode.textContent = `Income ${player.income}`;
-      this.livesNode.textContent = `Lives ${player.lives}`;
+      this.healthNode.textContent = `Health ${player.health}/${player.maxHealth}`;
       this.lastPlayerText = nextText;
     }
 
@@ -145,8 +140,7 @@ export class Hud {
     scoreNode: HTMLElement;
     waveNode: HTMLElement;
     goldNode: HTMLElement;
-    incomeNode: HTMLElement;
-    livesNode: HTMLElement;
+    healthNode: HTMLElement;
   } {
     const nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
     const joinPanel = (
@@ -167,16 +161,14 @@ export class Hud {
     const scoreNode = <span>Score 0</span> as HTMLElement;
     const waveNode = <span>Wave 0</span> as HTMLElement;
     const goldNode = <span>Gold 0</span> as HTMLElement;
-    const incomeNode = <span>Income 0</span> as HTMLElement;
-    const livesNode = <span>Lives 0</span> as HTMLElement;
+    const healthNode = <span>Health 100/100</span> as HTMLElement;
     const statsPanel = (
       <div class="stats-panel">
         {playerNameNode}
         {scoreNode}
         {waveNode}
         {goldNode}
-        {incomeNode}
-        {livesNode}
+        {healthNode}
       </div>
     ) as HTMLElement;
 
@@ -193,18 +185,12 @@ export class Hud {
     const hudBottom = (
       <section class="hud-bottom">
         {noticeNode}
-        <div class="buy-panel">
-          {Object.values(CREEP_DEFINITIONS).map((creep) => {
-            const tooltip = `${creep.label} creep: costs ${creep.cost} gold, adds ${creep.incomeGain} income, queues creeps for each neighbor's next wave.`;
-            const button = (
-              <button data-creep={creep.kind} data-tooltip={tooltip} title={tooltip} type="button">
-                <strong>Send {creep.label}</strong>
-                <span>{creep.cost}g / +{creep.incomeGain} income</span>
-              </button>
-            ) as HTMLButtonElement;
-            button.addEventListener("click", () => this.callbacks.onBuyCreep(creep.kind));
-            return button;
-          })}
+        <div class="inventory-panel" aria-label="Inventory">
+          <strong>Inventory</strong>
+          <div class="inventory-slot is-equipped" title="Auto-swipes the closest creep in range">
+            <span class="sword-icon">◆</span>
+            <span><strong>Short sword</strong><small>Auto swipe · 30 damage</small></span>
+          </div>
         </div>
       </section>
     ) as HTMLElement;
@@ -239,8 +225,7 @@ export class Hud {
       scoreNode,
       waveNode,
       goldNode,
-      incomeNode,
-      livesNode
+      healthNode
     };
   }
 
