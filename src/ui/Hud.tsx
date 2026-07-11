@@ -6,7 +6,7 @@ import type { PublicPlayer, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
 
 declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
-interface HudCallbacks { onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(itemId: string): void; onSell(itemId: string): void; onBack(): void }
+interface HudCallbacks { onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(itemId: string): void; onSell(itemId: string): void; onBack(): void; onStart(): void }
 type Child = Node | string | number | boolean | null | undefined;
 
 export class Hud {
@@ -20,9 +20,13 @@ export class Hud {
   private readonly noticeNode: HTMLElement;
   private readonly inventoryNode: HTMLElement;
   private readonly allocationNode: HTMLElement;
+  private readonly characterPanel: HTMLElement;
+  private readonly characterToggle: HTMLButtonElement;
+  private readonly onboarding: HTMLElement;
   private readonly backButton: HTMLButtonElement;
   private readonly waveBanner: HTMLElement;
   private waveTimer?: number;
+  private characterSignature = "";
 
   constructor(private readonly root: HTMLDivElement, private readonly callbacks: HudCallbacks) {
     this.nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
@@ -35,12 +39,30 @@ export class Hud {
     this.allocationNode = <form class="allocation-panel" /> as HTMLElement;
     this.backButton = <button class="inspect-back" type="button">Back to hero</button> as HTMLButtonElement;
     this.backButton.addEventListener("click", callbacks.onBack);
+    this.characterToggle = <button class="character-toggle" type="button">Build &amp; inventory</button> as HTMLButtonElement;
+    this.characterPanel = <aside class="character-panel is-collapsed">{this.characterToggle}{this.backButton}{this.inventoryNode}{this.allocationNode}</aside> as HTMLElement;
+    this.characterToggle.addEventListener("click", () => {
+      const collapsed = this.characterPanel.classList.toggle("is-collapsed");
+      this.characterToggle.textContent = collapsed ? "Build & inventory" : "Close build panel";
+    });
+    this.onboarding = (
+      <section class="onboarding-card">
+        <small>FIRST WAVE BRIEFING</small><strong>Survive the perimeter</strong>
+        <span><kbd>WASD</kbd> Move and dodge red attack zones</span>
+        <span><b>Automatic combat</b> Your equipped weapon attacks the closest enemy</span>
+        <span><b>Grow permanently</b> Kills grant XP; all five next-level points are already assigned evenly</span>
+        <span><b>Collect gear</b> Walk over glowing drops, then open Build &amp; inventory</span>
+        <button type="button">Start moving</button>
+      </section>
+    ) as HTMLElement;
+    (this.onboarding.querySelector("button") as HTMLButtonElement).onclick = () => { this.onboarding.classList.add("is-hidden"); callbacks.onStart(); };
     this.waveBanner = <div class="wave-banner" aria-live="polite"><strong /><span /></div> as HTMLElement;
     this.gameHud = (
       <div class="game-hud">
         <section class="hud-top">{this.statsPanel}<div class="neighbor-panel"><strong>Neighbors</strong>{this.neighborList}</div></section>
         {this.waveBanner}
-        <section class="hud-bottom">{this.noticeNode}<aside class="character-panel">{this.backButton}{this.inventoryNode}{this.allocationNode}</aside></section>
+        {this.onboarding}
+        <section class="hud-bottom">{this.noticeNode}{this.characterPanel}</section>
       </div>
     ) as HTMLElement;
     root.append(this.joinPanel, this.gameHud);
@@ -49,7 +71,12 @@ export class Hud {
 
   setJoinName(name: string): void { this.nameInput.value = name; }
   setNotice(notice: string): void { this.noticeNode.textContent = notice; }
-  setPlayer(player: PlayerState): void { this.player = player; if (!this.inspected) this.renderCharacter(); this.renderStats(); this.updateVisibility(); }
+  setPlayer(player: PlayerState): void {
+    this.player = player;
+    const signature = JSON.stringify(player.progress);
+    if (!this.inspected && signature !== this.characterSignature) { this.characterSignature = signature; this.renderCharacter(); }
+    this.renderStats(); this.updateVisibility();
+  }
   setInspection(build?: UnitBuild): void { this.inspected = build; this.renderCharacter(); }
   setNeighbors(neighbors: PublicPlayer[]): void {
     this.neighborList.replaceChildren(...(neighbors.length ? neighbors.map((neighbor) => <span>{neighbor.name} · L{neighbor.level} · {neighbor.score}</span>) : [<span>Solo queue</span>]));
@@ -66,7 +93,7 @@ export class Hud {
     const intoLevel = progress.xp - cumulativeXpForLevel(progress.level);
     this.statsPanel.replaceChildren(
       <strong>{this.player.name}</strong>, <span>Level {progress.level}</span>, <span>XP {intoLevel}/{xpForNextLevel(progress.level)}</span>,
-      <span>HP {format(this.player.health)}/{format(this.player.maxHealth)}</span>, <span>Gold {progress.gold}</span>,
+      <span>HP {format(this.player.health)}/{format(this.player.maxHealth)}</span>, <span>STA {format(this.player.stamina)}/{format(this.player.maxStamina)}</span>, <span>MP {format(this.player.mana)}/{format(this.player.maxMana)}</span>, <span>Gold {progress.gold}</span>,
       <span>Score {this.player.score}</span>, <span>Wave {this.player.waveNumber}</span>
     );
   }
@@ -78,6 +105,7 @@ export class Hud {
     const equipped = build?.equipped ?? progress.equipped;
     const backpack = build?.backpack ?? progress.backpack;
     const stats = build?.stats ?? progress.stats;
+    if (build) { this.characterPanel.classList.remove("is-collapsed"); this.characterToggle.textContent = "Close inspection"; }
     this.backButton.classList.toggle("is-hidden", !build);
     this.inventoryNode.replaceChildren(
       <div class="portrait"><span>{build ? "◆" : "●"}</span><div><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? progress.level}{build?.isRival ? " · Rival" : ""}</small></div></div>,
@@ -111,7 +139,7 @@ export class Hud {
       }
       const spent = [...inputs.values()].reduce((sum, input) => sum + numericInput(input), 0);
       const remaining = Math.max(0, 5 - spent);
-      remainingNode.textContent = `${remaining.toFixed(1)} points remaining`;
+      remainingNode.textContent = remaining > 0.001 ? `${remaining.toFixed(1)} of 5 points left to assign` : "All 5 points assigned for your next level";
       saveButton.disabled = Math.abs(remaining) > 0.001;
     };
     for (const input of inputs.values()) input.addEventListener("input", () => enforceBudget(input));

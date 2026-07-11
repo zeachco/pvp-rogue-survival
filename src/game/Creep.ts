@@ -13,6 +13,7 @@ export class Creep extends Unit {
   private cooldown = 0.5 + Math.random() * 0.4;
   private windup = 0;
   private pendingAttack = false;
+  private damageFlash = 0;
   readonly build: UnitBuild;
 
   constructor(
@@ -31,8 +32,14 @@ export class Creep extends Unit {
 
   readonly kind: CreepKind;
 
+  override takeDamage(amount: number): void {
+    super.takeDamage(amount);
+    this.damageFlash = 0.16;
+  }
+
   pursue(hero: Vector2, deltaSeconds: number, width: number, height: number): CreepAttack | undefined {
     this.updateResources(deltaSeconds);
+    this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const derived = derivedStats(this.stats);
     const maxSpeed = (this.build.isRival ? 100 : 72) * (1 + this.stats.agility * 0.01);
     const acceleration = this.build.isRival ? 250 : 190;
@@ -73,7 +80,7 @@ export class Creep extends Unit {
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
-    ctx.fillStyle = this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
+    ctx.fillStyle = this.damageFlash > 0 ? "#ffffff" : this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
     ctx.strokeStyle = this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = 3;
     ctx.beginPath();
     if (this.kind === "melee") {

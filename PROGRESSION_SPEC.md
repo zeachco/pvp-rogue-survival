@@ -33,3 +33,10 @@ This specification extends `SPEC.md` and is authoritative for progression and it
 
 - The server owns in-memory progression, allocation validation, XP/level changes, generation seeds, wave builds, rival builds, equipment, selling, and inventory mutations.
 - The client owns arena simulation and reports kills and collected generated drop IDs. Protocol shapes remain suitable for later validation and database persistence.
+
+## First-session UX
+
+- Joining shows a short dismissible briefing explaining WASD movement, automatic attacks/skills, red telegraphs, item pickup, and the five-point future-level allocation. Arena simulation and spawn timers remain paused until it is dismissed, after which the full three-second preparation delay begins.
+- The character/build panel starts collapsed so it does not obscure combat and expands on demand or when inspecting an enemy.
+- The HUD shows current HP, stamina, and mana. Allocation copy states that all five default points are assigned instead of presenting `0 remaining` without context.
+- A wave has a three-second preparation delay. Off-screen enemies display edge indicators so the player understands where threats are approaching from.

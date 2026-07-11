@@ -20,6 +20,7 @@ const MATCH_SCORE_GAP = 80;
 const MAX_NEIGHBORS = 2;
 const WAVE_INTERVAL_MS = 60_000;
 const BATCH_INTERVAL_MS = 5_000;
+const WAVE_PREPARE_MS = 3_000;
 const sockets = new Map<string, PlayerSocket>();
 const players = new Map<PlayerId, Player>();
 
@@ -93,12 +94,12 @@ function dispatchWave(player: Player): void {
   const spawns: CreepWave["spawns"] = [];
   for (let index = 0; index < count; index += 1) {
     const batch = Math.min(9, Math.floor(index * 10 / count));
-    spawns.push({ build: { ...template, id: crypto.randomUUID() }, spawnAtMs: batch * BATCH_INTERVAL_MS });
+    spawns.push({ build: { ...template, id: crypto.randomUUID() }, spawnAtMs: WAVE_PREPARE_MS + batch * BATCH_INTERVAL_MS });
   }
   const rivalLevel = Math.floor(player.progress.level * 0.8);
   const neighbor = [...player.neighbors].map((id) => players.get(id)).find(isPlayer);
   const rivalStats = neighbor ? scaledStats(neighbor.progress.allocation, rivalLevel) : undefined;
-  spawns.push({ build: generateBuild(neighbor ? `${neighbor.name}'s echo` : "Wandering rival", rivalLevel, true, randomSeed(), rivalStats, false), spawnAtMs: Math.floor(7.5 * BATCH_INTERVAL_MS) });
+  spawns.push({ build: generateBuild(neighbor ? `${neighbor.name}'s echo` : "Wandering rival", rivalLevel, true, randomSeed(), rivalStats, false), spawnAtMs: WAVE_PREPARE_MS + Math.floor(7.5 * BATCH_INTERVAL_MS) });
   spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
   sendToPlayer(player.id, { type: "incomingWave", wave: { id: crypto.randomUUID(), targetId: player.id, waveNumber: player.waveNumber, durationMs: WAVE_INTERVAL_MS, spawns } });
   console.log(`[MLH][${player.name}] wave ${player.waveNumber}`, { count, regularLevel, rivalLevel });
