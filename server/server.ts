@@ -53,7 +53,7 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
     rebalanceNeighbors();
     send(socket, { type: "welcome", playerId: player.id, player: publicPlayer(player), progress: player.progress, neighbors: neighborSummaries(player), config: { matchScoreGap: MATCH_SCORE_GAP, maxNeighbors: MAX_NEIGHBORS, waveIntervalMs: WAVE_INTERVAL_MS } });
     broadcastNeighborSummaries();
-    if (player.waveNumber === 0) dispatchWave(player);
+    if (player.waveNumber === 0) advanceWave(player);
     return;
   }
   const player = socket.playerId ? players.get(socket.playerId) : undefined;
@@ -69,6 +69,13 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
   } else if (message.type === "collectItem") {
     if (player.progress.backpack.length >= 8) { send(socket, { type: "serverNotice", message: "Backpack is full." }); return; }
     player.progress.backpack.push(message.item); sendProgress(player, `Picked up ${message.item.name}.`);
+  } else if (message.type === "heroDefeated") {
+    player.waveNumber = Math.floor(player.waveNumber / 2);
+    sendToPlayer(player.id, { type: "waveAdjusted", waveNumber: player.waveNumber, reason: `Wave reduced to ${player.waveNumber} after defeat.` });
+    broadcastNeighborSummaries();
+  } else if (message.type === "requestWave") {
+    dispatchCurrentWave(player);
+    broadcastNeighborSummaries();
   } else if (message.type === "equipItem") equipItem(player, message.itemId);
   else if (message.type === "sellItem") sellItem(player, message.itemId);
 }
@@ -84,9 +91,12 @@ function joinPlayer(name: string, sessionId?: PlayerId): Player {
   players.set(player.id, player); return player;
 }
 
-function dispatchWaves(): void { for (const player of players.values()) if (player.connected) dispatchWave(player); broadcastNeighborSummaries(); }
-function dispatchWave(player: Player): void {
+function dispatchWaves(): void { for (const player of players.values()) if (player.connected) advanceWave(player); broadcastNeighborSummaries(); }
+function advanceWave(player: Player): void {
   player.waveNumber += 1;
+  dispatchCurrentWave(player);
+}
+function dispatchCurrentWave(player: Player): void {
   const count = 10 + 2 * player.waveNumber;
   const regularLevel = Math.floor(player.progress.level / count);
   const seed = randomSeed();

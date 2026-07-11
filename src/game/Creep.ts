@@ -4,7 +4,7 @@ import { Unit } from "./Unit";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
 export type CreepAttack =
-  | { type: "melee"; origin: Vector2; angle: number; source: Creep }
+  | { type: "melee"; origin: Vector2; angle: number; windup: number; source: Creep }
   | { type: "bubble"; origin: Vector2; target: Vector2; source: Creep };
 
 export class Creep extends Unit {
@@ -45,6 +45,7 @@ export class Creep extends Unit {
     const acceleration = this.build.isRival ? 250 : 190;
     const ranged = this.kind === "bubbleShooter" || this.build.equipped.definitionId === "staff";
     const heroDistance = distance(this.position, hero);
+    const attackSpeed = derived.attackSpeed * this.build.equipped.modifiers.attackSpeedMultiplier;
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
 
     if (this.pendingAttack) {
@@ -52,19 +53,18 @@ export class Creep extends Unit {
       this.steer({ x: 0, y: 0 }, acceleration, maxSpeed * 0.25, deltaSeconds);
       if (this.windup <= 0) {
         this.pendingAttack = false;
-        this.cooldown = this.kind === "melee" ? 1.1 : 1.8;
-        return !ranged
-          ? { type: "melee", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }
-          : { type: "bubble", origin: { ...this.position }, target: { ...hero }, source: this };
+        return ranged ? { type: "bubble", origin: { ...this.position }, target: { ...hero }, source: this } : undefined;
       }
       return undefined;
     }
 
     const attackRange = ranged ? 330 : 62;
     if (this.cooldown === 0 && heroDistance <= attackRange) {
+      const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;
-      this.windup = ranged ? 0.65 : 0.48;
-      return undefined;
+      this.windup = windup;
+      this.cooldown = windup + (ranged ? 1.15 : 0.75) / attackSpeed;
+      return ranged ? undefined : { type: "melee", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), windup, source: this };
     }
 
     let direction = normalize({ x: hero.x - this.position.x, y: hero.y - this.position.y });

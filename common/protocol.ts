@@ -25,12 +25,15 @@ export type ClientMessage =
   | { type: "collectItem"; item: ItemInstance }
   | { type: "equipItem"; itemId: string }
   | { type: "sellItem"; itemId: string }
+  | { type: "heroDefeated" }
+  | { type: "requestWave" }
   | { type: "scoreSnapshot"; score: number; health: number };
 
 export type ServerMessage =
   | { type: "welcome"; playerId: PlayerId; player: PublicPlayer; progress: PlayerProgress; neighbors: PublicPlayer[]; config: ServerConfig }
   | { type: "neighbors"; neighbors: PublicPlayer[] }
   | { type: "incomingWave"; wave: CreepWave }
+  | { type: "waveAdjusted"; waveNumber: number; reason: string }
   | { type: "progressionUpdated"; progress: PlayerProgress; reason: string }
   | { type: "scoreAwarded"; score: number; reason: string }
   | { type: "serverNotice"; message: string };

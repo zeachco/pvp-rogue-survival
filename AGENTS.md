@@ -2,14 +2,18 @@
 
 ## Spec-Driven Development
 
-This repository uses `SPEC.md` as the source of truth for product behavior, architecture, workflow, UX constraints, and game rules.
+This repository uses the Markdown files in `specs/` as the source of truth for product behavior, architecture, workflow, UX constraints, mechanics, progression, and game rules.
+
+- `specs/SPEC.md`: product goals, runtime architecture, server ownership, multiplayer/economy boundaries, UX direction, WebSocket protocol, and development process.
+- `specs/MECHANICS_SPEC.md`: arena simulation, movement, targeting, attack telegraphs, projectiles, collision resolution, damage sources, and local defeat reset.
+- `specs/PROGRESSION_SPEC.md`: permanent XP, attributes, derived stats, item generation, equipment, skills, generated enemy builds, drops, wave composition, and rival scaling.
 
 For every request:
 
-1. Read or check the relevant part of `SPEC.md`.
+1. Read or check the relevant part of the spec files in `specs/`.
 2. Confirm whether the requested change is already covered by the spec.
-3. If it is not covered, update `SPEC.md` first with the new decision.
+3. If it is not covered, update the relevant spec file first with the new decision.
 4. Implement the code change only after the spec reflects the intended behavior.
-5. Keep the spec synchronized when changing filenames, runtimes, protocols, game rules, or UX expectations.
+5. Keep the specs synchronized when changing filenames, runtimes, protocols, mechanics, progression, game rules, or UX expectations.
 
 Use Bun for project tooling and scripts. The client is Vite + TypeScript with canvas rendering and stable DOM HUD components. The server is TypeScript run by Bun.

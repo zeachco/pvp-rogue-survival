@@ -77,6 +77,7 @@ export class Game {
     else if (message.type === "progressionUpdated" && this.player) {
       this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setNotice(message.reason);
     } else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
+    else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
     else if (message.type === "serverNotice") this.hud.setNotice(message.message);
   }
 
@@ -107,13 +108,14 @@ export class Game {
     const now = performance.now(); for (const queued of this.waveQueue.filter((entry) => entry.spawnAt <= now)) this.spawnCreep(queued.build);
     this.waveQueue = this.waveQueue.filter((entry) => entry.spawnAt > now);
     this.hero.update(deltaSeconds); this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero");
-    this.hero.move({ x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) }, deltaSeconds, this.map.width, this.map.height);
-    this.updateHeroCombat(deltaSeconds);
+    const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
+    this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
+    this.updateHeroCombat(deltaSeconds, movementInput);
     for (const creep of this.creeps) {
       if (!creep.active) continue;
       const attack = creep.pursue(this.hero.position, deltaSeconds, this.map.width, this.map.height);
       const damage = this.rollDamage(creep.build.equipped, creep.stats);
-      if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, 0.2, 0.14, damage, creep, undefined, creep.build.equipped));
+      if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, damage, creep, undefined, creep.build.equipped));
       if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, damage));
     }
     for (const attack of this.attacks) attack.update(deltaSeconds); for (const projectile of this.projectiles) projectile.update(deltaSeconds);
@@ -123,7 +125,7 @@ export class Game {
     this.syncHeroState(); this.hud.setPlayer(this.player); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
   }
 
-  private updateHeroCombat(deltaSeconds: number): void {
+  private updateHeroCombat(deltaSeconds: number, movementInput: Vector2): void {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); this.weaponSkillCooldown = Math.max(0, this.weaponSkillCooldown - deltaSeconds);
     const progress = this.player!.progress; const item = progress.equipped; const derived = derivedStats(progress.stats);
     if (progress.learnedSkills.includes("healing") && this.hero.hp < this.hero.maxHp * 0.5 && this.healingCooldown === 0 && this.hero.mana >= 2) {
@@ -131,7 +133,10 @@ export class Game {
     }
     let target: Creep | undefined; let targetDistance = Infinity;
     for (const creep of this.creeps) if (creep.active) { const current = distance(this.hero.position, creep.position); if (current < targetDistance) { target = creep; targetDistance = current; } }
-    if (!target) return;
+    if (!target) {
+      if (movementInput.x !== 0 || movementInput.y !== 0) this.hero.facing = Math.atan2(movementInput.y, movementInput.x);
+      return;
+    }
     this.hero.facing = Math.atan2(target.position.y - this.hero.position.y, target.position.x - this.hero.position.x);
     const ranged = item.definitionId === "staff"; const range = ranged ? 330 : 105;
     if (targetDistance <= range + target.radius && this.attackCooldown === 0 && this.hero.stamina >= item.staminaCost) {
@@ -160,8 +165,9 @@ export class Game {
   private resolveAttacks(): void {
     for (const attack of this.attacks) {
       if (!attack.shouldResolve()) continue; attack.markResolved();
-      if (attack.owner === "hero") for (const creep of this.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) { creep.takeDamage(attack.damage); if (attack.weapon) this.applyWeaponEffects(creep, attack.weapon); if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 }); if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 }); }
-      else if (this.hero.active && attack.contains(this.hero.position, this.hero.radius)) {
+      if (attack.owner === "hero") {
+        for (const creep of this.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) { creep.takeDamage(attack.damage); if (attack.weapon) this.applyWeaponEffects(creep, attack.weapon); if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 }); if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 }); }
+      } else if (this.hero.active && attack.contains(this.hero.position, this.hero.radius)) {
         this.hero.takeDamage(attack.damage);
         const source = attack.source;
         if (attack.weapon) this.applyWeaponEffects(this.hero, attack.weapon);
@@ -194,8 +200,8 @@ export class Game {
   private collectDrops(): void { for (const drop of this.drops) if (drop.active && distance(drop.position, this.hero.position) <= drop.radius + this.hero.radius) { this.socket.send({ type: "collectItem", item: drop.item }); drop.active = false; } }
 
   private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, "neutral", build.name, this.map.randomEdgeSpawn())); }
-  private handleDefeat(): void { this.defeatCooldown = 1.8; this.hud.showWaveBanner("Hero down", "Progress and inventory retained"); }
-  private resetArena(): void { this.creeps.length = 0; this.attacks.length = 0; this.projectiles.length = 0; this.drops.length = 0; this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); }
+  private handleDefeat(): void { this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated" }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
+  private resetArena(): void { this.creeps.length = 0; this.attacks.length = 0; this.projectiles.length = 0; this.drops.length = 0; this.waveQueue.length = 0; this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
   private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.gold = this.player.progress.gold; }
 
   private updateHover(event: MouseEvent): void { const world = this.eventWorld(event); this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0]; if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined; this.canvas.style.cursor = this.hovered ? "pointer" : "default"; }

@@ -1,12 +1,12 @@
 # Progression, Items, and Rival Waves SPEC
 
-This specification extends `SPEC.md` and is authoritative for progression and itemization.
+This specification extends `specs/SPEC.md` and `specs/MECHANICS_SPEC.md` and is authoritative for progression and itemization.
 
 ## Progression
 
-- Heroes begin at level 0 with zero Agility, Strength, Magic, Spirit, and Intelligence, 1 HP, and a plain club.
+- Heroes begin at level 0 with zero Agility, Strength, Magic, Spirit, and Intelligence, 6 base max HP, and a plain club.
 - Level N to N+1 costs `100 * N` XP (the first level costs 100). Each level grants five fractional attribute points using editable non-negative weights totaling 5. The UI clamps each input to the unspent budget, shows remaining points, and only enables saving at exactly 5; the server independently validates the total. Changes affect future levels only.
-- Strength adds 0.2 base damage, 1 HP, and 1 stamina per point. Agility adds 5% attack speed and 1% critical chance. Magic adds 2 mana. Spirit adds 0.1/second health, mana, and stamina regeneration. Intelligence adds 5% critical damage, 1% cooldown reduction, and 2% magic amplification.
+- Units have 6 base max HP. Strength adds 0.2 base damage, 1 HP, and 1 stamina per point. Agility adds 5% attack speed and 1% critical chance. Magic adds 2 mana. Spirit adds 0.1/second health, mana, and stamina regeneration. Intelligence adds 5% critical damage, 1% cooldown reduction, and 2% magic amplification.
 - Critical chance is capped at 75%, cooldown reduction at 60%, and base critical damage is 150%.
 - XP, attributes, allocation, gold, learned skills, equipment, and backpack survive defeat and reconnection while the server process remains alive.
 

@@ -14,7 +14,7 @@ export interface DerivedStats {
 export function derivedStats(stats: Stats): DerivedStats {
   return {
     baseDamage: 1 + stats.strength * 0.2,
-    maxHp: 1 + stats.strength,
+    maxHp: 6 + stats.strength,
     maxStamina: 1 + stats.strength,
     maxMana: stats.magic * 2,
     attackSpeed: 1 + stats.agility * 0.05,

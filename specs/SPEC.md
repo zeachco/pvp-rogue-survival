@@ -12,49 +12,38 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Run a Bun TypeScript server serving the built client and gameplay WebSockets at `/ws`.
 - Keep multiplayer identity, score, wave turns, and neighbor links authoritative on the server.
 - Share WebSocket message types through `common/protocol.ts`.
+- Keep mechanics in `specs/MECHANICS_SPEC.md` and progression/item/build rules in `specs/PROGRESSION_SPEC.md`.
 
-## 3. Game Loop
+## 3. Specification Boundaries
 
-- A fixed client update advances hero input, acceleration-based movement, creep steering, attack telegraphs, hit areas, projectiles, collisions, waves, and camera following.
-- Rendering draws the fixed arena, hero, creeps, attack areas, projectiles, health bars, and combat hints.
-- The hero is controlled with WASD (and equivalent lowercase/uppercase key events).
-- The camera follows the hero and remains clamped to the arena bounds. The arena edges do not move or expand.
-- With no obstacles in the initial slice, each creep continuously steers directly toward the hero.
+- `specs/SPEC.md` is authoritative for product goals, runtime architecture, server ownership, multiplayer/economy boundaries, UX direction, WebSocket protocol, and development process.
+- `specs/MECHANICS_SPEC.md` is authoritative for arena simulation, movement, targeting, attack telegraphs, projectiles, collision resolution, damage sources, and local defeat reset.
+- `specs/PROGRESSION_SPEC.md` is authoritative for permanent XP, attributes, derived stats, item generation, equipment, skills, generated enemy builds, drops, wave composition, and rival scaling.
 
-## 4. Movement Rules
+## 4. Hero and Combat Summary
 
-- The hero and creeps use velocity-based movement rather than waypoint movement.
-- A desired movement direction is converted into velocity using acceleration and capped by maximum speed.
-- Direction changes occur over successive fixed updates, producing a turn/steering response instead of instantaneous full-speed changes.
-- Units decelerate when they have no desired movement.
-- Performing an attack temporarily slows the attacker. This applies to both the hero and attacking creeps.
-- Units are clamped inside the arena; creeps initially spawn just outside a randomly selected edge and enter immediately.
-
-## 5. Hero and Inventory
-
-- Every joined player controls one hero, initially placed at the arena center.
-- The hero has health instead of lane lives. Contact or resolved enemy attacks reduce health.
-- The hero automatically aims at the closest living creep.
+- Every joined player controls one hero in a private fixed arena, initially placed at the arena center.
+- The hero has health instead of lane lives.
+- Enemy body contact does not damage the hero; see `specs/MECHANICS_SPEC.md` for damage sources and attack resolution.
 - The starting inventory contains a plain club dealing 100% base damage; with zero starting stats this is exactly 1 damage.
-- Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `PROGRESSION_SPEC.md`.
-- The equipped weapon attacks the closest creep automatically. Melee attacks use visible wind-up areas and damage only targets still overlapping when they resolve.
-- Active weapon and learned skills cast automatically when their cooldown, resource, target, and health conditions allow.
+- Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `specs/PROGRESSION_SPEC.md`.
+- Hero auto-aim, automatic attacks, attack areas, projectiles, and dodge rules follow `specs/MECHANICS_SPEC.md`.
+- Active weapon and learned skill availability, costs, and scaling follow `specs/PROGRESSION_SPEC.md`.
 - Particle effects remain future work.
 
-## 6. Creep and Wave Rules
+## 5. Creep and Wave Rules
 
 - The server advances a numbered wave turn for each connected player and sends one `incomingWave` payload per turn.
 - The client only spawns creeps described by server-authored waves and staggers them using the supplied interval.
-- Creeps spawn from randomized positions just outside any of the four fixed map edges.
 - Early waves contain melee creeps. Beginning with wave 3, waves also contain ranged bubble shooters, with their presence increasing later.
-- Melee creeps pursue the hero, telegraph a circular attack area, then damage the hero only if the hero remains in that area when it resolves.
-- Bubble shooters maintain some distance, telegraph their shot, then launch a bubble toward the hero's position at firing time.
-- Bubble projectiles travel independently and deal damage only on circle collision with the hero; they can be dodged and expire at arena margins or after their lifetime.
-- Attack wind-up and recovery slow creep movement.
+- Creep spawn positioning, steering, melee telegraphs, ranged projectiles, and collision behavior follow `specs/MECHANICS_SPEC.md`.
+- Wave size, spawn batching, generated enemy builds, XP, drops, and rival scaling follow `specs/PROGRESSION_SPEC.md`.
 - Killing a creep awards its bounty locally and its score value through the server.
-- A creep no longer leaks or exits through a lane. Player health reaching zero resets the local combat arena and hero after a short defeat notice; score and session identity remain.
+- A creep no longer leaks or exits through a lane.
+- Defeat is reported to the server. The server halves the player's authoritative wave number using floor division, then sends the adjusted wave number back to the client and neighbor summaries.
+- After the local defeat reset finishes, the client requests a replacement wave. The server sends a fresh `incomingWave` for the already-adjusted wave number with the normal preparation delay; this replacement request must not increment the wave number again.
 
-## 7. Multiplayer and Economy
+## 6. Multiplayer and Economy
 
 - Players are matched with up to `MAX_NEIGHBORS` connected players within `MATCH_SCORE_GAP`.
 - Neighbor links expose names, scores, and current waves only.
@@ -62,16 +51,16 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Gold remains a local reward counter for creep bounties and future inventory systems. Passive income and purchasing are not part of this slice.
 - Neutral waves are always supplied by the server. Competitive wave modification can be redesigned with the future item system.
 
-## 8. Visual and UX Direction
+## 7. Visual and UX Direction
 
 - Use futuristic, simple geometric shapes with no required external art pipeline.
-- Telegraph every area-based attack clearly before it resolves, then briefly flash the resolved area.
-- Show the hero's facing/auto-aim direction, equipped-weapon attacks, drops, and inspected enemy highlight.
+- Telegraph and combat rendering rules follow `specs/MECHANICS_SPEC.md`.
+- Show controls, drops, and inspected enemy highlight.
 - Show controls and auto-attack behavior in the HUD notice.
 - Wave starts use a centered, non-blocking fading banner.
 - The stable DOM character panel contains attributes, allocation controls, one equipped weapon, an eight-slot scrollable backpack, and enemy inspection.
 
-## 9. Architecture
+## 8. Architecture
 
 ### Client
 
@@ -93,12 +82,14 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - `common/protocol.ts`: progression messages, generated unit builds, waves, and public player summaries.
 - Shared progression formulas and item generators live in `common/progression.ts` and `common/items.ts`.
 
-## 10. WebSocket Protocol
+## 9. WebSocket Protocol
 
 Client to server:
 
 - `join`: `{ name, sessionId? }`
 - `creepKilled`: `{ creepKind }`
+- `heroDefeated`: `{}`
+- `requestWave`: `{}`
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
 
 Server to client:
@@ -106,31 +97,31 @@ Server to client:
 - `welcome`: `{ playerId, player, neighbors, config }`
 - `neighbors`: `{ neighbors }`
 - `incomingWave`: `{ wave }`
+- `waveAdjusted`: `{ waveNumber, reason }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
 
-## 11. Initial Scope
+## 10. Initial Scope
 
 - Join/resume flow and fixed responsive arena.
-- WASD hero with acceleration, bounded movement, camera follow, and health.
-- Closest-creep auto-aim and automatic equipped-weapon attacks and skills.
+- WASD hero with acceleration, bounded movement, camera follow, and health, as specified in `specs/MECHANICS_SPEC.md`.
+- Closest-creep auto-aim and automatic equipped-weapon attacks and skills across `specs/MECHANICS_SPEC.md` and `specs/PROGRESSION_SPEC.md`.
 - Randomized edge spawns aimed directly at the hero.
 - Melee creeps first, followed by ranged bubble shooters.
-- Telegraph/resolution attack areas and collision-based bubble projectiles.
+- Telegraph/resolution attack areas and collision-based bubble projectiles, as specified in `specs/MECHANICS_SPEC.md`.
 - Character and inventory HUD with a starting club, allocation controls, backpack, item actions, and enemy inspection.
 - Server-authored waves, score awards, and neighbor summaries.
 
-## 12. Future Scope
+## 11. Future Scope
 
 - Obstacles and pathfinding around them.
 - Additional weapon classes, skills, affixes, and particles.
 - Competitive wave modification redesigned around the item economy.
 - Account persistence, server-side simulation validation, replays, matchmaking ratings, and mobile controls.
 
-## 13. Development Process
+## 12. Development Process
 
-- `SPEC.md` is the source of truth. Update it before implementing behavior not already covered.
-- Keep filenames, runtime choices, protocols, game rules, and UX synchronized with implementation.
+- `specs/SPEC.md`, `specs/MECHANICS_SPEC.md`, and `specs/PROGRESSION_SPEC.md` are the source-of-truth specification set. Update the relevant spec before implementing behavior not already covered.
+- Keep filenames, runtime choices, protocols, mechanics, progression rules, and UX synchronized with implementation.
 - Use Bun for project scripts and tooling.
 - Debug builds may expose `window.__mltDebug` and concise `[MLH][player]` logs for socket, wave, spawn, combat, defeat, and score events.
-- `PROGRESSION_SPEC.md` is the source of truth for permanent XP, attributes, items, skills, loot, generated creep builds, and rival waves.
