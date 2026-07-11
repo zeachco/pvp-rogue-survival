@@ -1,5 +1,6 @@
 import { Unit } from "./Unit";
 import { normalize, type Camera, type Vector2 } from "./types";
+import type { PlayerProgress } from "../../common/protocol";
 
 export class Hero extends Unit {
   readonly maxSpeed = 235;
@@ -9,13 +10,19 @@ export class Hero extends Unit {
 
   constructor(position: Vector2) { super(position, 18, 100); }
 
+  applyProgress(progress: PlayerProgress, preserveRatio = false): void {
+    const ratio = preserveRatio ? this.hp / this.maxHp : 1;
+    this.configureStats(progress.stats);
+    this.hp = Math.max(0, this.maxHp * ratio);
+  }
+
   move(input: Vector2, deltaSeconds: number, width: number, height: number): void {
     const direction = normalize(input);
     this.steer(direction, this.acceleration, this.maxSpeed * (this.attackSlow ? 0.48 : 1), deltaSeconds);
     this.clampToBounds(width, height);
   }
 
-  update(): void {}
+  update(deltaSeconds: number): void { this.updateResources(deltaSeconds); }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     const x = this.position.x - camera.x;

@@ -16,7 +16,8 @@ export class AttackArea extends GameObject {
     readonly windup: number,
     readonly linger: number,
     readonly damage: number,
-    readonly source?: object
+    readonly source?: object,
+    readonly skill?: "bash" | "sweep" | "flurry"
   ) { super(); }
 
   update(deltaSeconds: number): void {

@@ -35,11 +35,11 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Every joined player controls one hero, initially placed at the arena center.
 - The hero has health instead of lane lives. Contact or resolved enemy attacks reduce health.
 - The hero automatically aims at the closest living creep.
-- The starting inventory contains one sword. The sword is shown in an inventory slot in the HUD.
-- Weapons will eventually be found randomly. The initial implementation grants the sword immediately and does not yet create world drops.
-- The sword automatically performs a short, narrow swipe toward the closest creep when one is in range.
-- A sword swipe has a visible wind-up area, then resolves damage against creeps still overlapping its arc. Creeps that leave the area before resolution dodge it.
-- Spells, additional weapons, and particle effects are future work.
+- The starting inventory contains a plain club dealing 100% base damage; with zero starting stats this is exactly 1 damage.
+- Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `PROGRESSION_SPEC.md`.
+- The equipped weapon attacks the closest creep automatically. Melee attacks use visible wind-up areas and damage only targets still overlapping when they resolve.
+- Active weapon and learned skills cast automatically when their cooldown, resource, target, and health conditions allow.
+- Particle effects remain future work.
 
 ## 6. Creep and Wave Rules
 
@@ -66,10 +66,10 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 - Use futuristic, simple geometric shapes with no required external art pipeline.
 - Telegraph every area-based attack clearly before it resolves, then briefly flash the resolved area.
-- Show the hero's facing/auto-aim direction and sword swipe.
+- Show the hero's facing/auto-aim direction, equipped-weapon attacks, drops, and inspected enemy highlight.
 - Show controls and auto-attack behavior in the HUD notice.
 - Wave starts use a centered, non-blocking fading banner.
-- The inventory is a stable DOM HUD panel, beginning with a single equipped sword slot.
+- The stable DOM character panel contains attributes, allocation controls, one equipped weapon, an eight-slot scrollable backpack, and enemy inspection.
 
 ## 9. Architecture
 
@@ -78,9 +78,9 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - `src/game/Game.ts`: fixed-step orchestration, input, spawning, collisions, combat outcomes, networking, and camera following.
 - `src/game/GameObject.ts`: abstract update/render base.
 - `src/game/Unit.ts`: health and velocity-based steering shared by hero and creeps.
-- `src/game/Hero.ts`: WASD-controlled hero, closest-target auto-aim, and sword state.
+- `src/game/Hero.ts`: WASD-controlled hero, resources, closest-target auto-aim, and equipped-weapon state.
 - `src/game/Creep.ts`: melee and bubble-shooter steering and attack state machines.
-- `src/game/AttackArea.ts`: telegraphed, dodgeable melee and sword attack areas.
+- `src/game/AttackArea.ts`: telegraphed, dodgeable melee weapon attack areas.
 - `src/game/Projectile.ts`: moving collision-based enemy bubbles.
 - `src/game/Map.ts`: fixed arena dimensions, bounds, edge spawning, and arena rendering.
 - `src/ui/Hud.tsx`: stable join, status, neighbor, wave, notice, and inventory DOM.
@@ -90,8 +90,8 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 ### Server and Shared
 
 - `server/server.ts`: static HTTP server, `/ws`, sessions, matchmaking, score, and wave dispatch.
-- `common/protocol.ts`: message names, creep kinds, definitions, waves, and public player summaries.
-- Creep kinds in the initial arena slice are `melee` and `bubbleShooter`.
+- `common/protocol.ts`: progression messages, generated unit builds, waves, and public player summaries.
+- Shared progression formulas and item generators live in `common/progression.ts` and `common/items.ts`.
 
 ## 10. WebSocket Protocol
 
@@ -113,17 +113,17 @@ Server to client:
 
 - Join/resume flow and fixed responsive arena.
 - WASD hero with acceleration, bounded movement, camera follow, and health.
-- Closest-creep auto-aim and automatic dodgeable sword swipe.
+- Closest-creep auto-aim and automatic equipped-weapon attacks and skills.
 - Randomized edge spawns aimed directly at the hero.
 - Melee creeps first, followed by ranged bubble shooters.
 - Telegraph/resolution attack areas and collision-based bubble projectiles.
-- Inventory HUD with the starting sword.
+- Character and inventory HUD with a starting club, allocation controls, backpack, item actions, and enemy inspection.
 - Server-authored waves, score awards, and neighbor summaries.
 
 ## 12. Future Scope
 
 - Obstacles and pathfinding around them.
-- Random weapon drops, inventory management, spells, and particles.
+- Additional weapon classes, skills, affixes, and particles.
 - Competitive wave modification redesigned around the item economy.
 - Account persistence, server-side simulation validation, replays, matchmaking ratings, and mobile controls.
 
@@ -133,3 +133,4 @@ Server to client:
 - Keep filenames, runtime choices, protocols, game rules, and UX synchronized with implementation.
 - Use Bun for project scripts and tooling.
 - Debug builds may expose `window.__mltDebug` and concise `[MLH][player]` logs for socket, wave, spawn, combat, defeat, and score events.
+- `PROGRESSION_SPEC.md` is the source of truth for permanent XP, attributes, items, skills, loot, generated creep builds, and rival waves.

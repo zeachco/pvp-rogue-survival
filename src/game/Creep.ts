@@ -1,4 +1,5 @@
-import { CREEP_DEFINITIONS, type CreepKind, type PlayerId } from "../../common/protocol";
+import { type CreepKind, type PlayerId, type UnitBuild } from "../../common/protocol";
+import { derivedStats } from "../../common/progression";
 import { Unit } from "./Unit";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
@@ -12,48 +13,57 @@ export class Creep extends Unit {
   private cooldown = 0.5 + Math.random() * 0.4;
   private windup = 0;
   private pendingAttack = false;
+  readonly build: UnitBuild;
 
   constructor(
-    readonly kind: CreepKind,
+    build: UnitBuild,
     readonly emitterId: PlayerId | "neutral",
     readonly emitterName: string,
     position: Vector2
   ) {
-    const definition = CREEP_DEFINITIONS[kind];
-    super(position, definition.radius, definition.hp);
-    this.bounty = definition.bounty;
-    this.scoreValue = definition.scoreValue;
+    super(position, build.isRival ? 22 : 16, 1);
+    this.build = build;
+    this.kind = build.kind;
+    this.configureStats(build.stats);
+    this.bounty = Math.max(1, build.equipped.sellValue);
+    this.scoreValue = build.isRival ? 10 : 2;
   }
 
+  readonly kind: CreepKind;
+
   pursue(hero: Vector2, deltaSeconds: number, width: number, height: number): CreepAttack | undefined {
-    const definition = CREEP_DEFINITIONS[this.kind];
+    this.updateResources(deltaSeconds);
+    const derived = derivedStats(this.stats);
+    const maxSpeed = (this.build.isRival ? 100 : 72) * (1 + this.stats.agility * 0.01);
+    const acceleration = this.build.isRival ? 250 : 190;
+    const ranged = this.kind === "bubbleShooter" || this.build.equipped.definitionId === "staff";
     const heroDistance = distance(this.position, hero);
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
 
     if (this.pendingAttack) {
       this.windup -= deltaSeconds;
-      this.steer({ x: 0, y: 0 }, definition.acceleration, definition.maxSpeed * 0.25, deltaSeconds);
+      this.steer({ x: 0, y: 0 }, acceleration, maxSpeed * 0.25, deltaSeconds);
       if (this.windup <= 0) {
         this.pendingAttack = false;
         this.cooldown = this.kind === "melee" ? 1.1 : 1.8;
-        return this.kind === "melee"
+        return !ranged
           ? { type: "melee", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }
           : { type: "bubble", origin: { ...this.position }, target: { ...hero }, source: this };
       }
       return undefined;
     }
 
-    const attackRange = this.kind === "melee" ? 62 : 330;
+    const attackRange = ranged ? 330 : 62;
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       this.pendingAttack = true;
-      this.windup = this.kind === "melee" ? 0.48 : 0.65;
+      this.windup = ranged ? 0.65 : 0.48;
       return undefined;
     }
 
     let direction = normalize({ x: hero.x - this.position.x, y: hero.y - this.position.y });
-    if (this.kind === "bubbleShooter" && heroDistance < 210) direction = { x: -direction.x, y: -direction.y };
-    else if (this.kind === "bubbleShooter" && heroDistance <= 285) direction = { x: 0, y: 0 };
-    this.steer(direction, definition.acceleration, definition.maxSpeed, deltaSeconds);
+    if (ranged && heroDistance < 210) direction = { x: -direction.x, y: -direction.y };
+    else if (ranged && heroDistance <= 285) direction = { x: 0, y: 0 };
+    if (!this.stunned) this.steer(direction, acceleration, maxSpeed, deltaSeconds);
     this.position.x = Math.max(-this.radius, Math.min(width + this.radius, this.position.x));
     this.position.y = Math.max(-this.radius, Math.min(height + this.radius, this.position.y));
     return undefined;
@@ -62,9 +72,9 @@ export class Creep extends Unit {
   update(): void {}
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-    const definition = CREEP_DEFINITIONS[this.kind];
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
-    ctx.fillStyle = definition.fill; ctx.strokeStyle = definition.outline; ctx.lineWidth = 3;
+    ctx.fillStyle = this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
+    ctx.strokeStyle = this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = 3;
     ctx.beginPath();
     if (this.kind === "melee") {
       for (let i = 0; i < 6; i += 1) {

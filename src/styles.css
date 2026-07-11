@@ -60,7 +60,9 @@ input {
 .stats-panel,
 .neighbor-panel,
 .notice,
-.inventory-panel {
+.inventory-panel,
+.character-panel,
+.allocation-panel {
   border: 1px solid rgba(138, 216, 255, 0.35);
   background: rgba(13, 20, 24, 0.82);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
@@ -182,6 +184,28 @@ input {
 .inventory-slot small { color: #9fb8bf; }
 .sword-icon { color: #dffeff; font-size: 24px; transform: rotate(45deg); }
 
+.character-panel { display: grid; width: min(480px, 52vw); max-height: 64vh; gap: 8px; padding: 10px; overflow: auto; pointer-events: auto; }
+.portrait { display: flex; align-items: center; gap: 10px; }
+.portrait > span { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #3affd4; border-radius: 50%; font-size: 24px; }
+.portrait > div { display: grid; }
+.portrait small, .item-card small { color: #9fb8bf; }
+.attribute-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.attribute-grid span { display: grid; border: 1px solid rgba(138,216,255,.2); padding: 5px; text-align: center; }
+.attribute-grid small { color: #9fb8bf; font-size: 10px; }
+.backpack-scroll { display: flex; max-width: 100%; gap: 7px; overflow-x: auto; padding-bottom: 4px; }
+.item-card { position: relative; display: grid; min-width: 180px; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; }
+.rarity-uncommon { border-color: #62e88a; }
+.rarity-rare { border-color: #6ca8ff; }
+.rarity-epic { border-color: #ca75ff; }
+.item-menu { display: flex; gap: 5px; margin-top: 6px; }
+.item-menu button, .allocation-panel button, .inspect-back { border: 1px solid #3affd4; border-radius: 3px; padding: 5px 7px; color: #dffeff; background: #15312f; cursor: pointer; }
+.allocation-panel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 7px; }
+.allocation-panel > strong, .allocation-panel > button, .allocation-remaining { grid-column: 1 / -1; }
+.allocation-panel label { display: grid; gap: 2px; color: #9fb8bf; font-size: 10px; }
+.allocation-panel input { width: 100%; border: 1px solid #41545b; padding: 4px; color: #e8f9ff; background: #0b1519; }
+.allocation-panel button:disabled { cursor: not-allowed; opacity: .45; }
+.allocation-remaining { color: #9fb8bf; }
+
 .is-hidden {
   display: none;
 }
@@ -208,4 +232,6 @@ input {
     width: 100%;
     overflow-x: auto;
   }
+
+  .character-panel { width: 100%; max-height: 52vh; }
 }

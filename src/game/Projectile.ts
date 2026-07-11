@@ -4,11 +4,10 @@ import { normalize, type Camera, type Vector2 } from "./types";
 export class Projectile extends GameObject {
   readonly position: Vector2;
   readonly radius = 11;
-  readonly damage = 12;
   private readonly velocity: Vector2;
   private lifetime = 4;
 
-  constructor(start: Vector2, target: Vector2) {
+  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: "arcaneBolt") {
     super(); this.position = { ...start };
     const direction = normalize({ x: target.x - start.x, y: target.y - start.y });
     this.velocity = { x: direction.x * 245, y: direction.y * 245 };

@@ -1,273 +1,153 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
-import type { PublicPlayer } from "../../common/protocol";
+import { STAT_KEYS, cumulativeXpForLevel, xpForNextLevel, type Stats } from "../../common/progression";
+import type { ItemInstance } from "../../common/items";
+import type { PublicPlayer, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elementName: string]: Record<string, unknown>;
-    }
-  }
-}
-
-interface HudCallbacks {
-  onJoin(name: string): void;
-}
-
+declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
+interface HudCallbacks { onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(itemId: string): void; onSell(itemId: string): void; onBack(): void }
 type Child = Node | string | number | boolean | null | undefined;
 
 export class Hud {
   private player?: PlayerState;
-  private neighbors: PublicPlayer[] = [];
-  private notice = "Enter a name to join matchmaking.";
+  private inspected?: UnitBuild;
   private readonly joinPanel: HTMLElement;
+  private readonly gameHud: HTMLElement;
+  private readonly nameInput: HTMLInputElement;
   private readonly statsPanel: HTMLElement;
-  private readonly hudBottom: HTMLElement;
   private readonly neighborList: HTMLElement;
   private readonly noticeNode: HTMLElement;
+  private readonly inventoryNode: HTMLElement;
+  private readonly allocationNode: HTMLElement;
+  private readonly backButton: HTMLButtonElement;
   private readonly waveBanner: HTMLElement;
-  private readonly waveBannerTitle: HTMLElement;
-  private readonly waveBannerDetail: HTMLElement;
-  private readonly nameInput: HTMLInputElement;
-  private readonly playerNameNode: HTMLElement;
-  private readonly scoreNode: HTMLElement;
-  private readonly waveNode: HTMLElement;
-  private readonly goldNode: HTMLElement;
-  private readonly healthNode: HTMLElement;
-  private lastPlayerText = "";
-  private lastNeighborText = "";
-  private waveBannerTimer?: number;
+  private waveTimer?: number;
 
-  constructor(
-    private readonly root: HTMLDivElement,
-    private readonly callbacks: HudCallbacks
-  ) {
-    const view = this.createView();
-    this.joinPanel = view.joinPanel;
-    this.statsPanel = view.statsPanel;
-    this.hudBottom = view.hudBottom;
-    this.neighborList = view.neighborList;
-    this.noticeNode = view.noticeNode;
-    this.waveBanner = view.waveBanner;
-    this.waveBannerTitle = view.waveBannerTitle;
-    this.waveBannerDetail = view.waveBannerDetail;
-    this.nameInput = view.nameInput;
-    this.playerNameNode = view.playerNameNode;
-    this.scoreNode = view.scoreNode;
-    this.waveNode = view.waveNode;
-    this.goldNode = view.goldNode;
-    this.healthNode = view.healthNode;
-    this.root.append(view.node);
-    this.updateVisibility();
-    this.setNotice(this.notice);
-    this.setNeighbors(this.neighbors);
-  }
-
-  setPlayer(player: PlayerState): void {
-    this.player = player;
-    const nextText = [
-      player.name,
-      player.score,
-      player.waveNumber,
-      Math.floor(player.gold),
-      player.health
-    ].join("|");
-
-    if (nextText !== this.lastPlayerText) {
-      this.playerNameNode.textContent = player.name;
-      this.scoreNode.textContent = `Score ${player.score}`;
-      this.waveNode.textContent = `Wave ${player.waveNumber}`;
-      this.goldNode.textContent = `Gold ${Math.floor(player.gold)}`;
-      this.healthNode.textContent = `Health ${player.health}/${player.maxHealth}`;
-      this.lastPlayerText = nextText;
-    }
-
+  constructor(private readonly root: HTMLDivElement, private readonly callbacks: HudCallbacks) {
+    this.nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
+    this.joinPanel = <form class="join-panel">{this.nameInput}<button type="submit">Join</button></form> as HTMLElement;
+    this.joinPanel.addEventListener("submit", (event) => { event.preventDefault(); const name = this.nameInput.value.trim(); if (name) callbacks.onJoin(name); });
+    this.statsPanel = <div class="stats-panel" /> as HTMLElement;
+    this.neighborList = <div class="neighbor-list" /> as HTMLElement;
+    this.noticeNode = <div class="notice">Enter a name to join.</div> as HTMLElement;
+    this.inventoryNode = <div class="inventory-list" /> as HTMLElement;
+    this.allocationNode = <form class="allocation-panel" /> as HTMLElement;
+    this.backButton = <button class="inspect-back" type="button">Back to hero</button> as HTMLButtonElement;
+    this.backButton.addEventListener("click", callbacks.onBack);
+    this.waveBanner = <div class="wave-banner" aria-live="polite"><strong /><span /></div> as HTMLElement;
+    this.gameHud = (
+      <div class="game-hud">
+        <section class="hud-top">{this.statsPanel}<div class="neighbor-panel"><strong>Neighbors</strong>{this.neighborList}</div></section>
+        {this.waveBanner}
+        <section class="hud-bottom">{this.noticeNode}<aside class="character-panel">{this.backButton}{this.inventoryNode}{this.allocationNode}</aside></section>
+      </div>
+    ) as HTMLElement;
+    root.append(this.joinPanel, this.gameHud);
     this.updateVisibility();
   }
 
+  setJoinName(name: string): void { this.nameInput.value = name; }
+  setNotice(notice: string): void { this.noticeNode.textContent = notice; }
+  setPlayer(player: PlayerState): void { this.player = player; if (!this.inspected) this.renderCharacter(); this.renderStats(); this.updateVisibility(); }
+  setInspection(build?: UnitBuild): void { this.inspected = build; this.renderCharacter(); }
   setNeighbors(neighbors: PublicPlayer[]): void {
-    this.neighbors = neighbors;
-    const nextText = neighbors.map((neighbor) => `${neighbor.id}:${neighbor.name}:${neighbor.score}:${neighbor.waveNumber}`).join("|");
-    if (nextText === this.lastNeighborText) return;
-
-    this.neighborList.replaceChildren();
-    if (neighbors.length === 0) {
-      this.neighborList.append(<span>Solo queue</span>);
-    } else {
-      for (const neighbor of neighbors) {
-        this.neighborList.append(<span>{neighbor.name}: {neighbor.score} / Wave {neighbor.waveNumber}</span>);
-      }
-    }
-    this.lastNeighborText = nextText;
-  }
-
-  setNotice(notice: string): void {
-    if (notice === this.notice && this.noticeNode.textContent === notice) return;
-    this.notice = notice;
-    this.noticeNode.textContent = notice;
-  }
-
-  setJoinName(name: string): void {
-    this.nameInput.value = name;
+    this.neighborList.replaceChildren(...(neighbors.length ? neighbors.map((neighbor) => <span>{neighbor.name} · L{neighbor.level} · {neighbor.score}</span>) : [<span>Solo queue</span>]));
   }
 
   showWaveBanner(title: string, detail: string): void {
-    window.clearTimeout(this.waveBannerTimer);
-    this.waveBannerTitle.textContent = title;
-    this.waveBannerDetail.textContent = detail;
-    this.waveBanner.classList.remove("is-visible");
-    window.requestAnimationFrame(() => {
-      this.waveBanner.classList.add("is-visible");
-    });
-    this.waveBannerTimer = window.setTimeout(() => {
-      this.waveBanner.classList.remove("is-visible");
-    }, 3200);
+    clearTimeout(this.waveTimer); (this.waveBanner.querySelector("strong") as HTMLElement).textContent = title; (this.waveBanner.querySelector("span") as HTMLElement).textContent = detail;
+    this.waveBanner.classList.add("is-visible"); this.waveTimer = window.setTimeout(() => this.waveBanner.classList.remove("is-visible"), 3200);
   }
 
-  private createView(): {
-    node: DocumentFragment;
-    joinPanel: HTMLElement;
-    statsPanel: HTMLElement;
-    hudBottom: HTMLElement;
-    neighborList: HTMLElement;
-    noticeNode: HTMLElement;
-    waveBanner: HTMLElement;
-    waveBannerTitle: HTMLElement;
-    waveBannerDetail: HTMLElement;
-    nameInput: HTMLInputElement;
-    playerNameNode: HTMLElement;
-    scoreNode: HTMLElement;
-    waveNode: HTMLElement;
-    goldNode: HTMLElement;
-    healthNode: HTMLElement;
-  } {
-    const nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
-    const joinPanel = (
-      <form class="join-panel">
-        {nameInput}
-        <button type="submit">Join</button>
-      </form>
-    ) as HTMLFormElement;
+  private renderStats(): void {
+    if (!this.player) return;
+    const progress = this.player.progress;
+    const intoLevel = progress.xp - cumulativeXpForLevel(progress.level);
+    this.statsPanel.replaceChildren(
+      <strong>{this.player.name}</strong>, <span>Level {progress.level}</span>, <span>XP {intoLevel}/{xpForNextLevel(progress.level)}</span>,
+      <span>HP {format(this.player.health)}/{format(this.player.maxHealth)}</span>, <span>Gold {progress.gold}</span>,
+      <span>Score {this.player.score}</span>, <span>Wave {this.player.waveNumber}</span>
+    );
+  }
 
-    joinPanel.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const form = new FormData(joinPanel);
-      const name = String(form.get("name") ?? "").trim();
-      if (name) this.callbacks.onJoin(name);
-    });
+  private renderCharacter(): void {
+    if (!this.player) return;
+    const build = this.inspected;
+    const progress = this.player.progress;
+    const equipped = build?.equipped ?? progress.equipped;
+    const backpack = build?.backpack ?? progress.backpack;
+    const stats = build?.stats ?? progress.stats;
+    this.backButton.classList.toggle("is-hidden", !build);
+    this.inventoryNode.replaceChildren(
+      <div class="portrait"><span>{build ? "◆" : "●"}</span><div><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? progress.level}{build?.isRival ? " · Rival" : ""}</small></div></div>,
+      <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{capitalize(key)}</small>{format(stats[key])}</span>)}</div>,
+      <strong>Equipped</strong>, itemCard(equipped, false, build, this.callbacks),
+      <strong>Backpack {backpack.length}/8</strong>,
+      <div class="backpack-scroll">{backpack.length ? backpack.map((item) => itemCard(item, true, build, this.callbacks)) : <small>Empty</small>}</div>,
+      <small>{build ? `Statuses and resources are shown in the arena. Skills: ${equipped.skills.join(", ") || "basic attack"}` : `Learned: ${progress.learnedSkills.join(", ")}`}</small>
+    );
+    this.renderAllocation();
+  }
 
-    const playerNameNode = <strong /> as HTMLElement;
-    const scoreNode = <span>Score 0</span> as HTMLElement;
-    const waveNode = <span>Wave 0</span> as HTMLElement;
-    const goldNode = <span>Gold 0</span> as HTMLElement;
-    const healthNode = <span>Health 100/100</span> as HTMLElement;
-    const statsPanel = (
-      <div class="stats-panel">
-        {playerNameNode}
-        {scoreNode}
-        {waveNode}
-        {goldNode}
-        {healthNode}
-      </div>
-    ) as HTMLElement;
-
-    const neighborList = <div class="neighbor-list" /> as HTMLElement;
-    const noticeNode = <div class="notice" /> as HTMLElement;
-    const waveBannerTitle = <strong /> as HTMLElement;
-    const waveBannerDetail = <span /> as HTMLElement;
-    const waveBanner = (
-      <div class="wave-banner" aria-live="polite">
-        {waveBannerTitle}
-        {waveBannerDetail}
-      </div>
-    ) as HTMLElement;
-    const hudBottom = (
-      <section class="hud-bottom">
-        {noticeNode}
-        <div class="inventory-panel" aria-label="Inventory">
-          <strong>Inventory</strong>
-          <div class="inventory-slot is-equipped" title="Auto-swipes the closest creep in range">
-            <span class="sword-icon">◆</span>
-            <span><strong>Short sword</strong><small>Auto swipe · 30 damage</small></span>
-          </div>
-        </div>
-      </section>
-    ) as HTMLElement;
-
-    const node = (
-      <>
-        <section class="hud-top">
-          {joinPanel}
-          {statsPanel}
-          <div class="neighbor-panel">
-            <strong>Neighbors</strong>
-            {neighborList}
-          </div>
-        </section>
-        {waveBanner}
-        {hudBottom}
-      </>
-    ) as DocumentFragment;
-
-    return {
-      node,
-      joinPanel,
-      statsPanel,
-      hudBottom,
-      neighborList,
-      noticeNode,
-      waveBanner,
-      waveBannerTitle,
-      waveBannerDetail,
-      nameInput,
-      playerNameNode,
-      scoreNode,
-      waveNode,
-      goldNode,
-      healthNode
+  private renderAllocation(): void {
+    this.allocationNode.replaceChildren();
+    if (!this.player || this.inspected) { this.allocationNode.classList.add("is-hidden"); return; }
+    this.allocationNode.classList.remove("is-hidden");
+    const remainingNode = <small class="allocation-remaining" /> as HTMLElement;
+    const inputs = new Map<string, HTMLInputElement>();
+    this.allocationNode.append(<strong>Next-level allocation</strong>, remainingNode);
+    for (const key of STAT_KEYS) {
+      const input = <input name={key} type="number" min="0" max="5" step="0.1" value={this.player.progress.allocation[key]} /> as HTMLInputElement;
+      inputs.set(key, input);
+      this.allocationNode.append(<label>{capitalize(key)}{input}</label>);
+    }
+    const saveButton = <button type="submit">Save allocation</button> as HTMLButtonElement;
+    this.allocationNode.append(saveButton);
+    const enforceBudget = (changed?: HTMLInputElement) => {
+      if (changed) {
+        const spentElsewhere = [...inputs.values()].filter((input) => input !== changed).reduce((sum, input) => sum + numericInput(input), 0);
+        changed.value = String(Math.min(Math.max(0, numericInput(changed)), Math.max(0, 5 - spentElsewhere)));
+      }
+      const spent = [...inputs.values()].reduce((sum, input) => sum + numericInput(input), 0);
+      const remaining = Math.max(0, 5 - spent);
+      remainingNode.textContent = `${remaining.toFixed(1)} points remaining`;
+      saveButton.disabled = Math.abs(remaining) > 0.001;
+    };
+    for (const input of inputs.values()) input.addEventListener("input", () => enforceBudget(input));
+    enforceBudget();
+    this.allocationNode.onsubmit = (event) => {
+      event.preventDefault(); const data = new FormData(this.allocationNode as HTMLFormElement);
+      this.callbacks.onAllocation(Object.fromEntries(STAT_KEYS.map((key) => [key, Number(data.get(key))])) as unknown as Stats);
     };
   }
 
-  private updateVisibility(): void {
-    const joined = Boolean(this.player);
-    this.joinPanel.classList.toggle("is-hidden", joined);
-    this.statsPanel.classList.toggle("is-hidden", !joined);
-    this.hudBottom.classList.toggle("is-hidden", !joined);
-  }
+  private updateVisibility(): void { const joined = Boolean(this.player); this.joinPanel.classList.toggle("is-hidden", joined); this.gameHud.classList.toggle("is-hidden", !joined); }
 }
 
-export function h(tag: string | ((props: Record<string, unknown>, ...children: Child[]) => Node), props: Record<string, unknown> | null, ...children: Child[]): Node {
-  if (typeof tag === "function") {
-    return tag(props ?? {}, ...children);
+function itemCard(item: ItemInstance, actions: boolean, inspected: UnitBuild | undefined, callbacks: HudCallbacks): HTMLElement {
+  const node = <div class={`item-card rarity-${item.rarity}`} title="Click for actions; right-click to equip"><strong>{item.name}</strong><small>L{item.level} {item.rarity} · {format(item.modifiers.damageMultiplier * 100)}% damage · {format(item.modifiers.attackSpeedMultiplier * 100)}% speed</small></div> as HTMLElement;
+  if (actions && !inspected) {
+    const menu = <div class="item-menu is-hidden"><button type="button">Equip</button><button type="button">Sell {item.sellValue}g</button></div> as HTMLElement;
+    (menu.children[0] as HTMLButtonElement).onclick = () => callbacks.onEquip(item.id);
+    (menu.children[1] as HTMLButtonElement).onclick = () => callbacks.onSell(item.id);
+    node.append(menu); node.onclick = () => menu.classList.toggle("is-hidden");
+    node.oncontextmenu = (event) => { event.preventDefault(); callbacks.onEquip(item.id); };
   }
+  return node;
+}
+function format(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
+function numericInput(input: HTMLInputElement): number { const value = Number(input.value); return Number.isFinite(value) ? value : 0; }
+function capitalize(value: string): string { return value[0].toUpperCase() + value.slice(1); }
 
+export function h(tag: string | ((props: Record<string, unknown>, ...children: Child[]) => Node), props: Record<string, unknown> | null, ...children: Child[]): Node {
+  if (typeof tag === "function") return tag(props ?? {}, ...children);
   const element = document.createElement(tag);
   for (const [key, value] of Object.entries(props ?? {})) {
     if (value === false || value === null || value === undefined) continue;
-    if (key === "class") {
-      element.className = String(value);
-    } else if (key.startsWith("data-")) {
-      element.setAttribute(key, String(value));
-    } else if (key in element) {
-      Reflect.set(element, key, value === true ? "" : value);
-    } else {
-      element.setAttribute(key, String(value));
-    }
+    if (key === "class") element.className = String(value); else if (key.startsWith("data-")) element.setAttribute(key, String(value)); else if (key in element) Reflect.set(element, key, value === true ? "" : value); else element.setAttribute(key, String(value));
   }
-  appendChildren(element, children);
-  return element;
+  appendChildren(element, children); return element;
 }
-
-export function Fragment(_props: unknown, ...children: Child[]): DocumentFragment {
-  const fragment = document.createDocumentFragment();
-  appendChildren(fragment, children);
-  return fragment;
-}
-
-function appendChildren(parent: Node, children: Child[]): void {
-  for (const child of children.flat()) {
-    if (child === null || child === undefined || child === false || child === true) continue;
-    parent.appendChild(child instanceof Node ? child : document.createTextNode(String(child)));
-  }
-}
+export function Fragment(_props: unknown, ...children: Child[]): DocumentFragment { const fragment = document.createDocumentFragment(); appendChildren(fragment, children); return fragment; }
+function appendChildren(parent: Node, children: Child[]): void { for (const child of children.flat(Infinity) as Child[]) if (child !== null && child !== undefined && child !== false && child !== true) parent.appendChild(child instanceof Node ? child : document.createTextNode(String(child))); }
