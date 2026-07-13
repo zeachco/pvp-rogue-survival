@@ -44,9 +44,11 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Melee creeps pursue the hero until their attack range is reached.
 - When a melee creep starts a swing, it immediately telegraphs a circular attack area.
 - A melee attack area resolves after a wind-up duration derived from the attacker's attack speed.
+- If a creep dies during that wind-up, its unresolved melee attack area is canceled immediately and deals no damage.
 - The hero takes melee damage only if still inside the telegraphed area when it resolves.
 - Bubble shooters maintain distance, telegraph their shot, then launch a bubble toward the hero's position at firing time.
 - Bubble projectiles travel independently and deal damage only on circle collision with the hero.
+- A projectile that has already launched remains active if its source creep dies.
 - Bubble projectiles can be dodged and expire at arena margins or after their lifetime.
 - Attack wind-up and recovery slow creep movement.
 

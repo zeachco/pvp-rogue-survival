@@ -1,5 +1,6 @@
 import { type CreepKind, type PlayerId, type UnitBuild } from "../../common/protocol";
 import { derivedStats } from "../../common/progression";
+import { statsWithItemBonuses } from "../../common/items";
 import { Unit } from "./Unit";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
@@ -25,7 +26,7 @@ export class Creep extends Unit {
     super(position, build.isRival ? 22 : 16, 1);
     this.build = build;
     this.kind = build.kind;
-    this.configureStats(build.stats);
+    this.configureStats(statsWithItemBonuses(build.stats, build.equipped));
     this.bounty = Math.max(1, build.equipped.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
   }

@@ -17,7 +17,7 @@ export class AttackArea extends GameObject {
     readonly windup: number,
     readonly linger: number,
     readonly damage: number,
-    readonly source?: object,
+    readonly source?: { active: boolean },
     readonly skill?: "bash" | "sweep" | "flurry",
     readonly weapon?: ItemInstance
   ) { super(); }
@@ -27,7 +27,10 @@ export class AttackArea extends GameObject {
     if (this.age >= this.windup + this.linger) this.active = false;
   }
 
-  shouldResolve(): boolean { return !this.resolved && this.age >= this.windup; }
+  shouldResolve(): boolean {
+    if (!this.resolved && this.owner === "creep" && this.source && !this.source.active) { this.active = false; return false; }
+    return this.active && !this.resolved && this.age >= this.windup;
+  }
   markResolved(): void { this.resolved = true; }
 
   contains(position: Vector2, radius = 0): boolean {

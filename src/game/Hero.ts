@@ -1,6 +1,7 @@
 import { Unit } from "./Unit";
 import { normalize, type Camera, type Vector2 } from "./types";
 import type { PlayerProgress } from "../../common/protocol";
+import { statsWithItemBonuses } from "../../common/items";
 
 export class Hero extends Unit {
   readonly maxSpeed = 235;
@@ -12,7 +13,7 @@ export class Hero extends Unit {
 
   applyProgress(progress: PlayerProgress, preserveRatio = false): void {
     const ratio = preserveRatio ? this.hp / this.maxHp : 1;
-    this.configureStats(progress.stats);
+    this.configureStats(statsWithItemBonuses(progress.stats, progress.equipped));
     this.hp = Math.max(0, this.maxHp * ratio);
   }
 

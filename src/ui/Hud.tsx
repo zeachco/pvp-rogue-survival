@@ -1,13 +1,14 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { STAT_KEYS, cumulativeXpForLevel, xpForNextLevel, type Stats } from "../../common/progression";
-import type { ItemInstance } from "../../common/items";
+import type { ItemInstance, SkillId } from "../../common/items";
 import type { PublicPlayer, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
 
 declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
-interface HudCallbacks { onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(itemId: string): void; onSell(itemId: string): void; onBack(): void; onStart(): void }
+interface HudCallbacks { onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(itemId: string): void; onSell(itemId: string): void; onExtract(itemId: string): void; onBack(): void; onStart(): void }
 type Child = Node | string | number | boolean | null | undefined;
+export interface SpellSlot { id: SkillId; label: string; level: number; cooldown: number; cooldownMax: number }
 
 export class Hud {
   private player?: PlayerState;
@@ -21,12 +22,13 @@ export class Hud {
   private readonly inventoryNode: HTMLElement;
   private readonly allocationNode: HTMLElement;
   private readonly characterPanel: HTMLElement;
-  private readonly characterToggle: HTMLButtonElement;
+  private readonly spellBar: HTMLElement;
   private readonly onboarding: HTMLElement;
   private readonly backButton: HTMLButtonElement;
   private readonly waveBanner: HTMLElement;
   private waveTimer?: number;
   private characterSignature = "";
+  private openItemMenuId?: string;
 
   constructor(private readonly root: HTMLDivElement, private readonly callbacks: HudCallbacks) {
     this.nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
@@ -39,19 +41,15 @@ export class Hud {
     this.allocationNode = <form class="allocation-panel" /> as HTMLElement;
     this.backButton = <button class="inspect-back" type="button">Back to hero</button> as HTMLButtonElement;
     this.backButton.addEventListener("click", callbacks.onBack);
-    this.characterToggle = <button class="character-toggle" type="button">Build &amp; inventory</button> as HTMLButtonElement;
-    this.characterPanel = <aside class="character-panel is-collapsed">{this.characterToggle}{this.backButton}{this.inventoryNode}{this.allocationNode}</aside> as HTMLElement;
-    this.characterToggle.addEventListener("click", () => {
-      const collapsed = this.characterPanel.classList.toggle("is-collapsed");
-      this.characterToggle.textContent = collapsed ? "Build & inventory" : "Close build panel";
-    });
+    this.characterPanel = <aside class="character-panel">{this.backButton}{this.inventoryNode}{this.allocationNode}</aside> as HTMLElement;
+    this.spellBar = <section class="spell-bar" /> as HTMLElement;
     this.onboarding = (
       <section class="onboarding-card">
         <small>FIRST WAVE BRIEFING</small><strong>Survive the perimeter</strong>
         <span><kbd>WASD</kbd> Move and dodge red attack zones</span>
         <span><b>Automatic combat</b> Your equipped weapon attacks the closest enemy</span>
         <span><b>Grow permanently</b> Kills grant XP; all five next-level points are already assigned evenly</span>
-        <span><b>Collect gear</b> Walk over glowing drops, then open Build &amp; inventory</span>
+        <span><b>Collect gear</b> Walk over glowing drops, then manage the right build panel</span>
         <button type="button">Start moving</button>
       </section>
     ) as HTMLElement;
@@ -62,7 +60,9 @@ export class Hud {
         <section class="hud-top">{this.statsPanel}<div class="neighbor-panel"><strong>Neighbors</strong>{this.neighborList}</div></section>
         {this.waveBanner}
         {this.onboarding}
-        <section class="hud-bottom">{this.noticeNode}{this.characterPanel}</section>
+        {this.spellBar}
+        {this.characterPanel}
+        <section class="hud-bottom">{this.noticeNode}</section>
       </div>
     ) as HTMLElement;
     root.append(this.joinPanel, this.gameHud);
@@ -78,6 +78,18 @@ export class Hud {
     this.renderStats(); this.updateVisibility();
   }
   setInspection(build?: UnitBuild): void { this.inspected = build; this.renderCharacter(); }
+  setSpells(spells: SpellSlot[]): void {
+    this.spellBar.replaceChildren(...(spells.length ? spells.map((spell) => {
+      const ratio = spell.cooldownMax > 0 ? Math.min(1, Math.max(0, spell.cooldown / spell.cooldownMax)) : 0;
+      return (
+        <button class="spell-slot" type="button" title={`${spell.label} Lv${spell.level}`}>
+          <span class="spell-cooldown" style={`height:${ratio * 100}%`} />
+          <strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
+          <small>Lv{spell.level}</small>
+        </button>
+      );
+    }) : [<small>No spells</small>]));
+  }
   setNeighbors(neighbors: PublicPlayer[]): void {
     this.neighborList.replaceChildren(...(neighbors.length ? neighbors.map((neighbor) => <span>{neighbor.name} · L{neighbor.level} · {neighbor.score}</span>) : [<span>Solo queue</span>]));
   }
@@ -105,14 +117,14 @@ export class Hud {
     const equipped = build?.equipped ?? progress.equipped;
     const backpack = build?.backpack ?? progress.backpack;
     const stats = build?.stats ?? progress.stats;
-    if (build) { this.characterPanel.classList.remove("is-collapsed"); this.characterToggle.textContent = "Close inspection"; }
+    if (this.openItemMenuId && !backpack.some((item) => item.id === this.openItemMenuId)) this.openItemMenuId = undefined;
     this.backButton.classList.toggle("is-hidden", !build);
     this.inventoryNode.replaceChildren(
       <div class="portrait"><span>{build ? "◆" : "●"}</span><div><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? progress.level}{build?.isRival ? " · Rival" : ""}</small></div></div>,
       <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{capitalize(key)}</small>{format(stats[key])}</span>)}</div>,
-      <strong>Equipped</strong>, itemCard(equipped, false, build, this.callbacks),
+      <strong>Equipped</strong>, itemCard(equipped, false, build, this.callbacks, this.openItemMenuId, (itemId) => { this.openItemMenuId = itemId; this.renderCharacter(); }),
       <strong>Backpack {backpack.length}/8</strong>,
-      <div class="backpack-scroll">{backpack.length ? backpack.map((item) => itemCard(item, true, build, this.callbacks)) : <small>Empty</small>}</div>,
+      <div class="backpack-scroll">{backpack.length ? backpack.map((item) => itemCard(item, true, build, this.callbacks, this.openItemMenuId, (itemId) => { this.openItemMenuId = itemId; this.renderCharacter(); })) : <small>Empty</small>}</div>,
       <small>{build ? `Statuses and resources are shown in the arena. Skills: ${equipped.skills.join(", ") || "basic attack"}` : `Learned: ${progress.learnedSkills.join(", ")}`}</small>
     );
     this.renderAllocation();
@@ -153,13 +165,15 @@ export class Hud {
   private updateVisibility(): void { const joined = Boolean(this.player); this.joinPanel.classList.toggle("is-hidden", joined); this.gameHud.classList.toggle("is-hidden", !joined); }
 }
 
-function itemCard(item: ItemInstance, actions: boolean, inspected: UnitBuild | undefined, callbacks: HudCallbacks): HTMLElement {
-  const node = <div class={`item-card rarity-${item.rarity}`} title="Click for actions; right-click to equip"><strong>{item.name}</strong><small>L{item.level} {item.rarity} · {format(item.modifiers.damageMultiplier * 100)}% damage · {format(item.modifiers.attackSpeedMultiplier * 100)}% speed</small></div> as HTMLElement;
+function itemCard(item: ItemInstance, actions: boolean, inspected: UnitBuild | undefined, callbacks: HudCallbacks, openItemMenuId: string | undefined, onMenuToggle: (itemId?: string) => void): HTMLElement {
+  const bonuses = STAT_KEYS.filter((key) => item.statBonuses?.[key]).map((key) => `+${format(item.statBonuses?.[key] ?? 0)} ${capitalize(key)}`).join(" · ");
+  const node = <div class={`item-card rarity-${item.rarity}`} title="Click for actions; right-click to equip"><strong>{item.name}</strong><small>L{item.level} {item.rarity} · {format(item.modifiers.damageMultiplier * 100)}% dmg · {format(item.modifiers.attackSpeedMultiplier * 100)}% spd{bonuses ? ` · ${bonuses}` : ""}</small></div> as HTMLElement;
   if (actions && !inspected) {
-    const menu = <div class="item-menu is-hidden"><button type="button">Equip</button><button type="button">Sell {item.sellValue}g</button></div> as HTMLElement;
-    (menu.children[0] as HTMLButtonElement).onclick = () => callbacks.onEquip(item.id);
-    (menu.children[1] as HTMLButtonElement).onclick = () => callbacks.onSell(item.id);
-    node.append(menu); node.onclick = () => menu.classList.toggle("is-hidden");
+    const menu = <div class={`item-menu${openItemMenuId === item.id ? "" : " is-hidden"}`}><button type="button">Equip</button><button type="button">Sell {item.sellValue}g</button>{item.skills.length ? <button type="button">Extract {item.sellValue * 10}g</button> : null}</div> as HTMLElement;
+    (menu.children[0] as HTMLButtonElement).onclick = (event) => { event.stopPropagation(); callbacks.onEquip(item.id); };
+    (menu.children[1] as HTMLButtonElement).onclick = (event) => { event.stopPropagation(); callbacks.onSell(item.id); };
+    if (item.skills.length) (menu.children[2] as HTMLButtonElement).onclick = (event) => { event.stopPropagation(); callbacks.onExtract(item.id); };
+    node.append(menu); node.onclick = () => onMenuToggle(openItemMenuId === item.id ? undefined : item.id);
     node.oncontextmenu = (event) => { event.preventDefault(); callbacks.onEquip(item.id); };
   }
   return node;
@@ -167,13 +181,12 @@ function itemCard(item: ItemInstance, actions: boolean, inspected: UnitBuild | u
 function format(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
 function numericInput(input: HTMLInputElement): number { const value = Number(input.value); return Number.isFinite(value) ? value : 0; }
 function capitalize(value: string): string { return value[0].toUpperCase() + value.slice(1); }
-
 export function h(tag: string | ((props: Record<string, unknown>, ...children: Child[]) => Node), props: Record<string, unknown> | null, ...children: Child[]): Node {
   if (typeof tag === "function") return tag(props ?? {}, ...children);
   const element = document.createElement(tag);
   for (const [key, value] of Object.entries(props ?? {})) {
     if (value === false || value === null || value === undefined) continue;
-    if (key === "class") element.className = String(value); else if (key.startsWith("data-")) element.setAttribute(key, String(value)); else if (key in element) Reflect.set(element, key, value === true ? "" : value); else element.setAttribute(key, String(value));
+    if (key === "class") element.className = String(value); else if (key === "style") element.setAttribute("style", String(value)); else if (key.startsWith("data-")) element.setAttribute(key, String(value)); else if (key in element) Reflect.set(element, key, value === true ? "" : value); else element.setAttribute(key, String(value));
   }
   appendChildren(element, children); return element;
 }

@@ -48,7 +48,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Players are matched with up to `MAX_NEIGHBORS` connected players within `MATCH_SCORE_GAP`.
 - Neighbor links expose names, scores, and current waves only.
 - The former tower-building and creep-purchase economy is removed from the active UI and protocol.
-- Gold remains a local reward counter for creep bounties and future inventory systems. Passive income and purchasing are not part of this slice.
+- Gold is granted occasionally and directly for defeated enemies according to `specs/PROGRESSION_SPEC.md`, and through manual item sales. Passive income and purchasing are not part of this slice.
 - Neutral waves are always supplied by the server. Competitive wave modification can be redesigned with the future item system.
 
 ## 7. Visual and UX Direction
@@ -58,7 +58,8 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Show controls, drops, and inspected enemy highlight.
 - Show controls and auto-attack behavior in the HUD notice.
 - Wave starts use a centered, non-blocking fading banner.
-- The stable DOM character panel contains attributes, allocation controls, one equipped weapon, an eight-slot scrollable backpack, and enemy inspection.
+- Reserve a fixed 200px right-side rail for the stable DOM build panel. It is always open on the hero by default; selecting a creep reuses the same rail for creep inspection until Back restores the hero. The panel contains attributes, allocation controls, one equipped weapon, an eight-slot scrollable backpack with manual item actions, and enemy inspection.
+- Show a bottom spell bar for learned and equipped cooldown skills without overlapping the right-side build rail.
 
 ## 8. Architecture
 
@@ -87,10 +88,11 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 Client to server:
 
 - `join`: `{ name, sessionId? }`
-- `creepKilled`: `{ creepKind }`
+- `creepKilled`: `{ unitId, isRival, xpReward, goldReward }`
 - `heroDefeated`: `{}`
 - `requestWave`: `{}`
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
+- `extractSkill`: `{ itemId }`
 
 Server to client:
 

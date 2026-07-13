@@ -1,8 +1,8 @@
-import type { ItemInstance } from "../../common/items";
+import { statsWithItemBonuses, type ItemInstance, type SkillId } from "../../common/items";
 import { derivedStats, type Stats } from "../../common/progression";
 import type { CreepWave, ServerMessage, UnitBuild } from "../../common/protocol";
 import { SocketClient } from "../net/SocketClient";
-import { Hud } from "../ui/Hud";
+import { Hud, type SpellSlot } from "../ui/Hud";
 import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
@@ -27,6 +27,8 @@ export class Game {
   private readonly attacks: AttackArea[] = [];
   private readonly projectiles: Projectile[] = [];
   private readonly drops: ItemDrop[] = [];
+  private readonly pendingPickups = new Set<string>();
+  private readonly blockedPickups = new Set<string>();
   private readonly keys = new Set<string>();
   private hero = new Hero(this.map.center);
   private camera: Camera = { x: 0, y: 0, width: 1, height: 1 };
@@ -37,7 +39,9 @@ export class Game {
   private accumulator = 0;
   private attackCooldown = 0;
   private healingCooldown = 0;
+  private healingCooldownMax = 0;
   private weaponSkillCooldown = 0;
+  private weaponSkillCooldownMax = 0;
   private defeatCooldown = 0;
   private briefingOpen = true;
   private briefingStartedAt = performance.now();
@@ -49,7 +53,7 @@ export class Game {
     const context = canvas.getContext("2d"); if (!context) throw new Error("Canvas 2D context unavailable"); this.ctx = context;
     this.hud = new Hud(hudRoot, {
       onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
-      onEquip: (itemId) => this.socket.send({ type: "equipItem", itemId }), onSell: (itemId) => this.socket.send({ type: "sellItem", itemId }), onBack: () => this.clearInspection(), onStart: () => this.startFirstWave()
+      onEquip: (itemId) => this.socket.send({ type: "equipItem", itemId }), onSell: (itemId) => this.socket.send({ type: "sellItem", itemId }), onExtract: (itemId) => this.socket.send({ type: "extractSkill", itemId }), onBack: () => this.clearInspection(), onStart: () => this.startFirstWave()
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.name); this.registerDebugGlobal();
   }
@@ -71,13 +75,14 @@ export class Game {
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.briefingOpen = true; this.briefingStartedAt = performance.now();
       this.savedSession = { playerId: message.playerId, name: message.player.name }; saveSession(this.savedSession);
-      this.hud.setPlayer(this.player); this.hud.setNeighbors(message.neighbors); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
+      this.hud.setPlayer(this.player); this.hud.setSpells(this.spellSlots()); this.hud.setNeighbors(message.neighbors); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
     } else if (message.type === "neighbors") this.hud.setNeighbors(message.neighbors);
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "progressionUpdated" && this.player) {
-      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setNotice(message.reason);
+      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.spellSlots()); this.hud.setNotice(message.reason);
     } else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
+    else if (message.type === "collectItemResult") this.handleCollectResult(message.itemId, message.collected, message.reason);
     else if (message.type === "serverNotice") this.hud.setNotice(message.message);
   }
 
@@ -122,14 +127,15 @@ export class Game {
     this.resolveAttacks(); this.resolveProjectiles(); this.collectKills(); this.collectDrops();
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops);
     if (this.inspected && !this.inspected.active) this.clearInspection();
-    this.syncHeroState(); this.hud.setPlayer(this.player); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
+    this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.spellSlots()); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
   }
 
   private updateHeroCombat(deltaSeconds: number, movementInput: Vector2): void {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); this.weaponSkillCooldown = Math.max(0, this.weaponSkillCooldown - deltaSeconds);
-    const progress = this.player!.progress; const item = progress.equipped; const derived = derivedStats(progress.stats);
+    const progress = this.player!.progress; const item = progress.equipped; const effectiveStats = statsWithItemBonuses(progress.stats, item); const derived = derivedStats(effectiveStats);
     if (progress.learnedSkills.includes("healing") && this.hero.hp < this.hero.maxHp * 0.5 && this.healingCooldown === 0 && this.hero.mana >= 2) {
-      this.hero.mana -= 2; this.hero.hp = Math.min(this.hero.maxHp, this.hero.hp + (0.5 + progress.stats.spirit * 1.2) * derived.magicAmp); this.healingCooldown = 8 * (1 - derived.cooldownReduction);
+      const level = this.skillLevel(progress, "healing");
+      this.hero.mana -= 2; this.hero.hp = Math.min(this.hero.maxHp, this.hero.hp + (0.5 + effectiveStats.spirit * 1.2) * derived.magicAmp * spellPower(level)); this.healingCooldown = 8 * cooldownScale(level, derived.cooldownReduction); this.healingCooldownMax = this.healingCooldown;
     }
     let target: Creep | undefined; let targetDistance = Infinity;
     for (const creep of this.creeps) if (creep.active) { const current = distance(this.hero.position, creep.position); if (current < targetDistance) { target = creep; targetDistance = current; } }
@@ -138,21 +144,35 @@ export class Game {
       return;
     }
     this.hero.facing = Math.atan2(target.position.y - this.hero.position.y, target.position.x - this.hero.position.x);
-    const ranged = item.definitionId === "staff"; const range = ranged ? 330 : 105;
+    const candidate = this.weaponSkillCooldown === 0 ? this.availableCombatSkills(progress, item)[0] : undefined;
+    const magicSkill = candidate?.id === "arcaneBolt" && this.hero.mana >= 1;
+    const physicalSkill = Boolean(candidate && candidate.id !== "arcaneBolt" && this.hero.stamina >= item.staminaCost + 0.35);
+    const activeSkill = magicSkill || physicalSkill ? candidate : undefined;
+    const range = activeSkill ? skillRange(activeSkill.id, item) : item.definitionId === "staff" ? 330 : 105;
+    const ranged = item.definitionId === "staff" || activeSkill?.id === "arcaneBolt";
     if (targetDistance <= range + target.radius && this.attackCooldown === 0 && this.hero.stamina >= item.staminaCost) {
-      const skill = this.weaponSkillCooldown === 0 ? item.skills[0] : undefined;
-      const magicSkill = skill === "arcaneBolt" && this.hero.mana >= 1;
-      const physicalSkill = skill === "bash" || skill === "sweep" || skill === "flurry";
-      const canSkill = magicSkill || (physicalSkill && this.hero.stamina >= item.staminaCost + 0.35);
-      const activeSkill = canSkill ? skill : undefined;
-      this.hero.stamina -= item.staminaCost + (physicalSkill && canSkill ? 0.35 : 0);
+      this.hero.stamina -= item.staminaCost + (physicalSkill ? 0.35 : 0);
       if (magicSkill) this.hero.mana -= 1;
-      const damage = this.rollDamage(item, progress.stats) * (activeSkill === "bash" ? 1.5 : activeSkill === "sweep" ? 1.25 : activeSkill === "flurry" ? 0.8 : activeSkill === "arcaneBolt" ? 1.7 : 1);
-      if (ranged) this.projectiles.push(new Projectile(this.hero.position, target.position, damage, "hero", activeSkill === "arcaneBolt" ? activeSkill : undefined));
-      else this.attacks.push(new AttackArea("hero", { ...this.hero.position }, this.hero.facing, activeSkill === "sweep" ? 135 : range, activeSkill === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, this.hero, activeSkill && activeSkill !== "arcaneBolt" ? activeSkill : undefined, item));
-      if (activeSkill) this.weaponSkillCooldown = (activeSkill === "flurry" ? 2.5 : 5) * (1 - derived.cooldownReduction);
-      this.attackCooldown = (activeSkill === "flurry" ? 0.2 : 0.7) / (derived.attackSpeed * item.modifiers.attackSpeedMultiplier);
+      const damage = this.rollDamage(item, effectiveStats) * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1);
+      if (ranged) this.projectiles.push(new Projectile(this.hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined));
+      else this.attacks.push(new AttackArea("hero", { ...this.hero.position }, this.hero.facing, activeSkill?.id === "sweep" ? 135 : range, activeSkill?.id === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, this.hero, meleeSkill(activeSkill?.id), item));
+      if (activeSkill) { this.weaponSkillCooldown = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.weaponSkillCooldownMax = this.weaponSkillCooldown; }
+      this.attackCooldown = (activeSkill?.id === "flurry" ? 0.2 : 0.7) / (derived.attackSpeed * item.modifiers.attackSpeedMultiplier);
     }
+  }
+
+  private availableCombatSkills(progress: PlayerState["progress"], item: ItemInstance): { id: SkillId; level: number }[] {
+    const skills = new Map<SkillId, number>();
+    for (const skill of item.skills) if (skill !== "healing") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill) || 1));
+    for (const skill of progress.learnedSkills) if (skill !== "healing") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill)));
+    return [...skills.entries()].map(([id, level]) => ({ id, level: Math.max(1, level) }));
+  }
+
+  private skillLevel(progress: PlayerState["progress"], skill: SkillId): number { return progress.learnedSkillLevels?.[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0); }
+  private spellSlots(): SpellSlot[] {
+    if (!this.player) return [];
+    const progress = this.player.progress; const ids = new Set<SkillId>([...progress.learnedSkills, ...progress.equipped.skills]);
+    return [...ids].map((id) => ({ id, label: skillLabel(id), level: Math.max(1, this.skillLevel(progress, id) || 1), cooldown: id === "healing" ? this.healingCooldown : this.weaponSkillCooldown, cooldownMax: id === "healing" ? this.healingCooldownMax : this.weaponSkillCooldownMax }));
   }
 
   private rollDamage(item: ItemInstance, stats: Stats): number {
@@ -194,14 +214,33 @@ export class Game {
     for (const creep of this.creeps) if (!creep.active) {
       const candidates = [creep.build.equipped, ...creep.build.backpack]; const item = candidates.find((candidate) => Math.random() < candidate.dropChance);
       if (item) this.drops.push(new ItemDrop({ ...item, id: `${item.id}-drop-${crypto.randomUUID()}` }, { ...creep.position }));
-      this.socket.send({ type: "creepKilled", unitId: creep.build.id, isRival: creep.build.isRival, xpReward: creep.build.xpReward });
+      this.socket.send({ type: "creepKilled", unitId: creep.build.id, isRival: creep.build.isRival, xpReward: creep.build.xpReward, goldReward: creep.build.goldReward });
     }
   }
-  private collectDrops(): void { for (const drop of this.drops) if (drop.active && distance(drop.position, this.hero.position) <= drop.radius + this.hero.radius) { this.socket.send({ type: "collectItem", item: drop.item }); drop.active = false; } }
+  private collectDrops(): void {
+    const overlapping = new Set<string>();
+    for (const drop of this.drops) {
+      if (!drop.active || distance(drop.position, this.hero.position) > drop.radius + this.hero.radius) continue;
+      overlapping.add(drop.item.id);
+      if (this.pendingPickups.has(drop.item.id) || this.blockedPickups.has(drop.item.id)) continue;
+      this.pendingPickups.add(drop.item.id);
+      this.socket.send({ type: "collectItem", item: drop.item });
+    }
+    for (const itemId of this.blockedPickups) if (!overlapping.has(itemId)) this.blockedPickups.delete(itemId);
+  }
+  private handleCollectResult(itemId: string, collected: boolean, reason: string): void {
+    this.pendingPickups.delete(itemId);
+    if (collected) {
+      const drop = this.drops.find((candidate) => candidate.item.id === itemId);
+      if (drop) drop.active = false;
+      this.blockedPickups.delete(itemId);
+    } else this.blockedPickups.add(itemId);
+    this.hud.setNotice(reason);
+  }
 
   private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, "neutral", build.name, this.map.randomEdgeSpawn())); }
   private handleDefeat(): void { this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated" }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
-  private resetArena(): void { this.creeps.length = 0; this.attacks.length = 0; this.projectiles.length = 0; this.drops.length = 0; this.waveQueue.length = 0; this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
+  private resetArena(): void { this.creeps.length = 0; this.attacks.length = 0; this.projectiles.length = 0; this.drops.length = 0; this.pendingPickups.clear(); this.blockedPickups.clear(); this.waveQueue.length = 0; this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
   private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.gold = this.player.progress.gold; }
 
   private updateHover(event: MouseEvent): void { const world = this.eventWorld(event); this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0]; if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined; this.canvas.style.cursor = this.hovered ? "pointer" : "default"; }
@@ -218,10 +257,17 @@ export class Game {
     this.ctx.save(); this.ctx.translate(indicatorX, indicatorY); this.ctx.rotate(angle); this.ctx.fillStyle = creep.build.isRival ? "#ffd166" : "#ff6f7d";
     this.ctx.beginPath(); this.ctx.moveTo(12, 0); this.ctx.lineTo(-8, -7); this.ctx.lineTo(-8, 7); this.ctx.closePath(); this.ctx.fill(); this.ctx.restore();
   }
-  private resize(): void { const scale = devicePixelRatio || 1; this.canvas.width = innerWidth * scale; this.canvas.height = innerHeight * scale; this.canvas.style.width = `${innerWidth}px`; this.canvas.style.height = `${innerHeight}px`; this.ctx.setTransform(scale, 0, 0, scale, 0, 0); this.camera.width = innerWidth; this.camera.height = innerHeight; this.updateCamera(); }
+  private resize(): void { const scale = devicePixelRatio || 1; const width = this.canvas.clientWidth || innerWidth; const height = this.canvas.clientHeight || innerHeight; this.canvas.width = width * scale; this.canvas.height = height * scale; this.ctx.setTransform(scale, 0, 0, scale, 0, 0); this.camera.width = width; this.camera.height = height; this.updateCamera(); }
   private registerDebugGlobal(): void { window.__mltDebug = { game: this, getState: () => ({ player: this.player, hero: { hp: this.hero.hp, mana: this.hero.mana, stamina: this.hero.stamina }, creeps: this.creeps.length, drops: this.drops.length, queued: this.waveQueue.length }), join: (name) => this.join(name), clearSession: () => { localStorage.removeItem(SAVED_SESSION_KEY); this.savedSession = undefined; } }; }
 }
 
 function removeInactive<T extends { active: boolean }>(items: T[]): void { for (let index = items.length - 1; index >= 0; index -= 1) if (!items[index].active) items.splice(index, 1); }
 function loadSavedSession(): SavedSession | undefined { try { const parsed = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY) ?? "null") as SavedSession | null; return parsed?.playerId && parsed.name ? parsed : undefined; } catch { return undefined; } }
 function saveSession(session: SavedSession): void { try { localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(session)); } catch { /* restricted */ } }
+function skillDamageMultiplier(skill: SkillId): number { return skill === "bash" ? 1.5 : skill === "sweep" ? 1.25 : skill === "flurry" ? 0.8 : skill === "arcaneBolt" ? 1.7 : 1; }
+function skillCooldown(skill: SkillId): number { return skill === "flurry" ? 2.5 : 5; }
+function skillRange(skill: SkillId, item: ItemInstance): number { return skill === "arcaneBolt" ? 330 : skill === "sweep" ? 135 : item.definitionId === "staff" ? 330 : 105; }
+function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
+function cooldownScale(level: number, cooldownReduction: number): number { return Math.max(0.25, (1 - cooldownReduction) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
+function skillLabel(skill: SkillId): string { return skill === "arcaneBolt" ? "Arcane Bolt" : skill[0].toUpperCase() + skill.slice(1); }
+function meleeSkill(skill: SkillId | undefined): "bash" | "sweep" | "flurry" | undefined { return skill === "bash" || skill === "sweep" || skill === "flurry" ? skill : undefined; }

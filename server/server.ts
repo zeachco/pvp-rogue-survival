@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { generateItem, meetsRequirements, rollRarity, starterClub } from "../common/items.ts";
+import { generateItem, itemMergeKey, meetsRequirements, mergeItems, rollRarity, starterClub, type SkillId } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import type { ClientMessage, CreepKind, CreepWave, PlayerId, PlayerProgress, PublicPlayer, ServerMessage, UnitBuild } from "../common/protocol.ts";
 
@@ -63,12 +63,15 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
     player.progress.allocation = copyStats(message.allocation); sendProgress(player, "Future level allocation updated.");
   } else if (message.type === "creepKilled") {
     player.score += message.isRival ? 10 : 2;
-    grantXp(player, Math.max(0, Math.floor(message.xpReward)));
+    const xp = Math.max(0, Math.floor(message.xpReward));
+    const goldChance = message.isRival ? 0.5 : 0.2;
+    const gold = Math.random() < goldChance ? Math.max(0, Math.floor(message.goldReward)) : 0;
+    player.progress.gold += gold;
+    grantXp(player, xp, gold > 0 ? `Gained ${xp} XP and found ${gold} gold.` : `Gained ${xp} XP.`);
     sendToPlayer(player.id, { type: "scoreAwarded", score: player.score, reason: `Defeated ${message.isRival ? "a rival" : "a creep"}.` });
     rebalanceNeighbors(); broadcastNeighborSummaries();
   } else if (message.type === "collectItem") {
-    if (player.progress.backpack.length >= 8) { send(socket, { type: "serverNotice", message: "Backpack is full." }); return; }
-    player.progress.backpack.push(message.item); sendProgress(player, `Picked up ${message.item.name}.`);
+    collectItem(player, message.item);
   } else if (message.type === "heroDefeated") {
     player.waveNumber = Math.floor(player.waveNumber / 2);
     sendToPlayer(player.id, { type: "waveAdjusted", waveNumber: player.waveNumber, reason: `Wave reduced to ${player.waveNumber} after defeat.` });
@@ -78,15 +81,16 @@ function handleMessage(socket: PlayerSocket, message: ClientMessage): void {
     broadcastNeighborSummaries();
   } else if (message.type === "equipItem") equipItem(player, message.itemId);
   else if (message.type === "sellItem") sellItem(player, message.itemId);
+  else if (message.type === "extractSkill") extractSkill(player, message.itemId);
 }
 
 function joinPlayer(name: string, sessionId?: PlayerId): Player {
   const trimmed = name.trim().slice(0, 20) || "Player";
   const existing = sessionId ? players.get(sessionId) : undefined;
-  if (existing) { existing.name = trimmed; existing.connected = true; return existing; }
+  if (existing) { existing.name = trimmed; existing.connected = true; migrateProgress(existing.progress); mergeBackpackTriples(existing); return existing; }
   const player: Player = {
     id: crypto.randomUUID(), name: trimmed, score: 0, waveNumber: 0, neighbors: new Set(), connected: true,
-    progress: { level: 0, xp: 0, stats: copyStats(ZERO_STATS), allocation: copyStats(DEFAULT_ALLOCATION), gold: 0, equipped: starterClub(), backpack: [], learnedSkills: ["healing"] }
+    progress: { level: 0, xp: 0, stats: copyStats(ZERO_STATS), allocation: copyStats(DEFAULT_ALLOCATION), gold: 0, equipped: starterClub(), backpack: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } }
   };
   players.set(player.id, player); return player;
 }
@@ -120,27 +124,89 @@ function generateBuild(name: string, level: number, isRival: boolean, seed: numb
   const itemLevel = Math.max(0, level);
   const equipped = generateItem(itemLevel, rollRarity(seed + 11), seed + 17, { fewerAffixes: fewerItems });
   const backpack = isRival && level > 0 ? [generateItem(itemLevel, rollRarity(seed + 23), seed + 29, { fewerAffixes: true })] : [];
-  return { id: crypto.randomUUID(), name, kind: isRival ? "rival" : equipped.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, equipped, backpack, isRival, xpReward: isRival ? cumulativeXpForLevel(level) : 10 + level, seed };
+  const goldReward = isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5);
+  return { id: crypto.randomUUID(), name, kind: isRival ? "rival" : equipped.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, equipped, backpack, isRival, xpReward: isRival ? cumulativeXpForLevel(level) : 10 + level, goldReward, seed };
 }
 
-function grantXp(player: Player, amount: number): void {
+function grantXp(player: Player, amount: number, reason = amount > 0 ? `Gained ${amount} XP.` : "Progress updated."): void {
   const oldLevel = player.progress.level; player.progress.xp += amount;
   const newLevel = levelForXp(player.progress.xp);
   for (let level = oldLevel; level < newLevel; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key];
-  player.progress.level = newLevel; sendProgress(player, amount > 0 ? `Gained ${amount} XP.` : "Progress updated.");
+  player.progress.level = newLevel; sendProgress(player, reason);
+}
+function collectItem(player: Player, item: PlayerProgress["equipped"]): void {
+  const wouldMerge = player.progress.backpack.filter((candidate) => itemMergeKey(candidate) === itemMergeKey(item)).length >= 2;
+  if (player.progress.backpack.length >= 8 && !wouldMerge) {
+    sendToPlayer(player.id, { type: "collectItemResult", itemId: item.id, collected: false, reason: "Backpack is full." });
+    return;
+  }
+  player.progress.backpack.push(item);
+  const merged = mergeBackpackTriples(player);
+  if (merged.length > 0) {
+    const names = merged.map((merge) => merge.name).join(", ");
+    sendToPlayer(player.id, { type: "collectItemResult", itemId: item.id, collected: true, reason: `Merged ${names} into stronger gear.` });
+    sendProgress(player, `Merged ${names} into stronger gear.`);
+    return;
+  }
+  sendToPlayer(player.id, { type: "collectItemResult", itemId: item.id, collected: true, reason: `Picked up ${item.name}.` });
+  sendProgress(player, `Picked up ${item.name}.`);
 }
 function equipItem(player: Player, itemId: string): void {
   const index = player.progress.backpack.findIndex((item) => item.id === itemId);
   if (index < 0) return;
   const item = player.progress.backpack[index];
   if (!meetsRequirements(item, player.progress.stats)) { sendToPlayer(player.id, { type: "serverNotice", message: "You do not meet that weapon's requirements." }); return; }
-  player.progress.backpack[index] = player.progress.equipped; player.progress.equipped = item; sendProgress(player, `Equipped ${item.name}.`);
+  player.progress.backpack[index] = player.progress.equipped; player.progress.equipped = item;
+  const merged = mergeBackpackTriples(player);
+  sendProgress(player, merged.length ? `Equipped ${item.name}. Merged matching backpack items into stronger gear.` : `Equipped ${item.name}.`);
 }
 function sellItem(player: Player, itemId: string): void {
   const index = player.progress.backpack.findIndex((item) => item.id === itemId); if (index < 0) return;
   const [item] = player.progress.backpack.splice(index, 1); player.progress.gold += item.sellValue; sendProgress(player, `Sold ${item.name} for ${item.sellValue} gold.`);
 }
+function extractSkill(player: Player, itemId: string): void {
+  const index = player.progress.backpack.findIndex((item) => item.id === itemId);
+  if (index < 0) return;
+  const item = player.progress.backpack[index];
+  const skills = item.skills.filter((skill) => skill !== "healing");
+  if (skills.length === 0) { sendToPlayer(player.id, { type: "serverNotice", message: "That weapon has no extractable skill." }); return; }
+  const cost = item.sellValue * 10;
+  if (player.progress.gold < cost) { sendToPlayer(player.id, { type: "serverNotice", message: `Extracting ${skills.map(skillLabel).join(", ")} costs ${cost} gold.` }); return; }
+  player.progress.gold -= cost;
+  player.progress.backpack.splice(index, 1);
+  player.progress.learnedSkillLevels ??= {};
+  for (const skill of skills) {
+    if (!player.progress.learnedSkills.includes(skill)) player.progress.learnedSkills.push(skill);
+    player.progress.learnedSkillLevels[skill] = Math.max(0, player.progress.learnedSkillLevels[skill] ?? 0) + 1;
+  }
+  sendProgress(player, `Extracted ${skills.map((skill) => `${skillLabel(skill)} Lv${player.progress.learnedSkillLevels[skill] ?? 1}`).join(", ")} for ${cost} gold.`);
+}
+function mergeBackpackTriples(player: Player): PlayerProgress["equipped"][] {
+  const merged: PlayerProgress["equipped"][] = [];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const groups = new Map<string, number[]>();
+    player.progress.backpack.forEach((item, index) => {
+      const indices = groups.get(itemMergeKey(item)) ?? [];
+      indices.push(index); groups.set(itemMergeKey(item), indices);
+    });
+    const group = [...groups.values()].find((indices) => indices.length >= 3);
+    if (!group) continue;
+    const consumed = group.slice(0, 3).sort((a, b) => b - a);
+    const base = player.progress.backpack[consumed[0]];
+    for (const index of consumed) player.progress.backpack.splice(index, 1);
+    const item = mergeItems(base, randomSeed());
+    player.progress.backpack.push(item); merged.push(item); changed = true;
+  }
+  return merged;
+}
 function sendProgress(player: Player, reason: string): void { sendToPlayer(player.id, { type: "progressionUpdated", progress: player.progress, reason }); }
+function migrateProgress(progress: PlayerProgress): void {
+  progress.learnedSkillLevels ??= {};
+  for (const skill of progress.learnedSkills) progress.learnedSkillLevels[skill] ??= 1;
+}
+function skillLabel(skill: SkillId): string { return skill === "arcaneBolt" ? "Arcane Bolt" : skill[0].toUpperCase() + skill.slice(1); }
 function randomAllocation(seed: number): Stats { const values = STAT_KEYS.map((_, index) => ((seed >>> (index * 5)) & 15) + 1); const total = values.reduce((sum, value) => sum + value, 0); return Object.fromEntries(STAT_KEYS.map((key, index) => [key, 5 * values[index] / total])) as unknown as Stats; }
 function scaledStats(allocation: Stats, level: number): Stats { return Object.fromEntries(STAT_KEYS.map((key) => [key, allocation[key] * level])) as unknown as Stats; }
 function copyStats(stats: Stats): Stats { return { ...stats }; }

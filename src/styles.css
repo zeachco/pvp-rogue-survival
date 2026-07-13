@@ -21,7 +21,7 @@ input {
 
 #game-canvas {
   display: block;
-  width: 100vw;
+  width: calc(100vw - 200px);
   height: 100vh;
 }
 
@@ -40,7 +40,7 @@ input {
 .hud-bottom {
   position: absolute;
   left: 16px;
-  right: 16px;
+  right: 216px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -54,6 +54,63 @@ input {
 .hud-bottom {
   bottom: 16px;
   align-items: flex-end;
+}
+
+.spell-bar {
+  position: absolute;
+  right: 216px;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 260px);
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 1px solid rgba(138, 216, 255, 0.35);
+  background: rgba(13, 20, 24, 0.82);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+}
+
+.spell-bar small {
+  color: #9fb8bf;
+}
+
+.spell-slot {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #3affd4;
+  border-radius: 4px;
+  color: #e8f9ff;
+  background: #102427;
+  cursor: default;
+}
+
+.spell-slot strong,
+.spell-slot small {
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+}
+
+.spell-slot strong {
+  font-size: 15px;
+}
+
+.spell-cooldown {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.58);
+  pointer-events: none;
 }
 
 .join-panel,
@@ -184,25 +241,22 @@ input {
 .inventory-slot small { color: #9fb8bf; }
 .sword-icon { color: #dffeff; font-size: 24px; transform: rotate(45deg); }
 
-.character-panel { display: grid; width: min(480px, 52vw); max-height: 64vh; gap: 8px; padding: 10px; overflow: auto; pointer-events: auto; }
-.character-panel.is-collapsed { width: auto; padding: 0; border: 0; background: transparent; box-shadow: none; overflow: visible; }
-.character-panel.is-collapsed > :not(.character-toggle) { display: none; }
-.character-toggle { border: 1px solid #3affd4; border-radius: 4px; padding: 10px 13px; color: #06211f; background: #3affd4; cursor: pointer; }
+.character-panel { position: absolute; top: 0; right: 0; bottom: 0; display: grid; align-content: start; width: 200px; gap: 8px; padding: 10px; overflow: auto; pointer-events: auto; }
 .portrait { display: flex; align-items: center; gap: 10px; }
-.portrait > span { display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #3affd4; border-radius: 50%; font-size: 24px; }
+.portrait > span { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid #3affd4; border-radius: 50%; font-size: 20px; }
 .portrait > div { display: grid; }
 .portrait small, .item-card small { color: #9fb8bf; }
-.attribute-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.attribute-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
 .attribute-grid span { display: grid; border: 1px solid rgba(138,216,255,.2); padding: 5px; text-align: center; }
 .attribute-grid small { color: #9fb8bf; font-size: 10px; }
-.backpack-scroll { display: flex; max-width: 100%; gap: 7px; overflow-x: auto; padding-bottom: 4px; }
-.item-card { position: relative; display: grid; min-width: 180px; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; }
+.backpack-scroll { display: grid; max-width: 100%; gap: 7px; }
+.item-card { position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
 .rarity-uncommon { border-color: #62e88a; }
 .rarity-rare { border-color: #6ca8ff; }
 .rarity-epic { border-color: #ca75ff; }
 .item-menu { display: flex; gap: 5px; margin-top: 6px; }
 .item-menu button, .allocation-panel button, .inspect-back { border: 1px solid #3affd4; border-radius: 3px; padding: 5px 7px; color: #dffeff; background: #15312f; cursor: pointer; }
-.allocation-panel { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 7px; }
+.allocation-panel { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; padding: 7px; }
 .allocation-panel > strong, .allocation-panel > button, .allocation-remaining { grid-column: 1 / -1; }
 .allocation-panel label { display: grid; gap: 2px; color: #9fb8bf; font-size: 10px; }
 .allocation-panel input { width: 100%; border: 1px solid #41545b; padding: 4px; color: #e8f9ff; background: #0b1519; }
@@ -225,7 +279,7 @@ input {
   .hud-top,
   .hud-bottom {
     left: 8px;
-    right: 8px;
+    right: 208px;
     flex-direction: column;
   }
 
@@ -244,5 +298,5 @@ input {
     overflow-x: auto;
   }
 
-  .character-panel { width: 100%; max-height: 52vh; }
+  #game-canvas { width: calc(100vw - 200px); }
 }
