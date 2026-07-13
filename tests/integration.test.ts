@@ -10,8 +10,7 @@ afterEach(async () => { while (apps.length) await apps.pop()!.close(); });
 describe("WebSocket application", () => {
   test("joins, receives a validated wave, and rejects malformed commands", async () => {
     const app = createApp({ root: process.cwd(), balanceProfile: "dev" }); apps.push(app);
-    const port = 38_000 + process.pid % 1_000;
-    app.server.listen(port, "127.0.0.1"); await once(app.server, "listening");
+    await listenOnAvailablePort(app.server);
     const address = app.server.address(); if (!address || typeof address === "string") throw new Error("Expected TCP address");
     const socket = new WebSocket(`ws://127.0.0.1:${address.port}/ws`); await once(socket, "open");
     const messages: ServerMessage[] = [];
@@ -19,7 +18,8 @@ describe("WebSocket application", () => {
     socket.send(JSON.stringify({ type: "join", name: "Integration" }));
     await until(() => messages.some((message) => message.type === "incomingWave"));
     const welcome = messages.find((message) => message.type === "welcome");
-    expect(welcome?.config.balance.id).toBe("dev"); expect(welcome?.config.protocolVersion).toBe(1);
+    expect(welcome?.config.balance.id).toBe("dev"); expect(welcome?.config.protocolVersion).toBe(2);
+    expect(welcome?.realm.mode).toBe("waiting");
     expect(messages.find((message) => message.type === "incomingWave")?.wave.spawns).toHaveLength(13);
     socket.send(JSON.stringify({ type: "creepKilled", unitId: "fake", xpReward: 1_000_000 }));
     await until(() => messages.some((message) => message.type === "serverNotice" && message.message.includes("invalid")));
@@ -30,4 +30,18 @@ describe("WebSocket application", () => {
 async function until(condition: () => boolean): Promise<void> {
   const deadline = performance.now() + 2_000;
   while (!condition()) { if (performance.now() > deadline) throw new Error("Timed out waiting for WebSocket message"); await Bun.sleep(5); }
+}
+
+async function listenOnAvailablePort(server: ReturnType<typeof createApp>["server"]): Promise<void> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const port = 40_000 + Math.floor(Math.random() * 20_000);
+    const result = await new Promise<"listening" | "retry">((resolve) => {
+      const onListening = () => { cleanup(); resolve("listening"); };
+      const onError = () => { cleanup(); resolve("retry"); };
+      const cleanup = () => { server.off("listening", onListening); server.off("error", onError); };
+      server.once("listening", onListening); server.once("error", onError); server.listen(port, "127.0.0.1");
+    });
+    if (result === "listening") return;
+  }
+  throw new Error("Unable to allocate a WebSocket integration-test port.");
 }

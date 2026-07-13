@@ -1,24 +1,15 @@
 import type { ItemInstance } from "../common/items.ts";
 import type { PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
 
+export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "training" }
+export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; senderName: string; backlash: boolean }
 export interface Player {
-  id: PlayerId;
-  name: string;
-  score: number;
-  waveNumber: number;
-  progress: PlayerProgress;
-  neighbors: Set<PlayerId>;
-  connected: boolean;
-  issuedUnits: Map<string, UnitBuild>;
-  groundDrops: Map<string, ItemInstance>;
+  id: PlayerId; name: string; score: number; waveNumber: number; progress: PlayerProgress; connected: boolean;
+  realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
+  issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, ItemInstance>;
+  incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[];
 }
-
-export interface PlayerRepository {
-  get(id: PlayerId): Player | undefined;
-  save(player: Player): void;
-  values(): IterableIterator<Player>;
-}
-
+export interface PlayerRepository { get(id: PlayerId): Player | undefined; save(player: Player): void; values(): IterableIterator<Player> }
 export class InMemoryPlayerRepository implements PlayerRepository {
   private readonly players = new Map<PlayerId, Player>();
   get(id: PlayerId): Player | undefined { return this.players.get(id); }

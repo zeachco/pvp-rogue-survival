@@ -26,15 +26,16 @@ export class Creep extends Unit {
     readonly emitterName: string,
     position: Vector2,
     balance: BalanceConfig,
-    random: RandomSource
+    private readonly random: RandomSource,
+    readonly movementMultiplier = 1
   ) {
     super(position, build.isRival ? 22 : 16, 1);
     this.build = build;
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
-    this.configureStats(statsWithItemBonuses(build.stats, build.equipped));
+    this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand);
     this.maxHp *= balance.combat.enemyHealthMultiplier; this.hp = this.maxHp;
-    this.bounty = Math.max(1, build.equipped.sellValue);
+    this.bounty = Math.max(1, build.mainHand.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
   }
 
@@ -46,16 +47,16 @@ export class Creep extends Unit {
   }
 
   pursue(hero: Vector2, deltaSeconds: number, width: number, height: number): CreepAttack | undefined {
-    this.updateResources(deltaSeconds);
+    this.updateResources(deltaSeconds, this.random);
     this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const derived = derivedStats(this.stats);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
-    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01);
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier;
     const acceleration = movement.acceleration;
-    const ranged = this.kind === "bubbleShooter" || this.build.equipped.definitionId === "staff";
+    const ranged = this.kind === "bubbleShooter" || this.build.mainHand.definitionId === "staff";
     const heroDistance = distance(this.position, hero);
-    const attackSpeed = derived.attackSpeed * this.build.equipped.modifiers.attackSpeedMultiplier;
+    const attackSpeed = derived.attackSpeed * this.build.mainHand.modifiers.attackSpeedMultiplier;
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
 
     if (this.pendingAttack) {

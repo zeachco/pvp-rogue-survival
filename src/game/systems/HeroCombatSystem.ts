@@ -21,7 +21,7 @@ export class HeroCombatSystem {
 
   update(deltaSeconds: number, movementInput: Vector2, hero: Hero, state: ArenaState, progress: PlayerProgress, balance: BalanceConfig, random: RandomSource): void {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); this.weaponSkillCooldown = Math.max(0, this.weaponSkillCooldown - deltaSeconds);
-    const item = progress.equipped; const effectiveStats = statsWithItemBonuses(progress.stats, item); const derived = derivedStats(effectiveStats);
+    const item = progress.mainHand; const effectiveStats = statsWithItemBonuses(progress.stats, item, progress.offHand); const derived = derivedStats(effectiveStats);
     if (progress.learnedSkills.includes("healing") && hero.hp < hero.maxHp * 0.5 && this.healingCooldown === 0 && hero.mana >= 2) {
       const level = this.skillLevel(progress, "healing"); hero.mana -= 2;
       hero.hp = Math.min(hero.maxHp, hero.hp + (0.5 + effectiveStats.spirit * 1.2) * derived.magicAmp * spellPower(level));
@@ -40,14 +40,14 @@ export class HeroCombatSystem {
     if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < item.staminaCost) return;
     hero.stamina -= item.staminaCost + (physicalSkill ? 0.35 : 0); if (magicSkill) hero.mana -= 1;
     const damage = rollWeaponDamage(item, effectiveStats, "hero", balance, random) * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1);
-    if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined));
+    if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined, hero));
     else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, activeSkill?.id === "sweep" ? 135 : range, activeSkill?.id === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item));
     if (activeSkill) { this.weaponSkillCooldown = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.weaponSkillCooldownMax = this.weaponSkillCooldown; }
     this.attackCooldown = (activeSkill?.id === "flurry" ? 0.2 : 0.7) / (derived.attackSpeed * item.modifiers.attackSpeedMultiplier);
   }
 
   spellSlots(progress: PlayerProgress): SpellSlot[] {
-    const ids = new Set<SkillId>([...progress.learnedSkills, ...progress.equipped.skills]);
+    const ids = new Set<SkillId>([...progress.learnedSkills, ...progress.mainHand.skills]);
     return [...ids].map((id) => ({ id, label: skillLabel(id), level: Math.max(1, this.skillLevel(progress, id) || 1), cooldown: id === "healing" ? this.healingCooldown : this.weaponSkillCooldown, cooldownMax: id === "healing" ? this.healingCooldownMax : this.weaponSkillCooldownMax }));
   }
 

@@ -19,8 +19,8 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Direction changes occur over successive fixed updates, producing turn/steering response instead of instantaneous full-speed changes.
 - Units decelerate when they have no desired movement.
 - Performing an attack temporarily slows the attacker. This applies to both the hero and attacking creeps.
-- Units are clamped inside the arena.
-- Creeps initially spawn just outside a randomly selected arena edge and enter immediately.
+- Heroes, creeps, item drops, and projectiles outside the arena receive a 30 px/second correction toward the nearest fully legal position. Once fully inside they cannot cross out again; outward velocity is removed while tangential motion and lifetime continue. Fixed attack telegraphs do not move.
+- Creeps initially spawn just outside a randomly selected arena edge and enter immediately. Off-map death drops move inward until collectible.
 - With no obstacles in the current slice, each melee creep continuously steers directly toward the hero. Ranged creeps steer to maintain firing distance.
 
 ## Hero Control and Targeting
@@ -41,6 +41,10 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - A unit's own attack area or projectile never damages that unit.
 - Damage areas and projectiles use circle or area overlap checks against unit collision radii.
 - Public balance-profile multipliers are applied once at the combat calculation boundary: the development profile multiplies hero outgoing damage by 1.5 and enemy outgoing damage by 0.6.
+- Every hostile damage event, including deterministic one-second status ticks, may be blocked by an equipped buckler. Dexterity references mean Agility.
+- Block chance is `min(75%, 10% * rarityPower + 0.5% * (Strength + Agility))`. Success prevents `min(incomingDamage, Strength)`.
+- Spiked bucklers reflect the rarity-scaled sum of rolled components: `1`, `0.2 * Strength`, and `incomingDamage * (15% + 0.4% * Agility)`. Reflection may be blocked but cannot reflect again, critically strike, apply affixes, or create statuses.
+- Damage and statuses retain source attribution for realm-kill credit.
 
 ## Enemy Attacks
 
@@ -69,3 +73,4 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - The hero is reset to the arena center with progression-derived resources.
 - Score, permanent progression, inventory, session identity, and server-owned wave number are not reset by the local arena reset.
 - Defeat is reported to the server. Server-owned wave number adjustment and replacement wave dispatch are defined in `specs/SPEC.md`.
+- In Training Grounds health is clamped to at least 1 and defeat never starts.

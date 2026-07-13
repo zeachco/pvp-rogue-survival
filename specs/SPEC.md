@@ -45,11 +45,18 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 6. Multiplayer and Economy
 
-- Players are matched with up to `MAX_NEIGHBORS` connected players within `MATCH_SCORE_GAP`.
-- Neighbor links expose names, scores, and current waves only.
+- Connected, opted-in players are placed in stable server-owned 1v1, 1v2, or 1v3 realm groups until disconnect, voluntary exit, or realm defeat.
+- The server starts with the highest-level waiting player and chooses one to three lower-level opponents whose combined level is closest. Ties prefer fewer opponents, longer wait, then stable player id; no level gap is rejected.
+- A 1v1 is reciprocal. In 1v2/1v3 every team member attacks the solo player and the solo player's outgoing sends rotate across the team.
+- Realm Guard identifies outbound recipients and Realm Attacker identifies inbound senders. The HUD shows their names, levels, down state, and queued items.
+- Sending consumes exact equipment and queues it FIFO for future regular creeps. Carrier slots are allocated round-robin across attackers, overflow persists, and each player may retain at most 1,000 active or backlash queue entries.
+- Closing a realm reverses undelivered items into hostile backlash queues against their original senders. Backlash pauses in Training Grounds and grants no realm-kill XP.
+- A player's first defeat remains marked until the next global wave dispatch. A side is defeated when all members were down during that round. A lethal sent carrier credits its sender `100 * victimLevel` XP; neutral and backlash lethals grant no realm-kill XP. Individual defeat reset and wave-halving still apply.
+- Leave to Lobby is available after the final planned spawn and before the next global dispatch. Training Grounds repeat the current neutral wave without advancing it, halve enemy movement speed, clamp the hero to at least 1 HP, grant no combat rewards or drops, allow inventory management, and disable sending.
+- Enter Realm is available at any time. Training continues until matching succeeds, then a fresh competitive wave starts with the normal preparation delay.
 - The former tower-building and creep-purchase economy is removed from the active UI and protocol.
 - Gold is granted occasionally and directly for defeated enemies according to `specs/PROGRESSION_SPEC.md`, and through manual item sales. Passive income and purchasing are not part of this slice.
-- Neutral waves are always supplied by the server. Competitive wave modification can be redesigned with the future item system.
+- Neutral, competitive, backlash, and training waves are always supplied by the server.
 
 ## 7. Visual and UX Direction
 
@@ -58,8 +65,8 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Show controls, drops, and inspected enemy highlight.
 - Show controls and auto-attack behavior in the HUD notice.
 - Wave starts use a centered, non-blocking fading banner.
-- Reserve a fixed 200px right-side rail for the stable DOM build panel. It is always open on the hero by default; selecting a creep reuses the same rail for creep inspection until Back restores the hero. The panel contains attributes, allocation controls, one equipped weapon, an eight-slot scrollable backpack with manual item actions, and enemy inspection.
-- Show a bottom spell bar for learned and equipped cooldown skills without overlapping the right-side build rail.
+- Reserve a 220px independently scrolling character/stat column and a 320px independently scrolling permanent equipment column. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
+- Show a bottom spell bar for learned and equipped cooldown skills without overlapping the 540px right-side build area.
 
 ## 8. Architecture
 
@@ -94,22 +101,26 @@ Client to server:
 - `join`: `{ name, sessionId? }`
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
-- `heroDefeated`: `{}`
+- `equipItem`, `sellItem`, `purgeItem`, `mergeItem`, `sendItem`, `extractSkill`: `{ tileId }`
+- `setStackAutomation`: `{ tileId, mode }`
+- `heroDefeated`: `{ sourceUnitId? }`
 - `requestWave`: `{}`
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
-- `extractSkill`: `{ itemId }`
+- `leaveRealm`: `{}`
+- `enterRealm`: `{}`
 
 Server to client:
 
-- `welcome`: `{ playerId, player, neighbors, config }`
-- `neighbors`: `{ neighbors }`
+- `welcome`: `{ playerId, player, progress, realm, config }`
+- `realmUpdated`: `{ realm }`
 - `incomingWave`: `{ wave }`
 - `creepDefeatResolved`: `{ unitId, score, progress, drop?, reason }`
 - `waveAdjusted`: `{ waveNumber, reason }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
+- `groundDropCreated`: `{ drop }`
 
-The server records units issued in each wave and accepts a unit defeat at most once. XP, score, gold, and drop generation are derived from that record rather than client-supplied rewards. Generated ground drops remain in a server ledger and are collected by opaque drop id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state.
+The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected by opaque id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The realm/inventory schema is protocol version 2.
 
 ## 10. Balance Profiles
 
@@ -134,7 +145,6 @@ The server records units issued in each wave and accepts a unit defeat at most o
 
 - Obstacles and pathfinding around them.
 - Additional weapon classes, skills, affixes, and particles.
-- Competitive wave modification redesigned around the item economy.
 - Account persistence, server-side simulation validation, replays, matchmaking ratings, and mobile controls.
 
 ## 13. Development Process

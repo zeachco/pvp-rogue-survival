@@ -1,170 +1,50 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { STAT_KEYS, cumulativeXpForLevel, xpForNextLevel, type Stats } from "../../common/progression";
-import type { PublicPlayer, UnitBuild } from "../../common/protocol";
+import type { RealmState, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
 import { Fragment, h } from "./dom";
-import { itemCard } from "./InventoryView";
+import { itemTile } from "./InventoryView";
 import type { HudCallbacks, SpellSlot } from "./types";
 export type { HudCallbacks, SpellSlot } from "./types";
-
 declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
 
 export class Hud {
-  private player?: PlayerState;
-  private inspected?: UnitBuild;
-  private readonly joinPanel: HTMLElement;
-  private readonly gameHud: HTMLElement;
-  private readonly nameInput: HTMLInputElement;
-  private readonly statsPanel: HTMLElement;
-  private readonly neighborList: HTMLElement;
-  private readonly noticeNode: HTMLElement;
-  private readonly inventoryNode: HTMLElement;
-  private readonly allocationNode: HTMLElement;
-  private readonly characterPanel: HTMLElement;
-  private readonly spellBar: HTMLElement;
-  private readonly onboarding: HTMLElement;
-  private readonly backButton: HTMLButtonElement;
-  private readonly waveBanner: HTMLElement;
+  private player?: PlayerState; private inspected?: UnitBuild; private realm?: RealmState;
+  private readonly joinPanel: HTMLElement; private readonly gameHud: HTMLElement; private readonly nameInput: HTMLInputElement;
+  private readonly statsPanel = <div class="stats-panel" /> as HTMLElement; private readonly realmPanel = <div class="realm-panel" /> as HTMLElement;
+  private readonly noticeNode = <div class="notice">Enter a name to join.</div> as HTMLElement; private readonly sheetNode = <div class="sheet-content" /> as HTMLElement;
+  private readonly inventoryNode = <div class="inventory-content" /> as HTMLElement; private readonly allocationNode = <form class="allocation-panel" /> as HTMLElement;
+  private readonly spellBar = <section class="spell-bar" /> as HTMLElement; private readonly waveBanner = <div class="wave-banner" aria-live="polite"><strong /><span /></div> as HTMLElement;
   private waveTimer?: number;
-  private characterSignature = "";
-  private openItemMenuId?: string;
-
   constructor(private readonly root: HTMLDivElement, private readonly callbacks: HudCallbacks) {
     this.nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
     this.joinPanel = <form class="join-panel">{this.nameInput}<button type="submit">Join</button></form> as HTMLElement;
-    this.joinPanel.addEventListener("submit", (event) => { event.preventDefault(); const name = this.nameInput.value.trim(); if (name) callbacks.onJoin(name); });
-    this.statsPanel = <div class="stats-panel" /> as HTMLElement;
-    this.neighborList = <div class="neighbor-list" /> as HTMLElement;
-    this.noticeNode = <div class="notice">Enter a name to join.</div> as HTMLElement;
-    this.inventoryNode = <div class="inventory-list" /> as HTMLElement;
-    this.allocationNode = <form class="allocation-panel" /> as HTMLElement;
-    this.backButton = <button class="inspect-back" type="button">Back to hero</button> as HTMLButtonElement;
-    this.backButton.addEventListener("click", callbacks.onBack);
-    this.characterPanel = <aside class="character-panel">{this.backButton}{this.inventoryNode}{this.allocationNode}</aside> as HTMLElement;
-    this.spellBar = <section class="spell-bar" /> as HTMLElement;
-    this.onboarding = (
-      <section class="onboarding-card">
-        <small>FIRST WAVE BRIEFING</small><strong>Survive the perimeter</strong>
-        <span><kbd>WASD</kbd> Move and dodge red attack zones</span>
-        <span><b>Automatic combat</b> Your equipped weapon attacks the closest enemy</span>
-        <span><b>Grow permanently</b> Kills grant XP; all five next-level points are already assigned evenly</span>
-        <span><b>Collect gear</b> Walk over glowing drops, then manage the right build panel</span>
-        <button type="button">Start moving</button>
-      </section>
-    ) as HTMLElement;
-    (this.onboarding.querySelector("button") as HTMLButtonElement).onclick = () => { this.onboarding.classList.add("is-hidden"); callbacks.onStart(); };
-    this.waveBanner = <div class="wave-banner" aria-live="polite"><strong /><span /></div> as HTMLElement;
-    this.gameHud = (
-      <div class="game-hud">
-        <section class="hud-top">{this.statsPanel}<div class="neighbor-panel"><strong>Neighbors</strong>{this.neighborList}</div></section>
-        {this.waveBanner}
-        {this.onboarding}
-        {this.spellBar}
-        {this.characterPanel}
-        <section class="hud-bottom">{this.noticeNode}</section>
-      </div>
-    ) as HTMLElement;
-    root.append(this.joinPanel, this.gameHud);
-    this.updateVisibility();
+    this.joinPanel.onsubmit = (event) => { event.preventDefault(); const name = this.nameInput.value.trim(); if (name) callbacks.onJoin(name); };
+    const back = <button class="inspect-back is-hidden" type="button">Back to hero</button> as HTMLButtonElement; back.onclick = callbacks.onBack;
+    const sheet = <aside class="character-panel">{back}{this.sheetNode}{this.allocationNode}</aside> as HTMLElement;
+    const inventory = <aside class="inventory-column">{this.inventoryNode}</aside> as HTMLElement;
+    const onboarding = <section class="onboarding-card"><small>FIRST WAVE BRIEFING</small><strong>Survive the perimeter</strong><span><kbd>WASD</kbd> Move and dodge attacks</span><span><b>Automatic combat</b> attacks the closest enemy</span><span><b>Manage gear</b> in permanent stack tiles</span><button type="button">Start moving</button></section> as HTMLElement;
+    (onboarding.querySelector("button") as HTMLButtonElement).onclick = () => { onboarding.classList.add("is-hidden"); callbacks.onStart(); };
+    this.gameHud = <div class="game-hud"><section class="hud-top">{this.statsPanel}{this.realmPanel}</section>{this.waveBanner}{onboarding}{this.spellBar}{sheet}{inventory}<section class="hud-bottom">{this.noticeNode}</section></div> as HTMLElement;
+    root.append(this.joinPanel, this.gameHud); this.updateVisibility();
   }
-
   setJoinName(name: string): void { this.nameInput.value = name; }
   setNotice(notice: string): void { this.noticeNode.textContent = notice; }
-  setPlayer(player: PlayerState): void {
-    this.player = player;
-    const signature = JSON.stringify(player.progress);
-    if (!this.inspected && signature !== this.characterSignature) { this.characterSignature = signature; this.renderCharacter(); }
-    this.renderStats(); this.updateVisibility();
-  }
-  setInspection(build?: UnitBuild): void { this.inspected = build; this.renderCharacter(); }
-  setSpells(spells: SpellSlot[]): void {
-    this.spellBar.replaceChildren(...(spells.length ? spells.map((spell) => {
-      const ratio = spell.cooldownMax > 0 ? Math.min(1, Math.max(0, spell.cooldown / spell.cooldownMax)) : 0;
-      return (
-        <button class="spell-slot" type="button" title={`${spell.label} Lv${spell.level}`}>
-          <span class="spell-cooldown" style={`height:${ratio * 100}%`} />
-          <strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
-          <small>Lv{spell.level}</small>
-        </button>
-      );
-    }) : [<small>No spells</small>]));
-  }
-  setNeighbors(neighbors: PublicPlayer[]): void {
-    this.neighborList.replaceChildren(...(neighbors.length ? neighbors.map((neighbor) => <span>{neighbor.name} · L{neighbor.level} · {neighbor.score}</span>) : [<span>Solo queue</span>]));
-  }
-
-  showWaveBanner(title: string, detail: string): void {
-    clearTimeout(this.waveTimer); (this.waveBanner.querySelector("strong") as HTMLElement).textContent = title; (this.waveBanner.querySelector("span") as HTMLElement).textContent = detail;
-    this.waveBanner.classList.add("is-visible"); this.waveTimer = window.setTimeout(() => this.waveBanner.classList.remove("is-visible"), 3200);
-  }
-
-  private renderStats(): void {
-    if (!this.player) return;
-    const progress = this.player.progress;
-    const intoLevel = progress.xp - cumulativeXpForLevel(progress.level);
-    this.statsPanel.replaceChildren(
-      <strong>{this.player.name}</strong>, <span>Level {progress.level}</span>, <span>XP {intoLevel}/{xpForNextLevel(progress.level)}</span>,
-      <span>HP {format(this.player.health)}/{format(this.player.maxHealth)}</span>, <span>STA {format(this.player.stamina)}/{format(this.player.maxStamina)}</span>, <span>MP {format(this.player.mana)}/{format(this.player.maxMana)}</span>, <span>Gold {progress.gold}</span>,
-      <span>Score {this.player.score}</span>, <span>Wave {this.player.waveNumber}</span>
-    );
-  }
-
-  private renderCharacter(): void {
-    if (!this.player) return;
-    const build = this.inspected;
-    const progress = this.player.progress;
-    const equipped = build?.equipped ?? progress.equipped;
-    const backpack = build?.backpack ?? progress.backpack;
-    const stats = build?.stats ?? progress.stats;
-    if (this.openItemMenuId && !backpack.some((item) => item.id === this.openItemMenuId)) this.openItemMenuId = undefined;
-    this.backButton.classList.toggle("is-hidden", !build);
-    this.inventoryNode.replaceChildren(
-      <div class="portrait"><span>{build ? "◆" : "●"}</span><div><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? progress.level}{build?.isRival ? " · Rival" : ""}</small></div></div>,
-      <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{capitalize(key)}</small>{format(stats[key])}</span>)}</div>,
-      <strong>Equipped</strong>, itemCard(equipped, false, build, this.callbacks, this.openItemMenuId, (itemId) => { this.openItemMenuId = itemId; this.renderCharacter(); }),
-      <strong>Backpack {backpack.length}/8</strong>,
-      <div class="backpack-scroll">{backpack.length ? backpack.map((item) => itemCard(item, true, build, this.callbacks, this.openItemMenuId, (itemId) => { this.openItemMenuId = itemId; this.renderCharacter(); })) : <small>Empty</small>}</div>,
-      <small>{build ? `Statuses and resources are shown in the arena. Skills: ${equipped.skills.join(", ") || "basic attack"}` : `Learned: ${progress.learnedSkills.join(", ")}`}</small>
-    );
-    this.renderAllocation();
-  }
-
-  private renderAllocation(): void {
-    this.allocationNode.replaceChildren();
-    if (!this.player || this.inspected) { this.allocationNode.classList.add("is-hidden"); return; }
-    this.allocationNode.classList.remove("is-hidden");
-    const remainingNode = <small class="allocation-remaining" /> as HTMLElement;
-    const inputs = new Map<string, HTMLInputElement>();
-    this.allocationNode.append(<strong>Next-level allocation</strong>, remainingNode);
-    for (const key of STAT_KEYS) {
-      const input = <input name={key} type="number" min="0" max="5" step="0.1" value={this.player.progress.allocation[key]} /> as HTMLInputElement;
-      inputs.set(key, input);
-      this.allocationNode.append(<label>{capitalize(key)}{input}</label>);
-    }
-    const saveButton = <button type="submit">Save allocation</button> as HTMLButtonElement;
-    this.allocationNode.append(saveButton);
-    const enforceBudget = (changed?: HTMLInputElement) => {
-      if (changed) {
-        const spentElsewhere = [...inputs.values()].filter((input) => input !== changed).reduce((sum, input) => sum + numericInput(input), 0);
-        changed.value = String(Math.min(Math.max(0, numericInput(changed)), Math.max(0, 5 - spentElsewhere)));
-      }
-      const spent = [...inputs.values()].reduce((sum, input) => sum + numericInput(input), 0);
-      const remaining = Math.max(0, 5 - spent);
-      remainingNode.textContent = remaining > 0.001 ? `${remaining.toFixed(1)} of 5 points left to assign` : "All 5 points assigned for your next level";
-      saveButton.disabled = Math.abs(remaining) > 0.001;
-    };
-    for (const input of inputs.values()) input.addEventListener("input", () => enforceBudget(input));
-    enforceBudget();
-    this.allocationNode.onsubmit = (event) => {
-      event.preventDefault(); const data = new FormData(this.allocationNode as HTMLFormElement);
-      this.callbacks.onAllocation(Object.fromEntries(STAT_KEYS.map((key) => [key, Number(data.get(key))])) as unknown as Stats);
-    };
-  }
-
+  setPlayer(player: PlayerState): void { this.player = player; this.renderAll(); this.updateVisibility(); }
+  setInspection(build?: UnitBuild): void { this.inspected = build; this.renderAll(); }
+  setRealm(realm: RealmState): void { this.realm = realm; this.renderRealm(); }
+  setSpells(spells: SpellSlot[]): void { this.spellBar.replaceChildren(...(spells.length ? spells.map((spell) => <button class="spell-slot" type="button"><strong>{spell.label.slice(0, 2).toUpperCase()}</strong><small>Lv{spell.level}</small></button>) : [<small>No spells</small>])); }
+  showWaveBanner(title: string, detail: string): void { clearTimeout(this.waveTimer); (this.waveBanner.querySelector("strong") as HTMLElement).textContent = title; (this.waveBanner.querySelector("span") as HTMLElement).textContent = detail; this.waveBanner.classList.add("is-visible"); this.waveTimer = window.setTimeout(() => this.waveBanner.classList.remove("is-visible"), 3200); }
+  private renderAll(): void { if (!this.player) return; const p = this.player.progress; const build = this.inspected; const stats = build?.stats ?? p.stats; const main = build?.mainHand ?? p.mainHand; const off = build?.offHand ?? p.offHand;
+    const into = p.xp - cumulativeXpForLevel(p.level); this.statsPanel.replaceChildren(<strong>{this.player.name}</strong>, <span>Level {p.level}</span>, <span>XP {into}/{xpForNextLevel(p.level)}</span>, <span>HP {fmt(this.player.health)}/{fmt(this.player.maxHealth)}</span>, <span>Gold {p.gold}</span>, <span>Wave {this.player.waveNumber}</span>);
+    this.sheetNode.replaceChildren(<div class="portrait"><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? p.level}</small></div>, <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{key}</small>{fmt(stats[key])}</span>)}</div>, <strong>Main hand</strong>, equipmentSummary(main), <strong>Offhand</strong>, off ? equipmentSummary(off) : <small>Empty</small>);
+    (this.root.querySelector(".inspect-back") as HTMLElement).classList.toggle("is-hidden", !build); this.renderAllocation();
+    this.inventoryNode.replaceChildren(<strong>Equipment {p.inventoryTiles.length}/{4 + Math.ceil(p.level / 10)}</strong>, <small>Scraps C{p.scraps.common} U{p.scraps.uncommon} R{p.scraps.rare} E{p.scraps.epic}</small>, <div class="backpack-scroll">{p.inventoryTiles.map((tile) => itemTile(tile, this.callbacks))}</div>); this.renderRealm(); }
+  private renderRealm(): void { if (!this.realm) return; const r = this.realm; const action = <button type="button">{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}</button> as HTMLButtonElement; action.onclick = r.mode === "training" ? this.callbacks.onEnterRealm : this.callbacks.onLeaveRealm;
+    this.realmPanel.replaceChildren(<strong>{r.mode === "training" ? "Training Grounds" : r.mode === "waiting" ? "Waiting for realm" : "Realm"}</strong>, <span>Guard: {r.guards.map((p) => `${p.name} L${p.level}${p.down ? " ↓" : ""}`).join(", ") || "—"}</span>, <span>Attacker: {r.attackers.map((p) => `${p.name} L${p.level}${p.down ? " ↓" : ""}`).join(", ") || "—"}</span>, <span>Queues {r.outgoingQueued} out / {r.incomingQueued} in</span>, action); }
+  private renderAllocation(): void { this.allocationNode.replaceChildren(); if (!this.player || this.inspected) { this.allocationNode.classList.add("is-hidden"); return; } this.allocationNode.classList.remove("is-hidden"); const inputs = new Map<string, HTMLInputElement>(); this.allocationNode.append(<strong>Next-level allocation</strong>); for (const key of STAT_KEYS) { const input = <input name={key} type="number" min="0" max="5" step="0.1" value={this.player.progress.allocation[key]} /> as HTMLInputElement; inputs.set(key, input); this.allocationNode.append(<label>{key}{input}</label>); } const save = <button type="submit">Save allocation</button> as HTMLButtonElement; this.allocationNode.append(save); this.allocationNode.onsubmit = (event) => { event.preventDefault(); this.callbacks.onAllocation(Object.fromEntries(STAT_KEYS.map((key) => [key, Number(inputs.get(key)?.value ?? 0)])) as Stats); }; }
   private updateVisibility(): void { const joined = Boolean(this.player); this.joinPanel.classList.toggle("is-hidden", joined); this.gameHud.classList.toggle("is-hidden", !joined); }
 }
-
-function format(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
-function numericInput(input: HTMLInputElement): number { const value = Number(input.value); return Number.isFinite(value) ? value : 0; }
-function capitalize(value: string): string { return value[0].toUpperCase() + value.slice(1); }
+function equipmentSummary(item: UnitBuild["mainHand"]): HTMLElement { return <div class={`item-card rarity-${item.rarity}`}><strong>{item.name}</strong><small>L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : "Buckler"}</small></div> as HTMLElement; }
+function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }

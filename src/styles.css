@@ -21,7 +21,7 @@ input {
 
 #game-canvas {
   display: block;
-  width: calc(100vw - 200px);
+  width: calc(100vw - 540px);
   height: 100vh;
 }
 
@@ -40,7 +40,7 @@ input {
 .hud-bottom {
   position: absolute;
   left: 16px;
-  right: 216px;
+  right: 556px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -58,7 +58,7 @@ input {
 
 .spell-bar {
   position: absolute;
-  right: 216px;
+  right: 556px;
   bottom: 16px;
   left: 50%;
   display: flex;
@@ -241,7 +241,11 @@ input {
 .inventory-slot small { color: #9fb8bf; }
 .sword-icon { color: #dffeff; font-size: 24px; transform: rotate(45deg); }
 
-.character-panel { position: absolute; top: 0; right: 0; bottom: 0; display: grid; align-content: start; width: 200px; gap: 8px; padding: 10px; overflow: auto; pointer-events: auto; }
+.character-panel { position: absolute; top: 0; right: 320px; bottom: 0; display: grid; align-content: start; width: 220px; gap: 8px; padding: 10px; overflow-y: auto; pointer-events: auto; }
+.inventory-column { position: absolute; top: 0; right: 0; display: grid; width: 320px; min-height: 200px; max-height: calc(100vh - 32px); gap: 8px; padding: 10px; overflow-y: auto; border: 1px solid rgba(138,216,255,.35); background: rgba(13,20,24,.9); pointer-events: auto; }
+.inventory-content { display: grid; gap: 8px; }
+.realm-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; padding: 10px; border: 1px solid rgba(138,216,255,.35); background: rgba(13,20,24,.82); pointer-events: auto; }
+.realm-panel button { border: 1px solid #3affd4; padding: 5px 7px; color: #dffeff; background: #15312f; }
 .portrait { display: flex; align-items: center; gap: 10px; }
 .portrait > span { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid #3affd4; border-radius: 50%; font-size: 20px; }
 .portrait > div { display: grid; }
@@ -251,6 +255,9 @@ input {
 .attribute-grid small { color: #9fb8bf; font-size: 10px; }
 .backpack-scroll { display: grid; max-width: 100%; gap: 7px; }
 .item-card { position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
+.item-card.is-empty { filter: grayscale(1); opacity: .55; }
+.item-title { display: flex; justify-content: space-between; gap: 8px; }
+.item-card select { margin-top: 6px; color: #e8f9ff; background: #0b1519; }
 .rarity-uncommon { border-color: #62e88a; }
 .rarity-rare { border-color: #6ca8ff; }
 .rarity-epic { border-color: #ca75ff; }
@@ -298,5 +305,5 @@ input {
     overflow-x: auto;
   }
 
-  #game-canvas { width: calc(100vw - 200px); }
+  #game-canvas { width: calc(100vw - 540px); }
 }

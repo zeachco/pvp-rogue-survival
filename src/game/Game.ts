@@ -17,6 +17,7 @@ import { resolveCombat } from "./systems/combat";
 import { HeroCombatSystem } from "./systems/HeroCombatSystem";
 import { CanvasRenderer } from "./render/CanvasRenderer";
 import { clamp, distance, type Camera, type PlayerState, type Vector2 } from "./types";
+import { correctArenaBoundary } from "./bounds";
 
 const FIXED_STEP = 1 / 60;
 
@@ -45,6 +46,7 @@ export class Game {
   private briefingStartedAt = performance.now();
   private hovered?: Creep;
   private inspected?: Creep;
+  private waveMode: "competitive" | "training" = "training";
   private get creeps(): Creep[] { return this.arena.creeps; }
   private get attacks(): AttackArea[] { return this.arena.attacks; }
   private get projectiles(): Projectile[] { return this.arena.projectiles; }
@@ -58,7 +60,11 @@ export class Game {
     this.renderer = new CanvasRenderer(this.ctx, this.map);
     this.hud = new Hud(hudRoot, {
       onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
-      onEquip: (itemId) => this.socket.send({ type: "equipItem", itemId }), onSell: (itemId) => this.socket.send({ type: "sellItem", itemId }), onExtract: (itemId) => this.socket.send({ type: "extractSkill", itemId }), onBack: () => this.clearInspection(), onStart: () => this.startFirstWave()
+      onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId) => this.socket.send({ type: "sellItem", tileId }),
+      onPurge: (tileId) => this.socket.send({ type: "purgeItem", tileId }), onMerge: (tileId) => this.socket.send({ type: "mergeItem", tileId }),
+      onSend: (tileId) => this.socket.send({ type: "sendItem", tileId }), onExtract: (tileId) => this.socket.send({ type: "extractSkill", tileId }),
+      onAutomation: (tileId, mode) => this.socket.send({ type: "setStackAutomation", tileId, mode }), onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
+      onEnterRealm: () => this.socket.send({ type: "enterRealm" }), onBack: () => this.clearInspection(), onStart: () => this.startFirstWave()
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.name); this.registerDebugGlobal();
   }
@@ -81,8 +87,8 @@ export class Game {
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.briefingOpen = true; this.briefingStartedAt = performance.now();
       this.savedSession = { playerId: message.playerId, name: message.player.name }; this.sessionStorage.save(this.savedSession);
-      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setNeighbors(message.neighbors); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
-    } else if (message.type === "neighbors") this.hud.setNeighbors(message.neighbors);
+      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setRealm(message.realm); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
+    } else if (message.type === "realmUpdated") this.hud.setRealm(message.realm);
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
       this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;
@@ -92,16 +98,19 @@ export class Game {
     }
     else if (message.type === "progressionUpdated" && this.player) {
       this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setNotice(message.reason);
-    } else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
+    } else if (message.type === "groundDropCreated") this.drops.push(new ItemDrop(message.drop.id, message.drop.item, { ...this.hero.position }));
+    else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
     else if (message.type === "collectItemResult") this.handleCollectResult(message.dropId, message.collected, message.reason);
     else if (message.type === "serverNotice") this.hud.setNotice(message.message);
   }
 
   private enqueueWave(wave: CreepWave): void {
+    if (wave.mode !== this.waveMode) this.arena.clear();
+    this.waveMode = wave.mode;
     enqueueWave(this.arena, wave, performance.now());
     if (this.player) { this.player.waveNumber = wave.waveNumber; this.hud.setPlayer(this.player); }
-    this.hud.showWaveBanner(`Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
+    this.hud.showWaveBanner(wave.mode === "training" ? "Training Grounds" : `Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
   }
 
   private startFirstWave(): void {
@@ -123,19 +132,22 @@ export class Game {
     if (this.briefingOpen) { this.updateCamera(); return; }
     if (this.defeatCooldown > 0) { this.defeatCooldown -= deltaSeconds; if (this.defeatCooldown <= 0) this.resetArena(); return; }
     for (const build of releaseReadySpawns(this.arena, performance.now())) this.spawnCreep(build);
-    this.hero.update(deltaSeconds); this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero");
+    this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training"); this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero");
     const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
     this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
     this.heroCombat.update(deltaSeconds, movementInput, this.hero, this.arena, this.player.progress, this.balance, systemRandom);
     for (const creep of this.creeps) {
       if (!creep.active) continue;
       const attack = creep.pursue(this.hero.position, deltaSeconds, this.map.width, this.map.height);
-      const damage = rollWeaponDamage(creep.build.equipped, creep.stats, "enemy", this.balance, systemRandom);
-      if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, damage, creep, undefined, creep.build.equipped));
-      if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, damage));
+      correctArenaBoundary(creep, this.map.width, this.map.height, deltaSeconds);
+      const damage = rollWeaponDamage(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom);
+      if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, damage, creep, undefined, creep.build.mainHand));
+      if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, damage, "creep", undefined, creep));
     }
-    for (const attack of this.attacks) attack.update(deltaSeconds); for (const projectile of this.projectiles) projectile.update(deltaSeconds);
-    resolveCombat(this.arena, this.hero, this.player.progress.equipped, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
+    for (const attack of this.attacks) attack.update(deltaSeconds);
+    for (const projectile of this.projectiles) { projectile.update(deltaSeconds); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
+    for (const drop of this.drops) correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds);
+    resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops);
     if (this.inspected && !this.inspected.active) this.clearInspection();
     this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
@@ -168,8 +180,8 @@ export class Game {
     this.hud.setNotice(reason);
   }
 
-  private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, "neutral", build.name, this.map.randomEdgeSpawn(systemRandom), this.balance, systemRandom)); }
-  private handleDefeat(): void { this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated" }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
+  private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, build.emitterId ?? "neutral", build.emitterName ?? build.name, this.map.randomEdgeSpawn(systemRandom), this.balance, systemRandom, this.waveMode === "training" ? 0.5 : 1)); }
+  private handleDefeat(): void { if (this.waveMode === "training") return; this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated", sourceUnitId: this.hero.lastDamageSourceId }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
   private resetArena(): void { this.arena.clear(); this.heroCombat.reset(); this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
   private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.gold = this.player.progress.gold; }
 

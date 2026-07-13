@@ -4,6 +4,7 @@ import type { Camera, Vector2 } from "./types";
 
 export class ItemDrop extends GameObject {
   readonly radius = 14;
+  enteredArena = false;
   constructor(readonly dropId: string, readonly item: ItemInstance, readonly position: Vector2) { super(); }
   update(): void {}
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {

@@ -1,38 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import { BALANCE_PROFILES } from "../common/balance";
+import { emptyScraps } from "../common/inventory";
+import { generateItem, itemStackKey } from "../common/items";
+import { cumulativeXpForLevel } from "../common/progression";
 import type { PlayerId, ServerMessage } from "../common/protocol";
 import type { RandomSource } from "../common/random";
 import { InMemoryPlayerRepository } from "../server/domain";
 import { GameService } from "../server/GameService";
 
 class FixedRandom implements RandomSource { constructor(private readonly value = 0) {} next(): number { return this.value; } }
-function harness() {
-  const messages = new Map<PlayerId, ServerMessage[]>(); const repository = new InMemoryPlayerRepository(); let nextId = 0;
-  const game = new GameService({ repository, balance: BALANCE_PROFILES.dev, random: new FixedRandom(0), createId: () => `id-${++nextId}`, send: (id, message) => messages.set(id, [...(messages.get(id) ?? []), structuredClone(message)]) });
-  return { game, repository, messages };
-}
+function harness() { const messages = new Map<PlayerId, ServerMessage[]>(); const repository = new InMemoryPlayerRepository(); let nextId = 0; const game = new GameService({ repository, balance: BALANCE_PROFILES.dev, random: new FixedRandom(0), createId: () => `id-${++nextId}`, send: (id, message) => messages.set(id, [...(messages.get(id) ?? []), structuredClone(message)]) }); return { game, repository, messages }; }
 
-describe("authoritative game service", () => {
-  test("issues the opening wave and resolves a unit only once", () => {
-    const { game, repository, messages } = harness(); const player = game.join("Tester");
-    expect(player.waveNumber).toBe(1); expect(player.issuedUnits.size).toBe(13);
-    const unitId = player.issuedUnits.keys().next().value as string;
-    game.handle(player.id, { type: "creepDefeated", unitId });
-    const afterFirst = repository.get(player.id)!; expect(afterFirst.score).toBe(2); expect(afterFirst.progress.xp).toBe(30);
-    game.handle(player.id, { type: "creepDefeated", unitId });
-    expect(afterFirst.score).toBe(2); expect(afterFirst.progress.xp).toBe(30);
-    expect(messages.get(player.id)?.some((message) => message.type === "serverNotice")).toBeTrue();
-  });
-  test("keeps drops server-side until collection", () => {
-    const { game } = harness(); const player = game.join("Looter"); const unitId = player.issuedUnits.keys().next().value as string;
-    game.handle(player.id, { type: "creepDefeated", unitId }); expect(player.groundDrops.size).toBe(1);
-    const dropId = player.groundDrops.keys().next().value as string;
-    game.handle(player.id, { type: "collectDrop", dropId }); expect(player.groundDrops.size).toBe(0); expect(player.progress.backpack).toHaveLength(1);
-    game.handle(player.id, { type: "collectDrop", dropId }); expect(player.progress.backpack).toHaveLength(1);
-  });
-  test("defeat halves the wave and replacement does not advance it", () => {
-    const { game } = harness(); const player = game.join("Resetter"); game.dispatchWaves(); game.dispatchWaves(); game.dispatchWaves();
-    expect(player.waveNumber).toBe(4); game.handle(player.id, { type: "heroDefeated" }); expect(player.waveNumber).toBe(2);
-    game.handle(player.id, { type: "requestWave" }); expect(player.waveNumber).toBe(2);
-  });
+describe("realm game service", () => {
+  test("uses Training Grounds while waiting and activates a stable 1v1", () => { const { game, messages } = harness(); const one = game.join("One"); expect(messages.get(one.id)?.find((m) => m.type === "incomingWave")?.wave.mode).toBe("training"); const two = game.join("Two"); expect(one.realmId).toBe(two.realmId); expect(one.issuedUnits.size).toBe(13); expect([...one.issuedUnits.values()][0].mode).toBe("competitive"); });
+  test("resolves competitive units once and keeps drops server-owned", () => { const { game, messages } = harness(); const one = game.join("One"); game.join("Two"); const unitId = one.issuedUnits.keys().next().value as string; game.handle(one.id, { type: "creepDefeated", unitId }); expect(one.score).toBe(2); expect(one.progress.xp).toBe(30); expect(one.groundDrops.size).toBe(1); game.handle(one.id, { type: "creepDefeated", unitId }); expect(one.score).toBe(2); expect(messages.get(one.id)?.some((m) => m.type === "serverNotice")).toBeTrue(); const dropId = one.groundDrops.keys().next().value as string; game.handle(one.id, { type: "collectDrop", dropId }); expect(one.progress.inventoryTiles[0].quantity).toBe(1); });
+  test("sends equipment into a future carrier and retains attribution", () => { const { game } = harness(); const sender = game.join("Sender"); const target = game.join("Target"); const item = generateItem(2, "rare", 77); sender.progress.inventoryTiles.push({ id: "tile", key: itemStackKey(item), item, quantity: 2, automation: "keep" }); game.handle(sender.id, { type: "sendItem", tileId: "tile" }); expect(target.incomingQueues.get(sender.id)).toHaveLength(1); game.dispatchWaves(); const carrier = [...target.issuedUnits.values()].find((issued) => issued.build.emitterId === sender.id); expect(carrier?.build.mainHand.definitionId).toBe(item.definitionId); expect(sender.progress.inventoryTiles[0].quantity).toBe(1); });
+  test("credits the final sent-carrier realm defeat and rematches it", () => { const { game } = harness(); const killer = game.join("Killer"); const victim = game.join("Victim"); const oldRealm = victim.realmId; killer.progress.level = 5; killer.progress.xp = cumulativeXpForLevel(5); victim.progress.level = 5; const item = generateItem(2, "rare", 88); killer.progress.inventoryTiles.push({ id: "tile", key: itemStackKey(item), item, quantity: 1, automation: "keep" }); game.handle(killer.id, { type: "sendItem", tileId: "tile" }); game.dispatchWaves(); const source = [...victim.issuedUnits.values()].find((issued) => issued.build.emitterId === killer.id)!.build.id; game.handle(victim.id, { type: "heroDefeated", sourceUnitId: source }); expect(killer.progress.level).toBe(6); expect(victim.realmId).not.toBe(oldRealm); });
+  test("training kills grant nothing", () => { const { game } = harness(); const player = game.join("Trainee"); const unitId = player.issuedUnits.keys().next().value as string; game.handle(player.id, { type: "creepDefeated", unitId }); expect(player.score).toBe(0); expect(player.progress.xp).toBe(0); expect(player.progress.scraps).toEqual(emptyScraps()); });
 });

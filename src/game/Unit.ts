@@ -1,8 +1,10 @@
 import { GameObject } from "./GameObject";
 import { clamp, type Vector2 } from "./types";
 import { derivedStats, type Stats } from "../../common/progression";
+import { RARITY_POWER, type ItemInstance } from "../../common/items";
+import type { RandomSource } from "../../common/random";
 
-export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number }
+export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
 export abstract class Unit extends GameObject {
   position: Vector2;
@@ -15,6 +17,10 @@ export abstract class Unit extends GameObject {
   maxStamina = 1;
   stats: Stats = { agility: 0, strength: 0, magic: 0, spirit: 0, intelligence: 0 };
   statuses: StatusEffect[] = [];
+  enteredArena = false;
+  offHand?: ItemInstance;
+  lastDamageSourceId?: string;
+  damageFloorOne = false;
 
   protected constructor(position: Vector2, readonly radius: number, hp: number) {
     super();
@@ -28,8 +34,28 @@ export abstract class Unit extends GameObject {
     if (this.hp === 0) this.active = false;
   }
 
-  configureStats(stats: Stats): void {
+  receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false): void {
+    let remaining = amount; const buckler = this.offHand;
+    if (buckler?.itemKind === "buckler") {
+      const chance = Math.min(0.75, buckler.blockChance + 0.005 * (this.stats.strength + this.stats.agility));
+      if (random.next() < chance) {
+        remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
+        if (reflectable && source && buckler.reflectionComponents.length) {
+          const power = RARITY_POWER[buckler.rarity]; let reflected = 0;
+          if (buckler.reflectionComponents.includes("flat")) reflected += 1;
+          if (buckler.reflectionComponents.includes("strength")) reflected += 0.2 * this.stats.strength;
+          if (buckler.reflectionComponents.includes("return")) reflected += amount * (0.15 + 0.004 * this.stats.agility);
+          source.receiveDamage(reflected * power, random, this, false);
+        }
+      }
+    }
+    if (source && "build" in source) this.lastDamageSourceId = (source as Unit & { build: { id: string } }).build.id;
+    if (invulnerable || this.damageFloorOne) this.hp = Math.max(1, this.hp - remaining); else this.takeDamage(remaining);
+  }
+
+  configureStats(stats: Stats, offHand?: ItemInstance): void {
     this.stats = { ...stats };
+    this.offHand = offHand;
     const derived = derivedStats(stats);
     this.maxHp = derived.maxHp;
     this.hp = derived.maxHp;
@@ -37,12 +63,12 @@ export abstract class Unit extends GameObject {
     this.maxStamina = derived.maxStamina; this.stamina = derived.maxStamina;
   }
 
-  updateResources(deltaSeconds: number): void {
+  updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false): void {
     const derived = derivedStats(this.stats);
     let periodicDamage = 0;
-    for (const status of this.statuses) { status.remaining -= deltaSeconds; periodicDamage += status.damagePerSecond * deltaSeconds; }
+    for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
-    if (periodicDamage > 0) this.takeDamage(periodicDamage);
+    if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
     this.hp = Math.min(this.maxHp, this.hp + derived.hpRegen * deltaSeconds);
     this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * deltaSeconds);
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
