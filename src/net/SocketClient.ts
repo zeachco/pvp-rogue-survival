@@ -1,4 +1,4 @@
-import type { ClientMessage, ServerMessage } from "../../common/protocol";
+import { parseServerMessage, type ClientMessage, type ServerMessage } from "../../common/protocol";
 
 type MessageHandler = (message: ServerMessage) => void;
 type OpenHandler = () => void;
@@ -34,7 +34,9 @@ export class SocketClient {
       }
     });
     this.socket.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data as string) as ServerMessage;
+      let message: ServerMessage | undefined;
+      try { message = parseServerMessage(JSON.parse(event.data as string)); } catch { return; }
+      if (!message) return;
       for (const handler of this.handlers) {
         handler(message);
       }

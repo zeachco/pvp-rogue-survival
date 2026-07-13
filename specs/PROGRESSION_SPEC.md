@@ -22,12 +22,13 @@ This specification extends `specs/SPEC.md` and `specs/MECHANICS_SPEC.md` and is 
 - Weapon skills are available while equipped. Backpack weapons with skills expose an Extract action. Extraction is server-owned, consumes that weapon, costs `10 * sellValue` gold, and permanently learns the weapon's skills as cooldown spells. Extracting a skill the hero already knows increases that spell's level instead. Learned spell levels scale at least one meaningful parameter such as damage, healing, or cooldown.
 - The bottom spell bar shows learned spells and currently equipped weapon skills, including their level and cooldown state. Skills automatically cast by priority when cooldown, resource, target, and health conditions permit.
 - Basic attacks and physical/block skills use stamina; magic and healing use mana. Heroes and all spawned enemies share stats, resources, inventories, cooldowns, critical hits, healing, bleed, poison, and stun.
+- Weapons, affixes, skills, enemy archetypes, and their numeric definitions live in typed content registries. Serialized instances contain identifiers and data only; skill-specific execution is isolated behind handlers keyed by skill id.
 
 ## Waves and Rivals
 
-- Wave N has `10 + 2 * N` regular creeps. One regular template is rolled at `floor(heroLevel / regularCount)` and copied for the wave.
+- Wave N has `min(40, 10 + 2 * N)` regular creeps. One regular template is rolled at `max(floor(heroLevel / regularCount), floor((N - 1) / 2))` and copied for the wave.
 - Regulars spawn in ten cumulative 10% batches, five seconds apart. A separately rolled rival spawns after 75% of regulars.
-- A matched neighbor rival copies the neighbor's allocation/build tendencies, scaled to `floor(heroLevel * 0.8)`, with freshly generated items at that level. Solo play generates the same level of independent rival.
+- A matched neighbor rival copies the neighbor's allocation/build tendencies, scaled to `max(floor(heroLevel * 0.8), floor((N - 1) / 2))`, with freshly generated items at that level. Solo play generates the same level of independent rival.
 - Regular kills grant `10 + effectiveLevel` XP. Rival kills grant at least the cumulative XP needed to reach the rival level.
 - Enemy items independently roll their sparse item drop chances and appear in the arena for walk-over collection. At most one item is dropped per defeated enemy.
 - Defeated enemies also roll a server-owned direct-gold bounty independently of item drops: regular enemies have a 20% chance to grant `1 + floor(level / 5)` gold, and rivals have a 50% chance to grant `3 + floor(level / 2)` gold. Direct gold is credited immediately without an arena pickup.
@@ -37,6 +38,8 @@ This specification extends `specs/SPEC.md` and `specs/MECHANICS_SPEC.md` and is 
 
 - The server owns in-memory progression, allocation validation, XP/level changes, direct-gold rolls, generation seeds, wave builds, rival builds, equipment, selling, and inventory mutations.
 - The client owns arena simulation and reports kills and collected generated drop IDs. Protocol shapes remain suitable for later validation and database persistence.
+- The server retains a ledger of wave-issued units and generated ground drops. The client reports only unit ids and opaque drop ids; duplicate, unknown, or invalid-state reports grant nothing.
+- The selected balance profile modifies reward probabilities and amounts centrally. The development profile grants 3x XP, doubles direct-gold probability (capped at 100%), and triples item-drop probability (capped at 75%).
 
 ## First-session UX
 

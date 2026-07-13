@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "bun test",
     "dev": "bunx vite --host 0.0.0.0",
     "server": "bun server/server.ts",
     "start": "bun server/server.ts",
@@ -12,9 +13,10 @@
   },
   "dependencies": {
     "@vitejs/plugin-basic-ssl": "^2.1.0",
+    "typescript": "^5.8.0",
     "vite": "^7.0.0",
     "ws": "^8.18.0",
-    "typescript": "^5.8.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

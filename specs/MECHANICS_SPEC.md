@@ -9,6 +9,8 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Rendering draws the fixed arena, hero, creeps, attack areas, projectiles, health bars, and combat hints.
 - The camera follows the hero and remains clamped to the arena bounds.
 - Arena edges do not move or expand.
+- Simulation state is advanced by focused systems over an explicit arena state. Systems receive time and random sources as inputs and emit typed events for networking and presentation; they never directly access the DOM or WebSocket transport.
+- With the same initial state, fixed-step inputs, balance profile, and random seed, combat calculations and emitted arena events are deterministic.
 
 ## Arena and Movement
 
@@ -38,6 +40,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Enemy health is reduced only by resolved hero melee attack areas, hero projectile collisions, and status effects.
 - A unit's own attack area or projectile never damages that unit.
 - Damage areas and projectiles use circle or area overlap checks against unit collision radii.
+- Public balance-profile multipliers are applied once at the combat calculation boundary: the development profile multiplies hero outgoing damage by 1.5 and enemy outgoing damage by 0.6.
 
 ## Enemy Attacks
 

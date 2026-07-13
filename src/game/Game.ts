@@ -1,20 +1,24 @@
-import { statsWithItemBonuses, type ItemInstance, type SkillId } from "../../common/items";
-import { derivedStats, type Stats } from "../../common/progression";
+import { BALANCE_PROFILES, type BalanceConfig } from "../../common/balance";
+import { rollWeaponDamage } from "../../common/combat";
+import { systemRandom } from "../../common/random";
 import type { CreepWave, ServerMessage, UnitBuild } from "../../common/protocol";
 import { SocketClient } from "../net/SocketClient";
-import { Hud, type SpellSlot } from "../ui/Hud";
+import { SessionStorage } from "../platform/SessionStorage";
+import { Hud } from "../ui/Hud";
 import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
 import { ItemDrop } from "./ItemDrop";
 import { GameMap } from "./Map";
 import { Projectile } from "./Projectile";
+import { ArenaState, type QueuedSpawn } from "./ArenaState";
+import { enqueueWave, releaseReadySpawns, removeInactive } from "./systems/lifecycle";
+import { resolveCombat } from "./systems/combat";
+import { HeroCombatSystem } from "./systems/HeroCombatSystem";
+import { CanvasRenderer } from "./render/CanvasRenderer";
 import { clamp, distance, type Camera, type PlayerState, type Vector2 } from "./types";
 
-const SAVED_SESSION_KEY = "multi-line-tower.session";
 const FIXED_STEP = 1 / 60;
-interface SavedSession { playerId: string; name: string }
-interface QueuedSpawn { build: UnitBuild; spawnAt: number }
 
 declare global { interface Window { __mltDebug?: { game: Game; getState: () => Record<string, unknown>; join: (name: string) => void; clearSession: () => void } } }
 
@@ -22,35 +26,36 @@ export class Game {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly map = new GameMap();
   private readonly socket = new SocketClient();
+  private readonly sessionStorage = new SessionStorage();
+  private readonly arena = new ArenaState();
   private readonly hud: Hud;
-  private readonly creeps: Creep[] = [];
-  private readonly attacks: AttackArea[] = [];
-  private readonly projectiles: Projectile[] = [];
-  private readonly drops: ItemDrop[] = [];
-  private readonly pendingPickups = new Set<string>();
-  private readonly blockedPickups = new Set<string>();
+  private readonly renderer: CanvasRenderer;
+  private readonly heroCombat = new HeroCombatSystem();
   private readonly keys = new Set<string>();
   private hero = new Hero(this.map.center);
   private camera: Camera = { x: 0, y: 0, width: 1, height: 1 };
   private player?: PlayerState;
-  private savedSession = loadSavedSession();
+  private savedSession = this.sessionStorage.load();
+  private balance: BalanceConfig = BALANCE_PROFILES.dev;
   private debugName = this.savedSession?.name ?? "unjoined";
   private lastTimestamp = performance.now();
   private accumulator = 0;
-  private attackCooldown = 0;
-  private healingCooldown = 0;
-  private healingCooldownMax = 0;
-  private weaponSkillCooldown = 0;
-  private weaponSkillCooldownMax = 0;
   private defeatCooldown = 0;
   private briefingOpen = true;
   private briefingStartedAt = performance.now();
   private hovered?: Creep;
   private inspected?: Creep;
-  private waveQueue: QueuedSpawn[] = [];
+  private get creeps(): Creep[] { return this.arena.creeps; }
+  private get attacks(): AttackArea[] { return this.arena.attacks; }
+  private get projectiles(): Projectile[] { return this.arena.projectiles; }
+  private get drops(): ItemDrop[] { return this.arena.drops; }
+  private get pendingPickups(): Set<string> { return this.arena.pendingPickups; }
+  private get blockedPickups(): Set<string> { return this.arena.blockedPickups; }
+  private get waveQueue(): QueuedSpawn[] { return this.arena.waveQueue; }
 
   constructor(private readonly canvas: HTMLCanvasElement, hudRoot: HTMLDivElement) {
     const context = canvas.getContext("2d"); if (!context) throw new Error("Canvas 2D context unavailable"); this.ctx = context;
+    this.renderer = new CanvasRenderer(this.ctx, this.map);
     this.hud = new Hud(hudRoot, {
       onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
       onEquip: (itemId) => this.socket.send({ type: "equipItem", itemId }), onSell: (itemId) => this.socket.send({ type: "sellItem", itemId }), onExtract: (itemId) => this.socket.send({ type: "extractSkill", itemId }), onBack: () => this.clearInspection(), onStart: () => this.startFirstWave()
@@ -72,22 +77,29 @@ export class Game {
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === "welcome") {
       this.player = { id: message.playerId, name: message.player.name, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, gold: message.progress.gold, progress: message.progress };
+      this.balance = message.config.balance;
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.briefingOpen = true; this.briefingStartedAt = performance.now();
-      this.savedSession = { playerId: message.playerId, name: message.player.name }; saveSession(this.savedSession);
-      this.hud.setPlayer(this.player); this.hud.setSpells(this.spellSlots()); this.hud.setNeighbors(message.neighbors); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
+      this.savedSession = { playerId: message.playerId, name: message.player.name }; this.sessionStorage.save(this.savedSession);
+      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setNeighbors(message.neighbors); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
     } else if (message.type === "neighbors") this.hud.setNeighbors(message.neighbors);
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
+    else if (message.type === "creepDefeatResolved" && this.player) {
+      this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;
+      const position = this.arena.defeatedPositions.get(message.unitId); this.arena.defeatedPositions.delete(message.unitId);
+      if (message.drop && position) this.drops.push(new ItemDrop(message.drop.id, message.drop.item, position));
+      this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setNotice(message.reason);
+    }
     else if (message.type === "progressionUpdated" && this.player) {
-      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.spellSlots()); this.hud.setNotice(message.reason);
+      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setNotice(message.reason);
     } else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
-    else if (message.type === "collectItemResult") this.handleCollectResult(message.itemId, message.collected, message.reason);
+    else if (message.type === "collectItemResult") this.handleCollectResult(message.dropId, message.collected, message.reason);
     else if (message.type === "serverNotice") this.hud.setNotice(message.message);
   }
 
   private enqueueWave(wave: CreepWave): void {
-    const now = performance.now(); this.waveQueue.push(...wave.spawns.map((spawn) => ({ build: spawn.build, spawnAt: now + spawn.spawnAtMs })));
+    enqueueWave(this.arena, wave, performance.now());
     if (this.player) { this.player.waveNumber = wave.waveNumber; this.hud.setPlayer(this.player); }
     this.hud.showWaveBanner(`Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
   }
@@ -110,137 +122,55 @@ export class Game {
     if (!this.player) return;
     if (this.briefingOpen) { this.updateCamera(); return; }
     if (this.defeatCooldown > 0) { this.defeatCooldown -= deltaSeconds; if (this.defeatCooldown <= 0) this.resetArena(); return; }
-    const now = performance.now(); for (const queued of this.waveQueue.filter((entry) => entry.spawnAt <= now)) this.spawnCreep(queued.build);
-    this.waveQueue = this.waveQueue.filter((entry) => entry.spawnAt > now);
+    for (const build of releaseReadySpawns(this.arena, performance.now())) this.spawnCreep(build);
     this.hero.update(deltaSeconds); this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero");
     const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
     this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
-    this.updateHeroCombat(deltaSeconds, movementInput);
+    this.heroCombat.update(deltaSeconds, movementInput, this.hero, this.arena, this.player.progress, this.balance, systemRandom);
     for (const creep of this.creeps) {
       if (!creep.active) continue;
       const attack = creep.pursue(this.hero.position, deltaSeconds, this.map.width, this.map.height);
-      const damage = this.rollDamage(creep.build.equipped, creep.stats);
+      const damage = rollWeaponDamage(creep.build.equipped, creep.stats, "enemy", this.balance, systemRandom);
       if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, damage, creep, undefined, creep.build.equipped));
       if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, damage));
     }
     for (const attack of this.attacks) attack.update(deltaSeconds); for (const projectile of this.projectiles) projectile.update(deltaSeconds);
-    this.resolveAttacks(); this.resolveProjectiles(); this.collectKills(); this.collectDrops();
+    resolveCombat(this.arena, this.hero, this.player.progress.equipped, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops);
     if (this.inspected && !this.inspected.active) this.clearInspection();
-    this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.spellSlots()); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
-  }
-
-  private updateHeroCombat(deltaSeconds: number, movementInput: Vector2): void {
-    this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); this.weaponSkillCooldown = Math.max(0, this.weaponSkillCooldown - deltaSeconds);
-    const progress = this.player!.progress; const item = progress.equipped; const effectiveStats = statsWithItemBonuses(progress.stats, item); const derived = derivedStats(effectiveStats);
-    if (progress.learnedSkills.includes("healing") && this.hero.hp < this.hero.maxHp * 0.5 && this.healingCooldown === 0 && this.hero.mana >= 2) {
-      const level = this.skillLevel(progress, "healing");
-      this.hero.mana -= 2; this.hero.hp = Math.min(this.hero.maxHp, this.hero.hp + (0.5 + effectiveStats.spirit * 1.2) * derived.magicAmp * spellPower(level)); this.healingCooldown = 8 * cooldownScale(level, derived.cooldownReduction); this.healingCooldownMax = this.healingCooldown;
-    }
-    let target: Creep | undefined; let targetDistance = Infinity;
-    for (const creep of this.creeps) if (creep.active) { const current = distance(this.hero.position, creep.position); if (current < targetDistance) { target = creep; targetDistance = current; } }
-    if (!target) {
-      if (movementInput.x !== 0 || movementInput.y !== 0) this.hero.facing = Math.atan2(movementInput.y, movementInput.x);
-      return;
-    }
-    this.hero.facing = Math.atan2(target.position.y - this.hero.position.y, target.position.x - this.hero.position.x);
-    const candidate = this.weaponSkillCooldown === 0 ? this.availableCombatSkills(progress, item)[0] : undefined;
-    const magicSkill = candidate?.id === "arcaneBolt" && this.hero.mana >= 1;
-    const physicalSkill = Boolean(candidate && candidate.id !== "arcaneBolt" && this.hero.stamina >= item.staminaCost + 0.35);
-    const activeSkill = magicSkill || physicalSkill ? candidate : undefined;
-    const range = activeSkill ? skillRange(activeSkill.id, item) : item.definitionId === "staff" ? 330 : 105;
-    const ranged = item.definitionId === "staff" || activeSkill?.id === "arcaneBolt";
-    if (targetDistance <= range + target.radius && this.attackCooldown === 0 && this.hero.stamina >= item.staminaCost) {
-      this.hero.stamina -= item.staminaCost + (physicalSkill ? 0.35 : 0);
-      if (magicSkill) this.hero.mana -= 1;
-      const damage = this.rollDamage(item, effectiveStats) * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1);
-      if (ranged) this.projectiles.push(new Projectile(this.hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined));
-      else this.attacks.push(new AttackArea("hero", { ...this.hero.position }, this.hero.facing, activeSkill?.id === "sweep" ? 135 : range, activeSkill?.id === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, this.hero, meleeSkill(activeSkill?.id), item));
-      if (activeSkill) { this.weaponSkillCooldown = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.weaponSkillCooldownMax = this.weaponSkillCooldown; }
-      this.attackCooldown = (activeSkill?.id === "flurry" ? 0.2 : 0.7) / (derived.attackSpeed * item.modifiers.attackSpeedMultiplier);
-    }
-  }
-
-  private availableCombatSkills(progress: PlayerState["progress"], item: ItemInstance): { id: SkillId; level: number }[] {
-    const skills = new Map<SkillId, number>();
-    for (const skill of item.skills) if (skill !== "healing") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill) || 1));
-    for (const skill of progress.learnedSkills) if (skill !== "healing") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill)));
-    return [...skills.entries()].map(([id, level]) => ({ id, level: Math.max(1, level) }));
-  }
-
-  private skillLevel(progress: PlayerState["progress"], skill: SkillId): number { return progress.learnedSkillLevels?.[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0); }
-  private spellSlots(): SpellSlot[] {
-    if (!this.player) return [];
-    const progress = this.player.progress; const ids = new Set<SkillId>([...progress.learnedSkills, ...progress.equipped.skills]);
-    return [...ids].map((id) => ({ id, label: skillLabel(id), level: Math.max(1, this.skillLevel(progress, id) || 1), cooldown: id === "healing" ? this.healingCooldown : this.weaponSkillCooldown, cooldownMax: id === "healing" ? this.healingCooldownMax : this.weaponSkillCooldownMax }));
-  }
-
-  private rollDamage(item: ItemInstance, stats: Stats): number {
-    const derived = derivedStats(stats); let damage = derived.baseDamage * item.modifiers.damageMultiplier;
-    if (item.definitionId === "staff") damage *= derived.magicAmp + item.modifiers.magicAmp;
-    if (Math.random() < derived.critChance + item.modifiers.critChance) damage *= derived.critMultiplier;
-    return damage;
-  }
-
-  private resolveAttacks(): void {
-    for (const attack of this.attacks) {
-      if (!attack.shouldResolve()) continue; attack.markResolved();
-      if (attack.owner === "hero") {
-        for (const creep of this.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) { creep.takeDamage(attack.damage); if (attack.weapon) this.applyWeaponEffects(creep, attack.weapon); if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 }); if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 }); }
-      } else if (this.hero.active && attack.contains(this.hero.position, this.hero.radius)) {
-        this.hero.takeDamage(attack.damage);
-        const source = attack.source;
-        if (attack.weapon) this.applyWeaponEffects(this.hero, attack.weapon);
-      }
-    }
-  }
-  private resolveProjectiles(): void {
-    for (const projectile of this.projectiles) {
-      if (!projectile.active) continue;
-      if (projectile.owner === "hero") {
-        const hit = this.creeps.find((creep) => creep.active && distance(projectile.position, creep.position) <= projectile.radius + creep.radius);
-        if (hit) { hit.takeDamage(projectile.damage); this.applyWeaponEffects(hit, this.player!.progress.equipped); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0 }); projectile.active = false; }
-      } else if (distance(projectile.position, this.hero.position) <= projectile.radius + this.hero.radius) { this.hero.takeDamage(projectile.damage); projectile.active = false; }
-      if (projectile.position.x < -40 || projectile.position.y < -40 || projectile.position.x > this.map.width + 40 || projectile.position.y > this.map.height + 40) projectile.active = false;
-    }
-  }
-  private applyWeaponEffects(target: Hero | Creep, item: ItemInstance): void {
-    if (Math.random() < item.modifiers.bleedChance) target.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25 });
-    if (Math.random() < item.modifiers.poisonChance) target.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 0.2 + target.stats.spirit * 0.02 });
-    if (Math.random() < item.modifiers.stunChance) target.addStatus({ kind: "stun", remaining: 0.7, damagePerSecond: 0 });
+    this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
   }
 
   private collectKills(): void {
     for (const creep of this.creeps) if (!creep.active) {
-      const candidates = [creep.build.equipped, ...creep.build.backpack]; const item = candidates.find((candidate) => Math.random() < candidate.dropChance);
-      if (item) this.drops.push(new ItemDrop({ ...item, id: `${item.id}-drop-${crypto.randomUUID()}` }, { ...creep.position }));
-      this.socket.send({ type: "creepKilled", unitId: creep.build.id, isRival: creep.build.isRival, xpReward: creep.build.xpReward, goldReward: creep.build.goldReward });
+      this.arena.defeatedPositions.set(creep.build.id, { ...creep.position });
+      this.socket.send({ type: "creepDefeated", unitId: creep.build.id });
     }
   }
   private collectDrops(): void {
     const overlapping = new Set<string>();
     for (const drop of this.drops) {
       if (!drop.active || distance(drop.position, this.hero.position) > drop.radius + this.hero.radius) continue;
-      overlapping.add(drop.item.id);
-      if (this.pendingPickups.has(drop.item.id) || this.blockedPickups.has(drop.item.id)) continue;
-      this.pendingPickups.add(drop.item.id);
-      this.socket.send({ type: "collectItem", item: drop.item });
+      overlapping.add(drop.dropId);
+      if (this.pendingPickups.has(drop.dropId) || this.blockedPickups.has(drop.dropId)) continue;
+      this.pendingPickups.add(drop.dropId);
+      this.socket.send({ type: "collectDrop", dropId: drop.dropId });
     }
     for (const itemId of this.blockedPickups) if (!overlapping.has(itemId)) this.blockedPickups.delete(itemId);
   }
-  private handleCollectResult(itemId: string, collected: boolean, reason: string): void {
-    this.pendingPickups.delete(itemId);
+  private handleCollectResult(dropId: string, collected: boolean, reason: string): void {
+    this.pendingPickups.delete(dropId);
     if (collected) {
-      const drop = this.drops.find((candidate) => candidate.item.id === itemId);
+      const drop = this.drops.find((candidate) => candidate.dropId === dropId);
       if (drop) drop.active = false;
-      this.blockedPickups.delete(itemId);
-    } else this.blockedPickups.add(itemId);
+      this.blockedPickups.delete(dropId);
+    } else this.blockedPickups.add(dropId);
     this.hud.setNotice(reason);
   }
 
-  private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, "neutral", build.name, this.map.randomEdgeSpawn())); }
+  private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, "neutral", build.name, this.map.randomEdgeSpawn(systemRandom), this.balance, systemRandom)); }
   private handleDefeat(): void { this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated" }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
-  private resetArena(): void { this.creeps.length = 0; this.attacks.length = 0; this.projectiles.length = 0; this.drops.length = 0; this.pendingPickups.clear(); this.blockedPickups.clear(); this.waveQueue.length = 0; this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
+  private resetArena(): void { this.arena.clear(); this.heroCombat.reset(); this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
   private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.gold = this.player.progress.gold; }
 
   private updateHover(event: MouseEvent): void { const world = this.eventWorld(event); this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0]; if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined; this.canvas.style.cursor = this.hovered ? "pointer" : "default"; }
@@ -248,26 +178,7 @@ export class Game {
   private clearInspection(): void { this.inspected = undefined; this.hud.setInspection(); }
   private eventWorld(event: MouseEvent): Vector2 { const rect = this.canvas.getBoundingClientRect(); return { x: event.clientX - rect.left + this.camera.x, y: event.clientY - rect.top + this.camera.y }; }
   private updateCamera(): void { this.camera.x = clamp(this.hero.position.x - this.camera.width / 2, 0, Math.max(0, this.map.width - this.camera.width)); this.camera.y = clamp(this.hero.position.y - this.camera.height / 2, 0, Math.max(0, this.map.height - this.camera.height)); }
-  private render(): void { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.map.render(this.ctx, this.camera); for (const drop of this.drops) drop.render(this.ctx, this.camera); for (const attack of this.attacks) attack.render(this.ctx, this.camera); for (const creep of this.creeps) { creep.render(this.ctx, this.camera); this.renderThreatIndicator(creep); if (creep === this.hovered || creep === this.inspected) { this.ctx.strokeStyle = "#fff08a"; this.ctx.lineWidth = 2; this.ctx.beginPath(); this.ctx.arc(creep.position.x - this.camera.x, creep.position.y - this.camera.y, creep.radius + 7, 0, Math.PI * 2); this.ctx.stroke(); } } for (const projectile of this.projectiles) projectile.render(this.ctx, this.camera); this.hero.render(this.ctx, this.camera); }
-  private renderThreatIndicator(creep: Creep): void {
-    const x = creep.position.x - this.camera.x; const y = creep.position.y - this.camera.y; const margin = 30;
-    if (x >= margin && x <= this.camera.width - margin && y >= margin && y <= this.camera.height - margin) return;
-    const indicatorX = clamp(x, margin, this.camera.width - margin); const indicatorY = clamp(y, margin, this.camera.height - margin);
-    const angle = Math.atan2(y - indicatorY, x - indicatorX);
-    this.ctx.save(); this.ctx.translate(indicatorX, indicatorY); this.ctx.rotate(angle); this.ctx.fillStyle = creep.build.isRival ? "#ffd166" : "#ff6f7d";
-    this.ctx.beginPath(); this.ctx.moveTo(12, 0); this.ctx.lineTo(-8, -7); this.ctx.lineTo(-8, 7); this.ctx.closePath(); this.ctx.fill(); this.ctx.restore();
-  }
+  private render(): void { this.renderer.render(this.camera, this.hero, this.arena, this.hovered, this.inspected); }
   private resize(): void { const scale = devicePixelRatio || 1; const width = this.canvas.clientWidth || innerWidth; const height = this.canvas.clientHeight || innerHeight; this.canvas.width = width * scale; this.canvas.height = height * scale; this.ctx.setTransform(scale, 0, 0, scale, 0, 0); this.camera.width = width; this.camera.height = height; this.updateCamera(); }
-  private registerDebugGlobal(): void { window.__mltDebug = { game: this, getState: () => ({ player: this.player, hero: { hp: this.hero.hp, mana: this.hero.mana, stamina: this.hero.stamina }, creeps: this.creeps.length, drops: this.drops.length, queued: this.waveQueue.length }), join: (name) => this.join(name), clearSession: () => { localStorage.removeItem(SAVED_SESSION_KEY); this.savedSession = undefined; } }; }
+  private registerDebugGlobal(): void { window.__mltDebug = { game: this, getState: () => ({ player: this.player, balance: this.balance.id, hero: { hp: this.hero.hp, mana: this.hero.mana, stamina: this.hero.stamina }, creeps: this.creeps.length, drops: this.drops.length, queued: this.waveQueue.length }), join: (name) => this.join(name), clearSession: () => { this.sessionStorage.clear(); this.savedSession = undefined; } }; }
 }
-
-function removeInactive<T extends { active: boolean }>(items: T[]): void { for (let index = items.length - 1; index >= 0; index -= 1) if (!items[index].active) items.splice(index, 1); }
-function loadSavedSession(): SavedSession | undefined { try { const parsed = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY) ?? "null") as SavedSession | null; return parsed?.playerId && parsed.name ? parsed : undefined; } catch { return undefined; } }
-function saveSession(session: SavedSession): void { try { localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify(session)); } catch { /* restricted */ } }
-function skillDamageMultiplier(skill: SkillId): number { return skill === "bash" ? 1.5 : skill === "sweep" ? 1.25 : skill === "flurry" ? 0.8 : skill === "arcaneBolt" ? 1.7 : 1; }
-function skillCooldown(skill: SkillId): number { return skill === "flurry" ? 2.5 : 5; }
-function skillRange(skill: SkillId, item: ItemInstance): number { return skill === "arcaneBolt" ? 330 : skill === "sweep" ? 135 : item.definitionId === "staff" ? 330 : 105; }
-function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
-function cooldownScale(level: number, cooldownReduction: number): number { return Math.max(0.25, (1 - cooldownReduction) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
-function skillLabel(skill: SkillId): string { return skill === "arcaneBolt" ? "Arcane Bolt" : skill[0].toUpperCase() + skill.slice(1); }
-function meleeSkill(skill: SkillId | undefined): "bash" | "sweep" | "flurry" | undefined { return skill === "bash" || skill === "sweep" || skill === "flurry" ? skill : undefined; }

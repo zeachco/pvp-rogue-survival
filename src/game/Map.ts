@@ -1,4 +1,5 @@
 import type { Camera, Vector2 } from "./types";
+import { systemRandom, type RandomSource } from "../../common/random";
 
 export class GameMap {
   readonly width = 1600;
@@ -7,13 +8,13 @@ export class GameMap {
 
   get center(): Vector2 { return { x: this.width / 2, y: this.height / 2 }; }
 
-  randomEdgeSpawn(): Vector2 {
+  randomEdgeSpawn(random: RandomSource = systemRandom): Vector2 {
     const margin = 24;
-    const edge = Math.floor(Math.random() * 4);
-    if (edge === 0) return { x: Math.random() * this.width, y: -margin };
-    if (edge === 1) return { x: this.width + margin, y: Math.random() * this.height };
-    if (edge === 2) return { x: Math.random() * this.width, y: this.height + margin };
-    return { x: -margin, y: Math.random() * this.height };
+    const edge = Math.floor(random.next() * 4);
+    if (edge === 0) return { x: random.next() * this.width, y: -margin };
+    if (edge === 1) return { x: this.width + margin, y: random.next() * this.height };
+    if (edge === 2) return { x: random.next() * this.width, y: this.height + margin };
+    return { x: -margin, y: random.next() * this.height };
   }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {

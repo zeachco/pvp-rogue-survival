@@ -63,9 +63,12 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 8. Architecture
 
+The codebase is a modular monolith with shared, environment-independent game-domain modules. Browser, canvas, WebSocket, HTTP, and process APIs stay at composition boundaries; progression, content generation, balance, wave construction, inventory transactions, and combat calculations remain pure and directly testable. Randomness, clocks, and identifiers are injected wherever outcomes affect game state.
+
 ### Client
 
-- `src/game/Game.ts`: fixed-step orchestration, input, spawning, collisions, combat outcomes, networking, and camera following.
+- `src/game/Game.ts`: thin browser composition root and fixed-step loop.
+- `src/game/ArenaState.ts` and `src/game/systems/`: local arena state plus focused movement, combat, collision, spawning, loot, defeat, and cleanup systems. Systems emit arena events and do not access WebSockets or DOM nodes.
 - `src/game/GameObject.ts`: abstract update/render base.
 - `src/game/Unit.ts`: health and velocity-based steering shared by hero and creeps.
 - `src/game/Hero.ts`: WASD-controlled hero, resources, closest-target auto-aim, and equipped-weapon state.
@@ -73,22 +76,24 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - `src/game/AttackArea.ts`: telegraphed, dodgeable melee weapon attack areas.
 - `src/game/Projectile.ts`: moving collision-based enemy bubbles.
 - `src/game/Map.ts`: fixed arena dimensions, bounds, edge spawning, and arena rendering.
-- `src/ui/Hud.tsx`: stable join, status, neighbor, wave, notice, and inventory DOM.
-- `src/net/SocketClient.ts`: typed WebSocket wrapper.
+- `src/ui/`: stable DOM views driven by presentation models rather than simulation objects.
+- `src/net/SocketClient.ts`: validated WebSocket transport. Session storage is a separate browser adapter.
 - Local storage persists only accepted session id and display name, never transient combat state.
 
 ### Server and Shared
 
-- `server/server.ts`: static HTTP server, `/ws`, sessions, matchmaking, score, and wave dispatch.
-- `common/protocol.ts`: progression messages, generated unit builds, waves, and public player summaries.
-- Shared progression formulas and item generators live in `common/progression.ts` and `common/items.ts`.
+- `server/server.ts`: process composition and startup only. HTTP/WebSocket transport, repositories, and game services are independently startable and testable.
+- `common/protocol.ts`: runtime-validated protocol messages and shared types.
+- `common/balance.ts`: typed normal and development balance profiles.
+- Shared progression, inventory, content, combat, item, and wave rules live in `common/` and have no browser or server runtime dependencies.
 
 ## 9. WebSocket Protocol
 
 Client to server:
 
 - `join`: `{ name, sessionId? }`
-- `creepKilled`: `{ unitId, isRival, xpReward, goldReward }`
+- `creepDefeated`: `{ unitId }`
+- `collectDrop`: `{ dropId }`
 - `heroDefeated`: `{}`
 - `requestWave`: `{}`
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
@@ -99,11 +104,22 @@ Server to client:
 - `welcome`: `{ playerId, player, neighbors, config }`
 - `neighbors`: `{ neighbors }`
 - `incomingWave`: `{ wave }`
+- `creepDefeatResolved`: `{ unitId, score, progress, drop?, reason }`
 - `waveAdjusted`: `{ waveNumber, reason }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
 
-## 10. Initial Scope
+The server records units issued in each wave and accepts a unit defeat at most once. XP, score, gold, and drop generation are derived from that record rather than client-supplied rewards. Generated ground drops remain in a server ledger and are collected by opaque drop id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state.
+
+## 10. Balance Profiles
+
+- `normal` is the production profile. `dev` is the default for local development; `BALANCE_PROFILE=normal|dev` selects the server profile and public simulation modifiers are sent in `welcome`.
+- Normal waves contain `min(40, 10 + 2 * waveNumber)` regular enemies. The raw count stops growing at 40 so long-running games scale through enemy strength rather than unbounded active entities.
+- A normal regular enemy uses level `max(floor(heroLevel / regularCount), floor((waveNumber - 1) / 2))`. A rival uses level `max(floor(heroLevel * 0.8), floor((waveNumber - 1) / 2))`.
+- The normal profile retains the 60-second wave interval, three-second preparation delay, ten cumulative spawn batches five seconds apart, and rival spawn after 75% of regulars.
+- The `dev` profile retains wave timing and composition, but uses 60% enemy damage, 70% enemy health, 150% hero damage, 3x XP, 2x direct-gold probability capped at 100%, and 3x item-drop probability capped at 75%.
+
+## 11. Initial Scope
 
 - Join/resume flow and fixed responsive arena.
 - WASD hero with acceleration, bounded movement, camera follow, and health, as specified in `specs/MECHANICS_SPEC.md`.
@@ -114,14 +130,14 @@ Server to client:
 - Character and inventory HUD with a starting club, allocation controls, backpack, item actions, and enemy inspection.
 - Server-authored waves, score awards, and neighbor summaries.
 
-## 11. Future Scope
+## 12. Future Scope
 
 - Obstacles and pathfinding around them.
 - Additional weapon classes, skills, affixes, and particles.
 - Competitive wave modification redesigned around the item economy.
 - Account persistence, server-side simulation validation, replays, matchmaking ratings, and mobile controls.
 
-## 12. Development Process
+## 13. Development Process
 
 - `specs/SPEC.md`, `specs/MECHANICS_SPEC.md`, and `specs/PROGRESSION_SPEC.md` are the source-of-truth specification set. Update the relevant spec before implementing behavior not already covered.
 - Keep filenames, runtime choices, protocols, mechanics, progression rules, and UX synchronized with implementation.

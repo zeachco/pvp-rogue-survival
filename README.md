@@ -19,3 +19,17 @@ Use Bun for project tooling and scripts.
 - `bun run dev`: start the Vite client dev server.
 - `bun run server`: start the Bun server.
 - `bun run build`: typecheck and build the client.
+- `bun test`: run deterministic domain, server-service, protocol, and WebSocket integration tests.
+
+## Architecture
+
+- `common/` contains runtime protocol schemas and pure balance, content, combat, inventory, progression, item, random, and wave rules.
+- `server/GameService.ts` is the application layer over a replaceable player repository; `server/createApp.ts` owns HTTP/WebSocket transport.
+- `src/game/ArenaState.ts` and `src/game/systems/` own local simulation state and fixed-step systems. `src/game/render/` owns canvas presentation.
+- `src/platform/`, `src/net/`, and `src/ui/` isolate browser persistence, transport, and stable DOM views from simulation rules.
+
+The server is authoritative for issued enemies, rewards, generated drops, progression, and inventory mutations. Client reports contain opaque unit or drop IDs and are runtime-validated before dispatch.
+
+## Balance profiles
+
+Local runs use the forgiving `dev` profile by default; production uses `normal`. Override either with `BALANCE_PROFILE=dev` or `BALANCE_PROFILE=normal` when starting the server. Both profiles keep the same wave schedule, while `dev` boosts hero damage and rewards and lowers enemy health and damage for faster testing.

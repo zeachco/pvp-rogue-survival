@@ -1,14 +1,14 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 import { STAT_KEYS, cumulativeXpForLevel, xpForNextLevel, type Stats } from "../../common/progression";
-import type { ItemInstance, SkillId } from "../../common/items";
 import type { PublicPlayer, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
+import { Fragment, h } from "./dom";
+import { itemCard } from "./InventoryView";
+import type { HudCallbacks, SpellSlot } from "./types";
+export type { HudCallbacks, SpellSlot } from "./types";
 
 declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
-interface HudCallbacks { onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(itemId: string): void; onSell(itemId: string): void; onExtract(itemId: string): void; onBack(): void; onStart(): void }
-type Child = Node | string | number | boolean | null | undefined;
-export interface SpellSlot { id: SkillId; label: string; level: number; cooldown: number; cooldownMax: number }
 
 export class Hud {
   private player?: PlayerState;
@@ -165,30 +165,6 @@ export class Hud {
   private updateVisibility(): void { const joined = Boolean(this.player); this.joinPanel.classList.toggle("is-hidden", joined); this.gameHud.classList.toggle("is-hidden", !joined); }
 }
 
-function itemCard(item: ItemInstance, actions: boolean, inspected: UnitBuild | undefined, callbacks: HudCallbacks, openItemMenuId: string | undefined, onMenuToggle: (itemId?: string) => void): HTMLElement {
-  const bonuses = STAT_KEYS.filter((key) => item.statBonuses?.[key]).map((key) => `+${format(item.statBonuses?.[key] ?? 0)} ${capitalize(key)}`).join(" · ");
-  const node = <div class={`item-card rarity-${item.rarity}`} title="Click for actions; right-click to equip"><strong>{item.name}</strong><small>L{item.level} {item.rarity} · {format(item.modifiers.damageMultiplier * 100)}% dmg · {format(item.modifiers.attackSpeedMultiplier * 100)}% spd{bonuses ? ` · ${bonuses}` : ""}</small></div> as HTMLElement;
-  if (actions && !inspected) {
-    const menu = <div class={`item-menu${openItemMenuId === item.id ? "" : " is-hidden"}`}><button type="button">Equip</button><button type="button">Sell {item.sellValue}g</button>{item.skills.length ? <button type="button">Extract {item.sellValue * 10}g</button> : null}</div> as HTMLElement;
-    (menu.children[0] as HTMLButtonElement).onclick = (event) => { event.stopPropagation(); callbacks.onEquip(item.id); };
-    (menu.children[1] as HTMLButtonElement).onclick = (event) => { event.stopPropagation(); callbacks.onSell(item.id); };
-    if (item.skills.length) (menu.children[2] as HTMLButtonElement).onclick = (event) => { event.stopPropagation(); callbacks.onExtract(item.id); };
-    node.append(menu); node.onclick = () => onMenuToggle(openItemMenuId === item.id ? undefined : item.id);
-    node.oncontextmenu = (event) => { event.preventDefault(); callbacks.onEquip(item.id); };
-  }
-  return node;
-}
 function format(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
 function numericInput(input: HTMLInputElement): number { const value = Number(input.value); return Number.isFinite(value) ? value : 0; }
 function capitalize(value: string): string { return value[0].toUpperCase() + value.slice(1); }
-export function h(tag: string | ((props: Record<string, unknown>, ...children: Child[]) => Node), props: Record<string, unknown> | null, ...children: Child[]): Node {
-  if (typeof tag === "function") return tag(props ?? {}, ...children);
-  const element = document.createElement(tag);
-  for (const [key, value] of Object.entries(props ?? {})) {
-    if (value === false || value === null || value === undefined) continue;
-    if (key === "class") element.className = String(value); else if (key === "style") element.setAttribute("style", String(value)); else if (key.startsWith("data-")) element.setAttribute(key, String(value)); else if (key in element) Reflect.set(element, key, value === true ? "" : value); else element.setAttribute(key, String(value));
-  }
-  appendChildren(element, children); return element;
-}
-export function Fragment(_props: unknown, ...children: Child[]): DocumentFragment { const fragment = document.createDocumentFragment(); appendChildren(fragment, children); return fragment; }
-function appendChildren(parent: Node, children: Child[]): void { for (const child of children.flat(Infinity) as Child[]) if (child !== null && child !== undefined && child !== false && child !== true) parent.appendChild(child instanceof Node ? child : document.createTextNode(String(child))); }

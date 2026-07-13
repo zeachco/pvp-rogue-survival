@@ -1,6 +1,9 @@
 import { type CreepKind, type PlayerId, type UnitBuild } from "../../common/protocol";
 import { derivedStats } from "../../common/progression";
 import { statsWithItemBonuses } from "../../common/items";
+import type { BalanceConfig } from "../../common/balance";
+import type { RandomSource } from "../../common/random";
+import { ENEMY_ARCHETYPES } from "../../common/content";
 import { Unit } from "./Unit";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
@@ -11,7 +14,7 @@ export type CreepAttack =
 export class Creep extends Unit {
   readonly bounty: number;
   readonly scoreValue: number;
-  private cooldown = 0.5 + Math.random() * 0.4;
+  private cooldown: number;
   private windup = 0;
   private pendingAttack = false;
   private damageFlash = 0;
@@ -21,12 +24,16 @@ export class Creep extends Unit {
     build: UnitBuild,
     readonly emitterId: PlayerId | "neutral",
     readonly emitterName: string,
-    position: Vector2
+    position: Vector2,
+    balance: BalanceConfig,
+    random: RandomSource
   ) {
     super(position, build.isRival ? 22 : 16, 1);
     this.build = build;
+    this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
     this.configureStats(statsWithItemBonuses(build.stats, build.equipped));
+    this.maxHp *= balance.combat.enemyHealthMultiplier; this.hp = this.maxHp;
     this.bounty = Math.max(1, build.equipped.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
   }
@@ -42,8 +49,10 @@ export class Creep extends Unit {
     this.updateResources(deltaSeconds);
     this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const derived = derivedStats(this.stats);
-    const maxSpeed = (this.build.isRival ? 100 : 72) * (1 + this.stats.agility * 0.01);
-    const acceleration = this.build.isRival ? 250 : 190;
+    const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
+    const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01);
+    const acceleration = movement.acceleration;
     const ranged = this.kind === "bubbleShooter" || this.build.equipped.definitionId === "staff";
     const heroDistance = distance(this.position, hero);
     const attackSpeed = derived.attackSpeed * this.build.equipped.modifiers.attackSpeedMultiplier;
@@ -59,7 +68,7 @@ export class Creep extends Unit {
       return undefined;
     }
 
-    const attackRange = ranged ? 330 : 62;
+    const attackRange = ranged ? rangedMovement.attackRange : movement.attackRange;
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;
@@ -69,8 +78,8 @@ export class Creep extends Unit {
     }
 
     let direction = normalize({ x: hero.x - this.position.x, y: hero.y - this.position.y });
-    if (ranged && heroDistance < 210) direction = { x: -direction.x, y: -direction.y };
-    else if (ranged && heroDistance <= 285) direction = { x: 0, y: 0 };
+    if (ranged && heroDistance < (rangedMovement.retreatRange ?? 0)) direction = { x: -direction.x, y: -direction.y };
+    else if (ranged && heroDistance <= (rangedMovement.preferredRange ?? rangedMovement.attackRange)) direction = { x: 0, y: 0 };
     if (!this.stunned) this.steer(direction, acceleration, maxSpeed, deltaSeconds);
     this.position.x = Math.max(-this.radius, Math.min(width + this.radius, this.position.x));
     this.position.y = Math.max(-this.radius, Math.min(height + this.radius, this.position.y));
