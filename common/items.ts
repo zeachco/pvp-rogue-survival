@@ -89,8 +89,11 @@ export function itemStackKey(item: ItemInstance): string {
     affixes: [...item.affixes].sort(), requirements: orderedStats(item.requirements), statBonuses: orderedStats(item.statBonuses), modifiers: item.modifiers,
     skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort() });
 }
-export const itemMergeKey = itemStackKey;
-export const mergeItems = levelUpItem;
+export function itemAutomationKey(item: ItemInstance): string {
+  return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, rarity: item.rarity, hands: item.hands,
+    affixes: [...item.affixes].sort(), statBonuses: orderedStats(item.statBonuses), skills: [...item.skills].sort(),
+    reflectionComponents: [...item.reflectionComponents].sort() });
+}
 export function statsWithItemBonuses(stats: Stats, ...items: Array<ItemInstance | undefined>): Stats {
   return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] + items.reduce((sum, item) => sum + (item?.statBonuses[key] ?? 0), 0)])) as Stats;
 }

@@ -3,13 +3,13 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
-export type InventoryAutomation = "keep" | "sell" | "merge" | "purge";
+export type InventoryAutomation = "keep" | "sell" | "upgrade" | "purge";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number; automation: InventoryAutomation }
 export interface PlayerProgress {
-  level: number; xp: number; stats: Stats; allocation: Stats; gold: number; scraps: Record<Rarity, number>;
+  level: number; xp: number; stats: Stats; allocation: Stats; gold: number; souls: number; scraps: Record<Rarity, number>;
   mainHand: ItemInstance; offHand?: ItemInstance; inventoryTiles: InventoryTile[];
   learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>;
 }
@@ -27,12 +27,12 @@ export interface CreepWave { id: string; targetId: PlayerId; waveNumber: number;
 export interface GroundDrop { id: string; item: ItemInstance }
 
 const statsSchema = z.object({ agility: z.number(), strength: z.number(), magic: z.number(), spirit: z.number(), intelligence: z.number() });
-const tileCommand = (type: "equipItem" | "sellItem" | "purgeItem" | "mergeItem" | "sendItem" | "extractSkill") => z.object({ type: z.literal(type), tileId: z.string().min(1) });
+const tileCommand = (type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill") => z.object({ type: z.literal(type), tileId: z.string().min(1) });
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("join"), name: z.string().max(100), sessionId: z.string().optional() }),
   z.object({ type: z.literal("updateAllocation"), allocation: statsSchema }), z.object({ type: z.literal("creepDefeated"), unitId: z.string().min(1) }),
-  z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("mergeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
-  z.object({ type: z.literal("setStackAutomation"), tileId: z.string().min(1), mode: z.enum(["keep", "sell", "merge", "purge"]) }),
+  z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("upgradeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
+  z.object({ type: z.literal("setStackAutomation"), tileId: z.string().min(1), mode: z.enum(["keep", "sell", "upgrade", "purge"]) }),
   z.object({ type: z.literal("heroDefeated"), sourceUnitId: z.string().optional() }), z.object({ type: z.literal("requestWave") }), z.object({ type: z.literal("leaveRealm") }), z.object({ type: z.literal("enterRealm") }),
   z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() })
 ]);
@@ -44,7 +44,7 @@ export type ClientMessage =
   | { type: "updateAllocation"; allocation: Stats }
   | { type: "creepDefeated"; unitId: string }
   | { type: "collectDrop"; dropId: string }
-  | { type: "equipItem" | "sellItem" | "purgeItem" | "mergeItem" | "sendItem" | "extractSkill"; tileId: string }
+  | { type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill"; tileId: string }
   | { type: "setStackAutomation"; tileId: string; mode: InventoryAutomation }
   | { type: "heroDefeated"; sourceUnitId?: string }
   | { type: "requestWave" | "leaveRealm" | "enterRealm" }

@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
-import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, mergeFromInventory, processAutoMerges, purgeFromInventory, sellFromInventory, sendFromInventory, setAutomation, type InventoryResult } from "../common/inventory.ts";
+import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, processAutoUpgrades, purgeFromInventory, sellFromInventory, sendFromInventory, setAutomation, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
 import { generateBuckler, generateItem, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PlayerProgress, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
@@ -39,7 +39,7 @@ export class GameService {
       case "equipItem": return this.applyInventoryResult(player, equipFromInventory(player.progress, message.tileId));
       case "sellItem": return this.applyInventoryResult(player, sellFromInventory(player.progress, message.tileId));
       case "purgeItem": return this.applyInventoryResult(player, purgeFromInventory(player.progress, message.tileId));
-      case "mergeItem": return this.applyInventoryResult(player, mergeFromInventory(player.progress, message.tileId, () => this.createId(), () => this.seed()));
+      case "upgradeItem": return this.applyInventoryResult(player, upgradeFromInventory(player.progress, message.tileId, () => this.createId(), () => this.seed()));
       case "extractSkill": return this.applyInventoryResult(player, extractFromInventory(player.progress, message.tileId));
       case "setStackAutomation": return this.applyInventoryResult(player, setAutomation(player.progress, message.tileId, message.mode, () => this.createId(), () => this.seed()));
       case "sendItem": return this.sendItem(player, message.tileId);
@@ -57,10 +57,10 @@ export class GameService {
 
   private joinPlayer(name: string, sessionId?: PlayerId): Player {
     const trimmed = name.trim().slice(0, 20) || "Player"; const existing = sessionId ? this.options.repository.get(sessionId) : undefined;
-    if (existing) { existing.name = trimmed; existing.connected = true; existing.waitingSince = Date.now(); return existing; }
-    const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: true, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
+    if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); return existing; }
+    const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [],
-      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, scraps: emptyScraps(), mainHand: starterClub(), offHand: undefined, inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
+      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), offHand: undefined, inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
     this.options.repository.save(player); return player;
   }
 
@@ -122,7 +122,7 @@ export class GameService {
     if (!player.realmId) return this.notice(player, "Training Grounds prevent defeat.");
     const source = sourceUnitId ? player.issuedUnits.get(sourceUnitId)?.build : undefined; player.waveNumber = Math.floor(player.waveNumber / 2); player.issuedUnits.clear(); player.groundDrops.clear();
     this.options.send(player.id, { type: "waveAdjusted", waveNumber: player.waveNumber, reason: `Wave reduced to ${player.waveNumber} after defeat.` });
-    if (player.realmId) { const realm = this.realms.get(player.realmId); if (realm) { realm.down.add(player.id); const side = realm.soloId === player.id ? [realm.soloId] : realm.teamIds; if (side.every((id) => realm.down.has(id))) { if (source?.emitterId && !source.backlash && source.emitterId !== player.id) { const killer = this.options.repository.get(source.emitterId); if (killer) { this.grantXp(killer, 100 * player.progress.level); this.sendProgress(killer, `Realm defeated: gained ${100 * player.progress.level} XP.`); } } this.dissolveRealm(realm.id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); } } }
+    if (player.realmId) { const realm = this.realms.get(player.realmId); if (realm) { realm.down.add(player.id); const side = realm.soloId === player.id ? [realm.soloId] : realm.teamIds; if (side.every((id) => realm.down.has(id))) { if (source?.emitterId && !source.backlash && source.emitterId !== player.id) { const killer = this.options.repository.get(source.emitterId); if (killer) { killer.progress.souls += 1; this.grantXp(killer, 100 * player.progress.level); this.sendProgress(killer, `Realm defeated: gained ${100 * player.progress.level} XP and 1 Soul.`); } } this.dissolveRealm(realm.id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); } } }
     this.broadcastRealms();
   }
 
@@ -156,8 +156,8 @@ export class GameService {
   private realmState(player: Player): RealmState { if (!player.realmId) return { mode: player.realmOptedIn ? "waiting" : "training", guards: [], attackers: [], outgoingQueued: this.queuedBy(player.id), incomingQueued: player.backlashQueue.length, canLeave: true }; const realm = this.realms.get(player.realmId)!; const opponents = this.realmOpponents(player); const member = (entry: Player): RealmMember => ({ ...this.publicPlayer(entry), down: realm.down.has(entry.id) }); return { mode: "competitive", guards: opponents.map(member), attackers: opponents.map(member), outgoingQueued: this.queuedBy(player.id), incomingQueued: [...player.incomingQueues.values()].reduce((n, q) => n + q.length, 0), canLeave: this.canLeave() }; }
   private broadcastRealms(): void { for (const player of this.options.repository.values()) if (player.connected) this.options.send(player.id, { type: "realmUpdated", realm: this.realmState(player) }); }
   private publicPlayer(player: Player): PublicPlayer { return { id: player.id, name: player.name, score: player.score, waveNumber: player.waveNumber, level: player.progress.level }; }
-  private grantXp(player: Player, amount: number): void { const old = player.progress.level; player.progress.xp += amount; const next = levelForXp(player.progress.xp); for (let level = old; level < next; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key]; player.progress.level = next; processAutoMerges(player.progress, () => this.createId(), () => this.seed()); }
-  private applyInventoryResult(player: Player, result: InventoryResult): void { if (!result.changed) return this.notice(player, result.reason); for (const item of result.dropped ?? []) { const id = this.createId(); player.groundDrops.set(id, item); this.options.send(player.id, { type: "groundDropCreated", drop: { id, item } }); } processAutoMerges(player.progress, () => this.createId(), () => this.seed()); this.sendProgress(player, result.reason); }
+  private grantXp(player: Player, amount: number): void { const old = player.progress.level; player.progress.xp += amount; const next = levelForXp(player.progress.xp); for (let level = old; level < next; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key]; player.progress.level = next; processAutoUpgrades(player.progress, () => this.createId(), () => this.seed()); }
+  private applyInventoryResult(player: Player, result: InventoryResult): void { if (!result.changed) return this.notice(player, result.reason); for (const item of result.dropped ?? []) { const id = this.createId(); player.groundDrops.set(id, item); this.options.send(player.id, { type: "groundDropCreated", drop: { id, item } }); } processAutoUpgrades(player.progress, () => this.createId(), () => this.seed()); this.sendProgress(player, result.reason); }
   private sendProgress(player: Player, reason: string): void { this.options.send(player.id, { type: "progressionUpdated", progress: player.progress, reason }); }
   private notice(player: Player, message: string): void { this.options.send(player.id, { type: "serverNotice", message }); }
   private seed(): number { return randomSeed(this.options.random); }

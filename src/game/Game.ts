@@ -42,8 +42,6 @@ export class Game {
   private lastTimestamp = performance.now();
   private accumulator = 0;
   private defeatCooldown = 0;
-  private briefingOpen = true;
-  private briefingStartedAt = performance.now();
   private hovered?: Creep;
   private inspected?: Creep;
   private waveMode: "competitive" | "training" = "training";
@@ -61,10 +59,10 @@ export class Game {
     this.hud = new Hud(hudRoot, {
       onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
       onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId) => this.socket.send({ type: "sellItem", tileId }),
-      onPurge: (tileId) => this.socket.send({ type: "purgeItem", tileId }), onMerge: (tileId) => this.socket.send({ type: "mergeItem", tileId }),
+      onPurge: (tileId) => this.socket.send({ type: "purgeItem", tileId }), onUpgrade: (tileId) => this.socket.send({ type: "upgradeItem", tileId }),
       onSend: (tileId) => this.socket.send({ type: "sendItem", tileId }), onExtract: (tileId) => this.socket.send({ type: "extractSkill", tileId }),
       onAutomation: (tileId, mode) => this.socket.send({ type: "setStackAutomation", tileId, mode }), onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
-      onEnterRealm: () => this.socket.send({ type: "enterRealm" }), onBack: () => this.clearInspection(), onStart: () => this.startFirstWave()
+      onEnterRealm: () => this.socket.send({ type: "enterRealm" }), onBack: () => this.clearInspection()
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.name); this.registerDebugGlobal();
   }
@@ -82,19 +80,19 @@ export class Game {
   private join(name: string, sessionId?: string): void { this.debugName = name.trim() || this.debugName; this.socket.send({ type: "join", name, sessionId }); this.hud.setNotice("Joining arena..."); }
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === "welcome") {
-      this.player = { id: message.playerId, name: message.player.name, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, gold: message.progress.gold, progress: message.progress };
+      this.player = { id: message.playerId, name: message.player.name, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, gold: message.progress.gold, progress: message.progress };
       this.balance = message.config.balance;
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
-      this.briefingOpen = true; this.briefingStartedAt = performance.now();
       this.savedSession = { playerId: message.playerId, name: message.player.name }; this.sessionStorage.save(this.savedSession);
-      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setRealm(message.realm); this.hud.setNotice("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
+      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setRealm(message.realm); this.hud.setNotice(""); this.hud.showCenterToast("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
     } else if (message.type === "realmUpdated") this.hud.setRealm(message.realm);
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
       this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;
       const position = this.arena.defeatedPositions.get(message.unitId); this.arena.defeatedPositions.delete(message.unitId);
       if (message.drop && position) this.drops.push(new ItemDrop(message.drop.id, message.drop.item, position));
-      this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setNotice(message.reason);
+      this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player);
+      if (this.waveMode === "training") this.hud.showXpToast(message.reason); else this.hud.setNotice(message.reason);
     }
     else if (message.type === "progressionUpdated" && this.player) {
       this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setNotice(message.reason);
@@ -113,14 +111,6 @@ export class Game {
     this.hud.showWaveBanner(wave.mode === "training" ? "Training Grounds" : `Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
   }
 
-  private startFirstWave(): void {
-    if (!this.briefingOpen) return;
-    const pausedFor = performance.now() - this.briefingStartedAt;
-    for (const queued of this.waveQueue) queued.spawnAt += pausedFor;
-    this.briefingOpen = false;
-    this.hud.setNotice("Wave starts in 3 seconds. Move with WASD; your club attacks automatically.");
-  }
-
   private tick(timestamp: number): void {
     this.accumulator += Math.min(0.1, (timestamp - this.lastTimestamp) / 1000); this.lastTimestamp = timestamp;
     while (this.accumulator >= FIXED_STEP) { this.update(FIXED_STEP); this.accumulator -= FIXED_STEP; }
@@ -129,7 +119,6 @@ export class Game {
 
   private update(deltaSeconds: number): void {
     if (!this.player) return;
-    if (this.briefingOpen) { this.updateCamera(); return; }
     if (this.defeatCooldown > 0) { this.defeatCooldown -= deltaSeconds; if (this.defeatCooldown <= 0) this.resetArena(); return; }
     for (const build of releaseReadySpawns(this.arena, performance.now())) this.spawnCreep(build);
     this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training"); this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero");
@@ -183,7 +172,7 @@ export class Game {
   private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, build.emitterId ?? "neutral", build.emitterName ?? build.name, this.map.randomEdgeSpawn(systemRandom), this.balance, systemRandom, this.waveMode === "training" ? 0.5 : 1)); }
   private handleDefeat(): void { if (this.waveMode === "training") return; this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated", sourceUnitId: this.hero.lastDamageSourceId }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
   private resetArena(): void { this.arena.clear(); this.heroCombat.reset(); this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
-  private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.gold = this.player.progress.gold; }
+  private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.attackProgress = this.heroCombat.attackProgress; this.player.gold = this.player.progress.gold; }
 
   private updateHover(event: MouseEvent): void { const world = this.eventWorld(event); this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0]; if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined; this.canvas.style.cursor = this.hovered ? "pointer" : "default"; }
   private inspectAt(event: MouseEvent): void { this.updateHover(event); this.inspected = this.hovered; this.hud.setInspection(this.inspected?.build); }

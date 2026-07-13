@@ -45,13 +45,13 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 6. Multiplayer and Economy
 
-- Connected, opted-in players are placed in stable server-owned 1v1, 1v2, or 1v3 realm groups until disconnect, voluntary exit, or realm defeat.
+- Players start in the Halls of Realms lobby and must explicitly choose Enter Realm before matchmaking. Connected, opted-in players are placed in stable server-owned 1v1, 1v2, or 1v3 realm groups until disconnect, voluntary exit, or realm defeat.
 - The server starts with the highest-level waiting player and chooses one to three lower-level opponents whose combined level is closest. Ties prefer fewer opponents, longer wait, then stable player id; no level gap is rejected.
 - A 1v1 is reciprocal. In 1v2/1v3 every team member attacks the solo player and the solo player's outgoing sends rotate across the team.
 - Realm Guard identifies outbound recipients and Realm Attacker identifies inbound senders. The HUD shows their names, levels, down state, and queued items.
 - Sending consumes exact equipment and queues it FIFO for future regular creeps. Carrier slots are allocated round-robin across attackers, overflow persists, and each player may retain at most 1,000 active or backlash queue entries.
 - Closing a realm reverses undelivered items into hostile backlash queues against their original senders. Backlash pauses in Training Grounds and grants no realm-kill XP.
-- A player's first defeat remains marked until the next global wave dispatch. A side is defeated when all members were down during that round. A lethal sent carrier credits its sender `100 * victimLevel` XP; neutral and backlash lethals grant no realm-kill XP. Individual defeat reset and wave-halving still apply.
+- A player's first defeat remains marked until the next global wave dispatch. A side is defeated when all members were down during that round. A lethal sent carrier credits its sender `100 * victimLevel` XP and one Soul; neutral and backlash lethals grant no realm-kill reward. Individual defeat reset and wave-halving still apply.
 - Leave to Lobby is available after the final planned spawn and before the next global dispatch. Training Grounds repeat the current neutral wave without advancing it, halve enemy movement speed, clamp the hero to at least 1 HP, grant no combat rewards or drops, allow inventory management, and disable sending.
 - Enter Realm is available at any time. Training continues until matching succeeds, then a fresh competitive wave starts with the normal preparation delay.
 - The former tower-building and creep-purchase economy is removed from the active UI and protocol.
@@ -63,10 +63,16 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Use futuristic, simple geometric shapes with no required external art pipeline.
 - Telegraph and combat rendering rules follow `specs/MECHANICS_SPEC.md`.
 - Show controls, drops, and inspected enemy highlight.
-- Show controls and auto-attack behavior in the HUD notice.
+- Show movement and auto-attack guidance as a centered, non-blocking notification that fades after a few seconds.
 - Wave starts use a centered, non-blocking fading banner.
-- Reserve a 220px independently scrolling character/stat column and a 320px independently scrolling permanent equipment column. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
-- Show a bottom spell bar for learned and equipped cooldown skills without overlapping the 540px right-side build area.
+- Joining never pauses play behind a first-wave confirmation modal.
+- A single-row realm header sits at the top-left of the playable arena. It reads Halls of Realms in the lobby, Waiting for realm while queued, and Wave N during competitive play, followed by Realm Guard, Realm Attacker, and queue information.
+- Routine notifications appear at the top-right edge of the playable arena, immediately left of the fixed build columns.
+- Training-kill no-reward feedback is an exception to routine notifications: it appears just above the experience/level badge and fades away after a few seconds.
+- The health and mana displays sit directly beside the centered experience/level badge rather than stretching toward the arena edges.
+- Cooldown spells use a compact Ubuntu-dock-like vertical rail on the left edge, anchored above the bottom-left health display and growing upward as spells are added without a scrollbar.
+- Reserve a 220px independently scrolling character/stat column and a 320px independently scrolling permanent equipment column. Each column has its own small arrow toggle and retracts independently to a narrow tab; the arena and HUD reclaim the released width immediately. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
+- Keep all arena HUD elements inside the playable width without overlapping the 540px right-side build area.
 
 ## 8. Architecture
 
@@ -101,7 +107,7 @@ Client to server:
 - `join`: `{ name, sessionId? }`
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
-- `equipItem`, `sellItem`, `purgeItem`, `mergeItem`, `sendItem`, `extractSkill`: `{ tileId }`
+- `equipItem`, `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId }`
 - `setStackAutomation`: `{ tileId, mode }`
 - `heroDefeated`: `{ sourceUnitId? }`
 - `requestWave`: `{}`

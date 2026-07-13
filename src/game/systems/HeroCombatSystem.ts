@@ -14,6 +14,7 @@ import { distance, type Vector2 } from "../types";
 
 export class HeroCombatSystem {
   private attackCooldown = 0;
+  private attackCooldownMax = 0;
   private healingCooldown = 0;
   private healingCooldownMax = 0;
   private weaponSkillCooldown = 0;
@@ -44,6 +45,7 @@ export class HeroCombatSystem {
     else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, activeSkill?.id === "sweep" ? 135 : range, activeSkill?.id === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item));
     if (activeSkill) { this.weaponSkillCooldown = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.weaponSkillCooldownMax = this.weaponSkillCooldown; }
     this.attackCooldown = (activeSkill?.id === "flurry" ? 0.2 : 0.7) / (derived.attackSpeed * item.modifiers.attackSpeedMultiplier);
+    this.attackCooldownMax = this.attackCooldown;
   }
 
   spellSlots(progress: PlayerProgress): SpellSlot[] {
@@ -51,7 +53,8 @@ export class HeroCombatSystem {
     return [...ids].map((id) => ({ id, label: skillLabel(id), level: Math.max(1, this.skillLevel(progress, id) || 1), cooldown: id === "healing" ? this.healingCooldown : this.weaponSkillCooldown, cooldownMax: id === "healing" ? this.healingCooldownMax : this.weaponSkillCooldownMax }));
   }
 
-  reset(): void { this.attackCooldown = 0; this.healingCooldown = 0; this.healingCooldownMax = 0; this.weaponSkillCooldown = 0; this.weaponSkillCooldownMax = 0; }
+  get attackProgress(): number { return this.attackCooldownMax > 0 ? 1 - this.attackCooldown / this.attackCooldownMax : 1; }
+  reset(): void { this.attackCooldown = 0; this.attackCooldownMax = 0; this.healingCooldown = 0; this.healingCooldownMax = 0; this.weaponSkillCooldown = 0; this.weaponSkillCooldownMax = 0; }
   private skillLevel(progress: PlayerProgress, skill: SkillId): number { return progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0); }
   private availableSkills(progress: PlayerProgress, item: ItemInstance): { id: SkillId; level: number }[] {
     const skills = new Map<SkillId, number>();

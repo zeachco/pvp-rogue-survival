@@ -13,6 +13,7 @@ export interface PlayerState {
   maxMana: number;
   stamina: number;
   maxStamina: number;
+  attackProgress: number;
 }
 
 export function normalize(vector: Vector2): Vector2 {
