@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
@@ -7,16 +7,19 @@ import { balanceProfile, type BalanceProfileId } from "../common/balance.ts";
 import { parseClientMessage, type PlayerId, type ServerMessage } from "../common/protocol.ts";
 import { systemRandom } from "../common/random.ts";
 import { InMemoryPlayerRepository } from "./domain.ts";
-import { FilePlayerRepository } from "./FilePlayerRepository.ts";
+import type { PlayerRepository } from "./domain.ts";
+import { SqlPlayerRepository } from "./SqlPlayerRepository.ts";
 import { GameService } from "./GameService.ts";
 
-interface PlayerSocket extends WebSocket { playerId?: PlayerId }
-export interface AppOptions { root: string; balanceProfile?: BalanceProfileId; dataFile?: string | false }
+interface PlayerSocket extends WebSocket { playerId?: PlayerId; lastSeen: number; commandChain: Promise<void> }
+export interface AppOptions { root: string; balanceProfile?: BalanceProfileId; databaseUrl?: string | false }
 
-export function createApp(options: AppOptions) {
+export async function createApp(options: AppOptions) {
   const publicRoot = existsSync(join(options.root, "dist")) ? join(options.root, "dist") : options.root;
   const sockets = new Map<string, PlayerSocket>();
-  const repository = options.dataFile === false ? new InMemoryPlayerRepository() : new FilePlayerRepository(options.dataFile ?? join(options.root, "server-data", "players.json"));
+  let repository: PlayerRepository;
+  if (options.databaseUrl === false) repository = new InMemoryPlayerRepository();
+  else { const databaseUrl = options.databaseUrl ?? `sqlite://${join(options.root, "server-data", "players.sqlite")}`; if (databaseUrl.startsWith("sqlite:") || databaseUrl.startsWith("file:")) mkdirSync(join(options.root, "server-data"), { recursive: true }); repository = await SqlPlayerRepository.open(databaseUrl); }
   const sendToPlayer = (playerId: PlayerId, message: ServerMessage) => {
     for (const socket of sockets.values()) if (socket.playerId === playerId && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   };
@@ -31,24 +34,40 @@ export function createApp(options: AppOptions) {
   const server = createServer((request, response) => serveStatic(request, response, publicRoot));
   const wss = new WebSocketServer({ server, path: "/ws" });
   wss.on("connection", (socket: PlayerSocket) => {
-    const connectionId = crypto.randomUUID(); sockets.set(connectionId, socket);
+    const connectionId = crypto.randomUUID(); socket.lastSeen = Date.now(); socket.commandChain = Promise.resolve(); sockets.set(connectionId, socket);
+    socket.on("pong", () => { socket.lastSeen = Date.now(); });
     socket.on("message", (raw: RawData) => {
-      const message = decode(raw);
-      if (!message) { socket.send(JSON.stringify({ type: "serverNotice", message: "Ignored invalid message." } satisfies ServerMessage)); return; }
-      if (message.type === "join") { game.join(message.name, message.sessionId, (playerId) => { socket.playerId = playerId; }); repository.persist(); return; }
-      if (!socket.playerId) { socket.send(JSON.stringify({ type: "serverNotice", message: "Join before playing." } satisfies ServerMessage)); return; }
-      game.handle(socket.playerId, message); repository.persist();
+      socket.lastSeen = Date.now(); socket.commandChain = socket.commandChain.then(async () => {
+        const message = decode(raw);
+        if (!message) return sendSocket(socket, { type: "serverNotice", message: "Ignored invalid message." });
+        if (message.type === "listHeroes") return sendLeaderboard(socket, repository);
+        if (message.type === "inspectHero") { const hero = game.publicHeroProfile(message.heroId); return hero ? sendSocket(socket, { type: "heroProfile", hero }) : sendSocket(socket, { type: "serverNotice", message: "That hero is unavailable." }); }
+        if (message.type === "join") {
+          const existing = game.findPlayer(message.heroId, message.name); if (existing?.connected) return sendSocket(socket, { type: "serverNotice", message: "That username is already logged in." });
+          try { game.join(message.name ?? "", message.heroId, (playerId) => { socket.playerId = playerId; }); await repository.persist(); }
+          catch { sendSocket(socket, { type: "serverNotice", message: message.heroId ? "That hero is unavailable." : "Username must use 1-20 letters, digits, underscores, or hyphens." }); }
+          return;
+        }
+        if (message.type === "logout") { if (socket.playerId) { game.logout(socket.playerId); socket.playerId = undefined; await repository.persist(); } sendSocket(socket, { type: "loggedOut" }); return sendLeaderboard(socket, repository); }
+        if (!socket.playerId) return sendSocket(socket, { type: "serverNotice", message: "Join before playing." });
+        game.handle(socket.playerId, message); await repository.persist();
+      }).catch((error) => { console.error("[MLH][database] command failed", error instanceof Error ? error.message : error); sendSocket(socket, { type: "serverNotice", message: "The server could not save that change." }); });
     });
     socket.on("close", () => { sockets.delete(connectionId); if (socket.playerId && !hasSocket(sockets, socket.playerId)) game.disconnect(socket.playerId); });
   });
-  const timer = setInterval(() => { game.dispatchWaves(); repository.persist(); }, balanceProfile(options.balanceProfile).wave.intervalMs);
+  const timer = setInterval(() => { game.dispatchWaves(); void repository.persist(); }, balanceProfile(options.balanceProfile).wave.intervalMs);
   timer.unref();
+  const heartbeat = setInterval(() => { const now = Date.now(); for (const socket of sockets.values()) { if (now - socket.lastSeen >= 300_000) socket.terminate(); else if (socket.readyState === WebSocket.OPEN) socket.ping(); } }, 30_000); heartbeat.unref();
   return { server, game, repository, close: () => new Promise<void>((resolve, reject) => {
-    clearInterval(timer); repository.persist();
-    if (!server.listening) { wss.close(); resolve(); return; }
-    wss.close(() => server.close((error) => error ? reject(error) : resolve()));
+    clearInterval(timer); clearInterval(heartbeat); void Promise.resolve(repository.persist()).then(() => repository.close?.()).then(() => {
+      if (!server.listening) { wss.close(); resolve(); return; }
+      wss.close(() => server.close((error) => error ? reject(error) : resolve()));
+    }, reject);
   }) };
 }
+
+function sendSocket(socket: PlayerSocket, message: ServerMessage): void { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message)); }
+async function sendLeaderboard(socket: PlayerSocket, repository: PlayerRepository): Promise<void> { sendSocket(socket, { type: "leaderboard", heroes: await repository.listSummaries() }); }
 
 function decode(raw: RawData) { try { return parseClientMessage(JSON.parse(String(raw))); } catch { return undefined; } }
 function hasSocket(sockets: Map<string, PlayerSocket>, playerId: PlayerId): boolean { return [...sockets.values()].some((socket) => socket.playerId === playerId && socket.readyState === WebSocket.OPEN); }

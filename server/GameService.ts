@@ -4,7 +4,7 @@ import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInven
 import { changeItemRarity, generateBuckler, generateItem, generateRelic, itemStackKey, nextRarity, rollRarity, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
-import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
+import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type HeroSummary, type PlayerId, type PublicHeroProfile, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
 import { regularCount, regularLevel, rivalLevel, spawnAtMs } from "../common/waves.ts";
 import type { Player, PlayerRepository, QueuedEquipment } from "./domain.ts";
@@ -19,15 +19,20 @@ export class GameService {
   private lastDispatchAt = Date.now();
   constructor(private readonly options: GameServiceOptions) { this.createId = options.createId ?? (() => crypto.randomUUID()); }
 
-  join(name: string, sessionId?: PlayerId, onIdentified?: (playerId: PlayerId) => void): Player {
-    const player = this.joinPlayer(name, sessionId); onIdentified?.(player.id); this.options.logPlayerLifecycle?.("connected", player); const created = this.matchWaitingPlayers();
-    this.options.send(player.id, { type: "welcome", playerId: player.id, player: this.publicPlayer(player), progress: player.progress, realm: this.realmState(player), config: { waveIntervalMs: this.options.balance.wave.intervalMs, protocolVersion: PROTOCOL_VERSION, maxRealmAttackers: 3, maxQueuedItems: MAX_QUEUE, balance: publicBalance(this.options.balance) } });
+  join(name: string, heroId?: PlayerId, onIdentified?: (playerId: PlayerId) => void): Player {
+    const player = this.joinPlayer(name, heroId); onIdentified?.(player.id); this.options.logPlayerLifecycle?.("connected", player); const created = this.matchWaitingPlayers();
+    this.options.send(player.id, { type: "welcome", playerId: player.id, player: this.publicPlayer(player), progress: player.progress, panelTriggers: player.panelTriggers, realm: this.realmState(player), config: { waveIntervalMs: this.options.balance.wave.intervalMs, protocolVersion: PROTOCOL_VERSION, maxRealmAttackers: 3, maxQueuedItems: MAX_QUEUE, balance: publicBalance(this.options.balance) } });
     this.broadcastRealms();
     if (created.length) for (const realm of created) this.activateRealm(realm); else if (!player.realmId) this.dispatchCurrentWave(player, "training");
     return player;
   }
 
   disconnect(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; player.connected = false; this.options.logPlayerLifecycle?.("disconnected", player); if (player.realmId) this.dissolveRealm(player.realmId); for (const realm of this.matchWaitingPlayers()) this.activateRealm(realm); this.broadcastRealms(); }
+
+  logout(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; this.disconnect(playerId); player.realmOptedIn = false; player.realmId = undefined; player.issuedUnits.clear(); player.groundDrops.clear(); player.deferredItems.length = 0; player.incomingQueues.clear(); player.backlashQueue.length = 0; for (const other of this.options.repository.values()) { other.incomingQueues.delete(playerId); other.backlashQueue = other.backlashQueue.filter((entry) => entry.senderId !== playerId); } }
+  findPlayer(heroId?: string, username?: string): Player | undefined { return heroId ? this.options.repository.get(heroId) : username ? this.options.repository.getByUsername(username) : undefined; }
+  leaderboard(): HeroSummary[] { return [...this.options.repository.values()].map((player) => ({ id: player.id, username: player.name, level: player.progress.level })).sort((a, b) => b.level - a.level || a.username.localeCompare(b.username)); }
+  publicHeroProfile(heroId: string): PublicHeroProfile | undefined { const player = this.options.repository.get(heroId); if (!player) return undefined; const p = player.progress; return { id: player.id, username: player.name, level: p.level, stats: p.stats, mainHand: p.mainHand, offHand: p.offHand, learnedSkills: p.learnedSkills, learnedSkillLevels: p.learnedSkillLevels, universalSkills: p.universalSkills }; }
 
   handle(playerId: PlayerId, message: Exclude<ClientMessage, { type: "join" }>): void {
     const player = this.options.repository.get(playerId); if (!player) return;
@@ -36,6 +41,7 @@ export class GameService {
       case "respecStats": return this.respecStats(player, message.allocation);
       case "creepDefeated": return this.resolveDefeat(player, message.unitId);
       case "collectDrop": return this.collectDrop(player, message.dropId);
+      case "reconcileDrops": return this.reconcileDrops(player, message.activeDropIds, message.pendingDropIds);
       case "deferDrop": return this.deferDrop(player, message.dropId);
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);
       case "requestWave": return this.dispatchCurrentWave(player, this.waveMode(player));
@@ -47,7 +53,8 @@ export class GameService {
       case "sendItem": return this.sendItem(player, message.tileId, message.bulk);
       case "leaveRealm": return this.leaveRealm(player);
       case "enterRealm": return this.enterRealm(player);
-      case "scoreSnapshot": return;
+      case "scoreSnapshot": case "logout": case "listHeroes": case "inspectHero": return;
+      case "dismissPanelTrigger": player.panelTriggers[message.panel] = false; return;
     }
   }
 
@@ -57,12 +64,13 @@ export class GameService {
     this.broadcastRealms();
   }
 
-  private joinPlayer(name: string, sessionId?: PlayerId): Player {
-    const trimmed = name.trim().slice(0, 20) || "Player"; const existing = sessionId ? this.options.repository.get(sessionId) : undefined;
-    if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
+  private joinPlayer(name: string, heroId?: PlayerId): Player {
+    const trimmed = name.trim().slice(0, 20); const existing = heroId ? this.options.repository.get(heroId) : this.options.repository.getByUsername(trimmed);
+    if (existing) { existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
+    if (!/^[A-Za-z0-9_-]{1,20}$/.test(trimmed)) throw new Error("Invalid username.");
     const mainHand = generateItem(0, "common", 101, { allowedClasses: ["throwingAxe"] }); const offHand = generateBuckler(0, "common", 102); const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [],
-      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand, offHand, inventoryTiles: [{ id: "starter-throwing-axe-tile", key: itemStackKey(mainHand), item: mainHand, quantity: 1 }, { id: "starter-buckler-tile", key: itemStackKey(offHand), item: offHand, quantity: 1 }], learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 }, universalSkills: ["healing", "rent"] } };
+      panelTriggers: { character: true, inventory: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand, offHand, inventoryTiles: [{ id: "starter-throwing-axe-tile", key: itemStackKey(mainHand), item: mainHand, quantity: 1 }, { id: "starter-buckler-tile", key: itemStackKey(offHand), item: offHand, quantity: 1 }], learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 }, universalSkills: ["healing", "rent"] } };
     this.options.repository.save(player); return player;
   }
 
@@ -123,6 +131,7 @@ export class GameService {
   }
 
   private collectDrop(player: Player, dropId: string): void { const drop = player.groundDrops.get(dropId); if (!drop) return this.options.send(player.id, { type: "collectItemResult", dropId, collected: false, reason: "That drop is no longer available." }); let changed = true; let reason: string; if (drop.kind === "gold") { player.progress.gold += drop.amount; reason = `Collected ${drop.amount} gold.`; } else if (drop.kind === "scrap") { player.progress.scraps[drop.rarity] += drop.amount; reason = `Collected ${drop.amount} ${drop.rarity} scrap.`; } else { const result = collectIntoInventory(player.progress, drop.item, () => this.createId(), () => this.seed()); changed = result.changed; reason = result.reason; } if (changed) player.groundDrops.delete(dropId); this.options.send(player.id, { type: "collectItemResult", dropId, collected: changed, reason }); if (changed) this.sendProgress(player, reason); }
+  private reconcileDrops(player: Player, activeDropIds: string[], pendingDropIds: string[]): void { const reported = new Set([...activeDropIds, ...pendingDropIds]); const ledger = new Set(player.groundDrops.keys()); const drops = [...player.groundDrops.values()].filter((drop) => !reported.has(drop.id)); const removeDropIds = activeDropIds.filter((id) => !ledger.has(id)); const resolvedDropIds = pendingDropIds.filter((id) => !ledger.has(id)); this.options.send(player.id, { type: "dropsReconciled", drops, removeDropIds, resolvedDropIds }); }
   private deferDrop(player: Player, dropId: string): void { const drop = player.groundDrops.get(dropId); if (!drop || drop.kind !== "item") return this.notice(player, "Only an owned equipment drop can leave the realm."); player.groundDrops.delete(dropId); player.deferredItems.push(drop.item); this.notice(player, `${drop.item.name} will return next wave.`); }
   private returnDeferredItems(player: Player): void { if (!player.deferredItems.length) return; const deferred = player.deferredItems.splice(0); let stored = 0; for (const item of deferred) { const result = collectIntoInventory(player.progress, item, () => this.createId(), () => this.seed()); if (result.changed) stored += 1; else { const id = this.createId(); const drop: GroundDrop = { id, kind: "item", item: { ...item, id: `${item.id}-return-${id}` } }; player.groundDrops.set(id, drop); this.options.send(player.id, { type: "groundDropCreated", drop }); } } if (stored) this.sendProgress(player, `Returned ${stored} deferred item${stored === 1 ? "" : "s"} from the previous wave.`); }
 

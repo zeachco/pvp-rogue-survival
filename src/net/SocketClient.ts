@@ -25,8 +25,11 @@ export class SocketClient {
   private closeHandlers: CloseHandler[] = [];
   private errorHandlers: ErrorHandler[] = [];
   connected = false;
+  private reconnectTimer?: number;
 
   connect(): void {
+    if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING) return;
+    clearTimeout(this.reconnectTimer);
     this.socket = new WebSocket(gameSocketUrl(window.location));
     this.socket.addEventListener("open", () => {
       this.connected = true;
@@ -39,6 +42,7 @@ export class SocketClient {
       for (const handler of this.closeHandlers) {
         handler();
       }
+      this.reconnectTimer = window.setTimeout(() => this.connect(), 1000);
     });
     this.socket.addEventListener("error", (event) => {
       for (const handler of this.errorHandlers) {
@@ -71,8 +75,9 @@ export class SocketClient {
     this.errorHandlers.push(handler);
   }
 
-  send(message: ClientMessage): void {
-    if (this.socket?.readyState !== WebSocket.OPEN) return;
+  send(message: ClientMessage): boolean {
+    if (this.socket?.readyState !== WebSocket.OPEN) return false;
     this.socket.send(JSON.stringify(message));
+    return true;
   }
 }

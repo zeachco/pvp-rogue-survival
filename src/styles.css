@@ -197,10 +197,19 @@ input {
 }
 
 .join-panel {
-  display: flex;
+  display: grid;
   gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: 16px;
   padding: 10px;
+  overflow: auto;
+  pointer-events: auto;
 }
+.join-panel form { display: flex; gap: 8px; }
+.join-panel h2 { margin: 8px 0 0; font-size: 16px; }
+.leaderboard { display: grid; gap: 5px; }
+.leaderboard button { display: flex; justify-content: space-between; color: #dffeff; background: #15312f; }
 
 .join-panel input {
   width: min(58vw, 260px);
@@ -425,6 +434,7 @@ input {
 .sword-icon { color: #dffeff; font-size: 24px; transform: rotate(45deg); }
 
 .character-panel { position: absolute; top: 0; bottom: 0; left: 0; display: grid; align-content: start; width: var(--character-panel-width); gap: 8px; padding: 10px; overflow-y: auto; pointer-events: auto; transition: width 160ms ease; }
+.public-character-panel { left: auto; right: 0; width: min(360px, 42vw); }
 .inventory-column { position: absolute; top: 0; right: 0; bottom: 16px; display: grid; grid-template-rows: auto minmax(0, 1fr); width: var(--inventory-panel-width); min-height: 200px; gap: 8px; padding: 10px; overflow: hidden; border: 1px solid rgba(138,216,255,.35); background: rgba(13,20,24,.9); pointer-events: auto; transition: width 160ms ease; }
 .character-panel.is-collapsed,
 .inventory-column.is-collapsed { padding: 4px 3px; overflow: hidden; }
