@@ -10,7 +10,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Render the arena and combat on a full-window responsive canvas.
 - Use stable HTML overlays for joining, player status, neighbors, wave notices, and inventory.
 - Run a Bun TypeScript server serving the built client and gameplay WebSockets at `/ws`.
-- Keep multiplayer identity, score, wave turns, and neighbor links authoritative on the server.
+- Keep username identity, single-session presence, score, wave turns, and neighbor links authoritative on the server and persist player records in MongoDB.
 - Share WebSocket message types through `common/protocol.ts`.
 - Keep mechanics in `specs/MECHANICS_SPEC.md` and progression/item/build rules in `specs/PROGRESSION_SPEC.md`.
 
@@ -25,7 +25,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Every joined player controls one hero in a private fixed arena, initially placed at the arena center.
 - The hero has health instead of lane lives.
 - Enemy body contact does not damage the hero; see `specs/MECHANICS_SPEC.md` for damage sources and attack resolution.
-- The starting inventory contains a plain club dealing 100% base damage; with zero starting stats this is exactly 1 damage.
+- A newly created player starts with a deterministic level-0 Common Throwing Axe equipped in the main hand and a deterministic level-0 Common Buckler equipped offhand. Both retained equipment copies occupy backpack stacks. Existing saved players keep their current equipment when this default changes.
 - Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `specs/PROGRESSION_SPEC.md`.
 - Hero auto-aim, automatic attacks, attack areas, projectiles, and dodge rules follow `specs/MECHANICS_SPEC.md`.
 - Active weapon and learned skill availability, costs, and scaling follow `specs/PROGRESSION_SPEC.md`.
@@ -47,7 +47,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 - Players start in the Halls of Realms lobby and must explicitly choose Enter Realm before matchmaking. Connected, opted-in players are placed in stable server-owned 1v1, 1v2, or 1v3 realm groups until disconnect, voluntary exit, or realm defeat.
 - Enter Realm starts play immediately even when no opponent is available. An unmatched opted-in player receives solo waves while remaining eligible for matchmaking; solo waves use normal combat and defeat rules, but award half the normal XP. A newly formed realm replaces the active solo wave with a fresh competitive wave.
-- The server starts with the highest-level waiting player and chooses one to three lower-level opponents whose combined level is closest. Ties prefer fewer opponents, longer wait, then stable player id; no level gap is rejected.
+- Realm discovery queries the MongoDB player collection through its eligibility-and-level index. The server starts with the highest-level waiting player and chooses one to three lower-level opponents whose combined level is closest. Ties prefer fewer opponents, longer wait, then canonical username; no level gap is rejected.
 - A 1v1 is reciprocal. In 1v2/1v3 every team member attacks the solo player and the solo player's outgoing sends rotate across the team.
 - Realm Guard identifies outbound recipients and Realm Attacker identifies inbound senders. The HUD shows their names, levels, down state, and queued items.
 - Sending consumes exact equipment and queues it FIFO for future regular creeps. In the lobby or unmatched solo play, the player is shown as their own Realm Guard and Realm Attacker and sends into their own carrier queue. Carrier slots are allocated round-robin across attackers, overflow persists, and each player may retain at most 1,000 active or backlash queue entries.
@@ -95,12 +95,12 @@ Stable HTML HUD structures are created once. The fixed simulation loop may updat
 - `src/game/Map.ts`: fixed arena dimensions, bounds, edge spawning, and arena rendering.
 - `src/ui/`: stable DOM views driven by presentation models rather than simulation objects.
 - `src/net/SocketClient.ts`: validated WebSocket transport. Session storage is a separate browser adapter.
-- Local storage persists only accepted session id and display name, never transient combat state.
+- Local storage persists only the last accepted username for login convenience, never credentials, authoritative progression, or transient combat state.
 
 ### Server and Shared
 
-- `server/server.ts`: process composition and startup only. HTTP/WebSocket transport, repositories, and game services are independently startable and testable.
-- The server writes concise `[MLH][player] connected id=<id> name=<name>` and `[MLH][player] disconnected id=<id> name=<name>` lifecycle logs. A player is connected after a successful join identifies the socket, and is disconnected only after their final simultaneous socket closes. Matchmaking also logs `[MLH][realm] entered id=<id> realm=<realm-id> opponents=<ids>` and the analogous `left` event for every player joining or leaving a competitive realm.
+- `server/server.ts`: process composition and startup only. HTTP/WebSocket transport, the MongoDB repository, and game services are independently startable and testable.
+- The server writes concise `[MLH][player] connected user=<keyname>` and `[MLH][player] disconnected user=<keyname>` lifecycle logs. A player is connected only after a successful username login claims that user's single active session. Matchmaking also logs `[MLH][realm] entered user=<keyname> realm=<realm-id> opponents=<keynames>` and the analogous `left` event for every player joining or leaving a competitive realm.
 - `common/protocol.ts`: runtime-validated protocol messages and shared types.
 - `common/balance.ts`: typed normal and development balance profiles.
 - Shared progression, inventory, content, combat, item, and wave rules live in `common/` and have no browser or server runtime dependencies.
@@ -109,11 +109,12 @@ Stable HTML HUD structures are created once. The fixed simulation loop may updat
 
 Client to server:
 
-- `join`: `{ name, sessionId? }`
+- `join`: `{ name }`; normalizes the entered name to a canonical keyname, creates that MongoDB player when absent, or logs into the existing player when present. It is rejected with `That username is already logged in.` while that keyname owns a responsive active socket.
 - `updateAllocation`: `{ allocation: { agility, strength, magic, spirit, intelligence } }`
 - `respecStats`: `{ allocation: { agility, strength, magic, spirit, intelligence } }`; charges `100 * currentLevel`, saves the supplied valid five-point allocation, and reapplies it retroactively to every earned level.
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
+- `reconcileDrops`: `{ activeDropIds, pendingDropIds }`; reports the client's current arena-drop view so transiently lost pickup requests and orphaned Gold, Scrap, or equipment can be repaired.
 - `deferDrop`: `{ dropId }`; validates an owned equipment drop pushed beyond the arena and returns it to the same player next wave.
 - `equipItem`: `{ tileId }`
 - `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId, bulk? }`; `bulk: true` is authored by Shift+click and repeats the selected action server-side until it can no longer make progress.
@@ -125,20 +126,21 @@ Client to server:
 
 Server to client:
 
-- `welcome`: `{ playerId, player, progress, realm, config }`
+- `welcome`: `{ username, player, progress, realm, config }`; `username` is the canonical keyname of the claimed MongoDB player record.
 - `realmUpdated`: `{ realm }`
 - `incomingWave`: `{ wave }`
 - `creepDefeatResolved`: `{ unitId, score, progress, drop?, reason }`
 - `collectItemResult`: `{ dropId, collected, reason }`
+- `dropsReconciled`: `{ drops, removeDropIds, resolvedDropIds }`; returns every server-ledger drop missing from the client, identifies client-only drops to remove, and releases pending pickup ids whose outcome can no longer arrive.
 - `progressionUpdated`: `{ progress, reason }`
 - `waveAdjusted`: `{ waveNumber, reason }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
 - `groundDropCreated`: `{ drop }`, where `drop` is a tagged `item`, `gold`, or `scrap` ground reward.
 
-The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected or deferred by opaque id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The realm/inventory/skill/weight/passive/deferred-drop/enemy-skill schema is protocol version 16.
+The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution by canonical username. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected or deferred by opaque id. The client reconciles its active and pending opaque drop ids after connection recovery and whenever a pickup acknowledgement times out. The server's ledger is authoritative: client-only drops are removed, server-only drops are reissued, and pending ids absent from the ledger are released because they were already collected, retired with the arena, or otherwise resolved. Reissued drops appear at the hero's current position because drop positions are client-owned simulation state. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The username/MongoDB/single-session/heartbeat/drop-reconciliation schema is protocol version 18.
 
-The server persists authoritative player identity, score, wave number, progression, attributes, allocation, currencies, learned skills, universal Epic-extraction unlocks, equipped items, inventory stacks, and quantities to a versioned JSON snapshot under `server-data/players.json` by default. Writes atomically replace the snapshot after state-changing commands and wave dispatches. Reconnection presents the opaque player id and recovers that durable state. Realm membership, matchmaking opt-in, issued units, ground drops, incoming sends, backlash queues, and socket state are transient and reset on server start. Browser storage keeps only `{ playerId, name }`; the client never persists or authors authoritative state.
+MongoDB is the authoritative durable player store. Each player document is keyed by a unique canonical `keyname` and stores the current display name, score, wave number, level, XP, attributes, allocation, currencies, learned skills and levels, universal Epic-extraction unlocks, equipped items, inventory stacks, and quantities. It also carries an operational presence lease containing `sessionToken`, `serverId`, `connected`, `realmOptedIn`, `waitingSince`, and `leaseExpiresAt`; these fields support cross-server single-session enforcement and realm discovery but do not represent permanent progression. The repository updates the affected player document after every state-changing command and wave dispatch instead of rewriting a process-wide snapshot. Realm membership, issued units, ground drops, incoming sends, backlash queues, and socket objects remain transient runtime state and are rebuilt empty after server restart. Browser storage keeps only `{ username }`; entering that username later loads the same player document because possession of the name is the current login mechanism. The client never persists or authors authoritative progression.
 
 ## 10. Balance Profiles
 
@@ -156,7 +158,7 @@ The server persists authoritative player identity, score, wave number, progressi
 - Randomized edge spawns aimed directly at the hero.
 - Melee creeps first, followed by ranged bubble shooters.
 - Telegraph/resolution attack areas and collision-based bubble projectiles, as specified in `specs/MECHANICS_SPEC.md`.
-- Character and inventory HUD with a starting club, allocation controls, backpack, item actions, and enemy inspection.
+- Character and inventory HUD with the starting Throwing Axe and Buckler loadout, allocation controls, backpack, item actions, and enemy inspection.
 - Server-authored waves, score awards, and neighbor summaries.
 
 ## 12. Future Scope
@@ -171,13 +173,14 @@ This section records composition details that a clean-room implementation in ano
 
 - The browser document contains one full-window application root, a canvas for all world action, and persistent DOM HUD panels. The client always opens `/ws` on the page's own host and port by default, using `ws` for an HTTP page and `wss` for HTTPS. A `?server=<baseurl>` query overrides that origin; a bare authority such as `?server=pvp.railway:443` inherits the page scheme, while an explicit `http`, `https`, `ws`, or `wss` URL selects its corresponding WebSocket scheme. The client appends `/ws` to the override's optional base path. Empty, malformed, credential-bearing, or unsupported-protocol overrides fall back to the page origin. The client then starts a request-animation-frame renderer plus a fixed 60 Hz simulation accumulator. A rendered frame may contribute at most 100 ms to the accumulator to avoid an unbounded catch-up spiral.
 - The world is 1,600 by 1,000 logical pixels. The camera viewport equals the canvas CSS content size, follows the hero, and clamps independently on both axes. Canvas backing width and height equal CSS dimensions multiplied by device pixel ratio, and the 2D context transform restores logical-pixel drawing. Both window resize and `ResizeObserver` trigger this calculation.
-- The client validates incoming envelopes before dispatch. Outgoing messages sent before the socket is open are discarded rather than buffered. On socket open, an accepted locally stored session automatically rejoins. The local-storage key is `multi-line-tower.session` and its only fields are `playerId` and `name`; invalid JSON or missing fields is treated as no session.
-- Joining trims a name, and the server truncates it to 20 characters and substitutes `Player` for an empty result. A new player starts with score 0, wave 1, no realm opt-in, zero currencies and attributes, the default 1/1/1/1/1 future allocation, Healing level 1, and the Plain Club both equipped and represented by a quantity-one Keep tile.
+- The client validates incoming envelopes before dispatch. Outgoing messages sent before the socket is open are discarded rather than buffered. On socket open, a locally stored username may be submitted automatically. The local-storage key is `multi-line-tower.session` and its only field is `username`; invalid JSON or a missing username is treated as no session.
+- Joining trims and Unicode-normalizes a name, truncates it to 20 Unicode characters, and rejects an empty result. Its case-folded normalized form is the canonical `keyname`, so casing and equivalent Unicode spellings cannot create separate players. The first accepted use creates the player; later use loads that same player without a password or secret. This username-possession login is an explicit prototype trust boundary and is not suitable for hostile public deployment without authentication. A new player starts with score 0, wave 1, no realm opt-in, zero currencies and attributes, the default 1/1/1/1/1 future allocation, Healing level 1, and the specified Throwing Axe/Buckler starter loadout.
 - The HTTP server serves the built `dist` directory when it exists (otherwise the repository root), maps `/` to `index.html`, uses explicit HTML/JavaScript/CSS/SVG content types, rejects normalized paths outside the public root with 403, and otherwise falls back to `index.html` for missing paths. The WebSocket server shares that HTTP listener and accepts connections only at `/ws`. It listens on LAN-reachable `0.0.0.0:3000` by default so the machine is available as `olim3.local`; `HOST`/`PORT` may override it. Production defaults to `normal`, other environments to `dev`, and an explicit valid `BALANCE_PROFILE=normal|dev` overrides that default.
-- Each connection must join before gameplay commands. Invalid JSON or schema-invalid input receives `Ignored invalid message.`; a valid non-join command before identification receives `Join before playing.` A connection is associated with the accepted player id. The player disconnects only when its final simultaneous socket closes.
+- Each connection must join before gameplay commands. Invalid JSON or schema-invalid input receives `Ignored invalid message.`; a valid non-join command before identification receives `Join before playing.` Login atomically claims the canonical keyname with a random session token only when its MongoDB presence lease is disconnected, absent, or expired. Only one unexpired session may own a keyname across all server processes; another join for it receives `That username is already logged in.` and remains unidentified. Disconnect releases the lease only when the stored session token still matches, preventing a stale socket from releasing a newer login.
+- The server runs WebSocket heartbeat checks using ping/pong and renews the matching MongoDB presence lease on valid inbound activity. A socket that does not produce a pong or other valid inbound activity for five minutes is terminated and processed through the normal disconnect path, releasing its username and dissolving or updating its realm. An expired lease is reclaimable even if its former server failed before cleanup. The five-minute application timeout is authoritative even when the WebSocket library or deployment platform has a different default.
 - A single 60-second server timer drives global wave dispatch. At dispatch, every realm's down set is cleared; every connected realm member or opted-in solo increments its wave, while Training Grounds players repeat without incrementing; then every connected player receives the correct competitive, solo, or training wave. State is persisted after joins, commands, global dispatches, and orderly server close.
-- Persistence is a versioned JSON snapshot written through a temporary file followed by atomic rename. Durable data is identity, name, score, wave, and the complete `PlayerProgress`. On load, runtime-only connection, realm, issued-unit, ground-drop, and queue state is rebuilt empty; saved level/XP and newer inventory fields are migrated to valid current defaults.
-- Runtime validation is intentionally asymmetric in this prototype: client commands receive full discriminated-union validation, while server messages are validated by their recognized `type` envelope and then treated as the matching typed payload. Protocol compatibility is numeric version 16 delivered in `welcome`.
+- The MongoDB `players` collection uses a unique index on `keyname`, an index on `level`, and a compound realm-discovery index on `presence.connected`, `presence.realmOptedIn`, `presence.leaseExpiresAt`, `level`, and `presence.waitingSince`. Login and lease renewal use conditional atomic updates, so username lookup, level-range discovery, and cross-server session ownership do not require scanning all players. Player mutations update one document with schema/version validation; startup migrations bring older documents to current defaults. Runtime-only arena objects and sockets are never embedded in the player document, and expired presence is treated as disconnected. Database failures reject the affected mutation and are surfaced without pretending the client state was committed.
+- Runtime validation is intentionally asymmetric in this prototype: client commands receive full discriminated-union validation, while server messages are validated by their recognized `type` envelope and then treated as the matching typed payload. Protocol compatibility is numeric version 18 delivered in `welcome`.
 - Stable-DOM performance is behavioral: scalar resource/XP values update in place each frame; expensive character, spell, realm, and inventory subtrees are replaced only when their flattened signatures change. Canvas owns map, units, telegraphs, projectiles, drops, spell effects, selection, indicators, and floating combat text; DOM owns joining and all persistent interactive controls.
 
 ## 13. Development Process
