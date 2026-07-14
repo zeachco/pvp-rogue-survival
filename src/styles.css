@@ -315,9 +315,9 @@ input {
 .wave-banner {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: calc(var(--character-panel-width) + (100vw - var(--character-panel-width) - var(--inventory-panel-width)) / 2);
   display: grid;
-  min-width: min(420px, calc(100vw - 32px));
+  min-width: min(420px, calc(100vw - var(--character-panel-width) - var(--inventory-panel-width) - 32px));
   gap: 6px;
   border: 1px solid rgba(58, 255, 212, 0.5);
   padding: 18px 22px;

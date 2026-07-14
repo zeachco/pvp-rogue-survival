@@ -35,6 +35,7 @@ export class GameService {
       case "respecStats": return this.respecStats(player, message.allocation);
       case "creepDefeated": return this.resolveDefeat(player, message.unitId);
       case "collectDrop": return this.collectDrop(player, message.dropId);
+      case "deferDrop": return this.deferDrop(player, message.dropId);
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);
       case "requestWave": return this.dispatchCurrentWave(player, this.waveMode(player));
       case "equipItem": return this.applyInventoryResult(player, equipFromInventory(player.progress, message.tileId));
@@ -59,7 +60,7 @@ export class GameService {
     const trimmed = name.trim().slice(0, 20) || "Player"; const existing = sessionId ? this.options.repository.get(sessionId) : undefined;
     if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
     const club = starterClub(); const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
-      issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [],
+      issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [],
       progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1 }], learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 }, universalSkills: ["healing", "rent"] } };
     this.options.repository.save(player); return player;
   }
@@ -67,7 +68,7 @@ export class GameService {
   private dispatchCurrentWave(player: Player, mode: "competitive" | "solo" | "training"): void {
     const count = regularCount(player.waveNumber, this.options.balance); const level = regularLevel(player.waveNumber, player.progress.level, count, this.options.balance); const seed = this.seed();
     const template = this.generateBuild("Perimeter creep", level, false, seed, undefined, true); const spawns: CreepWave["spawns"] = [];
-    const queued = mode === "competitive" ? this.takeQueued(player, count) : [];
+    const queued = this.takeQueued(player, count, mode !== "training");
     for (let index = 0; index < count; index += 1) {
       let build: UnitBuild = { ...template, id: this.createId(), carried: [...template.carried] };
       const entry = queued[index]; if (entry) build = this.applyQueuedEquipment(build, entry, level);
@@ -76,7 +77,7 @@ export class GameService {
     const opponent = this.realmOpponents(player)[0]; const rivalBuildLevel = rivalLevel(player.waveNumber, player.progress.level, this.options.balance);
     const rival = this.generateBuild(opponent ? `${opponent.name}'s echo` : "Wandering rival", rivalBuildLevel, true, this.seed(), opponent ? scaledStats(opponent.progress.allocation, rivalBuildLevel) : undefined, false);
     player.issuedUnits.set(rival.id, { build: rival, mode }); spawns.push({ build: rival, spawnAtMs: this.options.balance.wave.prepareMs + Math.floor(7.5 * this.options.balance.wave.batchIntervalMs) }); spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
-    this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, spawns } });
+    this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, spawns } }); this.returnDeferredItems(player);
   }
 
   private generateBuild(name: string, level: number, isRival: boolean, seed: number, suppliedStats?: Stats, fewerItems = false): UnitBuild {
@@ -93,8 +94,8 @@ export class GameService {
     return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
   }
 
-  private takeQueued(player: Player, limit: number): QueuedEquipment[] {
-    const sources = [...player.incomingQueues.entries()].filter(([, queue]) => queue.length).map(([id, queue]) => ({ id, queue })); if (player.backlashQueue.length) sources.push({ id: "backlash", queue: player.backlashQueue });
+  private takeQueued(player: Player, limit: number, includeBacklash = true): QueuedEquipment[] {
+    const sources = [...player.incomingQueues.entries()].filter(([, queue]) => queue.length).map(([id, queue]) => ({ id, queue })); if (includeBacklash && player.backlashQueue.length) sources.push({ id: "backlash", queue: player.backlashQueue });
     const result: QueuedEquipment[] = []; while (result.length < limit && sources.some((source) => source.queue.length)) { const source = sources[player.queueCursor++ % sources.length]; const item = source.queue.shift(); if (item) result.push(item); }
     for (const [id, queue] of player.incomingQueues) if (!queue.length) player.incomingQueues.delete(id); return result;
   }
@@ -120,6 +121,8 @@ export class GameService {
   }
 
   private collectDrop(player: Player, dropId: string): void { const drop = player.groundDrops.get(dropId); if (!drop) return this.options.send(player.id, { type: "collectItemResult", dropId, collected: false, reason: "That drop is no longer available." }); let changed = true; let reason: string; if (drop.kind === "gold") { player.progress.gold += drop.amount; reason = `Collected ${drop.amount} gold.`; } else if (drop.kind === "scrap") { player.progress.scraps[drop.rarity] += drop.amount; reason = `Collected ${drop.amount} ${drop.rarity} scrap.`; } else { const result = collectIntoInventory(player.progress, drop.item, () => this.createId(), () => this.seed()); changed = result.changed; reason = result.reason; } if (changed) player.groundDrops.delete(dropId); this.options.send(player.id, { type: "collectItemResult", dropId, collected: changed, reason }); if (changed) this.sendProgress(player, reason); }
+  private deferDrop(player: Player, dropId: string): void { const drop = player.groundDrops.get(dropId); if (!drop || drop.kind !== "item") return this.notice(player, "Only an owned equipment drop can leave the realm."); player.groundDrops.delete(dropId); player.deferredItems.push(drop.item); this.notice(player, `${drop.item.name} will return next wave.`); }
+  private returnDeferredItems(player: Player): void { if (!player.deferredItems.length) return; const deferred = player.deferredItems.splice(0); let stored = 0; for (const item of deferred) { const result = collectIntoInventory(player.progress, item, () => this.createId(), () => this.seed()); if (result.changed) stored += 1; else { const id = this.createId(); const drop: GroundDrop = { id, kind: "item", item: { ...item, id: `${item.id}-return-${id}` } }; player.groundDrops.set(id, drop); this.options.send(player.id, { type: "groundDropCreated", drop }); } } if (stored) this.sendProgress(player, `Returned ${stored} deferred item${stored === 1 ? "" : "s"} from the previous wave.`); }
 
   private heroDefeated(player: Player, sourceUnitId?: string): void {
     if (!player.realmId && !player.realmOptedIn) return this.notice(player, "Training Grounds prevent defeat.");
@@ -130,7 +133,6 @@ export class GameService {
   }
 
   private sendItem(player: Player, tileId: string, bulk = false): void {
-    if (!player.realmId) return this.notice(player, "Enter a realm before sending equipment.");
     let sent = 0; let reason = "That equipment is no longer available.";
     do {
       if (this.queuedBy(player.id) >= MAX_QUEUE) { reason = "Your realm queue has reached 1000 items."; break; }
@@ -138,7 +140,7 @@ export class GameService {
       const result = sendFromInventory(player.progress, tileId); reason = result.reason; if (!result.changed || !result.sent) break;
       const queue = target.incomingQueues.get(player.id) ?? []; queue.push({ item: result.sent, senderId: player.id, senderName: player.name, backlash: false }); target.incomingQueues.set(player.id, queue); sent += 1;
     } while (bulk && sent < MAX_QUEUE);
-    removeEmptyInventoryTiles(player.progress); if (!sent) return this.notice(player, reason); this.sendProgress(player, bulk ? `Queued ${sent} items for the enemy realm.` : reason); this.broadcastRealms();
+    removeEmptyInventoryTiles(player.progress); if (!sent) return this.notice(player, reason); this.sendProgress(player, bulk ? `Queued ${sent} items for future carriers.` : reason); this.broadcastRealms();
   }
 
   private leaveRealm(player: Player): void { if (!player.realmId) { player.realmOptedIn = false; return this.broadcastRealms(); } if (!this.canLeave()) return this.notice(player, "Leave to Lobby opens after the final planned spawn."); const id = player.realmId; player.realmOptedIn = false; this.dissolveRealm(id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); this.dispatchCurrentWave(player, "training"); this.broadcastRealms(); }
@@ -154,15 +156,15 @@ export class GameService {
   private activateRealm(realm: Realm): void { for (const id of [realm.soloId, ...realm.teamIds]) { const player = this.options.repository.get(id); if (!player?.connected) continue; player.issuedUnits.clear(); player.groundDrops.clear(); this.dispatchCurrentWave(player, "competitive"); } }
 
   private dissolveRealm(id: string): void { const realm = this.realms.get(id); if (!realm) return; const members = [realm.soloId, ...realm.teamIds].map((pid) => this.options.repository.get(pid)).filter(isPlayer); const memberIds = new Set(members.map((p) => p.id));
-    for (const recipient of members) for (const [senderId, queue] of [...recipient.incomingQueues]) if (memberIds.has(senderId)) { const sender = this.options.repository.get(senderId); if (sender) for (const entry of queue) sender.backlashQueue.push({ ...entry, backlash: true, senderId: sender.id, senderName: "Realm backlash" }); recipient.incomingQueues.delete(senderId); }
+    for (const recipient of members) for (const [senderId, queue] of [...recipient.incomingQueues]) if (senderId !== recipient.id && memberIds.has(senderId)) { const sender = this.options.repository.get(senderId); if (sender) for (const entry of queue) sender.backlashQueue.push({ ...entry, backlash: true, senderId: sender.id, senderName: "Realm backlash" }); recipient.incomingQueues.delete(senderId); }
     for (const member of members) { member.realmId = undefined; member.waitingSince = Date.now(); } this.realms.delete(id); }
 
-  private nextTarget(player: Player): Player | undefined { const opponents = this.realmOpponents(player); if (!opponents.length) return undefined; return opponents[player.outgoingRotation++ % opponents.length]; }
+  private nextTarget(player: Player): Player | undefined { const opponents = this.realmOpponents(player); if (!opponents.length) return player; return opponents[player.outgoingRotation++ % opponents.length]; }
   private realmOpponents(player: Player): Player[] { if (!player.realmId) return []; const realm = this.realms.get(player.realmId); if (!realm) return []; const ids = realm.soloId === player.id ? realm.teamIds : [realm.soloId]; return ids.map((id) => this.options.repository.get(id)).filter(isPlayer); }
   private queuedBy(senderId: string): number { let count = 0; for (const player of this.options.repository.values()) { count += player.incomingQueues.get(senderId)?.length ?? 0; if (player.id === senderId) count += player.backlashQueue.length; } return count; }
   private canLeave(): boolean { return Date.now() - this.lastDispatchAt >= this.options.balance.wave.prepareMs + 9 * this.options.balance.wave.batchIntervalMs; }
 
-  private realmState(player: Player): RealmState { if (!player.realmId) return { mode: player.realmOptedIn ? "waiting" : "training", guards: [], attackers: [], outgoingQueued: this.queuedBy(player.id), incomingQueued: player.backlashQueue.length, canLeave: true }; const realm = this.realms.get(player.realmId)!; const opponents = this.realmOpponents(player); const member = (entry: Player): RealmMember => ({ ...this.publicPlayer(entry), down: realm.down.has(entry.id) }); return { mode: "competitive", guards: opponents.map(member), attackers: opponents.map(member), outgoingQueued: this.queuedBy(player.id), incomingQueued: [...player.incomingQueues.values()].reduce((n, q) => n + q.length, 0), canLeave: this.canLeave() }; }
+  private realmState(player: Player): RealmState { if (!player.realmId) { const self = { ...this.publicPlayer(player), down: false }; return { mode: player.realmOptedIn ? "waiting" : "training", guards: [self], attackers: [self], outgoingQueued: this.queuedBy(player.id), incomingQueued: [...player.incomingQueues.values()].reduce((n, q) => n + q.length, player.backlashQueue.length), canLeave: true }; } const realm = this.realms.get(player.realmId)!; const opponents = this.realmOpponents(player); const member = (entry: Player): RealmMember => ({ ...this.publicPlayer(entry), down: realm.down.has(entry.id) }); return { mode: "competitive", guards: opponents.map(member), attackers: opponents.map(member), outgoingQueued: this.queuedBy(player.id), incomingQueued: [...player.incomingQueues.values()].reduce((n, q) => n + q.length, 0), canLeave: this.canLeave() }; }
   private waveMode(player: Player): "competitive" | "solo" | "training" { return player.realmId ? "competitive" : player.realmOptedIn ? "solo" : "training"; }
   private broadcastRealms(): void { for (const player of this.options.repository.values()) if (player.connected) this.options.send(player.id, { type: "realmUpdated", realm: this.realmState(player) }); }
   private publicPlayer(player: Player): PublicPlayer { return { id: player.id, name: player.name, score: player.score, waveNumber: player.waveNumber, level: player.progress.level }; }

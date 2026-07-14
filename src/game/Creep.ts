@@ -5,6 +5,7 @@ import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
 import { weaponAttackSpeed, weaponRange, weaponUsesProjectile } from "../../common/combat";
 import { Unit } from "./Unit";
+import { dropRarityColor } from "./ItemDrop";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
 export type CreepAttack =
@@ -99,7 +100,7 @@ export class Creep extends Unit {
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
     ctx.fillStyle = this.damageFlash > 0 ? "#ffffff" : this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
-    ctx.strokeStyle = this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = 3;
+    const sentItem = this.build.emitterId ? [this.build.mainHand, this.build.offHand].find((item) => item?.id.includes("sent")) : undefined; ctx.strokeStyle = sentItem ? dropRarityColor(sentItem.rarity) : this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = sentItem ? 5 : 3; if (sentItem) { ctx.shadowColor = dropRarityColor(sentItem.rarity); ctx.shadowBlur = 10; }
     ctx.beginPath();
     if (this.kind === "melee") {
       for (let i = 0; i < 6; i += 1) {

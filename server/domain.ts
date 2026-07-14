@@ -6,7 +6,7 @@ export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; sende
 export interface Player {
   id: PlayerId; name: string; score: number; waveNumber: number; progress: PlayerProgress; connected: boolean;
   realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
-  issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>;
+  issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[];
 }
 export interface PlayerRepository { get(id: PlayerId): Player | undefined; save(player: Player): void; values(): IterableIterator<Player>; persist(): void }

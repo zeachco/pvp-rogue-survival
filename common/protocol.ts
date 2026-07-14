@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
@@ -33,7 +33,7 @@ const tileCommand = (type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("join"), name: z.string().max(100), sessionId: z.string().optional() }),
   z.object({ type: z.literal("updateAllocation"), allocation: statsSchema }), z.object({ type: z.literal("respecStats"), allocation: statsSchema }), z.object({ type: z.literal("creepDefeated"), unitId: z.string().min(1) }),
-  z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("upgradeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
+  z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), z.object({ type: z.literal("deferDrop"), dropId: z.string().min(1) }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("upgradeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
   z.object({ type: z.literal("heroDefeated"), sourceUnitId: z.string().optional() }), z.object({ type: z.literal("requestWave") }), z.object({ type: z.literal("leaveRealm") }), z.object({ type: z.literal("enterRealm") }),
   z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() })
 ]);
@@ -46,6 +46,7 @@ export type ClientMessage =
   | { type: "respecStats"; allocation: Stats }
   | { type: "creepDefeated"; unitId: string }
   | { type: "collectDrop"; dropId: string }
+  | { type: "deferDrop"; dropId: string }
   | { type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill"; tileId: string; bulk?: boolean }
   | { type: "heroDefeated"; sourceUnitId?: string }
   | { type: "requestWave" | "leaveRealm" | "enterRealm" }

@@ -15,6 +15,7 @@ export class Projectile extends GameObject {
   private orbitAngle = 0;
   private orbitAge = 0;
   private orbiting = false;
+  private orbitAngularDrift = 0;
   private spikeTimer = 0;
   private readonly hitTargets = new Set<string>();
 
@@ -27,13 +28,13 @@ export class Projectile extends GameObject {
     if (skill === "frostSpike") { this.lifetime = 1.2; this.radius = 6; }
   }
 
-  static orbitingHammer(source: Unit, angle: number, damage: number, presentation: DamagePresentation): Projectile { const projectile = new Projectile(source.position, source.position, damage, "hero", "orbitingHammers", source, presentation); projectile.orbiting = true; projectile.orbitAngle = angle; projectile.orbitAge = 0; projectile.lifetime = 2.4; projectile.position.x = source.position.x + Math.cos(angle) * 28; projectile.position.y = source.position.y + Math.sin(angle) * 28; return projectile; }
+  static orbitingHammer(source: Unit, angle: number, damage: number, presentation: DamagePresentation, angularDrift = 0): Projectile { const projectile = new Projectile(source.position, source.position, damage, "hero", "orbitingHammers", source, presentation); projectile.orbiting = true; projectile.orbitAngle = angle; projectile.orbitAngularDrift = angularDrift; projectile.orbitAge = 0; projectile.lifetime = 2.4; projectile.position.x = source.position.x + Math.cos(angle) * 28; projectile.position.y = source.position.y + Math.sin(angle) * 28; return projectile; }
   emitFrostSpikes(deltaSeconds: number): Projectile[] { if (this.skill !== "frostOrb" || !this.active) return []; this.spikeTimer -= deltaSeconds; if (this.spikeTimer > 0) return []; this.spikeTimer = 0.45; return Array.from({ length: 8 }, (_, index) => { const angle = index * Math.PI / 4; return new Projectile(this.position, { x: this.position.x + Math.cos(angle), y: this.position.y + Math.sin(angle) }, this.damage, "hero", "frostSpike", this.source, this.presentation, this.weapon); }); }
   canHit(targetId: string): boolean { return !this.hitTargets.has(targetId); }
   markHit(targetId: string): void { this.hitTargets.add(targetId); }
 
   update(deltaSeconds: number): void {
-    if (this.orbiting && this.source?.active) { this.orbitAge += deltaSeconds; this.orbitAngle += deltaSeconds * 5.2; const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162; this.position.x = this.source.position.x + Math.cos(this.orbitAngle) * radius; this.position.y = this.source.position.y + Math.sin(this.orbitAngle) * radius; }
+    if (this.orbiting && this.source?.active) { this.orbitAge += deltaSeconds; this.orbitAngle += deltaSeconds * (5.2 + this.orbitAngularDrift); const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162; this.position.x = this.source.position.x + Math.cos(this.orbitAngle) * radius; this.position.y = this.source.position.y + Math.sin(this.orbitAngle) * radius; }
     else { this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; }
     this.lifetime -= deltaSeconds;
     if (this.lifetime <= 0) this.active = false;

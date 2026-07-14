@@ -31,7 +31,7 @@ export class FilePlayerRepository implements PlayerRepository {
       normalizeWeapons(saved.progress); saved.progress.allocation = integerAllocation(saved.progress.allocation); saved.progress.inventoryTiles = saved.progress.inventoryTiles.filter((tile) => tile.quantity > 0); if (!saved.progress.learnedSkills.includes("rent")) saved.progress.learnedSkills.push("rent"); saved.progress.learnedSkillLevels.rent ??= 1; saved.progress.universalSkills ??= ["healing", "rent"]; for (const skill of ["healing", "rent"] as const) if (!saved.progress.universalSkills.includes(skill)) saved.progress.universalSkills.push(skill);
       saved.progress.xp = Math.max(saved.progress.xp, cumulativeXpForLevel(saved.progress.level));
       ensureEquippedInventory(saved.progress);
-      this.players.set(saved.id, { ...saved, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [] });
+      this.players.set(saved.id, { ...saved, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [] });
     }
   }
 }
