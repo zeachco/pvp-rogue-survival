@@ -1,6 +1,7 @@
 import { GameObject } from "./GameObject";
 import { distance, type Camera, type Vector2 } from "./types";
 import type { ItemInstance } from "../../common/items";
+import type { SkillId } from "../../common/items";
 import type { DamagePresentation } from "./CombatText";
 
 export type AttackOwner = "hero" | "creep";
@@ -20,7 +21,7 @@ export class AttackArea extends GameObject {
     readonly linger: number,
     readonly damage: number,
     readonly source?: { active: boolean; attackVersion?: number },
-    readonly skill?: "bash" | "sweep" | "flurry" | "shockwave" | "cleave",
+    readonly skill?: SkillId,
     readonly weapon?: ItemInstance,
     readonly presentation: DamagePresentation = { kind: "physical" }
   ) { super(); this.sourceAttackVersion = source?.attackVersion; }
@@ -50,8 +51,8 @@ export class AttackArea extends GameObject {
     ctx.beginPath(); ctx.moveTo(0, 0);
     ctx.arc(0, 0, this.range, this.angle - this.halfArc, this.angle + this.halfArc); ctx.closePath();
     const hero = this.owner === "hero";
-    ctx.fillStyle = this.resolved ? (hero ? "rgba(58,255,212,.32)" : "rgba(255,75,98,.38)") : (hero ? "rgba(58,255,212,.12)" : "rgba(255,75,98,.13)");
-    ctx.strokeStyle = hero ? "#3affd4" : "#ff4b62"; ctx.lineWidth = this.resolved ? 4 : 2;
+    const fire = this.skill === "fireBreath"; ctx.fillStyle = fire ? (this.resolved ? "rgba(255,80,30,.38)" : "rgba(255,80,30,.12)") : this.resolved ? (hero ? "rgba(58,255,212,.32)" : "rgba(255,75,98,.38)") : (hero ? "rgba(58,255,212,.12)" : "rgba(255,75,98,.13)");
+    ctx.strokeStyle = fire ? "#ff6534" : hero ? "#3affd4" : "#ff4b62"; ctx.lineWidth = this.resolved ? 4 : 2;
     ctx.fill(); ctx.stroke(); ctx.restore();
   }
 }

@@ -6,7 +6,7 @@ import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
 import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed } from "../../common/combat";
 
-export interface StatusEffect { kind: "bleed" | "poison" | "stun" | "freeze"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
+export interface StatusEffect { kind: "bleed" | "poison" | "burn" | "stun" | "freeze"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
 export abstract class Unit extends GameObject {
   position: Vector2;
@@ -29,6 +29,7 @@ export abstract class Unit extends GameObject {
   reflectiveSurgeRemaining = 0;
   readonly knownSkills = new Set<SkillId>();
   onCombatText?: (text: CombatText) => void;
+  lastHitDodged = false;
 
   protected constructor(position: Vector2, readonly radius: number, hp: number) {
     super();
@@ -43,12 +44,15 @@ export abstract class Unit extends GameObject {
   }
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): number {
+    this.lastHitDodged = false;
+    if (reflectable && random.next() < Math.min(0.35, Math.max(0, this.stats.agility) * 0.003)) { this.lastHitDodged = true; this.emitOutcome("dodge", "DODGE"); return 0; }
     const hpBefore = this.hp;
     let remaining = amount; let blockReflection = 0; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
     if (buckler?.itemKind === "buckler" && this.blockCooldown === 0 && this.stamina >= blockCost) {
       const chance = bucklerBlockChance(buckler, this.stats);
       if (random.next() < chance) {
+        this.emitOutcome("block", "BLOCK");
         this.stamina -= blockCost;
         const attackSpeed = this.mainHand ? weaponAttackSpeed(this.mainHand, this.stats) : 1; this.blockCooldownMax = buckler.reflectionComponents.includes("return") ? 1 / Math.max(0.01, attackSpeed) : 1; this.blockCooldown = this.blockCooldownMax;
         remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
@@ -91,7 +95,7 @@ export abstract class Unit extends GameObject {
     this.reflectiveSurgeRemaining = Math.max(0, this.reflectiveSurgeRemaining - deltaSeconds);
     const derived = derivedStats(this.stats);
     let periodicDamage = 0;
-    for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable, { kind: status.kind === "poison" ? "poison" : "bleed" }); } }
+    for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, false, invulnerable, { kind: status.kind === "poison" ? "poison" : status.kind === "burn" ? "fire" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
     const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = item.modifiers.strengthRegenMultiplier ?? 0; return sum + (multiplier > 0 ? 0.01 + multiplier * this.stats.strength : 0); }, 0);
@@ -104,6 +108,7 @@ export abstract class Unit extends GameObject {
   get stunned(): boolean { return this.statuses.some((status) => status.kind === "stun"); }
   get frozen(): boolean { return this.statuses.some((status) => status.kind === "freeze"); }
   private emitCombatText(amount: number, kind: CombatText["kind"], critical: boolean): void { this.onCombatText?.({ position: { ...this.position }, amount, kind, critical, age: 0, lifetime: 0.9, drift: Math.sin(this.position.x * 0.17 + this.position.y * 0.11 + amount) * 9 }); }
+  private emitOutcome(kind: "dodge" | "block", label: string): void { this.onCombatText?.({ position: { ...this.position }, amount: 0, kind, label, critical: false, age: 0, lifetime: 0.9, drift: Math.sin(this.position.x * 0.17 + this.position.y * 0.11) * 9 }); }
 
   steer(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number): void {
     const targetX = direction.x * maxSpeed;

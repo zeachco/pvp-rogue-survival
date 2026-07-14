@@ -4,6 +4,10 @@ type MessageHandler = (message: ServerMessage) => void;
 type OpenHandler = () => void;
 type CloseHandler = () => void;
 type ErrorHandler = (event: Event) => void;
+export const DEFAULT_GAME_SERVER_HOST = "localhost";
+export function gameServerHost(search: string): string { const candidate = new URLSearchParams(search).get("ip")?.trim(); return candidate && isIpv4(candidate) ? candidate : DEFAULT_GAME_SERVER_HOST; }
+export function gameSocketUrl(location: Pick<Location, "protocol" | "port" | "search">): string { const protocol = location.protocol === "https:" ? "wss:" : "ws:"; const port = location.port ? `:${location.port}` : ""; return `${protocol}//${gameServerHost(location.search)}${port}/ws`; }
+function isIpv4(value: string): boolean { const parts = value.split("."); return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255 && String(Number(part)) === part); }
 
 export class SocketClient {
   private socket?: WebSocket;
@@ -14,8 +18,7 @@ export class SocketClient {
   connected = false;
 
   connect(): void {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    this.socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    this.socket = new WebSocket(gameSocketUrl(window.location));
     this.socket.addEventListener("open", () => {
       this.connected = true;
       for (const handler of this.openHandlers) {

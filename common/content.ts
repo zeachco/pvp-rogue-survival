@@ -22,6 +22,9 @@ export interface SkillDefinition {
   range?: number;
   resource: "stamina" | "mana" | "life";
   description: string;
+  passive?: boolean;
+  cost?: number;
+  enemyEligible?: boolean;
 }
 
 export interface AffixDefinition {
@@ -63,10 +66,14 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
   thorns: { id: "thorns", label: "Thorns", damageMultiplier: 0, cooldown: 0, resource: "stamina", description: "Passive: returns 5% of incoming direct damage, even without a block." },
   reflectiveSurge: { id: "reflectiveSurge", label: "Reflective Surge", damageMultiplier: 0, cooldown: 16, range: 600, resource: "stamina", description: "Spends 3 stamina to double returned damage and add 1% incoming damage for 6 seconds." },
   frostOrb: { id: "frostOrb", label: "Frozen Orb", damageMultiplier: 0.7, cooldown: 20, range: 500, resource: "mana", description: "Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction." },
+  fireBreath: { id: "fireBreath", label: "Fire Breath", damageMultiplier: 1.1, cooldown: 9, range: 150, resource: "mana", cost: 4, enemyEligible: true, description: "Breathes advancing fire arcs in a cone and burns targets for four seconds, scaling with Spirit." },
+  voodoo: { id: "voodoo", label: "Voodoo", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passive: Spirit amplifies poison damage applied by this unit." },
   healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana", description: "Automatically restores health while below 50% HP, scaling with Spirit and magic amplification." },
   rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 105, resource: "life", description: "A physical strike that spends 1 health and cannot cast at 1 HP." },
   blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina", description: "A reactive buckler block. Return bucklers divide recovery by main-hand attack speed." }
 };
+
+export const ENEMY_BONUS_SKILLS = Object.values(SKILLS).filter((skill) => skill.enemyEligible).map((skill) => skill.id);
 
 export const AFFIXES: Readonly<Record<AffixId, AffixDefinition>> = {
   rusty: { id: "rusty", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"], modifierPerPower: { poisonChance: 0.05 } },

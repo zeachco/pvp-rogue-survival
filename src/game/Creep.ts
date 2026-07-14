@@ -10,7 +10,8 @@ import { distance, normalize, type Camera, type Vector2 } from "./types";
 
 export type CreepAttack =
   | { type: "melee"; origin: Vector2; angle: number; windup: number; source: Creep }
-  | { type: "projectile"; origin: Vector2; target: Vector2; source: Creep };
+  | { type: "projectile"; origin: Vector2; target: Vector2; source: Creep }
+  | { type: "fireBreath"; origin: Vector2; angle: number; source: Creep };
 
 export class Creep extends Unit {
   attackVersion = 0;
@@ -20,6 +21,7 @@ export class Creep extends Unit {
   private windup = 0;
   private pendingAttack = false;
   private damageFlash = 0;
+  private bonusSkillCooldown = 1.5;
   readonly build: UnitBuild;
 
   constructor(
@@ -36,7 +38,7 @@ export class Creep extends Unit {
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
     this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand, build.mainHand);
-    for (const skill of [...build.mainHand.skills, ...(build.offHand?.skills ?? [])]) this.knownSkills.add(skill);
+    for (const skill of [...build.mainHand.skills, ...(build.offHand?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
     this.maxHp *= balance.combat.enemyHealthMultiplier; this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
@@ -60,6 +62,7 @@ export class Creep extends Unit {
     const heroDistance = distance(this.position, hero);
     const attackSpeed = weaponAttackSpeed(this.build.mainHand, this.stats);
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
+    this.bonusSkillCooldown = Math.max(0, this.bonusSkillCooldown - deltaSeconds);
 
     if (this.pendingAttack) {
       this.windup -= deltaSeconds;
@@ -72,6 +75,7 @@ export class Creep extends Unit {
     }
 
     const attackRange = ranged ? weaponRange(this.build.mainHand) : movement.attackRange;
+    if (this.build.bonusSkills?.includes("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;
@@ -119,6 +123,7 @@ export class Creep extends Unit {
     if (this.pendingAttack) {
       ctx.strokeStyle = "#ffea77"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, this.radius + 7, 0, Math.PI * 2); ctx.stroke();
     }
+    if (this.build.bonusSkills?.length) { ctx.strokeStyle = "#ff6534"; ctx.lineWidth = 2; ctx.shadowColor = "#ff3d20"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); ctx.stroke(); }
     ctx.restore();
   }
 }

@@ -27,7 +27,7 @@ export class CanvasRenderer {
     const progress = Math.min(1, text.age / text.lifetime); this.ctx.save();
     this.ctx.globalAlpha = 1 - progress; this.ctx.fillStyle = text.critical ? CRITICAL_TEXT_COLOR : COMBAT_TEXT_COLORS[text.kind];
     this.ctx.font = `${text.critical ? 700 : 600} ${text.critical ? 19 : 16}px Inter, sans-serif`; this.ctx.textAlign = "center"; this.ctx.textBaseline = "middle";
-    this.ctx.shadowColor = "rgba(0,0,0,.8)"; this.ctx.shadowBlur = 3; this.ctx.fillText(`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`, text.position.x - camera.x + text.drift * progress, text.position.y - camera.y - 22 - 38 * progress); this.ctx.restore();
+    this.ctx.shadowColor = "rgba(0,0,0,.8)"; this.ctx.shadowBlur = 3; const value = text.label ?? `${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`; this.ctx.fillText(value, text.position.x - camera.x + text.drift * progress, text.position.y - camera.y - 22 - 38 * progress); this.ctx.restore();
   }
 
   private renderSelection(creep: Creep, camera: Camera): void {

@@ -24,7 +24,7 @@ export function bucklerBlockChance(item: ItemInstance | undefined, stats: Stats)
 export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "buckler") return 0; if (!item.reflectionComponents.includes("return")) return 1; const returnedFraction = (0.15 + 0.004 * Math.max(0, stats.agility)) * RARITY_POWER[item.rarity]; return 1 + returnedFraction / (1 + 0.1 * Math.max(0, item.level)); }
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
-export function skillCooldown(skill: SkillId, item?: ItemInstance): number { return SKILLS[skill].cooldown / weaponSkillLevelScale(item?.level ?? 0); }
+export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats): number { return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
 export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit = 0): number { const base = SKILLS[skill].range ?? weaponRange(item); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item.level); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }

@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
@@ -19,6 +19,7 @@ export interface ServerConfig { waveIntervalMs: number; protocolVersion: number;
 export interface UnitBuild {
   id: string; name: string; kind: CreepKind; level: number; stats: Stats; mainHand: ItemInstance; offHand?: ItemInstance;
   carried: ItemInstance[]; isRival: boolean; xpReward: number; goldReward: number; seed: number;
+  bonusSkills?: SkillId[];
   emitterId?: PlayerId; emitterName?: string; backlash?: boolean;
 }
 export interface WaveSpawn { build: UnitBuild; spawnAtMs: number }
@@ -66,4 +67,4 @@ export type ServerMessage =
 
 export function parseClientMessage(value: unknown): ClientMessage | undefined { const result = clientMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
 export function parseServerMessage(value: unknown): ServerMessage | undefined { const result = serverMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
-export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "cleave", "rendingThrow", "orbitingHammers", "arcaneBolt", "healing", "rent", "blocking"].includes(value); }
+export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "cleave", "rendingThrow", "orbitingHammers", "arcaneBolt", "gravityPull", "thorns", "reflectiveSurge", "frostOrb", "fireBreath", "voodoo", "healing", "rent", "blocking"].includes(value); }

@@ -11,6 +11,7 @@ import { Hero } from "./Hero";
 import { ItemDrop } from "./ItemDrop";
 import { GameMap } from "./Map";
 import { Projectile } from "./Projectile";
+import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import { enqueueWave, releaseReadySpawns, removeInactive } from "./systems/lifecycle";
 import { resolveCombat } from "./systems/combat";
@@ -138,6 +139,7 @@ export class Game {
       const strike = rollWeaponStrike(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom); const presentation = { kind: creep.build.mainHand.definitionId === "staff" ? "magic" as const : "physical" as const, critical: strike.critical };
       if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, strike.damage, creep, undefined, creep.build.mainHand, presentation));
       if (attack?.type === "projectile") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation, creep.build.mainHand));
+      if (attack?.type === "fireBreath") { this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 150, 0.62, 0.22, 0.18, strike.damage * 1.1, creep, "fireBreath", creep.build.mainHand, { kind: "fire", critical: strike.critical })); this.arena.spellEffects.push(new SpellEffect("fireBreath", attack.origin, attack.angle)); }
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
     const emittedProjectiles: Projectile[] = [];

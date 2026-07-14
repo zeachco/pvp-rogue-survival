@@ -2,6 +2,7 @@ import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
 import { changeItemRarity, generateBuckler, generateItem, generateRelic, itemStackKey, nextRarity, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
@@ -70,7 +71,8 @@ export class GameService {
     const template = this.generateBuild("Perimeter creep", level, false, seed, undefined, true); const spawns: CreepWave["spawns"] = [];
     const queued = this.takeQueued(player, count, mode !== "training");
     for (let index = 0; index < count; index += 1) {
-      let build: UnitBuild = { ...template, id: this.createId(), carried: [...template.carried] };
+      const skilled = this.options.random.next() < 0.05 && ENEMY_BONUS_SKILLS.length > 0; const bonusSkills = skilled ? [ENEMY_BONUS_SKILLS[Math.floor(this.options.random.next() * ENEMY_BONUS_SKILLS.length)]] : [];
+      let build: UnitBuild = { ...template, id: this.createId(), carried: [...template.carried], bonusSkills };
       const entry = queued[index]; if (entry) build = this.applyQueuedEquipment(build, entry, level);
       player.issuedUnits.set(build.id, { build, mode }); spawns.push({ build, spawnAtMs: spawnAtMs(index, count, this.options.balance) });
     }
@@ -84,7 +86,7 @@ export class GameService {
     const stats = suppliedStats ?? scaledStats(randomAllocation(seed), level); const mainHand = generateItem(level, rollRarity(seed + 11), seed + 17, { fewerAffixes: fewerItems });
     const offHandRoll = this.options.random.next(); const offHand = mainHand.hands === 1 && offHandRoll < 0.25 ? (offHandRoll < 0.125 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : generateRelic(level, rollRarity(seed + 19), seed + 21)) : undefined;
     const carried = isRival && level > 0 ? [generateItem(level, rollRarity(seed + 23), seed + 29, { fewerAffixes: true })] : [];
-    return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, isRival, xpReward: isRival ? cumulativeXpForLevel(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
+    return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, bonusSkills: [], isRival, xpReward: isRival ? cumulativeXpForLevel(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
   }
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number): UnitBuild {

@@ -11,14 +11,15 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
     attack.markResolved();
     if (attack.owner === "hero") {
       for (const creep of state.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) {
-        const dealt = creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon) { applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined); applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt); }
+        const dealt = creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon && !creep.lastHitDodged) { applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined); applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt); }
         if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 });
         if (attack.skill === "shockwave") creep.addStatus({ kind: "stun", remaining: 0.6, damagePerSecond: 0 });
         if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 });
         if (attack.skill === "cleave") creep.addStatus({ kind: "bleed", remaining: 2, damagePerSecond: 0.45, source: attack.source as Unit | undefined });
+        if (attack.skill === "fireBreath" && !creep.lastHitDodged) creep.addStatus({ kind: "burn", remaining: 4, damagePerSecond: 0.25 + 0.03 * ((attack.source as Unit | undefined)?.stats.spirit ?? 0), source: attack.source as Unit | undefined });
       }
     } else if (hero.active && attack.contains(hero.position, hero.radius)) {
-      const dealt = hero.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon) { applyWeaponEffects(hero, attack.weapon, random, attack.source as Unit | undefined); applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt); }
+      const dealt = hero.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon && !hero.lastHitDodged) { applyWeaponEffects(hero, attack.weapon, random, attack.source as Unit | undefined); applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt); } if (attack.skill === "fireBreath" && !hero.lastHitDodged) hero.addStatus({ kind: "burn", remaining: 4, damagePerSecond: 0.25 + 0.03 * ((attack.source as Unit | undefined)?.stats.spirit ?? 0), source: attack.source as Unit | undefined });
     }
   }
   for (const projectile of state.projectiles) {
@@ -28,16 +29,16 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
       if (hit) {
         projectile.markHit(hit.build.id);
         if (projectile.skill === "frostOrb") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source });
-        else { const weapon = projectile.weapon ?? equipped; const dealt = hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); applyWeaponEffects(hit, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); if (projectile.skill === "rendingThrow") hit.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source: projectile.source }); if (projectile.skill === "frostSpike") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source }); if (projectile.skill !== "orbitingHammers") projectile.active = false; }
+        else { const weapon = projectile.weapon ?? equipped; const dealt = hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (!hit.lastHitDodged) { applyWeaponEffects(hit, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); if (projectile.skill === "rendingThrow") hit.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source: projectile.source }); if (projectile.skill === "frostSpike") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source }); } if (projectile.skill !== "orbitingHammers") projectile.active = false; }
       }
-    } else if (distance(projectile.position, hero.position) <= projectile.radius + hero.radius) { const weapon = projectile.weapon ?? projectile.source?.mainHand; const dealt = hero.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (weapon) { applyWeaponEffects(hero, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); } projectile.active = false; }
+    } else if (distance(projectile.position, hero.position) <= projectile.radius + hero.radius) { const weapon = projectile.weapon ?? projectile.source?.mainHand; const dealt = hero.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (weapon && !hero.lastHitDodged) { applyWeaponEffects(hero, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); } projectile.active = false; }
     if (projectile.position.x < -40 || projectile.position.y < -40 || projectile.position.x > width + 40 || projectile.position.y > height + 40) projectile.active = false;
   }
 }
 
 export function applyWeaponEffects(target: Unit, item: ItemInstance, random: RandomSource, source?: Unit): void {
   if (random.next() < item.modifiers.bleedChance) target.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source });
-  if (random.next() < item.modifiers.poisonChance) target.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 0.2 + target.stats.spirit * 0.02, source });
+  if (random.next() < item.modifiers.poisonChance) { const voodoo = source?.knownSkills.has("voodoo") ? 1 + Math.min(1.5, source.stats.spirit * 0.03) : 1; target.addStatus({ kind: "poison", remaining: 4, damagePerSecond: (0.2 + (source?.stats.spirit ?? 0) * 0.02) * voodoo, source }); }
   if (random.next() < item.modifiers.stunChance) target.addStatus({ kind: "stun", remaining: 0.7, damagePerSecond: 0, source });
 }
 function applyLifeSteal(source: Unit | undefined, weapon: ItemInstance, damageDealt: number): void { if (!source || damageDealt <= 0) return; const items = [weapon, source.offHand].filter(Boolean) as ItemInstance[]; const fraction = items.reduce((sum, item) => { const base = item.modifiers.lifeStealBase ?? 0; return sum + base + (base > 0 ? 0.001 * source.stats.spirit : 0); }, 0); if (fraction > 0) source.heal(damageDealt * fraction); }

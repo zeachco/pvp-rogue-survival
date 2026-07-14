@@ -30,7 +30,7 @@ export class HeroCombatSystem {
       const level = effectiveSkillLevel(progress, "healing"); hero.mana -= 2;
       hero.heal((0.5 + effectiveStats.spirit * 1.2) * derived.magicAmp * spellPower(level));
       state.spellEffects.push(new SpellEffect("healing", hero.position));
-      this.healingCooldown = 8 * cooldownScale(level, derived.cooldownReduction); this.healingCooldownMax = this.healingCooldown;
+      this.healingCooldown = skillCooldown("healing", item, effectiveStats) * cooldownScale(level, derived.cooldownReduction); this.healingCooldownMax = this.healingCooldown;
     }
     const target = closestTarget(hero, state.creeps);
     if (!target) { if (movementInput.x || movementInput.y) hero.facing = Math.atan2(movementInput.y, movementInput.x); return; }
@@ -51,10 +51,11 @@ export class HeroCombatSystem {
     else if (activeSkill?.id === "frostOrb") state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", "frostOrb", hero, presentation, item));
     else if (activeSkill?.id === "gravityPull") { const direction = weaponUsesProjectile(item) || item.definitionId === "staff" ? "push" : "pull"; for (const creep of state.creeps) forceField(creep, hero.position, 180, direction); if (direction === "push") for (const drop of state.drops) drop.applyPush(hero.position, 180); }
     else if (activeSkill?.id === "reflectiveSurge") hero.reflectiveSurgeRemaining = 6;
+    else if (activeSkill?.id === "fireBreath") state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, range, 0.62, 0.22, 0.18, damage, hero, "fireBreath", item, { kind: "fire", critical: strike.critical }));
     else if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" || activeSkill?.id === "rendingThrow" ? activeSkill.id : undefined, hero, presentation, item));
     else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, range, activeSkill?.id === "bash" || activeSkill?.id === "sweep" || activeSkill?.id === "shockwave" || (!activeSkill && (item.definitionId === "mace" || item.definitionId === "club" || item.definitionId === "hammer")) ? Math.PI : activeSkill?.id === "cleave" ? 1.8 : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item, presentation));
     if (activeSkill) state.spellEffects.push(new SpellEffect(activeSkill.id, hero.position, hero.facing));
-    if (activeSkill) { const duration = skillCooldown(activeSkill.id, item) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.skillCooldowns.set(activeSkill.id, { remaining: duration, maximum: duration }); }
+    if (activeSkill) { const duration = skillCooldown(activeSkill.id, item, effectiveStats) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.skillCooldowns.set(activeSkill.id, { remaining: duration, maximum: duration }); }
     this.attackCooldown = (activeSkill?.id === "flurry" ? 0.35 : 1) / weaponAttackSpeed(item, effectiveStats);
     this.attackCooldownMax = this.attackCooldown;
   }
@@ -68,15 +69,15 @@ export class HeroCombatSystem {
   reset(): void { this.attackCooldown = 0; this.attackCooldownMax = 0; this.healingCooldown = 0; this.healingCooldownMax = 0; this.orbitCastSequence = 0; this.skillCooldowns.clear(); }
   private availableSkills(progress: PlayerProgress, item: ItemInstance): { id: SkillId; level: number }[] {
     const skills = new Map<SkillId, number>();
-    for (const skill of [...item.skills, ...(progress.offHand?.skills ?? [])]) if (skill !== "healing" && skill !== "blocking" && skill !== "thorns") skills.set(skill, effectiveSkillLevel(progress, skill));
-    for (const skill of progress.learnedSkills) if (isSkillAvailable(progress, skill) && skill !== "healing" && skill !== "blocking" && skill !== "thorns") skills.set(skill, Math.max(skills.get(skill) ?? 0, effectiveSkillLevel(progress, skill)));
+    for (const skill of [...item.skills, ...(progress.offHand?.skills ?? [])]) if (!SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, effectiveSkillLevel(progress, skill));
+    for (const skill of progress.learnedSkills) if (isSkillAvailable(progress, skill) && !SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, Math.max(skills.get(skill) ?? 0, effectiveSkillLevel(progress, skill)));
     return [...skills].map(([id, level]) => ({ id, level: Math.max(1, level) }));
   }
 }
 
 function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined { let target: Creep | undefined; let closest = Infinity; for (const creep of creeps) if (creep.active) { const current = distance(hero.position, creep.position); if (current < closest) { target = creep; closest = current; } } return target; }
 function meleeSkill(skill: SkillId | undefined): "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | undefined { return skill === "bash" || skill === "sweep" || skill === "flurry" || skill === "shockwave" || skill === "cleave" ? skill : undefined; }
-function skillManaCost(skill: SkillId): number { return skill === "frostOrb" ? 10 : skill === "gravityPull" ? 8 : skill === "orbitingHammers" ? 3 : 1; }
+function skillManaCost(skill: SkillId): number { return SKILLS[skill].cost ?? (skill === "frostOrb" ? 10 : skill === "gravityPull" ? 8 : skill === "orbitingHammers" ? 3 : 1); }
 export function forceField(target: { position: Vector2; velocity: Vector2; interruptAttack?: () => void }, source: Vector2, impulse: number, direction: "pull" | "push"): void { const dx = source.x - target.position.x; const dy = source.y - target.position.y; const length = Math.hypot(dx, dy); if (length <= 0) return; const sign = direction === "pull" ? 1 : -1; target.velocity.x += dx / length * impulse * sign; target.velocity.y += dy / length * impulse * sign; target.interruptAttack?.(); }
 export function isSkillAvailable(progress: PlayerProgress, skill: SkillId): boolean { return progress.universalSkills.includes(skill) || progress.mainHand.skills.includes(skill) || Boolean(progress.offHand?.skills.includes(skill)); }
 export function effectiveSkillLevel(progress: PlayerProgress, skill: SkillId): number { if (!isSkillAvailable(progress, skill)) return 0; const learned = progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0); const equipped = progress.mainHand.skills.includes(skill) || progress.offHand?.skills.includes(skill) ? 1 : 0; return learned + equipped; }
