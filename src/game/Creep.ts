@@ -1,5 +1,4 @@
 import { type CreepKind, type PlayerId, type UnitBuild } from "../../common/protocol";
-import { derivedStats } from "../../common/progression";
 import { statsWithItemBonuses } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
@@ -50,7 +49,6 @@ export class Creep extends Unit {
   pursue(hero: Vector2, deltaSeconds: number, width: number, height: number): CreepAttack | undefined {
     this.updateResources(deltaSeconds, this.random);
     this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
-    const derived = derivedStats(this.stats);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
     const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier;

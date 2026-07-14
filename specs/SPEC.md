@@ -72,7 +72,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Training-kill no-reward feedback is an exception to routine notifications: it appears just above the experience/level badge and fades away after a few seconds.
 - The health and mana displays sit directly beside the centered experience/level badge rather than stretching toward the arena edges.
 - Cooldown spells use a compact Ubuntu-dock-like vertical rail on the left edge, anchored above the bottom-left health display and growing upward as spells are added without a scrollbar.
-- Reserve a 220px independently scrolling character/stat column and a 320px independently scrolling permanent equipment column. Each column has its own small arrow toggle and retracts independently to a narrow tab; the arena and HUD reclaim the released width immediately. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
+- Reserve a 220px independently scrolling character/stat column and a 640px independently scrolling permanent equipment column. Each column has its own small arrow toggle and retracts independently to a 30px tab; the arena and HUD reclaim the released width immediately. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
 - Canvas backing dimensions follow the canvas element itself, including every intermediate size during panel collapse/expand transitions; viewport and camera sizing must not depend only on browser-window resize events.
 - Keep all arena HUD elements inside the playable width without overlapping the 540px right-side build area.
 
@@ -109,6 +109,7 @@ Stable HTML HUD structures are created once. The fixed simulation loop may updat
 Client to server:
 
 - `join`: `{ name, sessionId? }`
+- `updateAllocation`: `{ allocation: { agility, strength, magic, spirit, intelligence } }`
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
 - `equipItem`, `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId }`
@@ -125,6 +126,8 @@ Server to client:
 - `realmUpdated`: `{ realm }`
 - `incomingWave`: `{ wave }`
 - `creepDefeatResolved`: `{ unitId, score, progress, drop?, reason }`
+- `collectItemResult`: `{ dropId, collected, reason }`
+- `progressionUpdated`: `{ progress, reason }`
 - `waveAdjusted`: `{ waveNumber, reason }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
@@ -157,7 +160,22 @@ The server persists authoritative player identity, score, wave number, progressi
 
 - Obstacles and pathfinding around them.
 - Additional weapon classes, skills, affixes, and particles.
-- Account persistence, server-side simulation validation, replays, matchmaking ratings, and mobile controls.
+- Server-side simulation validation, replays, matchmaking ratings, and mobile controls.
+
+## 14. Reimplementation Blueprint
+
+This section records composition details that a clean-room implementation in another language must preserve in addition to the behavior in the other specification sections.
+
+- The browser document contains one full-window application root, a canvas for all world action, and persistent DOM HUD panels. The client creates the game once, opens a same-origin WebSocket using `ws` or `wss` according to the page scheme at `/ws`, and starts a request-animation-frame renderer plus a fixed 60 Hz simulation accumulator. A rendered frame may contribute at most 100 ms to the accumulator to avoid an unbounded catch-up spiral.
+- The world is 1,600 by 1,000 logical pixels. The camera viewport equals the canvas CSS content size, follows the hero, and clamps independently on both axes. Canvas backing width and height equal CSS dimensions multiplied by device pixel ratio, and the 2D context transform restores logical-pixel drawing. Both window resize and `ResizeObserver` trigger this calculation.
+- The client validates incoming envelopes before dispatch. Outgoing messages sent before the socket is open are discarded rather than buffered. On socket open, an accepted locally stored session automatically rejoins. The local-storage key is `multi-line-tower.session` and its only fields are `playerId` and `name`; invalid JSON or missing fields is treated as no session.
+- Joining trims a name, and the server truncates it to 20 characters and substitutes `Player` for an empty result. A new player starts with score 0, wave 1, no realm opt-in, zero currencies and attributes, the default 1/1/1/1/1 future allocation, Healing level 1, and the Plain Club both equipped and represented by a quantity-one Keep tile.
+- The HTTP server serves the built `dist` directory when it exists (otherwise the repository root), maps `/` to `index.html`, uses explicit HTML/JavaScript/CSS/SVG content types, rejects normalized paths outside the public root with 403, and otherwise falls back to `index.html` for missing paths. The WebSocket server shares that HTTP listener and accepts connections only at `/ws`. It listens on `127.0.0.1:3000` unless `HOST`/`PORT` override them. Production defaults to `normal`, other environments to `dev`, and an explicit valid `BALANCE_PROFILE=normal|dev` overrides that default.
+- Each connection must join before gameplay commands. Invalid JSON or schema-invalid input receives `Ignored invalid message.`; a valid non-join command before identification receives `Join before playing.` A connection is associated with the accepted player id. The player disconnects only when its final simultaneous socket closes.
+- A single 60-second server timer drives global wave dispatch. At dispatch, every realm's down set is cleared; every connected realm member or opted-in solo increments its wave, while Training Grounds players repeat without incrementing; then every connected player receives the correct competitive, solo, or training wave. State is persisted after joins, commands, global dispatches, and orderly server close.
+- Persistence is a versioned JSON snapshot written through a temporary file followed by atomic rename. Durable data is identity, name, score, wave, and the complete `PlayerProgress`. On load, runtime-only connection, realm, issued-unit, ground-drop, and queue state is rebuilt empty; saved level/XP and newer inventory fields are migrated to valid current defaults.
+- Runtime validation is intentionally asymmetric in this prototype: client commands receive full discriminated-union validation, while server messages are validated by their recognized `type` envelope and then treated as the matching typed payload. Protocol compatibility is the numeric version 10 delivered in `welcome`.
+- Stable-DOM performance is behavioral: scalar resource/XP values update in place each frame; expensive character, spell, realm, and inventory subtrees are replaced only when their flattened signatures change. Canvas owns map, units, telegraphs, projectiles, drops, spell effects, selection, indicators, and floating combat text; DOM owns joining and all persistent interactive controls.
 
 ## 13. Development Process
 

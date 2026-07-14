@@ -35,5 +35,6 @@ export function levelForXp(xp: number): number { const target = Math.max(0, xp);
 function ensureXpLevel(level: number): void { while (XP_THRESHOLDS.length <= level) { const nextCost = XP_COSTS[XP_COSTS.length - 1] + XP_COSTS[XP_COSTS.length - 2]; XP_COSTS.push(nextCost); XP_THRESHOLDS.push(XP_THRESHOLDS[XP_THRESHOLDS.length - 1] + nextCost); } }
 export function lerpXpDisplay(current: number, target: number): number { const next = current + (target - current) * 0.1; return Math.abs(target - next) < 0.01 ? target : next; }
 export function validAllocation(stats: Stats): boolean {
-  return STAT_KEYS.every((key) => Number.isFinite(stats[key]) && stats[key] >= 0) && Math.abs(STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) - 5) < 0.001;
+  return STAT_KEYS.every((key) => Number.isInteger(stats[key]) && stats[key] >= 0) && STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) === 5;
 }
+export function integerAllocation(stats: Stats): Stats { if (!STAT_KEYS.every((key) => Number.isFinite(stats[key]) && stats[key] >= 0)) return { ...DEFAULT_ALLOCATION }; const result = Object.fromEntries(STAT_KEYS.map((key) => [key, Math.floor(stats[key])])) as Stats; let remaining = 5 - STAT_KEYS.reduce((sum, key) => sum + result[key], 0); if (remaining < 0) return { ...DEFAULT_ALLOCATION }; const priority = [...STAT_KEYS].sort((left, right) => (stats[right] - Math.floor(stats[right])) - (stats[left] - Math.floor(stats[left]))); for (let index = 0; remaining > 0; index += 1, remaining -= 1) result[priority[index % priority.length]] += 1; return result; }

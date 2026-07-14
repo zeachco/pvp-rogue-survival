@@ -1,10 +1,9 @@
 /** @jsx h */
-/** @jsxFrag Fragment */
 import { itemStackKey, statsWithItemBonuses, type ItemInstance } from "../../common/items";
-import { STAT_KEYS, cumulativeXpForLevel, lerpXpDisplay, levelForXp, xpForNextLevel, type Stats } from "../../common/progression";
+import { STAT_KEYS, cumulativeXpForLevel, integerAllocation, lerpXpDisplay, levelForXp, xpForNextLevel, type Stats } from "../../common/progression";
 import type { PlayerProgress, RealmState, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
-import { Fragment, h } from "./dom";
+import { h } from "./dom";
 import { itemTile, orderInventoryTiles } from "./InventoryView";
 import { occupiedInventorySlots } from "../../common/inventory";
 import { itemDetails } from "./ItemDetails";
@@ -72,16 +71,20 @@ export class Hud {
         {currencyCell("Rare", p.scraps.rare, "rare")}{currencyCell("Epic", p.scraps.epic, "epic")}
       </div>,
       <div class="portrait"><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? p.level}</small></div>,
-      <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{key}</small>{fmt(stats[key])}</span>)}</div>,
+      <div class="attribute-grid">{STAT_KEYS.map((key) => <span data-stat={key}><small>{key}</small><b>{fmt(stats[key])}</b></span>)}</div>,
       <strong>Effective stats</strong>, effectiveStatSheet(main, off, effectiveStats), this.allocationNode,
       <strong>Main hand</strong>, mainSummary, <strong>Offhand</strong>, off ? equipmentSummary(off, effectiveStats, "off") : <small>Empty</small>
     );
     (this.root.querySelector(".inspect-back") as HTMLElement).classList.toggle("is-hidden", !build); this.renderAllocation();
-    this.inventoryNode.replaceChildren(<strong>Equipment {occupiedInventorySlots(p)}/{4 + Math.ceil(p.level / 10)}</strong>, <div class="backpack-scroll">{orderInventoryTiles(p.inventoryTiles, p).map((tile) => itemTile(tile, this.callbacks, p))}</div>); }
+    this.inventoryNode.replaceChildren(<strong>Equipment {occupiedInventorySlots(p)}/{4 + Math.ceil(p.level / 10)}</strong>, <div class="backpack-scroll">{orderInventoryTiles(p.inventoryTiles, p).map((tile) => itemTile(tile, this.callbacks, p, (item) => this.previewItem(item)))}</div>); }
+  private previewItem(item?: ItemInstance): void { if (!this.player || this.inspected) return; const p = this.player.progress; if (!item) return this.previewEffectiveStats(p.stats, p.mainHand, p.offHand, false); if (item.itemKind === "weapon") this.previewEffectiveStats(p.stats, item, item.hands === 2 ? undefined : p.offHand, true); else if (p.mainHand.hands === 1) this.previewEffectiveStats(p.stats, p.mainHand, item, true); }
+  private previewEffectiveStats(baseStats: Stats, main: ItemInstance, off: ItemInstance | undefined, highlight: boolean): void { if (!this.player) return; const current = this.sheetNode.querySelector<HTMLElement>(".combat-stat-grid"); if (!current) return; const effective = statsWithItemBonuses(baseStats, main, off); let baseline: Array<[string, string]> | undefined; if (highlight) { const p = this.player.progress; baseline = effectiveStatRows(p.mainHand, p.offHand, statsWithItemBonuses(p.stats, p.mainHand, p.offHand)); } current.replaceWith(effectiveStatSheet(main, off, effective, baseline)); }
   private renderRealm(): void { if (!this.realm) return; const r = this.realm; const signature = [r.mode, this.player?.waveNumber ?? "", r.outgoingQueued, r.incomingQueued, ...r.guards.map(realmMemberSignature), "|", ...r.attackers.map(realmMemberSignature)].join(":"); if (signature === this.realmSignature) return; this.realmSignature = signature; const action = <button type="button">{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}</button> as HTMLButtonElement; action.onclick = r.mode === "training" ? this.callbacks.onEnterRealm : this.callbacks.onLeaveRealm;
     const title = r.mode === "training" ? "Halls of Realms" : r.mode === "waiting" ? "Waiting for realm" : `Wave ${this.player?.waveNumber ?? "—"}`;
     this.realmPanel.replaceChildren(<strong>{title}</strong>, <span>Guard: {r.guards.map((p) => `${p.name} L${p.level}${p.down ? " ↓" : ""}`).join(", ") || "—"}</span>, <span>Attacker: {r.attackers.map((p) => `${p.name} L${p.level}${p.down ? " ↓" : ""}`).join(", ") || "—"}</span>, <span>Queues {r.outgoingQueued} out / {r.incomingQueued} in</span>, action); }
-  private renderAllocation(): void { const signature = this.inspected ? "inspection" : this.player ? STAT_KEYS.map((key) => this.player!.progress.allocation[key]).join(":") : "none"; if (signature === this.allocationSignature) return; this.allocationSignature = signature; this.allocationNode.replaceChildren(); if (!this.player || this.inspected) { this.allocationNode.classList.add("is-hidden"); return; } this.allocationNode.classList.remove("is-hidden"); const inputs = new Map<string, HTMLInputElement>(); this.allocationNode.append(<strong>Next-level allocation</strong>); for (const key of STAT_KEYS) { const input = <input name={key} type="number" min="0" max="5" step="0.1" value={this.player.progress.allocation[key]} /> as HTMLInputElement; inputs.set(key, input); this.allocationNode.append(<label>{key}{input}</label>); } const save = <button type="submit">Save allocation</button> as HTMLButtonElement; this.allocationNode.append(save); this.allocationNode.onsubmit = (event) => { event.preventDefault(); this.callbacks.onAllocation(Object.fromEntries(STAT_KEYS.map((key) => [key, Number(inputs.get(key)?.value ?? 0)])) as Stats); }; }
+  private renderAllocation(): void { const signature = this.inspected ? "inspection" : this.player ? STAT_KEYS.map((key) => this.player!.progress.allocation[key]).join(":") : "none"; if (signature === this.allocationSignature) return; this.allocationSignature = signature; this.allocationNode.replaceChildren(); if (!this.player || this.inspected) { this.allocationNode.classList.add("is-hidden"); return; } this.allocationNode.classList.remove("is-hidden"); const inputs = new Map<string, HTMLInputElement>(); const allocation = integerAllocation(this.player.progress.allocation); let preview = false; this.allocationNode.append(<strong>Next-level allocation</strong>); for (const key of STAT_KEYS) { const input = <input name={key} type="number" min="0" max="5" step="1" inputmode="numeric" value={allocation[key]} /> as HTMLInputElement; inputs.set(key, input); this.allocationNode.append(<label>{key}{input}</label>); } const remaining = <small class="allocation-remaining" /> as HTMLElement; const save = <button type="submit">Save allocation</button> as HTMLButtonElement; this.allocationNode.append(remaining, save);
+    const update = (changed?: HTMLInputElement) => { if (changed) { const others = [...inputs.values()].filter((input) => input !== changed).reduce((sum, input) => sum + clampInteger(input.valueAsNumber), 0); changed.value = String(Math.min(5 - Math.min(5, others), clampInteger(changed.valueAsNumber))); } const values = Object.fromEntries(STAT_KEYS.map((key) => [key, clampInteger(inputs.get(key)?.valueAsNumber ?? 0)])) as Stats; const total = STAT_KEYS.reduce((sum, key) => sum + values[key], 0); remaining.textContent = `${Math.max(0, 5 - total)} points remaining`; save.disabled = total !== 5; const grid = this.sheetNode.querySelector<HTMLElement>(".attribute-grid"); const p = this.player!.progress; const projected = Object.fromEntries(STAT_KEYS.map((key) => [key, p.stats[key] + values[key]])) as Stats; for (const key of STAT_KEYS) { const value = grid?.querySelector<HTMLElement>(`[data-stat="${key}"] b`); if (value) { value.textContent = fmt(preview ? projected[key] : p.stats[key]); value.classList.toggle("is-changed", preview && values[key] > 0); } } this.previewEffectiveStats(preview ? projected : p.stats, p.mainHand, p.offHand, preview); };
+    for (const input of inputs.values()) { input.oninput = () => update(input); input.onfocus = () => { preview = true; update(); }; input.onblur = () => window.setTimeout(() => { if (!this.allocationNode.contains(document.activeElement)) { preview = false; update(); } }); } this.allocationNode.onmouseenter = () => { preview = true; update(); }; this.allocationNode.onmouseleave = () => { if (!this.allocationNode.contains(document.activeElement)) { preview = false; update(); } }; this.allocationNode.onsubmit = (event) => { event.preventDefault(); if (save.disabled) return; this.callbacks.onAllocation(Object.fromEntries(STAT_KEYS.map((key) => [key, clampInteger(inputs.get(key)?.valueAsNumber ?? 0)])) as Stats); }; update(); }
   private togglePanel(panel: HTMLElement, toggle: HTMLButtonElement, kind: "character" | "inventory"): void {
     const collapsed = panel.classList.toggle("is-collapsed"); toggle.textContent = kind === "character" ? (collapsed ? "›" : "‹") : (collapsed ? "‹" : "›"); toggle.setAttribute("aria-expanded", String(!collapsed)); toggle.setAttribute("aria-label", `${collapsed ? "Expand" : "Collapse"} ${kind === "character" ? "character sheet" : "inventory"}`);
     document.documentElement.style.setProperty(kind === "character" ? "--character-panel-width" : "--inventory-panel-width", collapsed ? "30px" : kind === "character" ? "220px" : "640px");
@@ -96,18 +99,21 @@ function equipmentSummary(item: ItemInstance, stats: Stats, slot: "main" | "off"
     </div>
   ) as HTMLElement;
 }
-function effectiveStatSheet(main: ItemInstance, off: ItemInstance | undefined, stats: Stats): HTMLElement {
+function effectiveStatRows(main: ItemInstance, off: ItemInstance | undefined, stats: Stats): Array<[string, string]> {
   const derived = derivedStats(stats); const items = [main, off].filter(Boolean) as ItemInstance[]; const buckler = off?.itemKind === "buckler" ? off : undefined;
-  const lifeSteal = items.reduce((sum, item) => sum + item.modifiers.lifeStealBase + (item.modifiers.lifeStealBase > 0 ? 0.001 * stats.spirit : 0), 0);
-  const vigorous = items.reduce((sum, item) => sum + (item.modifiers.strengthRegenMultiplier > 0 ? 0.01 + item.modifiers.strengthRegenMultiplier * stats.strength : 0), 0);
-  const rows: Array<[string, string]> = [
+  const lifeSteal = items.reduce((sum, item) => { const base = item.modifiers.lifeStealBase ?? 0; return sum + base + (base > 0 ? 0.001 * stats.spirit : 0); }, 0);
+  const vigorous = items.reduce((sum, item) => { const multiplier = item.modifiers.strengthRegenMultiplier ?? 0; return sum + (multiplier > 0 ? 0.01 + multiplier * stats.strength : 0); }, 0);
+  return [
     ["Damage", fmt(weaponDamage(main, stats))], ["Attacks/s", fmt(weaponAttackSpeed(main, stats))], ["Attack cost", `${fmt(main.staminaCost)} stamina`], ["Attack range", `${main.definitionId === "staff" ? 330 : 105}px`],
     ["Crit chance", percent(Math.min(1, derived.critChance + main.modifiers.critChance))], ["Crit damage", percent(derived.critMultiplier)], ["Magic amp", percent(Math.max(0, derived.magicAmp + main.modifiers.magicAmp - 1))], ["Cooldown reduction", percent(derived.cooldownReduction)], ["Spell range/Lv", `+${fmt(0.5 * stats.spirit)}px`], ["Spell power/Lv", "+15%"],
     ["Max health", fmt(derived.maxHp)], ["Max stamina", fmt(derived.maxStamina)], ["Max mana", fmt(derived.maxMana)], ["Defense", fmt(buckler ? stats.strength : 0)], ["Block chance", percent(bucklerBlockChance(buckler, stats))], ["Block cost", buckler ? `${fmt(bucklerBlockCost(buckler, stats))} stamina` : "0"],
     ["Health regen", `${fmt(derived.hpRegen + vigorous)}/s`], ["Mana regen", `${fmt(derived.manaRegen * main.modifiers.manaRegenMultiplier)}/s`], ["Stamina regen", `${fmt(derived.staminaRegen)}/s`], ["Life steal", percent(lifeSteal)],
     ["Bleed chance", percent(main.modifiers.bleedChance)], ["Poison chance", percent(main.modifiers.poisonChance)], ["Stun chance", percent(main.modifiers.stunChance)], ["Attraction", `${Math.max(main.attractionSpeed, off?.attractionSpeed ?? 0)}px/s`], ["Reflection", buckler?.reflectionComponents.join(" / ") || "None"]
   ];
-  return <div class="combat-stat-grid">{rows.map(([label, value]) => <span><small>{label}</small><b>{value}</b></span>)}</div> as HTMLElement;
+}
+function effectiveStatSheet(main: ItemInstance, off: ItemInstance | undefined, stats: Stats, baseline?: Array<[string, string]>): HTMLElement {
+  const previous = new Map(baseline); const rows = effectiveStatRows(main, off, stats);
+  return <div class={`combat-stat-grid${baseline ? " is-previewing" : ""}`}>{rows.map(([label, value]) => <span><small>{label}</small><b class={baseline && previous.get(label) !== value ? "is-changed" : ""}>{value}</b></span>)}</div> as HTMLElement;
 }
 function currencyCell(label: string, value: number, kind: string): HTMLElement { return <div class={`currency-cell currency-${kind}`}><small>{label}</small><strong>{value}</strong></div> as HTMLElement; }
 interface ResourceBar { node: HTMLElement; value: HTMLElement; fill: HTMLElement }
@@ -120,4 +126,4 @@ function staticStateSignature(player: PlayerState | undefined, inspected: UnitBu
 function realmMemberSignature(member: RealmState["guards"][number]): string { return `${member.id},${member.name},${member.level},${Number(member.down)}`; }
 function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
 function percent(value: number): string { return `${fmt(value * 100)}%`; }
-function capitalize(value: string): string { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
+function clampInteger(value: number): number { return Number.isFinite(value) ? Math.max(0, Math.min(5, Math.round(value))) : 0; }

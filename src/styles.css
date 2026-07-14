@@ -361,6 +361,8 @@ input {
 .attribute-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
 .attribute-grid span { display: grid; border: 1px solid rgba(138,216,255,.2); padding: 5px; text-align: center; }
 .attribute-grid small { color: #9fb8bf; font-size: 10px; }
+.attribute-grid b { font-weight: 500; }
+.attribute-grid b.is-changed, .combat-stat-grid b.is-changed { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
 .combat-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .combat-stat-grid > span { display: grid; min-width: 0; gap: 1px; border: 1px solid rgba(138,216,255,.16); padding: 5px 6px; background: rgba(8,14,17,.55); }
 .combat-stat-grid small { overflow: hidden; color: #79949c; font-size: 8px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }

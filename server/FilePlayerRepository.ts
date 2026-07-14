@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { itemStackKey, RARITY_POWER, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { WEAPONS } from "../common/content.ts";
-import { cumulativeXpForLevel } from "../common/progression.ts";
+import { cumulativeXpForLevel, integerAllocation } from "../common/progression.ts";
 import type { PlayerId, PlayerProgress } from "../common/protocol.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
@@ -28,7 +28,7 @@ export class FilePlayerRepository implements PlayerRepository {
     let value: unknown; try { value = JSON.parse(readFileSync(this.filePath, "utf8")); } catch { return; }
     if (!isSnapshot(value)) return;
     for (const saved of value.players) {
-      normalizeWeapons(saved.progress); for (const tile of saved.progress.inventoryTiles) tile.disposalRarity ??= tile.item.rarity;
+      normalizeWeapons(saved.progress); saved.progress.allocation = integerAllocation(saved.progress.allocation); for (const tile of saved.progress.inventoryTiles) tile.disposalRarity ??= tile.item.rarity;
       saved.progress.xp = Math.max(saved.progress.xp, cumulativeXpForLevel(saved.progress.level));
       ensureEquippedInventory(saved.progress);
       this.players.set(saved.id, { ...saved, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [] });

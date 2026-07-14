@@ -3,7 +3,7 @@ import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, processAutoUpgrades, purgeFromInventory, sellFromInventory, sendFromInventory, setAutomation, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
 import { generateBuckler, generateItem, generateRelic, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
-import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PlayerProgress, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
+import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
 import { regularCount, regularLevel, rivalLevel, spawnAtMs } from "../common/waves.ts";
 import type { Player, PlayerRepository, QueuedEquipment } from "./domain.ts";
@@ -31,7 +31,7 @@ export class GameService {
   handle(playerId: PlayerId, message: Exclude<ClientMessage, { type: "join" }>): void {
     const player = this.options.repository.get(playerId); if (!player) return;
     switch (message.type) {
-      case "updateAllocation": if (!validAllocation(message.allocation)) return this.notice(player, "Allocation must be non-negative and total 5.0."); player.progress.allocation = { ...message.allocation }; return this.sendProgress(player, "Future level allocation updated.");
+      case "updateAllocation": if (!validAllocation(message.allocation)) return this.notice(player, "Allocation must use non-negative integers totaling 5."); player.progress.allocation = { ...message.allocation }; return this.sendProgress(player, "Future level allocation updated.");
       case "creepDefeated": return this.resolveDefeat(player, message.unitId);
       case "collectDrop": return this.collectDrop(player, message.dropId);
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);

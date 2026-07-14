@@ -1,8 +1,7 @@
 /** @jsx h */
-/** @jsxFrag Fragment */
 import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 import { RARITIES, itemStackKey, statsWithItemBonuses } from "../../common/items";
-import { Fragment, h } from "./dom";
+import { h } from "./dom";
 import type { HudCallbacks } from "./types";
 import { itemDetails } from "./ItemDetails";
 
@@ -25,7 +24,7 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
     .map(({ tile }) => tile);
 }
 
-export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress): HTMLElement {
+export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"]) => void): HTMLElement {
   const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped);
   const disposalBucket = tile.quantity === 0 && (tile.automation === "sell" || tile.automation === "purge");
   const stats = statsWithItemBonuses(progress.stats, item);
@@ -45,11 +44,12 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
     </div>
   ) as HTMLElement;
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });
+  if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item); node.onmouseleave = () => onPreview(); }
   if (equipped) { (buttons[1] as HTMLButtonElement).disabled = true; (buttons[2] as HTMLButtonElement).disabled = true; }
   if (spare <= 0) for (const index of [3, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
   buttons[0].onclick = () => callbacks.onEquip(tile.id); buttons[1].onclick = () => callbacks.onSell(tile.id); buttons[2].onclick = () => callbacks.onPurge(tile.id);
   buttons[3].onclick = () => callbacks.onUpgrade(tile.id); buttons[4].onclick = () => callbacks.onSend(tile.id); if (buttons[5]) buttons[5].onclick = () => callbacks.onExtract(tile.id);
-  const raritySelect = node.querySelector<HTMLSelectElement>(".disposal-threshold select")!; raritySelect.disabled = tile.automation !== "sell" && tile.automation !== "purge"; raritySelect.onchange = () => { if (tile.automation === "sell" || tile.automation === "purge") callbacks.onAutomation(tile.id, tile.automation, raritySelect.value as InventoryTile["disposalRarity"]); };
+  const raritySelect = node.querySelector<HTMLSelectElement>(".disposal-threshold select")!; raritySelect.onchange = () => callbacks.onAutomation(tile.id, tile.automation, raritySelect.value as InventoryTile["disposalRarity"]);
   for (const input of node.querySelectorAll<HTMLInputElement>('.item-automation input[type="radio"]')) { if (equipped && (input.value === "sell" || input.value === "purge")) input.disabled = true; input.onchange = () => { if (input.checked) callbacks.onAutomation(tile.id, input.value as InventoryTile["automation"], raritySelect.value as InventoryTile["disposalRarity"]); }; }
   return node;
 }

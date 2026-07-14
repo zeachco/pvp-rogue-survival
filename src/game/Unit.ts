@@ -81,7 +81,7 @@ export abstract class Unit extends GameObject {
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable, { kind: status.kind === "poison" ? "poison" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
-    const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => sum + (item.modifiers.strengthRegenMultiplier > 0 ? 0.01 + item.modifiers.strengthRegenMultiplier * this.stats.strength : 0), 0);
+    const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = item.modifiers.strengthRegenMultiplier ?? 0; return sum + (multiplier > 0 ? 0.01 + multiplier * this.stats.strength : 0); }, 0);
     this.hp = Math.min(this.maxHp, this.hp + (derived.hpRegen + vigorousRegen) * deltaSeconds);
     this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * (this.mainHand?.modifiers.manaRegenMultiplier ?? 1) * deltaSeconds);
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
