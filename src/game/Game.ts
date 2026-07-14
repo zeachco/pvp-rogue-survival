@@ -46,6 +46,8 @@ export class Game {
   private hovered?: Creep;
   private inspected?: Creep;
   private waveMode: "competitive" | "solo" | "training" = "training";
+  private realmMode: "training" | "waiting" | "competitive" = "training";
+  private autoRealmTimer?: number;
   private get creeps(): Creep[] { return this.arena.creeps; }
   private get attacks(): AttackArea[] { return this.arena.attacks; }
   private get projectiles(): Projectile[] { return this.arena.projectiles; }
@@ -64,7 +66,7 @@ export class Game {
       onPurge: (tileId) => this.socket.send({ type: "purgeItem", tileId }), onUpgrade: (tileId) => this.socket.send({ type: "upgradeItem", tileId }),
       onSend: (tileId) => this.socket.send({ type: "sendItem", tileId }), onExtract: (tileId) => this.socket.send({ type: "extractSkill", tileId }),
       onAutomation: (tileId, mode, maxRarity) => this.socket.send({ type: "setStackAutomation", tileId, mode, maxRarity }), onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
-      onEnterRealm: () => this.socket.send({ type: "enterRealm" }), onBack: () => this.clearInspection()
+      onEnterRealm: () => this.enterRealm(), onBack: () => this.clearInspection()
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.name); this.registerDebugGlobal();
   }
@@ -80,14 +82,16 @@ export class Game {
   }
 
   private join(name: string, sessionId?: string): void { this.debugName = name.trim() || this.debugName; this.socket.send({ type: "join", name, sessionId }); this.hud.setNotice("Joining arena..."); }
+  private enterRealm(): void { clearTimeout(this.autoRealmTimer); if (this.realmMode !== "training") return; this.realmMode = "waiting"; this.socket.send({ type: "enterRealm" }); }
+  private scheduleAutoRealmEntry(): void { clearTimeout(this.autoRealmTimer); if (!import.meta.env.DEV || this.realmMode !== "training") return; this.autoRealmTimer = window.setTimeout(() => this.enterRealm(), 10_000); }
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === "welcome") {
       this.player = { id: message.playerId, name: message.player.name, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, gold: message.progress.gold, progress: message.progress };
-      this.balance = message.config.balance;
+      this.balance = message.config.balance; this.realmMode = message.realm.mode; this.scheduleAutoRealmEntry();
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.savedSession = { playerId: message.playerId, name: message.player.name }; this.sessionStorage.save(this.savedSession);
       this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setRealm(message.realm); this.hud.setNotice(""); this.hud.showCenterToast("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
-    } else if (message.type === "realmUpdated") this.hud.setRealm(message.realm);
+    } else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.realmMode !== "training") clearTimeout(this.autoRealmTimer); this.hud.setRealm(message.realm); }
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
       this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;

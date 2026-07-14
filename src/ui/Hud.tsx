@@ -9,6 +9,8 @@ import { itemTile, orderInventoryTiles } from "./InventoryView";
 import { occupiedInventorySlots } from "../../common/inventory";
 import { itemDetails } from "./ItemDetails";
 import type { HudCallbacks, SpellSlot } from "./types";
+import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed, weaponDamage } from "../../common/combat";
+import { derivedStats } from "../../common/progression";
 export type { HudCallbacks, SpellSlot } from "./types";
 declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
 
@@ -38,7 +40,7 @@ export class Hud {
     const back = <button class="inspect-back is-hidden" type="button">Back to hero</button> as HTMLButtonElement; back.onclick = callbacks.onBack;
     const sheetToggle = <button class="panel-toggle" type="button" aria-label="Collapse character sheet" aria-expanded="true">‹</button> as HTMLButtonElement;
     const inventoryToggle = <button class="panel-toggle" type="button" aria-label="Collapse inventory" aria-expanded="true">›</button> as HTMLButtonElement;
-    const sheet = <aside class="character-panel">{sheetToggle}{back}{this.sheetNode}{this.allocationNode}</aside> as HTMLElement;
+    const sheet = <aside class="character-panel">{sheetToggle}{back}{this.sheetNode}</aside> as HTMLElement;
     const inventory = <aside class="inventory-column">{inventoryToggle}{this.inventoryNode}</aside> as HTMLElement;
     sheetToggle.onclick = () => this.togglePanel(sheet, sheetToggle, "character");
     inventoryToggle.onclick = () => this.togglePanel(inventory, inventoryToggle, "inventory");
@@ -71,6 +73,7 @@ export class Hud {
       </div>,
       <div class="portrait"><strong>{build?.name ?? this.player.name}</strong><small>Level {build?.level ?? p.level}</small></div>,
       <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{key}</small>{fmt(stats[key])}</span>)}</div>,
+      <strong>Effective stats</strong>, effectiveStatSheet(main, off, effectiveStats), this.allocationNode,
       <strong>Main hand</strong>, mainSummary, <strong>Offhand</strong>, off ? equipmentSummary(off, effectiveStats, "off") : <small>Empty</small>
     );
     (this.root.querySelector(".inspect-back") as HTMLElement).classList.toggle("is-hidden", !build); this.renderAllocation();
@@ -93,6 +96,19 @@ function equipmentSummary(item: ItemInstance, stats: Stats, slot: "main" | "off"
     </div>
   ) as HTMLElement;
 }
+function effectiveStatSheet(main: ItemInstance, off: ItemInstance | undefined, stats: Stats): HTMLElement {
+  const derived = derivedStats(stats); const items = [main, off].filter(Boolean) as ItemInstance[]; const buckler = off?.itemKind === "buckler" ? off : undefined;
+  const lifeSteal = items.reduce((sum, item) => sum + item.modifiers.lifeStealBase + (item.modifiers.lifeStealBase > 0 ? 0.001 * stats.spirit : 0), 0);
+  const vigorous = items.reduce((sum, item) => sum + (item.modifiers.strengthRegenMultiplier > 0 ? 0.01 + item.modifiers.strengthRegenMultiplier * stats.strength : 0), 0);
+  const rows: Array<[string, string]> = [
+    ["Damage", fmt(weaponDamage(main, stats))], ["Attacks/s", fmt(weaponAttackSpeed(main, stats))], ["Attack cost", `${fmt(main.staminaCost)} stamina`], ["Attack range", `${main.definitionId === "staff" ? 330 : 105}px`],
+    ["Crit chance", percent(Math.min(1, derived.critChance + main.modifiers.critChance))], ["Crit damage", percent(derived.critMultiplier)], ["Magic amp", percent(Math.max(0, derived.magicAmp + main.modifiers.magicAmp - 1))], ["Cooldown reduction", percent(derived.cooldownReduction)], ["Spell range/Lv", `+${fmt(0.5 * stats.spirit)}px`], ["Spell power/Lv", "+15%"],
+    ["Max health", fmt(derived.maxHp)], ["Max stamina", fmt(derived.maxStamina)], ["Max mana", fmt(derived.maxMana)], ["Defense", fmt(buckler ? stats.strength : 0)], ["Block chance", percent(bucklerBlockChance(buckler, stats))], ["Block cost", buckler ? `${fmt(bucklerBlockCost(buckler, stats))} stamina` : "0"],
+    ["Health regen", `${fmt(derived.hpRegen + vigorous)}/s`], ["Mana regen", `${fmt(derived.manaRegen * main.modifiers.manaRegenMultiplier)}/s`], ["Stamina regen", `${fmt(derived.staminaRegen)}/s`], ["Life steal", percent(lifeSteal)],
+    ["Bleed chance", percent(main.modifiers.bleedChance)], ["Poison chance", percent(main.modifiers.poisonChance)], ["Stun chance", percent(main.modifiers.stunChance)], ["Attraction", `${Math.max(main.attractionSpeed, off?.attractionSpeed ?? 0)}px/s`], ["Reflection", buckler?.reflectionComponents.join(" / ") || "None"]
+  ];
+  return <div class="combat-stat-grid">{rows.map(([label, value]) => <span><small>{label}</small><b>{value}</b></span>)}</div> as HTMLElement;
+}
 function currencyCell(label: string, value: number, kind: string): HTMLElement { return <div class={`currency-cell currency-${kind}`}><small>{label}</small><strong>{value}</strong></div> as HTMLElement; }
 interface ResourceBar { node: HTMLElement; value: HTMLElement; fill: HTMLElement }
 function resourceBar(label: string, kind: "health" | "mana"): ResourceBar { const value = <span /> as HTMLElement; const fill = <span /> as HTMLElement; const node = <div class={`resource-bar resource-${kind}`} role="progressbar" aria-label={label} aria-valuemin="0"><div class="resource-bar-header"><strong>{label}</strong>{value}</div><div class="resource-bar-track">{fill}</div></div> as HTMLElement; return { node, value, fill }; }
@@ -103,4 +119,5 @@ function setText(node: HTMLElement, value: string): void { if (node.textContent 
 function staticStateSignature(player: PlayerState | undefined, inspected: UnitBuild | undefined): string { if (!player) return "none"; const p = player.progress; return [player.name, p.level, inspected?.id ?? "hero", inspected?.level ?? "", p.gold, p.souls, ...Object.values(p.scraps), ...STAT_KEYS.map((key) => (inspected?.stats ?? p.stats)[key]), itemStackKey(inspected?.mainHand ?? p.mainHand), inspected?.offHand ? itemStackKey(inspected.offHand) : p.offHand ? itemStackKey(p.offHand) : "", ...p.inventoryTiles.map((tile) => `${tile.id}:${tile.key}:${tile.quantity}:${tile.automation}:${tile.disposalRarity}`)].join("|"); }
 function realmMemberSignature(member: RealmState["guards"][number]): string { return `${member.id},${member.name},${member.level},${Number(member.down)}`; }
 function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
+function percent(value: number): string { return `${fmt(value * 100)}%`; }
 function capitalize(value: string): string { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }

@@ -1,12 +1,12 @@
 /** @jsx h */
-import { bucklerBlockCost, skillLabel, weaponAttackSpeed } from "../../common/combat";
+import { bucklerBlockCost, skillLabel, weaponAttackSpeed, weaponDamage } from "../../common/combat";
 import type { ItemInstance } from "../../common/items";
-import { STAT_KEYS, derivedStats, type Stats } from "../../common/progression";
+import { STAT_KEYS, type Stats } from "../../common/progression";
 import { h } from "./dom";
 
 export function itemDetails(item: ItemInstance, effectiveStats: Stats): HTMLElement {
-  const derived = derivedStats(effectiveStats); const attacks = item.itemKind === "weapon";
-  const damage = attacks ? derived.baseDamage * item.modifiers.damageMultiplier * (item.definitionId === "staff" ? derived.magicAmp + item.modifiers.magicAmp : 1) : undefined;
+  const attacks = item.itemKind === "weapon";
+  const damage = attacks ? weaponDamage(item, effectiveStats) : undefined;
   const attackSpeed = attacks ? weaponAttackSpeed(item, effectiveStats) : undefined;
   const requirements = STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(item.requirements[key] ?? 0)}`).join(", "); const effects = itemEffectSummary(item, effectiveStats);
   return <div class="equipment-details">

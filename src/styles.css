@@ -361,6 +361,10 @@ input {
 .attribute-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
 .attribute-grid span { display: grid; border: 1px solid rgba(138,216,255,.2); padding: 5px; text-align: center; }
 .attribute-grid small { color: #9fb8bf; font-size: 10px; }
+.combat-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.combat-stat-grid > span { display: grid; min-width: 0; gap: 1px; border: 1px solid rgba(138,216,255,.16); padding: 5px 6px; background: rgba(8,14,17,.55); }
+.combat-stat-grid small { overflow: hidden; color: #79949c; font-size: 8px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.combat-stat-grid b { overflow: hidden; color: #e4f5f8; font-size: 10px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .backpack-scroll { display: grid; max-width: 100%; gap: 7px; }
 .item-card { position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
 .backpack-scroll .item-card { grid-template-columns: minmax(0, 1fr) 230px; gap: 12px; align-items: start; }

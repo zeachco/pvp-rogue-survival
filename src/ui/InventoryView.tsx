@@ -13,6 +13,9 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
     .sort((left, right) => {
       const equipped = Number(equippedKeys.has(right.tile.key)) - Number(equippedKeys.has(left.tile.key));
       if (equipped) return equipped;
+      const automationOrder: Record<InventoryTile["automation"], number> = { upgrade: 0, keep: 1, purge: 2, sell: 3 };
+      const automation = automationOrder[left.tile.automation] - automationOrder[right.tile.automation];
+      if (automation) return automation;
       const availability = Number(right.tile.quantity > 0) - Number(left.tile.quantity > 0);
       if (availability) return availability;
       const leftRarity = left.tile.quantity > 0 ? left.tile.item.rarity : left.tile.disposalRarity; const rightRarity = right.tile.quantity > 0 ? right.tile.item.rarity : right.tile.disposalRarity;

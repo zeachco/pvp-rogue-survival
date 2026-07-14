@@ -4,7 +4,7 @@ import { derivedStats, type Stats } from "../../common/progression";
 import { RARITY_POWER, type ItemInstance } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
-import { bucklerBlockCost } from "../../common/combat";
+import { bucklerBlockChance, bucklerBlockCost } from "../../common/combat";
 
 export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
@@ -43,7 +43,7 @@ export abstract class Unit extends GameObject {
     let remaining = amount; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
     if (buckler?.itemKind === "buckler" && this.stamina >= blockCost) {
-      const chance = Math.min(1, buckler.blockChance + 0.005 * (this.stats.strength + this.stats.agility));
+      const chance = bucklerBlockChance(buckler, this.stats);
       if (random.next() < chance) {
         this.stamina -= blockCost;
         remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
@@ -83,7 +83,7 @@ export abstract class Unit extends GameObject {
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
     const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => sum + (item.modifiers.strengthRegenMultiplier > 0 ? 0.01 + item.modifiers.strengthRegenMultiplier * this.stats.strength : 0), 0);
     this.hp = Math.min(this.maxHp, this.hp + (derived.hpRegen + vigorousRegen) * deltaSeconds);
-    this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * deltaSeconds);
+    this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * (this.mainHand?.modifiers.manaRegenMultiplier ?? 1) * deltaSeconds);
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
   }
 
