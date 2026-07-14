@@ -1,0 +1,4 @@
+interface:
+  display_name: "TD War Preview-Driven Tweaks"
+  short_description: "Keep game changes previewed across HUD panels"
+  default_prompt: "Use $td-war-preview-driven-tweaks to implement this TD War game tweak with consistent before-and-after HUD previews."

@@ -17,3 +17,7 @@ For every request:
 5. Keep the specs synchronized when changing filenames, runtimes, protocols, mechanics, progression, game rules, or UX expectations.
 
 Use Bun for project tooling and scripts. The client is Vite + TypeScript with canvas rendering and stable DOM HUD components. The server is TypeScript run by Bun.
+
+## Preview-Driven Game Tweaks
+
+For changes that affect resources, equipment, attributes, advanced stats, or spells, use the project skill at `skills/td-war-preview-driven-tweaks/SKILL.md`. The behavior remains authoritative in `specs/`; the skill defines the implementation and validation workflow for consistent before/after HUD projections.

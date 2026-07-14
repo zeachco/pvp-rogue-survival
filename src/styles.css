@@ -84,7 +84,7 @@ input {
   width: 52px;
   height: 52px;
   place-items: center;
-  overflow: hidden;
+  overflow: visible;
   border: 2px solid #f2ce45;
   border-radius: 4px;
   color: #e8f9ff;
@@ -96,6 +96,7 @@ input {
 .spell-slot.spell-resource-stamina { border-color: #f2ce45; box-shadow: inset 0 0 10px rgba(242, 206, 69, 0.16); }
 .spell-slot.spell-resource-life { border-color: #ed354b; box-shadow: inset 0 0 10px rgba(237, 53, 75, 0.2); }
 .spell-slot.is-level-preview small { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.45); }
+.spell-slot.is-level-cost-preview small { color: #ff6575; text-shadow: 0 0 6px rgba(255,101,117,.35); }
 
 .spell-slot strong,
 .spell-slot small {
@@ -142,7 +143,7 @@ input {
 }
 
 .spell-slot:hover .spell-tooltip,
-.spell-slot:focus-visible .spell-tooltip {
+.spell-slot:focus .spell-tooltip {
   opacity: 1;
   visibility: visible;
   transform: translateX(0);
@@ -443,7 +444,8 @@ input {
 .attribute-grid span { display: grid; border: 1px solid rgba(138,216,255,.2); padding: 5px; text-align: center; }
 .attribute-grid small { color: #9fb8bf; font-size: 10px; }
 .attribute-grid b { font-weight: 500; }
-.attribute-grid b.is-changed, .combat-stat-grid b.is-changed { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
+.attribute-grid b.is-changed, .attribute-grid b.is-gain-preview, .combat-stat-grid b.is-changed, .combat-stat-grid b.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
+.attribute-grid b.is-cost-preview, .combat-stat-grid b.is-cost-preview { color: #ff6575; text-shadow: 0 0 6px rgba(255,101,117,.3); }
 .combat-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .combat-stat-grid > span { display: grid; min-width: 0; gap: 1px; border: 1px solid rgba(138,216,255,.16); padding: 5px 6px; background: rgba(8,14,17,.55); }
 .combat-stat-grid small { overflow: hidden; color: #79949c; font-size: 8px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }

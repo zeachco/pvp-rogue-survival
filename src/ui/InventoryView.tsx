@@ -19,7 +19,7 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
     .map(({ tile }) => tile);
 }
 
-export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"]) => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void): HTMLElement {
+export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean) => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void): HTMLElement {
   const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped); const skills = extractableSkills(item); const extractCost = item.sellValue * 10;
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
@@ -35,7 +35,8 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
     </div>
   ) as HTMLElement;
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });
-  if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item); node.onmouseleave = () => { onPreview(); onCurrencyPreview?.(); }; }
+  if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item, equipped); node.onmouseleave = () => { onPreview(); onCurrencyPreview?.(); onSpellPreview?.(); }; }
+  for (const button of buttons.slice(1)) { button.addEventListener("mouseenter", () => onPreview?.()); button.addEventListener("mouseleave", () => onPreview?.(item, equipped)); }
   if (spare <= 0) for (const index of [1, 2, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
   if (equipped) for (const index of [1, 2, 4, 5]) if (buttons[index]) { (buttons[index] as HTMLButtonElement).disabled = true; (buttons[index] as HTMLButtonElement).title = "Unequip this stack first"; }
   const costs = upgradeCosts(item); const upgradeButton = buttons[3] as HTMLButtonElement | undefined;
