@@ -4,6 +4,7 @@ import { derivedStats, type Stats } from "../../common/progression";
 import { RARITY_POWER, type ItemInstance } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
+import { bucklerBlockCost } from "../../common/combat";
 
 export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
@@ -38,10 +39,11 @@ export abstract class Unit extends GameObject {
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): void {
     let remaining = amount; const buckler = this.offHand;
-    if (buckler?.itemKind === "buckler" && this.stamina >= buckler.staminaCost) {
+    const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
+    if (buckler?.itemKind === "buckler" && this.stamina >= blockCost) {
       const chance = Math.min(1, buckler.blockChance + 0.005 * (this.stats.strength + this.stats.agility));
       if (random.next() < chance) {
-        this.stamina -= buckler.staminaCost;
+        this.stamina -= blockCost;
         remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
         if (reflectable && source && buckler.reflectionComponents.length) {
           const power = RARITY_POWER[buckler.rarity]; let reflected = 0;

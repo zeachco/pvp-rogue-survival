@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "./balance";
 import { SKILLS } from "./content";
-import type { ItemInstance, SkillId } from "./items";
+import { RARITY_POWER, type ItemInstance, type SkillId } from "./items";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
@@ -18,6 +18,7 @@ export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero"
 }
 
 export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon" || item.weight <= 0) return 0; const handling = item.definitionId === "staff" ? (stats.strength + stats.spirit) / 2 : item.hands === 1 ? stats.agility : stats.strength; return (10 + Math.max(0, handling) * 0.1) / item.weight * item.modifiers.attackSpeedMultiplier; }
+export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "buckler") return 0; if (!item.reflectionComponents.includes("return")) return 1; const returnedFraction = (0.15 + 0.004 * Math.max(0, stats.agility)) * RARITY_POWER[item.rarity]; return 1 + returnedFraction / (1 + 0.1 * Math.max(0, item.level)); }
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
 export function skillCooldown(skill: SkillId): number { return SKILLS[skill].cooldown; }

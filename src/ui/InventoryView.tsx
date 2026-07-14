@@ -25,14 +25,15 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
     { value: "keep", label: "Keep" }, { value: "sell", label: "Sell" }, { value: "upgrade", label: "Upgrade" }, { value: "purge", label: "Purge" }
   ]; const node = (
     <div class={`item-card rarity-${item.rarity}${tile.quantity ? "" : " is-empty"}${equipped ? " is-equipped" : ""}`}>
-      <div class="item-title"><strong>{item.name}</strong><b>{equipped ? "Equipped · " : ""}x{tile.quantity}</b></div>
-      <small>L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · {item.rarity}</small>
-      {itemDetails(item, stats)}
-      <div class="item-menu">
-        <button type="button">Equip</button><button type="button">Sell {item.sellValue}g</button><button type="button">Purge</button>
+      <div class="item-card-content"><div class="item-title"><strong>{item.name}</strong><b>{equipped ? "Equipped · " : ""}x{tile.quantity}</b></div>
+        <small>L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · {item.rarity}</small>
+        {itemDetails(item, stats)}
+      </div>
+      <div class="item-card-controls"><div class="item-menu">
+        <button type="button">{equipped ? "Unequip" : "Equip"}</button><button type="button">Sell {item.sellValue}g</button><button type="button">Purge</button>
         <button type="button">Upgrade</button><button type="button">Send</button>{item.skills.length ? <button type="button">Extract</button> : null}
       </div>
-      <div class="item-automation" role="radiogroup" aria-label={`Batch action for ${item.name}`}><small>Batch</small>{automationOptions.map((option) => <label><input type="radio" name={`automation-${tile.id}`} value={option.value} checked={tile.automation === option.value} />{option.label}</label>)}</div>
+      <div class="item-automation" role="radiogroup" aria-label={`Batch action for ${item.name}`}><small>Batch</small>{automationOptions.map((option) => <label class={tile.automation === option.value ? "is-selected" : ""}><input type="radio" name={`automation-${tile.id}`} value={option.value} checked={tile.automation === option.value} />{option.label}</label>)}</div></div>
     </div>
   ) as HTMLElement;
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });

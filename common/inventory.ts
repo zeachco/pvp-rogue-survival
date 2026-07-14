@@ -1,4 +1,4 @@
-import { itemAutomationKey, itemStackKey, levelUpItem, meetsRequirements, type ItemInstance, type Rarity, type SkillId } from "./items";
+import { itemAutomationKey, itemStackKey, levelUpItem, meetsRequirements, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
 import type { InventoryAutomation, InventoryTile, PlayerProgress } from "./protocol";
 
 export interface InventoryResult { changed: boolean; reason: string; dropped?: ItemInstance[]; sent?: ItemInstance; created?: ItemInstance }
@@ -32,6 +32,15 @@ export function setAutomation(progress: PlayerProgress, tileId: string, automati
 
 export function equipFromInventory(progress: PlayerProgress, tileId: string): InventoryResult {
   const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing(); const item = tile.item;
+  if (progress.offHand && itemStackKey(progress.offHand) === tile.key) { progress.offHand = undefined; return { changed: true, reason: `Unequipped ${item.name}.` }; }
+  if (itemStackKey(progress.mainHand) === tile.key) {
+    const fallback = starterClub(); if (itemStackKey(fallback) === tile.key) return { changed: false, reason: "The starter club cannot be unequipped." };
+    let fallbackTile = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(fallback));
+    if ((!fallbackTile || fallbackTile.quantity === 0) && occupiedInventorySlots(progress) >= inventoryCapacity(progress.level)) return { changed: false, reason: "No inventory slot is available for the starter club." };
+    if (!fallbackTile) { fallbackTile = { id: "starter-club-tile", key: itemStackKey(fallback), item: fallback, quantity: 1, automation: "keep" }; progress.inventoryTiles.push(fallbackTile); }
+    else fallbackTile.quantity = Math.max(1, fallbackTile.quantity);
+    progress.mainHand = { ...fallback, id: `${fallback.id}-equipped` }; return { changed: true, reason: `Unequipped ${item.name}; restored Plain Club.` };
+  }
   if (!meetsRequirements(item, progress.stats)) return { changed: false, reason: "You do not meet that item's requirements." };
   if (item.itemKind !== "weapon" && progress.mainHand.hands === 2) return { changed: false, reason: "A two-handed weapon cannot use an offhand item." };
   const displaced: ItemInstance[] = [];
