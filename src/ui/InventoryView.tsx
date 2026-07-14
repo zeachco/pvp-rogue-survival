@@ -4,7 +4,7 @@ import { itemStackKey, statsWithItemBonuses } from "../../common/items";
 import { h } from "./dom";
 import type { CurrencyPreview, HudCallbacks } from "./types";
 import { itemDetails } from "./ItemDetails";
-import { purgeYield, upgradeCosts } from "../../common/inventory";
+import { extractableSkills, purgeYield, upgradeCosts } from "../../common/inventory";
 
 export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProgress): InventoryTile[] {
   const equippedKeys = new Set([itemStackKey(progress.mainHand), progress.offHand ? itemStackKey(progress.offHand) : ""]);
@@ -19,8 +19,8 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
     .map(({ tile }) => tile);
 }
 
-export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"]) => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void): HTMLElement {
-  const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped);
+export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"]) => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void): HTMLElement {
+  const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped); const skills = extractableSkills(item); const extractCost = item.sellValue * 10;
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
@@ -30,7 +30,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
       </div>
       <div class="item-card-controls"><div class="item-menu">
         <button type="button">{equipped ? "Unequip" : "Equip"}</button><button type="button">Sell {item.sellValue}g</button><button type="button">Purge</button>
-        <button type="button">Upgrade</button><button type="button">Send</button>{item.skills.length ? <button type="button">Extract</button> : null}
+        <button type="button">Upgrade</button><button type="button">Send</button>{skills.length ? <button type="button">Extract</button> : null}
       </div></div>
     </div>
   ) as HTMLElement;
@@ -45,5 +45,8 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   bindBulk(1, callbacks.onSell); bindBulk(2, callbacks.onPurge); bindBulk(3, callbacks.onUpgrade); bindBulk(4, callbacks.onSend); bindBulk(5, callbacks.onExtract);
   const previewButton = (index: number, preview: CurrencyPreview): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button || button.disabled) return; button.onmouseenter = () => onCurrencyPreview?.(preview); button.onmouseleave = () => onCurrencyPreview?.(); };
   previewButton(1, { gold: item.sellValue }); previewButton(2, { [item.rarity]: purgeYield(item) }); previewButton(3, { gold: -costs.gold, [item.rarity]: -costs.scraps });
+  const extractButton = buttons[5] as HTMLButtonElement | undefined;
+  if (extractButton && progress.gold < extractCost) { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
+  if (extractButton) { extractButton.addEventListener("mouseenter", () => { onCurrencyPreview?.({ gold: -extractCost }); onSpellPreview?.(skills); }); extractButton.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); }); }
   return node;
 }
