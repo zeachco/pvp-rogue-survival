@@ -7,6 +7,7 @@ export type AttackOwner = "hero" | "creep";
 
 export class AttackArea extends GameObject {
   private age = 0;
+  private readonly sourceAttackVersion?: number;
   resolved = false;
 
   constructor(
@@ -18,11 +19,11 @@ export class AttackArea extends GameObject {
     readonly windup: number,
     readonly linger: number,
     readonly damage: number,
-    readonly source?: { active: boolean },
+    readonly source?: { active: boolean; attackVersion?: number },
     readonly skill?: "bash" | "sweep" | "flurry" | "shockwave" | "cleave",
     readonly weapon?: ItemInstance,
     readonly presentation: DamagePresentation = { kind: "physical" }
-  ) { super(); }
+  ) { super(); this.sourceAttackVersion = source?.attackVersion; }
 
   update(deltaSeconds: number): void {
     this.age += deltaSeconds;
@@ -30,7 +31,7 @@ export class AttackArea extends GameObject {
   }
 
   shouldResolve(): boolean {
-    if (!this.resolved && this.owner === "creep" && this.source && !this.source.active) { this.active = false; return false; }
+    if (!this.resolved && this.owner === "creep" && this.source && (!this.source.active || this.source.attackVersion !== this.sourceAttackVersion)) { this.active = false; return false; }
     return this.active && !this.resolved && this.age >= this.windup;
   }
   markResolved(): void { this.resolved = true; }

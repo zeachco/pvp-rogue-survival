@@ -100,7 +100,7 @@ export abstract class Unit extends GameObject {
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
   }
 
-  addStatus(status: StatusEffect): void { this.statuses.push(status); }
+  addStatus(status: StatusEffect): void { if (status.kind === "freeze" && !this.frozen) this.velocity = { x: 0, y: 0 }; this.statuses.push(status); }
   get stunned(): boolean { return this.statuses.some((status) => status.kind === "stun"); }
   get frozen(): boolean { return this.statuses.some((status) => status.kind === "freeze"); }
   private emitCombatText(amount: number, kind: CombatText["kind"], critical: boolean): void { this.onCombatText?.({ position: { ...this.position }, amount, kind, critical, age: 0, lifetime: 0.9, drift: Math.sin(this.position.x * 0.17 + this.position.y * 0.11 + amount) * 9 }); }
@@ -119,6 +119,14 @@ export abstract class Unit extends GameObject {
     this.position.x += this.velocity.x * deltaSeconds;
     this.position.y += this.velocity.y * deltaSeconds;
   }
+
+  steerWithFriction(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number, friction = acceleration): void {
+    const moving = direction.x !== 0 || direction.y !== 0; const targetX = direction.x * maxSpeed; const targetY = direction.y * maxSpeed; const change = (moving ? acceleration : friction) * deltaSeconds;
+    this.velocity.x = approach(this.velocity.x, targetX, change); this.velocity.y = approach(this.velocity.y, targetY, change);
+    this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds;
+  }
+
+  slide(deltaSeconds: number): void { this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; }
 
   clampToBounds(width: number, height: number): void {
     this.position.x = clamp(this.position.x, this.radius, width - this.radius);

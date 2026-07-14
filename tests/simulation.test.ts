@@ -25,6 +25,17 @@ describe("arena systems", () => {
     attack.update(0.6);
     expect(attack.shouldResolve()).toBeFalse(); expect(attack.active).toBeFalse();
   });
+  test("cancels an unresolved enemy telegraph when its source attack is interrupted", () => {
+    const source = { active: true, attackVersion: 0 };
+    const attack = new AttackArea("creep", { x: 10, y: 10 }, 0, 70, Math.PI, 0.5, 0.1, 2, source);
+    attack.update(0.4); source.attackVersion += 1;
+    expect(attack.shouldResolve()).toBeFalse(); expect(attack.active).toBeFalse();
+  });
+  test("stops locomotion on Freeze then slides applied velocity without friction", () => {
+    const hero = new Hero({ x: 50, y: 50 }); hero.velocity = { x: 30, y: 0 };
+    hero.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0 }); expect(hero.velocity).toEqual({ x: 0, y: 0 });
+    hero.velocity.x = 40; hero.slide(0.5); expect(hero.position.x).toBe(70); expect(hero.velocity.x).toBe(40);
+  });
 
   test("launched projectiles advance independently", () => {
     const projectile = new Projectile({ x: 0, y: 0 }, { x: 100, y: 0 }, 1);

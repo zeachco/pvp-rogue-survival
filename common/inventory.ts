@@ -1,8 +1,8 @@
-import { itemStackKey, levelUpItem, meetsRequirements, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
+import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, meetsRequirements, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
 import type { InventoryTile, PlayerProgress } from "./protocol";
 
 export interface InventoryResult { changed: boolean; reason: string; dropped?: ItemInstance[]; sent?: ItemInstance; created?: ItemInstance }
-export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number } { return { gold: Math.ceil(item.sellValue * 2.5), scraps: 3 * (item.level + 1) }; }
+export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number } { const attributePoints = Object.values(item.statBonuses).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0); const factor = 1 + 0.1 * attributePoints; return { gold: Math.ceil(item.sellValue * 1.5 * factor), scraps: Math.ceil(2 * (item.level + 1) * factor) }; }
 export const inventoryCapacity = (level: number): number => 4 + Math.ceil(level / 10);
 export const occupiedInventorySlots = (progress: PlayerProgress): number => progress.inventoryTiles.filter((tile) => tile.quantity > 0).length;
 export function removeEmptyInventoryTiles(progress: PlayerProgress): void { progress.inventoryTiles = progress.inventoryTiles.filter((tile) => tile.quantity > 0 || isEquippedTile(progress, tile)); }
@@ -52,6 +52,7 @@ export function sendFromInventory(progress: PlayerProgress, tileId: string): Inv
 
 export function upgradeFromInventory(progress: PlayerProgress, tileId: string, nextId: () => string, nextSeed: () => number): InventoryResult {
   const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing();
+  if (tile.item.rarity === "epic" && tile.item.level >= MAX_ITEM_LEVEL.epic) return { changed: false, reason: "Epic equipment is already at the maximum level." };
   const { gold, scraps } = upgradeCosts(tile.item);
   if (progress.gold < gold || progress.scraps[tile.item.rarity] < scraps) return { changed: false, reason: `Requires ${gold} gold and ${scraps} ${tile.item.rarity} scraps.` };
   const created = levelUpItem(tile.item, nextSeed()); const existing = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(created));

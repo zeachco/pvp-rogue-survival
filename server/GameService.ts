@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { generateBuckler, generateItem, generateRelic, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { changeItemRarity, generateBuckler, generateItem, generateRelic, itemStackKey, nextRarity, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
@@ -108,13 +108,14 @@ export class GameService {
   }
 
   private rollDrop(player: Player, build: UnitBuild): GroundDrop | undefined {
+    const buckler = player.progress.offHand?.itemKind === "buckler" ? player.progress.offHand : undefined; const goldGain = buckler?.modifiers.goldGain ?? 0; const rarityBoost = buckler?.modifiers.rarityBoost ?? 0;
     const goldChance = Math.min(1, (build.isRival ? 0.5 : 0.2) * this.options.balance.rewards.goldChanceMultiplier);
-    if (this.options.random.next() < goldChance) { const drop: GroundDrop = { id: this.createId(), kind: "gold", amount: build.goldReward }; player.groundDrops.set(drop.id, drop); return drop; }
+    if (this.options.random.next() < goldChance) { const drop: GroundDrop = { id: this.createId(), kind: "gold", amount: Math.ceil(build.goldReward * (1 + goldGain)) }; player.groundDrops.set(drop.id, drop); return drop; }
     const sent = build.emitterId ? (build.mainHand.id.includes("sent") ? build.mainHand : build.offHand?.id.includes("sent") ? build.offHand : undefined) : undefined;
     for (const item of [sent, sent?.id === build.mainHand.id ? undefined : build.mainHand, sent?.id === build.offHand?.id ? undefined : build.offHand, ...build.carried].filter(Boolean) as ItemInstance[]) {
       const chance = Math.min(this.options.balance.rewards.maxDropChance, item.dropChance * this.options.balance.rewards.dropChanceMultiplier); if (this.options.random.next() >= chance) continue;
-      const id = this.createId(); if (this.options.random.next() < 0.25) { const drop: GroundDrop = { id, kind: "scrap", rarity: item.rarity, amount: purgeYield(item) }; player.groundDrops.set(id, drop); return drop; }
-      const dropped = { ...item, id: `${item.id}-drop-${id}` }; const drop: GroundDrop = { id, kind: "item", item: dropped }; player.groundDrops.set(id, drop); return drop;
+      const id = this.createId(); const promoted = rarityBoost > 0 && nextRarity(item.rarity) && this.options.random.next() < rarityBoost ? changeItemRarity(item, nextRarity(item.rarity)!, this.seed()) : item; if (this.options.random.next() < 0.25) { const drop: GroundDrop = { id, kind: "scrap", rarity: promoted.rarity, amount: purgeYield(promoted) }; player.groundDrops.set(id, drop); return drop; }
+      const dropped = { ...promoted, id: `${promoted.id}-drop-${id}` }; const drop: GroundDrop = { id, kind: "item", item: dropped }; player.groundDrops.set(id, drop); return drop;
     }
   }
 

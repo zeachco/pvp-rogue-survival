@@ -12,6 +12,7 @@ export type CreepAttack =
   | { type: "projectile"; origin: Vector2; target: Vector2; source: Creep };
 
 export class Creep extends Unit {
+  attackVersion = 0;
   readonly bounty: number;
   readonly scoreValue: number;
   private cooldown: number;
@@ -52,7 +53,7 @@ export class Creep extends Unit {
     this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
-    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * (this.frozen ? 0.5 : 1);
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier;
     const acceleration = movement.acceleration;
     const ranged = weaponUsesProjectile(this.build.mainHand);
     const heroDistance = distance(this.position, hero);
@@ -61,7 +62,7 @@ export class Creep extends Unit {
 
     if (this.pendingAttack) {
       this.windup -= deltaSeconds;
-      this.steer({ x: 0, y: 0 }, acceleration, maxSpeed * 0.25, deltaSeconds);
+      this.moveFromVelocity({ x: 0, y: 0 }, acceleration, maxSpeed * 0.25, deltaSeconds);
       if (this.windup <= 0) {
         this.pendingAttack = false;
         return ranged ? { type: "projectile", origin: { ...this.position }, target: { ...hero }, source: this } : undefined;
@@ -83,13 +84,17 @@ export class Creep extends Unit {
     const preferredRange = this.build.mainHand.definitionId === "staff" ? rangedMovement.preferredRange ?? attackRange : Math.max(retreatRange, attackRange - 30);
     if (ranged && heroDistance < retreatRange) direction = { x: -direction.x, y: -direction.y };
     else if (ranged && heroDistance <= preferredRange) direction = { x: 0, y: 0 };
-    if (!this.stunned) this.steer(direction, acceleration, maxSpeed, deltaSeconds);
+    this.moveFromVelocity(this.stunned ? { x: 0, y: 0 } : direction, acceleration, maxSpeed, deltaSeconds);
     this.position.x = Math.max(-this.radius, Math.min(width + this.radius, this.position.x));
     this.position.y = Math.max(-this.radius, Math.min(height + this.radius, this.position.y));
     return undefined;
   }
 
   update(): void {}
+
+  interruptAttack(): void { this.attackVersion += 1; this.pendingAttack = false; this.windup = 0; }
+
+  private moveFromVelocity(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number): void { if (this.frozen) this.slide(deltaSeconds); else this.steerWithFriction(direction, acceleration, maxSpeed, deltaSeconds, acceleration * 0.75); }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);

@@ -1,6 +1,6 @@
 /** @jsx h */
 import type { InventoryTile, PlayerProgress } from "../../common/protocol";
-import { itemStackKey, levelUpItem, statsWithItemBonuses } from "../../common/items";
+import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, statsWithItemBonuses } from "../../common/items";
 import { h } from "./dom";
 import type { CurrencyPreview, HudCallbacks } from "./types";
 import { itemDetails } from "./ItemDetails";
@@ -39,6 +39,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   if (spare <= 0) for (const index of [1, 2, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
   if (equipped) for (const index of [1, 2, 4, 5]) if (buttons[index]) { (buttons[index] as HTMLButtonElement).disabled = true; (buttons[index] as HTMLButtonElement).title = "Unequip this stack first"; }
   const costs = upgradeCosts(item); const upgradeButton = buttons[3] as HTMLButtonElement | undefined;
+  if (upgradeButton && item.rarity === "epic" && item.level >= MAX_ITEM_LEVEL.epic) { upgradeButton.disabled = true; upgradeButton.title = "Maximum Epic level reached"; }
   if (upgradeButton && (progress.gold < costs.gold || progress.scraps[item.rarity] < costs.scraps)) { upgradeButton.disabled = true; upgradeButton.title = `Requires ${costs.gold} gold and ${costs.scraps} ${item.rarity} scraps`; }
   buttons[0].onclick = () => callbacks.onEquip(tile.id);
   const bindBulk = (index: number, callback: (tileId: string, bulk: boolean) => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; if (!button.disabled) button.title = "Shift+click to repeat while possible"; button.onclick = (event) => callback(tile.id, event.shiftKey); };
