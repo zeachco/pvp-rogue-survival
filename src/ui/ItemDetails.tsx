@@ -20,6 +20,7 @@ export function itemDetails(item: ItemInstance, effectiveStats: Stats): HTMLElem
 function itemEffectSummary(item: ItemInstance): string {
   const effects = item.affixes.map(capitalize);
   if (item.blockChance > 0) effects.push(`${Math.round(item.blockChance * 100)}% block`, `${fmt(item.staminaCost)} stamina/block`);
+  if (item.attractionSpeed > 0) effects.push(`Attraction ${fmt(item.attractionSpeed)} px/s`);
   if (item.modifiers.critChance > 0) effects.push(`${Math.round(item.modifiers.critChance * 100)}% crit`);
   if (item.modifiers.bleedChance > 0) effects.push(`${Math.round(item.modifiers.bleedChance * 100)}% bleed`);
   if (item.modifiers.poisonChance > 0) effects.push(`${Math.round(item.modifiers.poisonChance * 100)}% poison`);

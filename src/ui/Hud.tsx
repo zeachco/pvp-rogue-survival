@@ -88,7 +88,7 @@ export class Hud {
 function equipmentSummary(item: ItemInstance, stats: Stats, slot: "main" | "off"): HTMLElement {
   return (
     <div class={`item-card equipped-item equipped-${slot}-hand rarity-${item.rarity}`} style={slot === "main" ? "--attack-progress:100%" : undefined}>
-      <strong>{item.name}</strong><small>Level {item.level} · {item.itemKind === "weapon" ? `${item.hands}-handed` : "Buckler"} · {item.rarity}</small>
+      <strong>{item.name}</strong><small>Level {item.level} · {item.itemKind === "weapon" ? `${item.hands}-handed` : item.itemKind === "buckler" ? "Buckler" : "Relic"} · {item.rarity}</small>
       {itemDetails(item, stats)}
     </div>
   ) as HTMLElement;

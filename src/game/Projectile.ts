@@ -9,22 +9,28 @@ export class Projectile extends GameObject {
   enteredArena = false;
   readonly velocity: Vector2;
   private lifetime = 4;
+  private orbitAngle = 0;
+  private orbitAge = 0;
+  private orbiting = false;
 
-  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: "arcaneBolt", readonly source?: Unit, readonly presentation: DamagePresentation = { kind: "physical" }) {
+  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: "arcaneBolt" | "orbitingHammers", readonly source?: Unit, readonly presentation: DamagePresentation = { kind: "physical" }) {
     super(); this.position = { ...start };
     const direction = normalize({ x: target.x - start.x, y: target.y - start.y });
     this.velocity = { x: direction.x * 245, y: direction.y * 245 };
   }
 
+  static orbitingHammer(source: Unit, angle: number, damage: number, presentation: DamagePresentation): Projectile { const projectile = new Projectile(source.position, source.position, damage, "hero", "orbitingHammers", source, presentation); projectile.orbiting = true; projectile.orbitAngle = angle; projectile.orbitAge = 0; projectile.lifetime = 2.4; projectile.position.x = source.position.x + Math.cos(angle) * 28; projectile.position.y = source.position.y + Math.sin(angle) * 28; return projectile; }
+
   update(deltaSeconds: number): void {
-    this.position.x += this.velocity.x * deltaSeconds;
-    this.position.y += this.velocity.y * deltaSeconds;
+    if (this.orbiting && this.source?.active) { this.orbitAge += deltaSeconds; this.orbitAngle += deltaSeconds * 5.2; const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162; this.position.x = this.source.position.x + Math.cos(this.orbitAngle) * radius; this.position.y = this.source.position.y + Math.sin(this.orbitAngle) * radius; }
+    else { this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; }
     this.lifetime -= deltaSeconds;
     if (this.lifetime <= 0) this.active = false;
   }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
+    if (this.skill === "orbitingHammers") { ctx.rotate(this.orbitAngle + this.orbitAge * 7); ctx.fillStyle = "#e9d59a"; ctx.strokeStyle = "#fff3bd"; ctx.shadowColor = "#ffd45e"; ctx.shadowBlur = 12; ctx.lineWidth = 2; ctx.fillRect(-3, -2, 6, 15); ctx.strokeRect(-3, -2, 6, 15); ctx.fillRect(-10, -8, 20, 9); ctx.strokeRect(-10, -8, 20, 9); ctx.restore(); return; }
     ctx.fillStyle = "rgba(143,213,255,.72)"; ctx.strokeStyle = "#d9f5ff"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.beginPath(); ctx.arc(-3, -4, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();

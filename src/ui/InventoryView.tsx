@@ -26,7 +26,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   ]; const node = (
     <div class={`item-card rarity-${item.rarity}${tile.quantity ? "" : " is-empty"}${equipped ? " is-equipped" : ""}`}>
       <div class="item-title"><strong>{item.name}</strong><b>{equipped ? "Equipped · " : ""}x{tile.quantity}</b></div>
-      <small>L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : `${Math.round(item.blockChance * 100)}% block`} · {item.rarity}</small>
+      <small>L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · {item.rarity}</small>
       {itemDetails(item, stats)}
       <div class="item-menu">
         <button type="button">Equip</button><button type="button">Sell {item.sellValue}g</button><button type="button">Purge</button>

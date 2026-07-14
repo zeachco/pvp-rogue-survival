@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, processAutoUpgrades, purgeFromInventory, sellFromInventory, sendFromInventory, setAutomation, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { generateBuckler, generateItem, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { generateBuckler, generateItem, generateRelic, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PlayerProgress, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
@@ -81,14 +81,14 @@ export class GameService {
 
   private generateBuild(name: string, level: number, isRival: boolean, seed: number, suppliedStats?: Stats, fewerItems = false): UnitBuild {
     const stats = suppliedStats ?? scaledStats(randomAllocation(seed), level); const mainHand = generateItem(level, rollRarity(seed + 11), seed + 17, { fewerAffixes: fewerItems });
-    const offHand = mainHand.hands === 1 && this.options.random.next() < 0.25 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : undefined;
+    const offHandRoll = this.options.random.next(); const offHand = mainHand.hands === 1 && offHandRoll < 0.25 ? (offHandRoll < 0.125 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : generateRelic(level, rollRarity(seed + 19), seed + 21)) : undefined;
     const carried = isRival && level > 0 ? [generateItem(level, rollRarity(seed + 23), seed + 29, { fewerAffixes: true })] : [];
     return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, isRival, xpReward: isRival ? cumulativeXpForLevel(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
   }
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number): UnitBuild {
     const item = queued.item; let mainHand = build.mainHand; let offHand = build.offHand;
-    if (item.itemKind === "buckler") { if (mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace"] as WeaponClass[] }); offHand = item; }
+    if (item.itemKind !== "weapon") { if (mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "hammer"] as WeaponClass[] }); offHand = item; }
     else { mainHand = item; if (item.hands === 2) offHand = undefined; }
     return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
   }

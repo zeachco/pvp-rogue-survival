@@ -12,6 +12,7 @@ import type { Hero } from "../Hero";
 import { Projectile } from "../Projectile";
 import { distance, type Vector2 } from "../types";
 import { SpellEffect } from "../SpellEffect";
+import { SKILLS } from "../../../common/content";
 
 export class HeroCombatSystem {
   private attackCooldown = 0;
@@ -34,16 +35,18 @@ export class HeroCombatSystem {
     hero.facing = Math.atan2(target.position.y - hero.position.y, target.position.x - hero.position.x);
     const targetDistance = distance(hero.position, target.position);
     const candidate = this.availableSkills(progress, item).find(({ id }) => (this.skillCooldowns.get(id)?.remaining ?? 0) === 0);
-    const magicSkill = candidate?.id === "arcaneBolt" && hero.mana >= 1;
-    const physicalSkill = Boolean(candidate && candidate.id !== "arcaneBolt" && hero.stamina >= item.staminaCost + 0.35);
+    const manaCost = candidate?.id === "orbitingHammers" ? 3 : 1; const magicSkill = Boolean(candidate && SKILLS[candidate.id].resource === "mana" && hero.mana >= manaCost);
+    const physicalSkill = Boolean(candidate && SKILLS[candidate.id].resource === "stamina" && hero.stamina >= item.staminaCost + 0.35);
     const activeSkill = magicSkill || physicalSkill ? candidate : undefined;
     const range = activeSkill ? skillRange(activeSkill.id, item) : item.definitionId === "staff" ? 330 : 105;
-    const ranged = activeSkill ? activeSkill.id === "arcaneBolt" : item.definitionId === "staff";
-    if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < item.staminaCost) return;
-    hero.stamina -= item.staminaCost + (physicalSkill ? 0.35 : 0); if (magicSkill) hero.mana -= 1;
+    const ranged = activeSkill ? activeSkill.id === "arcaneBolt" || activeSkill.id === "orbitingHammers" : item.definitionId === "staff";
+    const staminaCost = magicSkill ? 0 : item.staminaCost + (physicalSkill ? 0.35 : 0);
+    if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < staminaCost) return;
+    hero.stamina -= staminaCost; if (magicSkill) hero.mana -= manaCost;
     const strike = rollWeaponStrike(item, effectiveStats, "hero", balance, random); const damage = strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: ranged ? "magic" as const : "physical" as const, critical: strike.critical };
-    if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined, hero, presentation));
-    else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, range, activeSkill?.id === "bash" || activeSkill?.id === "sweep" || activeSkill?.id === "shockwave" || (!activeSkill && (item.definitionId === "mace" || item.definitionId === "club")) ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item, presentation));
+    if (activeSkill?.id === "orbitingHammers") for (let index = 0; index < 3; index += 1) state.projectiles.push(Projectile.orbitingHammer(hero, hero.facing + index * Math.PI * 2 / 3, damage, { kind: "magic", critical: strike.critical }));
+    else if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined, hero, presentation));
+    else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, range, activeSkill?.id === "bash" || activeSkill?.id === "sweep" || activeSkill?.id === "shockwave" || (!activeSkill && (item.definitionId === "mace" || item.definitionId === "club" || item.definitionId === "hammer")) ? Math.PI : activeSkill?.id === "cleave" ? 1.8 : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item, presentation));
     if (activeSkill) state.spellEffects.push(new SpellEffect(activeSkill.id, hero.position, hero.facing));
     if (activeSkill) { const duration = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.skillCooldowns.set(activeSkill.id, { remaining: duration, maximum: duration }); }
     this.attackCooldown = (activeSkill?.id === "flurry" ? 0.35 : 1) / weaponAttackSpeed(item, effectiveStats);
@@ -67,4 +70,4 @@ export class HeroCombatSystem {
 }
 
 function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined { let target: Creep | undefined; let closest = Infinity; for (const creep of creeps) if (creep.active) { const current = distance(hero.position, creep.position); if (current < closest) { target = creep; closest = current; } } return target; }
-function meleeSkill(skill: SkillId | undefined): "bash" | "sweep" | "flurry" | "shockwave" | undefined { return skill === "bash" || skill === "sweep" || skill === "flurry" || skill === "shockwave" ? skill : undefined; }
+function meleeSkill(skill: SkillId | undefined): "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | undefined { return skill === "bash" || skill === "sweep" || skill === "flurry" || skill === "shockwave" || skill === "cleave" ? skill : undefined; }

@@ -138,7 +138,8 @@ export class Game {
     for (const attack of this.attacks) attack.update(deltaSeconds);
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
-    for (const drop of this.drops) correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds);
+    const attractionSpeed = Math.max(this.player.progress.mainHand.attractionSpeed, this.player.progress.offHand?.attractionSpeed ?? 0);
+    for (const drop of this.drops) { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); }
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
     this.arena.updateCombatTexts(deltaSeconds);
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops); removeInactive(this.arena.spellEffects);

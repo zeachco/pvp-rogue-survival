@@ -21,6 +21,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Performing an attack temporarily slows the attacker. This applies to both the hero and attacking creeps.
 - Heroes, creeps, item drops, and projectiles outside the arena receive a 30 px/second correction toward the nearest fully legal position. Once fully inside they cannot cross out again; outward velocity is removed while tangential motion and lifetime continue. Fixed attack telegraphs do not move.
 - Creeps initially spawn just outside a randomly selected arena edge and enter immediately. Off-map death drops move inward until collectible.
+- When the hero has an equipped staff or offhand relic with Attraction, every active uncollected item drop moves directly toward the hero at 35 pixels/second before arena-boundary correction and overlap collection. The passive changes only client presentation and pickup proximity; the server remains authoritative over whether the opaque drop id can be collected.
 - With no obstacles in the current slice, each melee creep continuously steers directly toward the hero. Ranged creeps steer to maintain firing distance.
 
 ## Hero Control and Targeting
@@ -57,6 +58,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Bubble shooters maintain distance, telegraph their shot, then launch a bubble toward the hero's position at firing time.
 - Bubble projectiles travel independently and deal damage only on circle collision with the hero.
 - A projectile that has already launched remains active if its source creep dies.
+- Orbiting Hammer projectiles stay source-relative while their hero remains active: their angle advances continuously and their orbit radius expands from 28 to 190 pixels over 2.4 seconds. Three are emitted per cast at evenly spaced starting angles. Each resolves at most one collision and is then removed.
 - Bubble projectiles can be dodged and expire at arena margins or after their lifetime.
 - Attack wind-up and recovery slow creep movement.
 

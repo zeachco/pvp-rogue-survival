@@ -33,9 +33,9 @@ export function setAutomation(progress: PlayerProgress, tileId: string, automati
 export function equipFromInventory(progress: PlayerProgress, tileId: string): InventoryResult {
   const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing(); const item = tile.item;
   if (!meetsRequirements(item, progress.stats)) return { changed: false, reason: "You do not meet that item's requirements." };
-  if (item.itemKind === "buckler" && progress.mainHand.hands === 2) return { changed: false, reason: "A two-handed weapon cannot use a buckler." };
+  if (item.itemKind !== "weapon" && progress.mainHand.hands === 2) return { changed: false, reason: "A two-handed weapon cannot use an offhand item." };
   const displaced: ItemInstance[] = [];
-  if (item.itemKind === "buckler") { if (progress.offHand) displaced.push(progress.offHand); }
+  if (item.itemKind !== "weapon") { if (progress.offHand) displaced.push(progress.offHand); }
   else {
     displaced.push(progress.mainHand);
     if (item.hands === 2 && progress.offHand) displaced.push(progress.offHand);
@@ -43,7 +43,7 @@ export function equipFromInventory(progress: PlayerProgress, tileId: string): In
   const missingItems = displaced.filter((old, index) => displaced.findIndex((candidate) => itemStackKey(candidate) === itemStackKey(old)) === index && !progress.inventoryTiles.some((candidate) => candidate.quantity > 0 && candidate.key === itemStackKey(old)));
   if (occupiedInventorySlots(progress) + missingItems.length > inventoryCapacity(progress.level)) return { changed: false, reason: "No inventory slot is available to retain the currently equipped item." };
   for (const old of missingItems) storeExisting(progress, old);
-  if (item.itemKind === "buckler") progress.offHand = { ...item, id: `${item.id}-equipped` };
+  if (item.itemKind !== "weapon") progress.offHand = { ...item, id: `${item.id}-equipped` };
   else { progress.mainHand = { ...item, id: `${item.id}-equipped` }; if (progress.mainHand.hands === 2) progress.offHand = undefined; }
   return { changed: true, reason: `Equipped ${item.name}.` };
 }

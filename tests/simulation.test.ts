@@ -10,8 +10,12 @@ import { Hero } from "../src/game/Hero";
 import { generateBuckler } from "../common/items";
 import type { CombatText } from "../src/game/CombatText";
 import { SpellEffect } from "../src/game/SpellEffect";
+import { ItemDrop } from "../src/game/ItemDrop";
+import { starterClub } from "../common/items";
 
 describe("arena systems", () => {
+  test("moves orbiting hammers around their moving source and expires them", () => { const hero = new Hero({ x: 50, y: 50 }); const hammer = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }); hero.position.x = 70; hammer.update(0.1); expect(Math.hypot(hammer.position.x - hero.position.x, hammer.position.y - hero.position.y)).toBeCloseTo(34.75); hammer.update(2.4); expect(hammer.active).toBeFalse(); });
+  test("pulls item drops toward an attracting hero at a bounded speed", () => { const drop = new ItemDrop("drop", starterClub(), { x: 100, y: 0 }); drop.pullToward({ x: 0, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 65, y: 0 }); drop.pullToward({ x: 60, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 60, y: 0 }); });
   test("cancels an unresolved enemy telegraph when its source dies", () => {
     const source = { active: false };
     const attack = new AttackArea("creep", { x: 10, y: 10 }, 0, 70, Math.PI, 0.5, 0.1, 2, source);

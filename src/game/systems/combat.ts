@@ -15,6 +15,7 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
         if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 });
         if (attack.skill === "shockwave") creep.addStatus({ kind: "stun", remaining: 0.6, damagePerSecond: 0 });
         if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 });
+        if (attack.skill === "cleave") creep.addStatus({ kind: "bleed", remaining: 2, damagePerSecond: 0.45, source: attack.source as Unit | undefined });
       }
     } else if (hero.active && attack.contains(hero.position, hero.radius)) {
       hero.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon) applyWeaponEffects(hero, attack.weapon, random, attack.source as Unit | undefined);
