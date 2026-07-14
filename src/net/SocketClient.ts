@@ -7,10 +7,11 @@ type ErrorHandler = (event: Event) => void;
 export function gameSocketUrl(location: Pick<Location, "host" | "protocol" | "search">): string {
   const pageProtocol = location.protocol === "https:" ? "wss:" : "ws:";
   const fallback = `${pageProtocol}//${location.host}/ws`;
-  const candidate = new URLSearchParams(location.search).get("server")?.trim();
+  const params = new URLSearchParams(location.search);
+  const candidate = (params.get("server") ?? params.get("ip"))?.trim();
   if (!candidate) return fallback;
   try {
-    const base = new URL(candidate.includes("://") ? candidate : `${location.protocol}//${candidate}`);
+    const base = new URL(candidate.includes("://") ? candidate : `https://${candidate}`);
     if (base.username || base.password || !["http:", "https:", "ws:", "wss:"].includes(base.protocol)) return fallback;
     const protocol = base.protocol === "https:" || base.protocol === "wss:" ? "wss:" : "ws:";
     const path = base.pathname.replace(/\/+$/, "");

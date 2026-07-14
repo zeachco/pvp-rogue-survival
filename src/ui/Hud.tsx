@@ -23,7 +23,8 @@ export class Hud {
   private readonly characterPanel: HTMLElement; private readonly inventoryPanel: HTMLElement; private readonly characterToggle: HTMLButtonElement; private readonly inventoryToggle: HTMLButtonElement;
   private panelTriggers = { character: false, inventory: false };
   private readonly realmPanel = <div class="realm-panel" /> as HTMLElement;
-  private readonly noticeNode = <div class="notice">Enter a name to join.</div> as HTMLElement; private readonly sheetNode = <div class="sheet-content" /> as HTMLElement;
+  private readonly noticeNode = <div class="notice" role="status" aria-live="polite">Enter a name to join.</div> as HTMLElement;
+  private readonly joinNoticeNode = <div class="notice" role="status" aria-live="polite">Enter a name to join.</div> as HTMLElement; private readonly sheetNode = <div class="sheet-content" /> as HTMLElement;
   private readonly inventoryNode = <div class="inventory-content" /> as HTMLElement; private readonly allocationNode = <form class="allocation-panel" /> as HTMLElement;
   private readonly inventoryCount = <strong /> as HTMLElement;
   private readonly inventoryHeader = <div class="inventory-header"><div class="currency-grid">{currencyCell("Gold", 0, "gold")}{currencyCell("Souls", 0, "souls")}{currencyCell("Common", 0, "common")}{currencyCell("Uncommon", 0, "uncommon")}{currencyCell("Rare", 0, "rare")}{currencyCell("Epic", 0, "epic")}</div>{this.inventoryCount}</div> as HTMLElement;
@@ -45,7 +46,7 @@ export class Hud {
   constructor(private readonly root: HTMLDivElement, private readonly callbacks: HudCallbacks) {
     this.nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
     const joinForm = <form>{this.nameInput}<button type="submit">Join</button></form> as HTMLElement;
-    this.joinPanel = <section class="join-panel">{joinForm}<h2>Heroes</h2>{this.leaderboardNode}</section> as HTMLElement;
+    this.joinPanel = <section class="join-panel">{joinForm}{this.joinNoticeNode}<h2>Heroes</h2>{this.leaderboardNode}</section> as HTMLElement;
     joinForm.onsubmit = (event) => { event.preventDefault(); const name = this.nameInput.value.trim(); if (name) callbacks.onJoin(name); };
     const back = <button class="inspect-back is-hidden" type="button">Back to hero</button> as HTMLButtonElement; back.onclick = callbacks.onBack;
     this.characterToggle = <button class="panel-toggle" type="button" aria-label="Collapse character sheet" aria-expanded="true">‹</button> as HTMLButtonElement;
@@ -60,7 +61,7 @@ export class Hud {
     root.append(this.joinPanel, this.publicSheet, this.gameHud); this.updateVisibility();
   }
   setJoinName(name: string): void { this.nameInput.value = name; }
-  setNotice(notice: string): void { this.noticeNode.textContent = notice; this.noticeNode.classList.toggle("is-hidden", !notice); }
+  setNotice(notice: string): void { for (const node of [this.noticeNode, this.joinNoticeNode]) { node.textContent = notice; node.classList.toggle("is-hidden", !notice); } }
   showCenterToast(message: string): void { clearTimeout(this.centerToastTimer); this.centerToast.textContent = message; this.centerToast.classList.add("is-visible"); this.centerToastTimer = window.setTimeout(() => this.centerToast.classList.remove("is-visible"), 3200); }
   showXpToast(message: string): void { clearTimeout(this.xpToastTimer); this.xpToast.textContent = message; this.xpToast.classList.add("is-visible"); this.xpToastTimer = window.setTimeout(() => this.xpToast.classList.remove("is-visible"), 3200); }
   setPlayer(player: PlayerState): void { this.player = player; this.targetXp = player.progress.xp; this.displayedXp = this.displayedXp === undefined ? this.targetXp : lerpXpDisplay(this.displayedXp, this.targetXp); this.renderDynamicHud(); if (this.staticProgress !== player.progress || this.staticPlayerName !== player.name) { this.staticProgress = player.progress; this.staticPlayerName = player.name; const signature = staticStateSignature(player, this.inspected); if (signature !== this.staticSignature) { this.staticSignature = signature; this.renderStaticHud(); } } if (this.lastWaveNumber !== player.waveNumber) { this.lastWaveNumber = player.waveNumber; this.renderRealm(); } this.applyPanelTriggers(player.progress); this.updateVisibility(); }

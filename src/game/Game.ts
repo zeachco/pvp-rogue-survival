@@ -117,7 +117,8 @@ export class Game {
   }
 
   private enqueueWave(wave: CreepWave): void {
-    if (wave.mode !== this.waveMode) this.arena.clear();
+    if (wave.resetHero || wave.mode !== this.waveMode) this.arena.clear();
+    if (wave.resetHero) { this.pendingPickupAt.clear(); this.hero.resetForRealm(); this.heroCombat.reset(); this.clearInspection(); }
     this.waveMode = wave.mode;
     enqueueWave(this.arena, wave, performance.now());
     if (this.player) { this.player.waveNumber = wave.waveNumber; this.hud.setPlayer(this.player); }

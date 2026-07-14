@@ -25,7 +25,7 @@ export interface UnitBuild {
   emitterId?: PlayerId; emitterName?: string; backlash?: boolean;
 }
 export interface WaveSpawn { build: UnitBuild; spawnAtMs: number }
-export interface CreepWave { id: string; targetId: PlayerId; waveNumber: number; durationMs: number; mode: "competitive" | "solo" | "training"; spawns: WaveSpawn[] }
+export interface CreepWave { id: string; targetId: PlayerId; waveNumber: number; durationMs: number; mode: "competitive" | "solo" | "training"; resetHero: boolean; spawns: WaveSpawn[] }
 export type GroundDrop =
   | { id: string; kind: "item"; item: ItemInstance }
   | { id: string; kind: "gold"; amount: number }

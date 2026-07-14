@@ -135,7 +135,7 @@ Server to client:
 - `leaderboard`: `{ heroes }`, ordered by level descending and username ascending; each entry contains only `{ id, username, level }`.
 - `heroProfile`: `{ hero }`; the public hero projection contains id, username, level, attributes, equipped items, and learned/equipped skill state, but excludes currencies and backpack contents.
 - `realmUpdated`: `{ realm }`
-- `incomingWave`: `{ wave }`
+- `incomingWave`: `{ wave }`; `wave.resetHero` is true only when entering a newly requested solo realm or newly matched competitive realm, and false for ordinary dispatches within the current realm.
 - `creepDefeatResolved`: `{ unitId, score, progress, drop?, reason }`
 - `collectItemResult`: `{ dropId, collected, reason }`
 - `dropsReconciled`: `{ drops, removeDropIds, resolvedDropIds }`; returns every server-ledger drop missing from the client, identifies client-only drops to remove, and releases pending pickup ids whose outcome can no longer arrive.
@@ -159,7 +159,7 @@ Bun SQL is the authoritative durable hero store. The `heroes` table has four col
 
 ## 11. Initial Scope
 
-- Join/resume flow and fixed responsive arena.
+- Join/resume flow and fixed responsive arena. While anonymous, the join panel displays connection and server notices—including username-in-use rejection messages—without requiring a successful login.
 - WASD hero with acceleration, bounded movement, camera follow, and health, as specified in `specs/MECHANICS_SPEC.md`.
 - Closest-creep auto-aim and automatic equipped-weapon attacks and skills across `specs/MECHANICS_SPEC.md` and `specs/PROGRESSION_SPEC.md`.
 - Randomized edge spawns aimed directly at the hero.
@@ -178,7 +178,7 @@ Bun SQL is the authoritative durable hero store. The `heroes` table has four col
 
 This section records composition details that a clean-room implementation in another language must preserve in addition to the behavior in the other specification sections.
 
-- The browser document contains one full-window application root, a canvas for all world action, and persistent DOM HUD panels. The client always opens `/ws` on the page's own host and port by default, using `ws` for an HTTP page and `wss` for HTTPS. A `?server=<baseurl>` query overrides that origin; a bare authority such as `?server=pvp.railway:443` inherits the page scheme, while an explicit `http`, `https`, `ws`, or `wss` URL selects its corresponding WebSocket scheme. The client appends `/ws` to the override's optional base path. Empty, malformed, credential-bearing, or unsupported-protocol overrides fall back to the page origin. The client then starts a request-animation-frame renderer plus a fixed 60 Hz simulation accumulator. A rendered frame may contribute at most 100 ms to the accumulator to avoid an unbounded catch-up spiral.
+- The browser document contains one full-window application root, a canvas for all world action, and persistent DOM HUD panels. The client always opens `/ws` on the page's own host and port by default, using `ws` for an HTTP page and `wss` for HTTPS. A `?server=<baseurl>` query overrides that origin; the legacy `?ip=<baseurl>` query is an equivalent fallback when `server` is absent. A bare authority such as `?server=pvp.railway:443` defaults to secure WebSockets, while an explicit `http`, `https`, `ws`, or `wss` URL selects its corresponding WebSocket scheme; local or LAN overrides that do not support TLS therefore use an explicit `ws://` URL. The client appends `/ws` to the override's optional base path. Empty, malformed, credential-bearing, or unsupported-protocol overrides fall back to the page origin. The client then starts a request-animation-frame renderer plus a fixed 60 Hz simulation accumulator. A rendered frame may contribute at most 100 ms to the accumulator to avoid an unbounded catch-up spiral.
 - The world is 1,600 by 1,000 logical pixels. The camera viewport equals the canvas CSS content size, follows the hero, and clamps independently on both axes. Canvas backing width and height equal CSS dimensions multiplied by device pixel ratio, and the 2D context transform restores logical-pixel drawing. Both window resize and `ResizeObserver` trigger this calculation.
 - The client validates incoming envelopes before dispatch. Outgoing messages sent before the socket is open are discarded rather than buffered. On socket open, a locally stored opaque hero id may be submitted automatically. The local-storage key is `multi-line-tower.session` and contains only `{ heroId, username }`; invalid JSON or missing fields is treated as no session. Logout clears it.
 - Joining by name trims the value, requires 1–20 ASCII letters, digits, `_`, or `-`, preserves its display casing, and compares it case-insensitively. The first accepted use creates the hero; later use loads that same hero without a password or secret. This username-possession login is an explicit prototype trust boundary and is not suitable for hostile public deployment without authentication. A new hero starts with the specified Throwing Axe/Buckler loadout and progression defaults.

@@ -1,6 +1,7 @@
 import { SQL } from "bun";
 import type { PlayerProgress } from "../common/protocol.ts";
 import type { HeroSummary } from "../common/protocol.ts";
+import { cumulativeXpForLevel } from "../common/progression.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
 interface HeroBlob { score: number; waveNumber: number; progress: PlayerProgress; panelTriggers?: { character: boolean; inventory: boolean } }
@@ -58,5 +59,6 @@ function fromRow(row: HeroRow): Player | undefined {
   try { blob = JSON.parse(typeof row.hero === "string" ? row.hero : JSON.stringify(row.hero)) as HeroBlob; } catch { return undefined; }
   if (!blob?.progress || !Number.isFinite(blob.score) || !Number.isFinite(blob.waveNumber)) return undefined;
   blob.progress.level = Number(row.level);
+  blob.progress.xp = Math.max(blob.progress.xp, cumulativeXpForLevel(blob.progress.level));
   return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, progress: blob.progress, panelTriggers: blob.panelTriggers ?? { character: false, inventory: false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [] };
 }

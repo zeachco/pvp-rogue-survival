@@ -74,7 +74,7 @@ export class GameService {
     this.options.repository.save(player); return player;
   }
 
-  private dispatchCurrentWave(player: Player, mode: "competitive" | "solo" | "training"): void {
+  private dispatchCurrentWave(player: Player, mode: "competitive" | "solo" | "training", resetHero = false): void {
     const count = regularCount(player.waveNumber, this.options.balance); const level = regularLevel(player.waveNumber, player.progress.level, count, this.options.balance); const seed = this.seed();
     const template = this.generateBuild("Perimeter creep", level, false, seed, undefined, true); const spawns: CreepWave["spawns"] = [];
     const queued = this.takeQueued(player, count, mode !== "training");
@@ -87,7 +87,7 @@ export class GameService {
     const opponent = this.realmOpponents(player)[0]; const rivalBuildLevel = rivalLevel(player.waveNumber, player.progress.level, this.options.balance);
     const rival = this.generateBuild(opponent ? `${opponent.name}'s echo` : "Wandering rival", rivalBuildLevel, true, this.seed(), opponent ? scaledStats(opponent.progress.allocation, rivalBuildLevel) : undefined, false);
     player.issuedUnits.set(rival.id, { build: rival, mode }); spawns.push({ build: rival, spawnAtMs: this.options.balance.wave.prepareMs + Math.floor(7.5 * this.options.balance.wave.batchIntervalMs) }); spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
-    this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, spawns } }); this.returnDeferredItems(player);
+    this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, resetHero, spawns } }); this.returnDeferredItems(player);
   }
 
   private generateBuild(name: string, level: number, isRival: boolean, seed: number, suppliedStats?: Stats, fewerItems = false): UnitBuild {
@@ -155,7 +155,7 @@ export class GameService {
   }
 
   private leaveRealm(player: Player): void { if (!player.realmId) { player.realmOptedIn = false; return this.broadcastRealms(); } if (!this.canLeave()) return this.notice(player, "Leave to Lobby opens after the final planned spawn."); const id = player.realmId; player.realmOptedIn = false; this.dissolveRealm(id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); this.dispatchCurrentWave(player, "training"); this.broadcastRealms(); }
-  private enterRealm(player: Player): void { player.realmOptedIn = true; player.waitingSince = Date.now(); const created = this.matchWaitingPlayers(); for (const realm of created) this.activateRealm(realm); if (!player.realmId) { player.issuedUnits.clear(); player.groundDrops.clear(); this.dispatchCurrentWave(player, "solo"); } this.broadcastRealms(); }
+  private enterRealm(player: Player): void { player.realmOptedIn = true; player.waitingSince = Date.now(); const created = this.matchWaitingPlayers(); for (const realm of created) this.activateRealm(realm); if (!player.realmId) { player.issuedUnits.clear(); player.groundDrops.clear(); this.dispatchCurrentWave(player, "solo", true); } this.broadcastRealms(); }
 
   private matchWaitingPlayers(): Realm[] {
     const created: Realm[] = [];
@@ -164,7 +164,7 @@ export class GameService {
     return created;
   }
 
-  private activateRealm(realm: Realm): void { for (const id of [realm.soloId, ...realm.teamIds]) { const player = this.options.repository.get(id); if (!player?.connected) continue; this.options.logRealmLifecycle?.("entered", id, realm.id, this.realmOpponentIds(realm, id)); player.issuedUnits.clear(); player.groundDrops.clear(); this.dispatchCurrentWave(player, "competitive"); } }
+  private activateRealm(realm: Realm): void { for (const id of [realm.soloId, ...realm.teamIds]) { const player = this.options.repository.get(id); if (!player?.connected) continue; this.options.logRealmLifecycle?.("entered", id, realm.id, this.realmOpponentIds(realm, id)); player.issuedUnits.clear(); player.groundDrops.clear(); this.dispatchCurrentWave(player, "competitive", true); } }
 
   private dissolveRealm(id: string): void { const realm = this.realms.get(id); if (!realm) return; const members = [realm.soloId, ...realm.teamIds].map((pid) => this.options.repository.get(pid)).filter(isPlayer); const memberIds = new Set(members.map((p) => p.id));
     for (const recipient of members) for (const [senderId, queue] of [...recipient.incomingQueues]) if (senderId !== recipient.id && memberIds.has(senderId)) { const sender = this.options.repository.get(senderId); if (sender) for (const entry of queue) sender.backlashQueue.push({ ...entry, backlash: true, senderId: sender.id, senderName: "Realm backlash" }); recipient.incomingQueues.delete(senderId); }

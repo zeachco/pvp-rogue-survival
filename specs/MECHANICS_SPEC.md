@@ -80,6 +80,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - When the defeat notice finishes, the client clears active creeps, attack areas, projectiles, drops, and pending local wave spawns.
 - The hero is reset to the arena center with progression-derived resources.
 - Score, permanent progression, inventory, canonical username identity, and server-owned wave number are not reset by the local arena reset.
+- A server-authored wave marks entry into a newly requested solo realm or a newly matched competitive realm. Before that wave is queued, the client clears the previous arena, restores the hero to full health, mana, and stamina, removes every bleed, poison, burn, stun, and freeze instance, clears reactive/block and temporary-surge state, stops residual velocity, and resets hero attack and skill cooldowns. Ordinary later wave dispatches inside the same realm do not restore resources or statuses.
 - Defeat is reported to the server. Server-owned wave number adjustment and replacement wave dispatch are defined in `specs/SPEC.md`.
 - In Training Grounds health is clamped to at least 1 and defeat never starts.
 

@@ -18,6 +18,11 @@ export class Hero extends Unit {
     this.hp = Math.max(0, this.maxHp * ratio);
   }
 
+  resetForRealm(): void {
+    this.hp = this.maxHp; this.mana = this.maxMana; this.stamina = this.maxStamina; this.statuses = []; this.velocity = { x: 0, y: 0 };
+    this.active = true; this.attackSlow = false; this.lastDamageSourceId = undefined; this.blockCooldown = 0; this.blockCooldownMax = 0; this.reflectiveSurgeRemaining = 0; this.lastHitDodged = false;
+  }
+
   move(input: Vector2, deltaSeconds: number, width: number, height: number): void {
     const direction = normalize(input);
     this.steer(direction, this.acceleration, this.maxSpeed * (this.attackSlow ? 0.48 : 1), deltaSeconds);

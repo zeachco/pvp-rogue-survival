@@ -14,9 +14,9 @@ export interface DerivedStats {
 export function derivedStats(stats: Stats): DerivedStats {
   return {
     baseDamage: 1 + stats.strength * 0.2,
-    maxHp: 6 + stats.strength,
+    maxHp: 10 + stats.strength,
     maxStamina: 1 + stats.strength,
-    maxMana: stats.magic * 2,
+    maxMana: 5 + stats.intelligence * 2,
     critChance: Math.min(0.75, stats.agility * 0.01),
     critMultiplier: 1.5 + stats.intelligence * 0.05,
     cooldownReduction: Math.min(0.6, stats.intelligence * 0.01),
@@ -27,12 +27,9 @@ export function derivedStats(stats: Stats): DerivedStats {
   };
 }
 
-const XP_COSTS = [100, 150];
-const XP_THRESHOLDS = [0, 100, 250];
-export function xpForNextLevel(level: number): number { const target = Math.max(0, Math.floor(level)); ensureXpLevel(target + 1); return XP_COSTS[target]; }
-export function cumulativeXpForLevel(level: number): number { const target = Math.max(0, Math.floor(level)); ensureXpLevel(target); return XP_THRESHOLDS[target]; }
-export function levelForXp(xp: number): number { const target = Math.max(0, xp); while (XP_THRESHOLDS[XP_THRESHOLDS.length - 1] <= target) ensureXpLevel(XP_THRESHOLDS.length); let low = 0; let high = XP_THRESHOLDS.length - 1; while (low + 1 < high) { const middle = Math.floor((low + high) / 2); if (XP_THRESHOLDS[middle] <= target) low = middle; else high = middle; } return low; }
-function ensureXpLevel(level: number): void { while (XP_THRESHOLDS.length <= level) { const nextCost = XP_COSTS[XP_COSTS.length - 1] + XP_COSTS[XP_COSTS.length - 2]; XP_COSTS.push(nextCost); XP_THRESHOLDS.push(XP_THRESHOLDS[XP_THRESHOLDS.length - 1] + nextCost); } }
+export function xpForNextLevel(level: number): number { const target = Math.max(0, Math.floor(level)); return 15 * (2 * target + 1); }
+export function cumulativeXpForLevel(level: number): number { const target = Math.max(0, Math.floor(level)); return 15 * target * target; }
+export function levelForXp(xp: number): number { return Math.max(0, Math.floor(Math.sqrt(Math.max(0, xp) / 15))); }
 export function lerpXpDisplay(current: number, target: number): number { const next = current + (target - current) * 0.1; return Math.abs(target - next) < 0.01 ? target : next; }
 export function validAllocation(stats: Stats): boolean {
   return STAT_KEYS.every((key) => Number.isInteger(stats[key]) && stats[key] >= 0) && STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) === 5;
