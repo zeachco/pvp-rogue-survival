@@ -32,4 +32,6 @@ The server is authoritative for issued enemies, rewards, generated drops, progre
 
 ## Balance profiles
 
-Local runs use the forgiving `dev` profile by default; production uses `normal`. Override either with `BALANCE_PROFILE=dev` or `BALANCE_PROFILE=normal` when starting the server. Both profiles keep the same wave schedule, while `dev` boosts hero damage and rewards and lowers enemy health and damage for faster testing.
+Local runs use the `dev` profile id by default; production uses `normal`. Override either with `BALANCE_PROFILE=dev` or `BALANCE_PROFILE=normal` when starting the server. Both profiles currently use identical combat, wave, and reward values so development never accelerates persisted progression.
+
+Player progression and inventory are atomically persisted to the git-ignored `server-data/players.json` file.

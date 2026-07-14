@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, processAutoUpgrades, purgeFromInventory, sellFromInventory, sendFromInventory, setAutomation, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { generateBuckler, generateItem, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { generateBuckler, generateItem, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PlayerProgress, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
@@ -58,9 +58,9 @@ export class GameService {
   private joinPlayer(name: string, sessionId?: PlayerId): Player {
     const trimmed = name.trim().slice(0, 20) || "Player"; const existing = sessionId ? this.options.repository.get(sessionId) : undefined;
     if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); return existing; }
-    const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
+    const club = starterClub(); const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [],
-      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), offHand: undefined, inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
+      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1, automation: "keep" }], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
     this.options.repository.save(player); return player;
   }
 

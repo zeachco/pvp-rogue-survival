@@ -33,9 +33,7 @@ export const BALANCE_PROFILES: Readonly<Record<BalanceProfileId, BalanceConfig>>
   normal: NORMAL,
   dev: {
     ...NORMAL,
-    id: "dev",
-    combat: { heroDamageMultiplier: 1.5, enemyDamageMultiplier: 0.6, enemyHealthMultiplier: 0.7 },
-    rewards: { xpMultiplier: 3, goldChanceMultiplier: 2, dropChanceMultiplier: 3, maxDropChance: 0.75 }
+    id: "dev"
   }
 });
 

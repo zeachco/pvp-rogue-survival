@@ -73,11 +73,14 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - The health and mana displays sit directly beside the centered experience/level badge rather than stretching toward the arena edges.
 - Cooldown spells use a compact Ubuntu-dock-like vertical rail on the left edge, anchored above the bottom-left health display and growing upward as spells are added without a scrollbar.
 - Reserve a 220px independently scrolling character/stat column and a 320px independently scrolling permanent equipment column. Each column has its own small arrow toggle and retracts independently to a narrow tab; the arena and HUD reclaim the released width immediately. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
+- Canvas backing dimensions follow the canvas element itself, including every intermediate size during panel collapse/expand transitions; viewport and camera sizing must not depend only on browser-window resize events.
 - Keep all arena HUD elements inside the playable width without overlapping the 540px right-side build area.
 
 ## 8. Architecture
 
 The codebase is a modular monolith with shared, environment-independent game-domain modules. Browser, canvas, WebSocket, HTTP, and process APIs stay at composition boundaries; progression, content generation, balance, wave construction, inventory transactions, and combat calculations remain pure and directly testable. Randomness, clocks, and identifiers are injected wherever outcomes affect game state.
+
+Stable HTML HUD structures are created once. The fixed simulation loop may update scalar text, style, and ARIA properties, but it does not replace panel, resource, realm, spell, inventory, or form subtrees unless a flattened render signature for that subtree changes. Canvas owns arena action rendering; HTML remains the accessibility and interaction surface for forms, inventory actions, and persistent stats.
 
 ### Client
 
@@ -129,13 +132,15 @@ Server to client:
 
 The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected by opaque id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The realm/inventory schema is protocol version 4.
 
+The server persists authoritative player identity, score, wave number, progression, attributes, allocation, currencies, learned skills, equipped items, inventory stacks, quantities, and automation to a versioned JSON snapshot under `server-data/players.json` by default. Writes atomically replace the snapshot after state-changing commands and wave dispatches. Reconnection presents the opaque player id and recovers that durable state. Realm membership, matchmaking opt-in, issued units, ground drops, incoming sends, backlash queues, and socket state are transient and reset on server start. Browser storage keeps only `{ playerId, name }`; the client never persists or authors authoritative state.
+
 ## 10. Balance Profiles
 
 - `normal` is the production profile. `dev` is the default for local development; `BALANCE_PROFILE=normal|dev` selects the server profile and public simulation modifiers are sent in `welcome`.
 - Normal waves contain `min(40, 10 + 2 * waveNumber)` regular enemies. The raw count stops growing at 40 so long-running games scale through enemy strength rather than unbounded active entities.
 - A normal regular enemy uses level `max(floor(heroLevel / regularCount), floor((waveNumber - 1) / 2))`. A rival uses level `max(floor(heroLevel * 0.8), floor((waveNumber - 1) / 2))`.
 - The normal profile retains the 60-second wave interval, three-second preparation delay, ten cumulative spawn batches five seconds apart, and rival spawn after 75% of regulars.
-- The `dev` profile retains wave timing and composition, but uses 60% enemy damage, 70% enemy health, 150% hero damage, 3x XP, 2x direct-gold probability capped at 100%, and 3x item-drop probability capped at 75%.
+- Development never accelerates progression. The `dev` profile currently uses the same wave, combat, XP, gold, and drop values as `normal`; its separate id remains available for future diagnostics that do not alter player advancement.
 
 ## 11. Initial Scope
 

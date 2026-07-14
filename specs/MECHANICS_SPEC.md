@@ -40,7 +40,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Enemy health is reduced only by resolved hero melee attack areas, hero projectile collisions, and status effects.
 - A unit's own attack area or projectile never damages that unit.
 - Damage areas and projectiles use circle or area overlap checks against unit collision radii.
-- Public balance-profile multipliers are applied once at the combat calculation boundary: the development profile multiplies hero outgoing damage by 1.5 and enemy outgoing damage by 0.6.
+- Public balance-profile multipliers are applied once at the combat calculation boundary. Development and production currently use identical combat multipliers so local play does not indirectly accelerate durable progression.
 - Every hostile damage event, including deterministic one-second status ticks, may be blocked by an equipped buckler. Dexterity references mean Agility.
 - Block chance is `min(75%, 10% * rarityPower + 0.5% * (Strength + Agility))`. Success prevents `min(incomingDamage, Strength)`.
 - Spiked bucklers reflect the rarity-scaled sum of rolled components: `1`, `0.2 * Strength`, and `incomingDamage * (15% + 0.4% * Agility)`. Reflection may be blocked but cannot reflect again, critically strike, apply affixes, or create statuses.

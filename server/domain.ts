@@ -9,10 +9,11 @@ export interface Player {
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, ItemInstance>;
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[];
 }
-export interface PlayerRepository { get(id: PlayerId): Player | undefined; save(player: Player): void; values(): IterableIterator<Player> }
+export interface PlayerRepository { get(id: PlayerId): Player | undefined; save(player: Player): void; values(): IterableIterator<Player>; persist(): void }
 export class InMemoryPlayerRepository implements PlayerRepository {
   private readonly players = new Map<PlayerId, Player>();
   get(id: PlayerId): Player | undefined { return this.players.get(id); }
   save(player: Player): void { this.players.set(player.id, player); }
   values(): IterableIterator<Player> { return this.players.values(); }
+  persist(): void {}
 }

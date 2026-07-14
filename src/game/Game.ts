@@ -42,6 +42,7 @@ export class Game {
   private lastTimestamp = performance.now();
   private accumulator = 0;
   private defeatCooldown = 0;
+  private resizeObserver?: ResizeObserver;
   private hovered?: Creep;
   private inspected?: Creep;
   private waveMode: "competitive" | "solo" | "training" = "training";
@@ -69,7 +70,7 @@ export class Game {
   }
 
   start(): void {
-    this.resize(); window.addEventListener("resize", () => this.resize());
+    this.resize(); window.addEventListener("resize", () => this.resize()); this.resizeObserver = new ResizeObserver(() => this.resize()); this.resizeObserver.observe(this.canvas);
     window.addEventListener("keydown", (event) => { if (["w", "a", "s", "d"].includes(event.key.toLowerCase())) event.preventDefault(); this.keys.add(event.key.toLowerCase()); });
     window.addEventListener("keyup", (event) => this.keys.delete(event.key.toLowerCase()));
     this.canvas.addEventListener("mousemove", (event) => this.updateHover(event));

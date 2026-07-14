@@ -7,15 +7,16 @@ import { balanceProfile, type BalanceProfileId } from "../common/balance.ts";
 import { parseClientMessage, type PlayerId, type ServerMessage } from "../common/protocol.ts";
 import { systemRandom } from "../common/random.ts";
 import { InMemoryPlayerRepository } from "./domain.ts";
+import { FilePlayerRepository } from "./FilePlayerRepository.ts";
 import { GameService } from "./GameService.ts";
 
 interface PlayerSocket extends WebSocket { playerId?: PlayerId }
-export interface AppOptions { root: string; balanceProfile?: BalanceProfileId }
+export interface AppOptions { root: string; balanceProfile?: BalanceProfileId; dataFile?: string | false }
 
 export function createApp(options: AppOptions) {
   const publicRoot = existsSync(join(options.root, "dist")) ? join(options.root, "dist") : options.root;
   const sockets = new Map<string, PlayerSocket>();
-  const repository = new InMemoryPlayerRepository();
+  const repository = options.dataFile === false ? new InMemoryPlayerRepository() : new FilePlayerRepository(options.dataFile ?? join(options.root, "server-data", "players.json"));
   const sendToPlayer = (playerId: PlayerId, message: ServerMessage) => {
     for (const socket of sockets.values()) if (socket.playerId === playerId && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   };
@@ -27,16 +28,16 @@ export function createApp(options: AppOptions) {
     socket.on("message", (raw: RawData) => {
       const message = decode(raw);
       if (!message) { socket.send(JSON.stringify({ type: "serverNotice", message: "Ignored invalid message." } satisfies ServerMessage)); return; }
-      if (message.type === "join") { game.join(message.name, message.sessionId, (playerId) => { socket.playerId = playerId; }); return; }
+      if (message.type === "join") { game.join(message.name, message.sessionId, (playerId) => { socket.playerId = playerId; }); repository.persist(); return; }
       if (!socket.playerId) { socket.send(JSON.stringify({ type: "serverNotice", message: "Join before playing." } satisfies ServerMessage)); return; }
-      game.handle(socket.playerId, message);
+      game.handle(socket.playerId, message); repository.persist();
     });
     socket.on("close", () => { sockets.delete(connectionId); if (socket.playerId && !hasSocket(sockets, socket.playerId)) game.disconnect(socket.playerId); });
   });
-  const timer = setInterval(() => game.dispatchWaves(), balanceProfile(options.balanceProfile).wave.intervalMs);
+  const timer = setInterval(() => { game.dispatchWaves(); repository.persist(); }, balanceProfile(options.balanceProfile).wave.intervalMs);
   timer.unref();
   return { server, game, repository, close: () => new Promise<void>((resolve, reject) => {
-    clearInterval(timer);
+    clearInterval(timer); repository.persist();
     if (!server.listening) { wss.close(); resolve(); return; }
     wss.close(() => server.close((error) => error ? reject(error) : resolve()));
   }) };
