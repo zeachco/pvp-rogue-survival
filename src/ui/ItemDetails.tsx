@@ -3,19 +3,24 @@ import { bucklerBlockCost, skillLabel, weaponAttackSpeed, weaponDamage } from ".
 import type { ItemInstance } from "../../common/items";
 import { STAT_KEYS, type Stats } from "../../common/progression";
 import { h } from "./dom";
+import { formatPreviewValue, previewTone } from "./preview";
 
-export function itemDetails(item: ItemInstance, effectiveStats: Stats): HTMLElement {
+export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineItem?: ItemInstance, baselineStats?: Stats): HTMLElement {
   const attacks = item.itemKind === "weapon";
   const damage = attacks ? weaponDamage(item, effectiveStats) : undefined;
   const attackSpeed = attacks ? weaponAttackSpeed(item, effectiveStats) : undefined;
   const requirements = STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(item.requirements[key] ?? 0)}`).join(", "); const effects = itemEffectSummary(item, effectiveStats);
+  const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineStats ?? effectiveStats) : effects; const baselineRequirements = baselineItem ? STAT_KEYS.filter((key) => (baselineItem.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(baselineItem.requirements[key] ?? 0)}`).join(", ") : requirements;
   return <div class="equipment-details">
-    {damage === undefined ? null : <span><small>Attack</small><b>{fmt(damage)}</b></span>}{attackSpeed === undefined ? null : <span><small>Attack speed</small><b>{fmt(attackSpeed)}/s</b></span>}
+    {damage === undefined ? null : <span><small>Attack</small>{detailValue(baselineDamage ?? damage, damage, fmt)}</span>}{attackSpeed === undefined ? null : <span><small>Attack speed</small>{detailValue(baselineSpeed ?? attackSpeed, attackSpeed, (value) => `${fmt(value)}/s`)}</span>}
     {item.weight > 0 ? <span><small>Weight</small><b>{item.weight}</b></span> : null}
-    {effects ? <span class="equipment-detail-wide"><small>Effects</small><b>{effects}</b></span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small><b>{item.skills.map(skillLabel).join(", ")}</b></span> : null}
-    {requirements ? <span class="equipment-detail-wide"><small>Requirements</small><b>{requirements}</b></span> : null}
+    {effects || baselineEffects ? <span class="equipment-detail-wide"><small>Effects</small>{detailText(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small><b>{item.skills.map(skillLabel).join(", ")}</b></span> : null}
+    {requirements || baselineRequirements ? <span class="equipment-detail-wide"><small>Requirements</small>{detailText(baselineRequirements, requirements)}</span> : null}
   </div> as HTMLElement;
 }
+
+function detailValue(currentVal: number, newVal: number, format: (value: number) => string): HTMLElement { const tone = previewTone({ currentVal, newVal }); return <b class={tone === "gain" ? "is-gain-preview" : tone === "cost" ? "is-cost-preview" : ""}>{formatPreviewValue({ currentVal, newVal }, format)}</b> as HTMLElement; }
+function detailText(currentVal: string, newVal: string): HTMLElement { return <b class={currentVal !== newVal ? "is-gain-preview" : ""}>{formatPreviewValue({ currentVal, newVal })}</b> as HTMLElement; }
 
 function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string {
   const effects = item.affixes.map(capitalize);

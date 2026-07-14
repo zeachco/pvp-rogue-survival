@@ -465,8 +465,11 @@ input {
 .equipment-details > span { display: grid; min-width: 0; gap: 1px; border-top: 1px solid rgba(138,216,255,.14); padding-top: 4px; }
 .equipment-details small { color: #79949c; font-size: 9px; text-transform: uppercase; }
 .equipment-details b { color: #dcecf0; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
+.equipped-item .is-gain-preview, .equipment-details b.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
+.equipped-item .is-cost-preview, .equipment-details b.is-cost-preview { color: #ff6575; text-shadow: 0 0 6px rgba(255,101,117,.3); }
 .equipment-detail-wide { grid-column: 1 / -1; }
 .item-title { display: flex; justify-content: space-between; gap: 8px; }
+.item-subtitle.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
 .rarity-uncommon { border-color: #62e88a; }
 .rarity-rare { border-color: #6ca8ff; }
 .rarity-epic { border-color: #ca75ff; }
