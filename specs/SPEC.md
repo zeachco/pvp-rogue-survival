@@ -130,7 +130,7 @@ Server to client:
 - `serverNotice`: `{ message }`
 - `groundDropCreated`: `{ drop }`
 
-The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected by opaque id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The realm/inventory schema is protocol version 4.
+The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected by opaque id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The realm/inventory/skill/weight schema is protocol version 6.
 
 The server persists authoritative player identity, score, wave number, progression, attributes, allocation, currencies, learned skills, equipped items, inventory stacks, quantities, and automation to a versioned JSON snapshot under `server-data/players.json` by default. Writes atomically replace the snapshot after state-changing commands and wave dispatches. Reconnection presents the opaque player id and recovers that durable state. Realm membership, matchmaking opt-in, issued units, ground drops, incoming sends, backlash queues, and socket state are transient and reset on server start. Browser storage keeps only `{ playerId, name }`; the client never persists or authors authoritative state.
 

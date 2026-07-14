@@ -1,6 +1,8 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { itemStackKey, type ItemInstance } from "../common/items.ts";
+import { itemStackKey, RARITY_POWER, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { WEAPONS } from "../common/content.ts";
+import { cumulativeXpForLevel } from "../common/progression.ts";
 import type { PlayerId, PlayerProgress } from "../common/protocol.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
@@ -26,6 +28,8 @@ export class FilePlayerRepository implements PlayerRepository {
     let value: unknown; try { value = JSON.parse(readFileSync(this.filePath, "utf8")); } catch { return; }
     if (!isSnapshot(value)) return;
     for (const saved of value.players) {
+      normalizeWeapons(saved.progress);
+      saved.progress.xp = Math.max(saved.progress.xp, cumulativeXpForLevel(saved.progress.level));
       ensureEquippedInventory(saved.progress);
       this.players.set(saved.id, { ...saved, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [] });
     }
@@ -41,3 +45,4 @@ function isProgress(value: unknown): value is PlayerProgress {
   return Number.isFinite(progress.level) && Number.isFinite(progress.xp) && Number.isFinite(progress.gold) && Number.isFinite(progress.souls) && Boolean(progress.stats && progress.allocation && progress.scraps && progress.mainHand) && Array.isArray(progress.inventoryTiles) && Array.isArray(progress.learnedSkills) && Boolean(progress.learnedSkillLevels);
 }
 function ensureEquippedInventory(progress: PlayerProgress): void { for (const item of [progress.mainHand, progress.offHand].filter(Boolean) as ItemInstance[]) { const key = itemStackKey(item); const existing = progress.inventoryTiles.find((tile) => tile.key === key); if (existing) existing.quantity = Math.max(1, existing.quantity); else progress.inventoryTiles.push({ id: `persisted-${item.id}`, key, item: { ...item }, quantity: 1, automation: "keep" }); } }
+function normalizeWeapons(progress: PlayerProgress): void { const items = [progress.mainHand, progress.offHand, ...progress.inventoryTiles.map((tile) => tile.item)].filter(Boolean) as ItemInstance[]; for (const item of items) { if (item.itemKind === "buckler") { item.weight = 0; item.staminaCost = 1; continue; } const definition = WEAPONS[item.definitionId as WeaponClass]; item.weight = definition.weight; item.modifiers.attackSpeedMultiplier = 1 + (item.affixes.includes("swift") ? 0.12 * RARITY_POWER[item.rarity] : 0); item.skills = definition.skill ? [definition.skill] : []; } for (const tile of progress.inventoryTiles) tile.key = itemStackKey(tile.item); }

@@ -17,6 +17,8 @@ export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero"
   return { damage: damage * (owner === "hero" ? balance.combat.heroDamageMultiplier : balance.combat.enemyDamageMultiplier), critical };
 }
 
+export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon" || item.weight <= 0) return 0; const handling = item.definitionId === "staff" ? (stats.strength + stats.spirit) / 2 : item.hands === 1 ? stats.agility : stats.strength; return (10 + Math.max(0, handling) * 0.1) / item.weight * item.modifiers.attackSpeedMultiplier; }
+
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
 export function skillCooldown(skill: SkillId): number { return SKILLS[skill].cooldown; }
 export function skillRange(skill: SkillId, item: ItemInstance): number { return SKILLS[skill].range ?? (item.definitionId === "staff" ? 330 : 105); }

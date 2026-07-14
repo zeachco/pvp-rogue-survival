@@ -6,7 +6,7 @@ export interface WeaponDefinition {
   id: WeaponClass;
   label: string;
   damage: number;
-  speed: number;
+  weight: number;
   stamina: number;
   requirement?: StatKey;
   skill?: SkillId;
@@ -37,17 +37,18 @@ export interface EnemyArchetypeDefinition {
 }
 
 export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
-  club: { id: "club", label: "Club", damage: 1, speed: 1, stamina: 0.1, requirement: "strength", skill: "bash" },
-  sword: { id: "sword", label: "Sword", damage: 1.15, speed: 0.95, stamina: 0.2, requirement: "strength", skill: "sweep" },
-  dagger: { id: "dagger", label: "Dagger", damage: 0.72, speed: 1.55, stamina: 0.12, requirement: "agility", skill: "flurry" },
-  mace: { id: "mace", label: "Mace", damage: 1.35, speed: 0.72, stamina: 0.28, requirement: "strength", skill: "bash" },
-  staff: { id: "staff", label: "Staff", damage: 0.8, speed: 0.8, stamina: 0.1, requirement: "magic", skill: "arcaneBolt" }
+  club: { id: "club", label: "Club", damage: 1, weight: 12, stamina: 0.1, requirement: "strength", skill: "bash" },
+  sword: { id: "sword", label: "Sword", damage: 1.15, weight: 14, stamina: 0.2, requirement: "strength", skill: "sweep" },
+  dagger: { id: "dagger", label: "Dagger", damage: 0.72, weight: 8, stamina: 0.12, requirement: "agility", skill: "flurry" },
+  mace: { id: "mace", label: "Mace", damage: 1.35, weight: 18, stamina: 0.28, requirement: "strength", skill: "shockwave" },
+  staff: { id: "staff", label: "Staff", damage: 0.8, weight: 16, stamina: 0.1, requirement: "magic", skill: "arcaneBolt" }
 };
 
 export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
-  bash: { id: "bash", label: "Bash", damageMultiplier: 1.5, cooldown: 5, resource: "stamina" },
+  bash: { id: "bash", label: "Bash", damageMultiplier: 1.5, cooldown: 5, range: 105, resource: "stamina" },
   sweep: { id: "sweep", label: "Sweep", damageMultiplier: 1.25, cooldown: 5, range: 135, resource: "stamina" },
-  flurry: { id: "flurry", label: "Flurry", damageMultiplier: 0.8, cooldown: 2.5, resource: "stamina" },
+  flurry: { id: "flurry", label: "Flurry", damageMultiplier: 0.8, cooldown: 2.5, range: 105, resource: "stamina" },
+  shockwave: { id: "shockwave", label: "Shockwave", damageMultiplier: 1.35, cooldown: 4.5, range: 125, resource: "stamina" },
   arcaneBolt: { id: "arcaneBolt", label: "Arcane Bolt", damageMultiplier: 1.7, cooldown: 5, range: 330, resource: "mana" },
   healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana" }
 };

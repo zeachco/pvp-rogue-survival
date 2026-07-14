@@ -9,6 +9,7 @@ import { correctArenaBoundary } from "../src/game/bounds";
 import { Hero } from "../src/game/Hero";
 import { generateBuckler } from "../common/items";
 import type { CombatText } from "../src/game/CombatText";
+import { SpellEffect } from "../src/game/SpellEffect";
 
 describe("arena systems", () => {
   test("cancels an unresolved enemy telegraph when its source dies", () => {
@@ -46,8 +47,16 @@ describe("arena systems", () => {
   test("bucklers partially block with Strength and training damage stops at one", () => {
     const hero = new Hero({ x: 50, y: 50 }); const buckler = generateBuckler(0, "common", 12);
     hero.configureStats({ agility: 5, strength: 5, magic: 0, spirit: 0, intelligence: 0 }, buckler);
-    hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(6);
+    hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(6); expect(hero.stamina).toBe(5);
     hero.damageFloorOne = true; hero.receiveDamage(100, { next: () => 1 }); expect(hero.hp).toBe(1); expect(hero.active).toBeTrue();
+  });
+
+  test("allows 100% block chance and spends stamina only on successful blocks", () => {
+    const hero = new Hero({ x: 50, y: 50 }); const buckler = generateBuckler(0, "common", 12);
+    hero.configureStats({ agility: 90, strength: 90, magic: 0, spirit: 0, intelligence: 0 }, buckler);
+    const hp = hero.hp; hero.receiveDamage(10, { next: () => 0.999 }); expect(hero.hp).toBe(hp); expect(hero.stamina).toBe(hero.maxStamina - 1);
+    hero.stamina = 0; hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
+    hero.stamina = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.stamina).toBe(1);
   });
 
   test("emits typed damage, healing, and inherited shield-return numbers", () => {
@@ -59,4 +68,6 @@ describe("arena systems", () => {
     defender.receiveDamage(2, { next: () => 0 }, attacker, true, false, { kind: "fire", critical: true });
     expect(texts.some((text) => text.kind === "fire" && !text.critical && text.position.x === attacker.position.x)).toBeTrue();
   });
+  test("shows post-mitigation overkill damage rather than remaining target health", () => { const hero = new Hero({ x: 10, y: 10 }); const texts: CombatText[] = []; hero.onCombatText = (text) => texts.push(text); hero.receiveDamage(250, { next: () => 1 }); expect(hero.hp).toBe(0); expect(texts[0].amount).toBe(250); });
+  test("expires bounded spell effects and clears them with the arena", () => { const state = new ArenaState(); const effect = new SpellEffect("shockwave", { x: 5, y: 5 }); state.spellEffects.push(effect); effect.update(1); removeInactive(state.spellEffects); expect(state.spellEffects).toHaveLength(0); state.spellEffects.push(new SpellEffect("healing", { x: 5, y: 5 })); state.clear(); expect(state.spellEffects).toHaveLength(0); });
 });

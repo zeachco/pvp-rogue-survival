@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { BALANCE_PROFILES } from "../common/balance";
-import { rollWeaponDamage } from "../common/combat";
+import { rollWeaponDamage, weaponAttackSpeed } from "../common/combat";
 import { collectIntoInventory, emptyScraps, equipFromInventory, inventoryCapacity, isEquippedTile, occupiedInventorySlots, purgeFromInventory, sellFromInventory, setAutomation, upgradeFromInventory } from "../common/inventory";
 import { generateBuckler, generateItem, itemStackKey, levelUpItem, starterClub } from "../common/items";
-import { DEFAULT_ALLOCATION, lerpXpDisplay, ZERO_STATS } from "../common/progression";
+import { cumulativeXpForLevel, DEFAULT_ALLOCATION, lerpXpDisplay, levelForXp, xpForNextLevel, ZERO_STATS } from "../common/progression";
 import { parseClientMessage, type PlayerProgress } from "../common/protocol";
 import { SeededRandom } from "../common/random";
 import { regularCount, regularLevel, rivalLevel } from "../common/waves";
+import { WEAPONS, SKILLS } from "../common/content";
 
 function progress(): PlayerProgress { return { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 1000, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } }; }
 let id = 0;
@@ -15,6 +16,8 @@ describe("balance and waves", () => {
   test("keeps capped wave scaling", () => { const balance = BALANCE_PROFILES.normal; expect(regularCount(1, balance)).toBe(12); expect(regularLevel(3, 0, 16, balance)).toBe(1); expect(rivalLevel(5, 10, balance)).toBe(8); expect(regularCount(100, balance)).toBe(40); });
   test("development does not accelerate combat or rewards", () => { const item = starterClub(); const normal = rollWeaponDamage(item, ZERO_STATS, "hero", BALANCE_PROFILES.normal, new SeededRandom(2)); expect(rollWeaponDamage(item, ZERO_STATS, "hero", BALANCE_PROFILES.dev, new SeededRandom(2))).toBeCloseTo(normal); expect(BALANCE_PROFILES.dev.rewards).toEqual(BALANCE_PROFILES.normal.rewards); });
 });
+describe("attack timing", () => { test("uses damped weight handling for physical and magic weapons", () => { const club = starterClub(); expect(weaponAttackSpeed(club, ZERO_STATS)).toBeCloseTo(10 / 12); expect(weaponAttackSpeed(club, { ...ZERO_STATS, agility: 100 })).toBeCloseTo(20 / 12); const generatedStaff = generateItem(0, "common", 5, { allowedClasses: ["staff"] }); const staff = { ...generatedStaff, modifiers: { ...generatedStaff.modifiers, attackSpeedMultiplier: 1 } }; expect(weaponAttackSpeed(staff, { ...ZERO_STATS, strength: 100, spirit: 100 })).toBeCloseTo(20 / 16); expect(weaponAttackSpeed(staff, { ...ZERO_STATS, agility: 1_000 })).toBeCloseTo(10 / 16); }); });
+describe("XP curve", () => { test("uses cached Fibonacci-like level costs", () => { expect([0, 1, 2, 3, 4, 5].map(xpForNextLevel)).toEqual([100, 150, 250, 400, 650, 1050]); expect(cumulativeXpForLevel(4)).toBe(900); expect(levelForXp(899)).toBe(3); expect(levelForXp(900)).toBe(4); }); });
 
 describe("permanent inventory", () => {
   test("keeps zero-quantity rules without charging them against capacity", () => { const state = progress(); expect(inventoryCapacity(0)).toBe(4); for (let n = 0; n < 4; n += 1) expect(collectIntoInventory(state, generateItem(n, "common", 100 + n), () => `tile-${++id}`, () => ++id).changed).toBeTrue(); const tile = state.inventoryTiles[0]; purgeFromInventory(state, tile.id); expect(tile.quantity).toBe(0); expect(occupiedInventorySlots(state)).toBe(3); expect(collectIntoInventory(state, generateItem(9, "epic", 999), () => `tile-${++id}`, () => ++id).changed).toBeTrue(); expect(occupiedInventorySlots(state)).toBe(4); });
@@ -25,5 +28,6 @@ describe("permanent inventory", () => {
   test("retains equipped copies and rejects sell, purge, and destructive batch modes", () => { const state = progress(); const item = { ...generateItem(1, "rare", 71), requirements: {} }; collectIntoInventory(state, item, () => `tile-${++id}`, () => ++id); const tile = state.inventoryTiles[0]; expect(equipFromInventory(state, tile.id).changed).toBeTrue(); expect(tile.quantity).toBe(1); expect(isEquippedTile(state, tile)).toBeTrue(); expect(state.inventoryTiles.some((candidate) => candidate.key === itemStackKey(starterClub()))).toBeTrue(); const gold = state.gold; const scraps = state.scraps.rare; expect(sellFromInventory(state, tile.id).changed).toBeFalse(); expect(purgeFromInventory(state, tile.id).changed).toBeFalse(); expect(setAutomation(state, tile.id, "sell", () => `tile-${++id}`, () => ++id).changed).toBeFalse(); expect(setAutomation(state, tile.id, "purge", () => `tile-${++id}`, () => ++id).changed).toBeFalse(); expect(tile.quantity).toBe(1); expect(tile.automation).toBe("keep"); expect(state.gold).toBe(gold); expect(state.scraps.rare).toBe(scraps); });
 });
 
-describe("protocol validation", () => { test("accepts v4 commands and rejects retired or authored commands", () => { expect(parseClientMessage({ type: "upgradeItem", tileId: "tile-1" })).toEqual({ type: "upgradeItem", tileId: "tile-1" }); expect(parseClientMessage({ type: "mergeItem", tileId: "tile-1" })).toBeUndefined(); expect(parseClientMessage({ type: "creepKilled", unitId: "unit-1", xpReward: 9999 })).toBeUndefined(); expect(parseClientMessage({ type: "updateAllocation", allocation: { agility: 5 } })).toBeUndefined(); }); });
+describe("protocol validation", () => { test("accepts v6 commands and rejects retired or authored commands", () => { expect(parseClientMessage({ type: "upgradeItem", tileId: "tile-1" })).toEqual({ type: "upgradeItem", tileId: "tile-1" }); expect(parseClientMessage({ type: "mergeItem", tileId: "tile-1" })).toBeUndefined(); expect(parseClientMessage({ type: "creepKilled", unitId: "unit-1", xpReward: 9999 })).toBeUndefined(); expect(parseClientMessage({ type: "updateAllocation", allocation: { agility: 5 } })).toBeUndefined(); }); });
+describe("weapon skills", () => { test("gives every weapon class a distinct registered signature skill", () => { const skills = Object.values(WEAPONS).map((weapon) => weapon.skill); expect(new Set(skills).size).toBe(Object.keys(WEAPONS).length); for (const skill of skills) expect(skill && SKILLS[skill]).toBeDefined(); expect(WEAPONS.mace.skill).toBe("shockwave"); }); });
 describe("XP presentation", () => { test("retargets easing from the current displayed value", () => { const towardTwenty = lerpXpDisplay(0, 20); expect(towardTwenty).toBe(2); expect(lerpXpDisplay(towardTwenty, 50)).toBeCloseTo(6.8); }); });

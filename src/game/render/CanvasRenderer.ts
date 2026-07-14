@@ -19,6 +19,7 @@ export class CanvasRenderer {
     }
     for (const projectile of arena.projectiles) projectile.render(this.ctx, camera);
     hero.render(this.ctx, camera);
+    for (const effect of arena.spellEffects) effect.render(this.ctx, camera);
     for (const text of arena.combatTexts) this.renderCombatText(text, camera);
   }
 

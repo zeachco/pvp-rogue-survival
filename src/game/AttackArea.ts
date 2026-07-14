@@ -19,7 +19,7 @@ export class AttackArea extends GameObject {
     readonly linger: number,
     readonly damage: number,
     readonly source?: { active: boolean },
-    readonly skill?: "bash" | "sweep" | "flurry",
+    readonly skill?: "bash" | "sweep" | "flurry" | "shockwave",
     readonly weapon?: ItemInstance,
     readonly presentation: DamagePresentation = { kind: "physical" }
   ) { super(); }

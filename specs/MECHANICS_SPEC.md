@@ -42,10 +42,10 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Damage areas and projectiles use circle or area overlap checks against unit collision radii.
 - Public balance-profile multipliers are applied once at the combat calculation boundary. Development and production currently use identical combat multipliers so local play does not indirectly accelerate durable progression.
 - Every hostile damage event, including deterministic one-second status ticks, may be blocked by an equipped buckler. Dexterity references mean Agility.
-- Block chance is `min(75%, 10% * rarityPower + 0.5% * (Strength + Agility))`. Success prevents `min(incomingDamage, Strength)`.
+- Block chance is `min(100%, 10% * rarityPower + 0.5% * (Strength + Agility))`. A block can occur only when the defender has at least the buckler's stamina cost available. Each successful block immediately spends that cost; failed rolls spend nothing. Bucklers currently cost 1 stamina per successful block. Success prevents `min(incomingDamage, Strength)`.
 - Spiked bucklers reflect the rarity-scaled sum of rolled components: `1`, `0.2 * Strength`, and `incomingDamage * (15% + 0.4% * Agility)`. Reflection may be blocked but cannot reflect again, critically strike, apply affixes, or create statuses.
 - Damage and statuses retain source attribution for realm-kill credit.
-- Resolved damage and healing create short-lived floating canvas numbers that rise and fade from the affected unit. Physical damage is light gray; critical hits override the base color with yellow-white; magic is yellow; electric is cyan; poison is green; fire is red-orange; bleed is red; and healing is green. Shield reflection uses the triggering damage type's color, cannot be styled as a critical hit, and remains visible even when the damaged unit is removed in the same simulation update.
+- Resolved damage and healing create short-lived floating canvas numbers that rise and fade from the affected unit. A damage number shows the rolled damage remaining after block/mitigation but before clamping against the target's remaining HP, so overkill still communicates weapon output; healing shows only health actually restored. Physical damage is light gray; critical hits override the base color with yellow-white; magic is yellow; electric is cyan; poison is green; fire is red-orange; bleed is red; and healing is green. Shield reflection uses the triggering damage type's color, cannot be styled as a critical hit, and remains visible even when the damaged unit is removed in the same simulation update.
 
 ## Enemy Attacks
 
@@ -66,6 +66,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Resolved attack areas briefly flash after damage resolution.
 - Hero attack areas use the hero combat color, and enemy attack areas use the enemy threat color.
 - The HUD and arena should show the hero's facing or auto-aim direction, equipped-weapon attacks, drops, and inspected enemy highlight.
+- Weapon-skill casts create deterministic, short-lived canvas effects without consuming combat randomness: Club Bash uses an expanding impact ring and debris, Sword Sweep a directional crescent, Dagger Flurry crossing blade streaks, Mace Shockwave concentric rings and radial sparks, Staff Arcane Bolt an arcane launch burst, and Healing rising green motes. Effects are presentation-only arena objects, update in the fixed loop, and are removed at the end of their bounded lifetime.
 
 ## Local Defeat Reset
 

@@ -4,6 +4,7 @@ import { statsWithItemBonuses } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
+import { weaponAttackSpeed } from "../../common/combat";
 import { Unit } from "./Unit";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
@@ -56,7 +57,7 @@ export class Creep extends Unit {
     const acceleration = movement.acceleration;
     const ranged = this.kind === "bubbleShooter" || this.build.mainHand.definitionId === "staff";
     const heroDistance = distance(this.position, hero);
-    const attackSpeed = derived.attackSpeed * this.build.mainHand.modifiers.attackSpeedMultiplier;
+    const attackSpeed = weaponAttackSpeed(this.build.mainHand, this.stats);
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
 
     if (this.pendingAttack) {

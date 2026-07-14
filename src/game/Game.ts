@@ -137,10 +137,11 @@ export class Game {
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
+    for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
     for (const drop of this.drops) correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds);
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
     this.arena.updateCombatTexts(deltaSeconds);
-    removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops);
+    removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops); removeInactive(this.arena.spellEffects);
     if (this.inspected && !this.inspected.active) this.clearInspection();
     this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
   }

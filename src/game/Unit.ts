@@ -37,11 +37,11 @@ export abstract class Unit extends GameObject {
   }
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): void {
-    const hpBefore = this.hp;
     let remaining = amount; const buckler = this.offHand;
-    if (buckler?.itemKind === "buckler") {
-      const chance = Math.min(0.75, buckler.blockChance + 0.005 * (this.stats.strength + this.stats.agility));
+    if (buckler?.itemKind === "buckler" && this.stamina >= buckler.staminaCost) {
+      const chance = Math.min(1, buckler.blockChance + 0.005 * (this.stats.strength + this.stats.agility));
       if (random.next() < chance) {
+        this.stamina -= buckler.staminaCost;
         remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
         if (reflectable && source && buckler.reflectionComponents.length) {
           const power = RARITY_POWER[buckler.rarity]; let reflected = 0;
@@ -54,7 +54,7 @@ export abstract class Unit extends GameObject {
     }
     if (source && "build" in source) this.lastDamageSourceId = (source as Unit & { build: { id: string } }).build.id;
     if (invulnerable || this.damageFloorOne) this.hp = Math.max(1, this.hp - remaining); else this.takeDamage(remaining);
-    const dealt = Math.max(0, hpBefore - this.hp); if (dealt > 0) this.emitCombatText(dealt, presentation.kind, Boolean(presentation.critical));
+    if (remaining > 0) this.emitCombatText(remaining, presentation.kind, Boolean(presentation.critical));
   }
 
   heal(amount: number): void { const before = this.hp; this.hp = Math.min(this.maxHp, this.hp + amount); const restored = this.hp - before; if (restored > 0) this.emitCombatText(restored, "healing", false); }

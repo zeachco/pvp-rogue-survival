@@ -5,7 +5,7 @@ import { SeededRandom } from "./random";
 export type WeaponClass = "club" | "sword" | "dagger" | "mace" | "staff";
 export type EquipmentDefinitionId = WeaponClass | "buckler";
 export type Rarity = "common" | "uncommon" | "rare" | "epic";
-export type SkillId = "bash" | "sweep" | "flurry" | "arcaneBolt" | "healing";
+export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "arcaneBolt" | "healing";
 export type AffixId = "rusty" | "venomous" | "bleeding" | "stunning" | "focused" | "swift";
 export type ReflectionComponent = "flat" | "strength" | "return";
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic"];
@@ -19,6 +19,7 @@ export interface ItemModifiers {
 export interface ItemInstance {
   id: string; itemKind: "weapon" | "buckler"; definitionId: EquipmentDefinitionId; name: string; level: number; rarity: Rarity;
   seed: number; hands: 0 | 1 | 2; affixes: AffixId[]; requirements: Partial<Record<StatKey, number>>;
+  weight: number;
   statBonuses: Partial<Record<StatKey, number>>; modifiers: ItemModifiers; skills: SkillId[];
   staminaCost: number; dropChance: number; sellValue: number; blockChance: number;
   reflectionComponents: ReflectionComponent[];
@@ -28,7 +29,7 @@ export interface ItemGenerationFilters { allowedClasses?: WeaponClass[]; fewerAf
 export function starterClub(): ItemInstance {
   return {
     id: "starter-club", itemKind: "weapon", definitionId: "club", name: "Plain Club", level: 0, rarity: "common", seed: 1,
-    hands: 1, affixes: [], requirements: {}, statBonuses: {}, modifiers: baseModifiers(1, 1), skills: [], staminaCost: 0.1,
+    hands: 1, weight: WEAPONS.club.weight, affixes: [], requirements: {}, statBonuses: {}, modifiers: baseModifiers(1, 1), skills: ["bash"], staminaCost: 0.1,
     dropChance: 0, sellValue: 0, blockChance: 0, reflectionComponents: []
   };
 }
@@ -51,9 +52,9 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
   const power = RARITY_POWER[rarity];
   return {
     id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "buckler", definitionId: "buckler",
-    name: `${spiked ? "Spiked " : ""}Buckler`, level, rarity, seed, hands: 0, affixes: [],
+    name: `${spiked ? "Spiked " : ""}Buckler`, level, rarity, seed, hands: 0, weight: 0, affixes: [],
     requirements: level ? { strength: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: {},
-    modifiers: baseModifiers(1, 1), skills: [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06),
+    modifiers: baseModifiers(1, 1), skills: [], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
     sellValue: Math.max(1, Math.round((level + 1) * power * (spiked ? 5 : 4))), blockChance: 0.1 * power, reflectionComponents
   };
 }
@@ -67,7 +68,7 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
 }
 
 function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, seed: number, affixes: AffixId[], suffix: number): ItemInstance {
-  const data = WEAPONS[weaponClass]; const power = RARITY_POWER[rarity]; const modifiers = baseModifiers(data.damage * (1 + level * 0.025) * power, data.speed);
+  const data = WEAPONS[weaponClass]; const power = RARITY_POWER[rarity]; const modifiers = baseModifiers(data.damage * (1 + level * 0.025) * power, 1);
   for (const affix of affixes) applyAffix(modifiers, affix, power);
   if (weaponClass === "dagger") modifiers.critChance += 0.04 * power;
   if (weaponClass === "staff") { modifiers.manaRegenMultiplier += power; modifiers.magicAmp += 0.12 * power; }
@@ -75,8 +76,8 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
   if (data.requirement && level > 0) requirements[data.requirement] = Math.max(1, Math.floor(level * 0.6 * power));
   return {
     id: `item-${seed}-${suffix}`, itemKind: "weapon", definitionId: weaponClass, name: `${affixes[0] ? `${capitalize(affixes[0])} ` : ""}${data.label}`,
-    level, rarity, seed, hands: weaponClass === "staff" ? 2 : 1, affixes, requirements, statBonuses: {}, modifiers,
-    skills: data.skill && rarity !== "common" ? [data.skill] : [], staminaCost: data.stamina,
+    level, rarity, seed, hands: weaponClass === "staff" ? 2 : 1, weight: data.weight, affixes, requirements, statBonuses: {}, modifiers,
+    skills: data.skill ? [data.skill] : [], staminaCost: data.stamina,
     dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * (4 + affixes.length * 2))),
     blockChance: 0, reflectionComponents: []
   };
@@ -85,7 +86,7 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
 export function rollRarity(seed: number): Rarity { const roll = new SeededRandom(seed).next(); return roll < 0.58 ? "common" : roll < 0.83 ? "uncommon" : roll < 0.96 ? "rare" : "epic"; }
 export function meetsRequirements(item: ItemInstance, stats: Stats): boolean { return Object.entries(item.requirements).every(([key, value]) => stats[key as StatKey] >= (value ?? 0)); }
 export function itemStackKey(item: ItemInstance): string {
-  return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, level: item.level, rarity: item.rarity, hands: item.hands,
+  return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, level: item.level, rarity: item.rarity, hands: item.hands, weight: item.weight,
     affixes: [...item.affixes].sort(), requirements: orderedStats(item.requirements), statBonuses: orderedStats(item.statBonuses), modifiers: item.modifiers,
     skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort() });
 }

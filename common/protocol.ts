@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 6;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export type InventoryAutomation = "keep" | "sell" | "upgrade" | "purge";
@@ -64,4 +64,4 @@ export type ServerMessage =
 
 export function parseClientMessage(value: unknown): ClientMessage | undefined { const result = clientMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
 export function parseServerMessage(value: unknown): ServerMessage | undefined { const result = serverMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
-export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "arcaneBolt", "healing"].includes(value); }
+export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "arcaneBolt", "healing"].includes(value); }

@@ -13,6 +13,7 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
       for (const creep of state.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) {
         creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon) applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined);
         if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 });
+        if (attack.skill === "shockwave") creep.addStatus({ kind: "stun", remaining: 0.6, damagePerSecond: 0 });
         if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 });
       }
     } else if (hero.active && attack.contains(hero.position, hero.radius)) {
