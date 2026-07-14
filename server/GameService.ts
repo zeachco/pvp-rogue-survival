@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
-import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, processAutoUpgrades, purgeFromInventory, sellFromInventory, sendFromInventory, setAutomation, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
+import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
 import { generateBuckler, generateItem, generateRelic, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
@@ -37,12 +37,11 @@ export class GameService {
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);
       case "requestWave": return this.dispatchCurrentWave(player, this.waveMode(player));
       case "equipItem": return this.applyInventoryResult(player, equipFromInventory(player.progress, message.tileId));
-      case "sellItem": return this.applyInventoryResult(player, sellFromInventory(player.progress, message.tileId));
-      case "purgeItem": return this.applyInventoryResult(player, purgeFromInventory(player.progress, message.tileId));
-      case "upgradeItem": return this.applyInventoryResult(player, upgradeFromInventory(player.progress, message.tileId, () => this.createId(), () => this.seed()));
-      case "extractSkill": return this.applyInventoryResult(player, extractFromInventory(player.progress, message.tileId));
-      case "setStackAutomation": return this.applyInventoryResult(player, setAutomation(player.progress, message.tileId, message.mode, () => this.createId(), () => this.seed(), message.maxRarity));
-      case "sendItem": return this.sendItem(player, message.tileId);
+      case "sellItem": return this.applyInventoryAction(player, message.bulk, () => sellFromInventory(player.progress, message.tileId));
+      case "purgeItem": return this.applyInventoryAction(player, message.bulk, () => purgeFromInventory(player.progress, message.tileId));
+      case "upgradeItem": return this.applyInventoryAction(player, message.bulk, () => upgradeFromInventory(player.progress, message.tileId, () => this.createId(), () => this.seed()));
+      case "extractSkill": return this.applyInventoryAction(player, message.bulk, () => extractFromInventory(player.progress, message.tileId));
+      case "sendItem": return this.sendItem(player, message.tileId, message.bulk);
       case "leaveRealm": return this.leaveRealm(player);
       case "enterRealm": return this.enterRealm(player);
       case "scoreSnapshot": return;
@@ -57,10 +56,10 @@ export class GameService {
 
   private joinPlayer(name: string, sessionId?: PlayerId): Player {
     const trimmed = name.trim().slice(0, 20) || "Player"; const existing = sessionId ? this.options.repository.get(sessionId) : undefined;
-    if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); return existing; }
+    if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
     const club = starterClub(); const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [],
-      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1, automation: "keep", disposalRarity: "common" }], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
+      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1 }], learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 } } };
     this.options.repository.save(player); return player;
   }
 
@@ -88,7 +87,7 @@ export class GameService {
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number): UnitBuild {
     const item = queued.item; let mainHand = build.mainHand; let offHand = build.offHand;
-    if (item.itemKind !== "weapon") { if (mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "hammer"] as WeaponClass[] }); offHand = item; }
+    if (item.itemKind !== "weapon") { if (mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"] as WeaponClass[] }); offHand = item; }
     else { mainHand = item; if (item.hands === 2) offHand = undefined; }
     return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
   }
@@ -126,10 +125,16 @@ export class GameService {
     this.broadcastRealms();
   }
 
-  private sendItem(player: Player, tileId: string): void {
-    if (!player.realmId) return this.notice(player, "Enter a realm before sending equipment."); if (this.queuedBy(player.id) >= MAX_QUEUE) return this.notice(player, "Your realm queue has reached 1000 items.");
-    const target = this.nextTarget(player); if (!target) return this.notice(player, "No Realm Guard is available."); const result = sendFromInventory(player.progress, tileId); if (!result.changed || !result.sent) return this.notice(player, result.reason);
-    const queue = target.incomingQueues.get(player.id) ?? []; queue.push({ item: result.sent, senderId: player.id, senderName: player.name, backlash: false }); target.incomingQueues.set(player.id, queue); this.sendProgress(player, result.reason); this.broadcastRealms();
+  private sendItem(player: Player, tileId: string, bulk = false): void {
+    if (!player.realmId) return this.notice(player, "Enter a realm before sending equipment.");
+    let sent = 0; let reason = "That equipment is no longer available.";
+    do {
+      if (this.queuedBy(player.id) >= MAX_QUEUE) { reason = "Your realm queue has reached 1000 items."; break; }
+      const target = this.nextTarget(player); if (!target) { reason = "No Realm Guard is available."; break; }
+      const result = sendFromInventory(player.progress, tileId); reason = result.reason; if (!result.changed || !result.sent) break;
+      const queue = target.incomingQueues.get(player.id) ?? []; queue.push({ item: result.sent, senderId: player.id, senderName: player.name, backlash: false }); target.incomingQueues.set(player.id, queue); sent += 1;
+    } while (bulk && sent < MAX_QUEUE);
+    removeEmptyInventoryTiles(player.progress); if (!sent) return this.notice(player, reason); this.sendProgress(player, bulk ? `Queued ${sent} items for the enemy realm.` : reason); this.broadcastRealms();
   }
 
   private leaveRealm(player: Player): void { if (!player.realmId) { player.realmOptedIn = false; return this.broadcastRealms(); } if (!this.canLeave()) return this.notice(player, "Leave to Lobby opens after the final planned spawn."); const id = player.realmId; player.realmOptedIn = false; this.dissolveRealm(id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); this.dispatchCurrentWave(player, "training"); this.broadcastRealms(); }
@@ -157,8 +162,14 @@ export class GameService {
   private waveMode(player: Player): "competitive" | "solo" | "training" { return player.realmId ? "competitive" : player.realmOptedIn ? "solo" : "training"; }
   private broadcastRealms(): void { for (const player of this.options.repository.values()) if (player.connected) this.options.send(player.id, { type: "realmUpdated", realm: this.realmState(player) }); }
   private publicPlayer(player: Player): PublicPlayer { return { id: player.id, name: player.name, score: player.score, waveNumber: player.waveNumber, level: player.progress.level }; }
-  private grantXp(player: Player, amount: number): void { const old = player.progress.level; player.progress.xp += amount; const next = levelForXp(player.progress.xp); for (let level = old; level < next; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key]; player.progress.level = next; processAutoUpgrades(player.progress, () => this.createId(), () => this.seed()); }
-  private applyInventoryResult(player: Player, result: InventoryResult): void { if (!result.changed) return this.notice(player, result.reason); for (const item of result.dropped ?? []) { const id = this.createId(); player.groundDrops.set(id, item); this.options.send(player.id, { type: "groundDropCreated", drop: { id, item } }); } processAutoUpgrades(player.progress, () => this.createId(), () => this.seed()); this.sendProgress(player, result.reason); }
+  private grantXp(player: Player, amount: number): void { const old = player.progress.level; player.progress.xp += amount; const next = levelForXp(player.progress.xp); for (let level = old; level < next; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key]; player.progress.level = next; }
+  private applyInventoryAction(player: Player, bulk: boolean | undefined, action: () => InventoryResult): void {
+    let changed = 0; let result = action();
+    while (result.changed) { changed += 1; if (!bulk || changed >= 1000) break; result = action(); }
+    removeEmptyInventoryTiles(player.progress); if (!changed) return this.notice(player, result.reason);
+    this.sendProgress(player, bulk ? `Completed ${changed} item actions.` : result.reason);
+  }
+  private applyInventoryResult(player: Player, result: InventoryResult): void { if (!result.changed) return this.notice(player, result.reason); for (const item of result.dropped ?? []) { const id = this.createId(); player.groundDrops.set(id, item); this.options.send(player.id, { type: "groundDropCreated", drop: { id, item } }); } removeEmptyInventoryTiles(player.progress); this.sendProgress(player, result.reason); }
   private sendProgress(player: Player, reason: string): void { this.options.send(player.id, { type: "progressionUpdated", progress: player.progress, reason }); }
   private notice(player: Player, message: string): void { this.options.send(player.id, { type: "serverNotice", message }); }
   private seed(): number { return randomSeed(this.options.random); }

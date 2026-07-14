@@ -3,11 +3,10 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 11;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
-export type InventoryAutomation = "keep" | "sell" | "upgrade" | "purge";
-export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number; automation: InventoryAutomation; disposalRarity: Rarity }
+export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
 export interface PlayerProgress {
   level: number; xp: number; stats: Stats; allocation: Stats; gold: number; souls: number; scraps: Record<Rarity, number>;
   mainHand: ItemInstance; offHand?: ItemInstance; inventoryTiles: InventoryTile[];
@@ -27,12 +26,11 @@ export interface CreepWave { id: string; targetId: PlayerId; waveNumber: number;
 export interface GroundDrop { id: string; item: ItemInstance }
 
 const statsSchema = z.object({ agility: z.number(), strength: z.number(), magic: z.number(), spirit: z.number(), intelligence: z.number() });
-const tileCommand = (type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill") => z.object({ type: z.literal(type), tileId: z.string().min(1) });
+const tileCommand = (type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill") => z.object({ type: z.literal(type), tileId: z.string().min(1), bulk: z.boolean().optional() });
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("join"), name: z.string().max(100), sessionId: z.string().optional() }),
   z.object({ type: z.literal("updateAllocation"), allocation: statsSchema }), z.object({ type: z.literal("creepDefeated"), unitId: z.string().min(1) }),
   z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("upgradeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
-  z.object({ type: z.literal("setStackAutomation"), tileId: z.string().min(1), mode: z.enum(["keep", "sell", "upgrade", "purge"]), maxRarity: z.enum(["common", "uncommon", "rare", "epic"]) }),
   z.object({ type: z.literal("heroDefeated"), sourceUnitId: z.string().optional() }), z.object({ type: z.literal("requestWave") }), z.object({ type: z.literal("leaveRealm") }), z.object({ type: z.literal("enterRealm") }),
   z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() })
 ]);
@@ -44,8 +42,7 @@ export type ClientMessage =
   | { type: "updateAllocation"; allocation: Stats }
   | { type: "creepDefeated"; unitId: string }
   | { type: "collectDrop"; dropId: string }
-  | { type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill"; tileId: string }
-  | { type: "setStackAutomation"; tileId: string; mode: InventoryAutomation; maxRarity: Rarity }
+  | { type: "equipItem" | "sellItem" | "purgeItem" | "upgradeItem" | "sendItem" | "extractSkill"; tileId: string; bulk?: boolean }
   | { type: "heroDefeated"; sourceUnitId?: string }
   | { type: "requestWave" | "leaveRealm" | "enterRealm" }
   | { type: "scoreSnapshot"; score: number; health: number };
@@ -64,4 +61,4 @@ export type ServerMessage =
 
 export function parseClientMessage(value: unknown): ClientMessage | undefined { const result = clientMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
 export function parseServerMessage(value: unknown): ServerMessage | undefined { const result = serverMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
-export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "cleave", "orbitingHammers", "arcaneBolt", "healing"].includes(value); }
+export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "cleave", "rendingThrow", "orbitingHammers", "arcaneBolt", "healing", "rent", "blocking"].includes(value); }

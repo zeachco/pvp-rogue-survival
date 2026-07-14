@@ -10,6 +10,8 @@ export interface WeaponDefinition {
   stamina: number;
   requirement?: StatKey;
   skill?: SkillId;
+  range?: number;
+  projectile?: boolean;
 }
 
 export interface SkillDefinition {
@@ -18,7 +20,7 @@ export interface SkillDefinition {
   damageMultiplier: number;
   cooldown: number;
   range?: number;
-  resource: "stamina" | "mana";
+  resource: "stamina" | "mana" | "life";
 }
 
 export interface AffixDefinition {
@@ -42,8 +44,9 @@ export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
   dagger: { id: "dagger", label: "Dagger", damage: 0.72, weight: 8, stamina: 0.12, requirement: "agility", skill: "flurry" },
   mace: { id: "mace", label: "Mace", damage: 1.35, weight: 18, stamina: 0.28, requirement: "strength", skill: "shockwave" },
   axe: { id: "axe", label: "Axe", damage: 1.22, weight: 13, stamina: 0.22, requirement: "strength", skill: "cleave" },
+  throwingAxe: { id: "throwingAxe", label: "Throwing Axe", damage: 1.05, weight: 10, stamina: 0.18, requirement: "agility", skill: "rendingThrow", range: 210, projectile: true },
   hammer: { id: "hammer", label: "Hammer", damage: 1.18, weight: 16, stamina: 0.2, requirement: "strength", skill: "orbitingHammers" },
-  staff: { id: "staff", label: "Staff", damage: 0.8, weight: 16, stamina: 0.1, requirement: "magic", skill: "arcaneBolt" }
+  staff: { id: "staff", label: "Staff", damage: 0.8, weight: 16, stamina: 0.1, requirement: "magic", skill: "arcaneBolt", range: 330, projectile: true }
 };
 
 export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
@@ -52,18 +55,21 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
   flurry: { id: "flurry", label: "Flurry", damageMultiplier: 0.8, cooldown: 2.5, range: 105, resource: "stamina" },
   shockwave: { id: "shockwave", label: "Shockwave", damageMultiplier: 1.35, cooldown: 4.5, range: 125, resource: "stamina" },
   cleave: { id: "cleave", label: "Cleave", damageMultiplier: 1.45, cooldown: 4, range: 125, resource: "stamina" },
+  rendingThrow: { id: "rendingThrow", label: "Rending Throw", damageMultiplier: 1.35, cooldown: 4, range: 240, resource: "stamina" },
   orbitingHammers: { id: "orbitingHammers", label: "Orbiting Hammers", damageMultiplier: 0.85, cooldown: 4.5, range: 240, resource: "mana" },
   arcaneBolt: { id: "arcaneBolt", label: "Arcane Bolt", damageMultiplier: 1.7, cooldown: 5, range: 330, resource: "mana" },
-  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana" }
+  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana" },
+  rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 105, resource: "life" },
+  blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina" }
 };
 
 export const AFFIXES: Readonly<Record<AffixId, AffixDefinition>> = {
-  rusty: { id: "rusty", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "hammer"], modifierPerPower: { poisonChance: 0.05 } },
-  venomous: { id: "venomous", compatibleWeapons: ["sword", "dagger", "axe", "staff"], modifierPerPower: { poisonChance: 0.1 } },
-  bleeding: { id: "bleeding", compatibleWeapons: ["sword", "dagger", "axe"], modifierPerPower: { bleedChance: 0.08 } },
+  rusty: { id: "rusty", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"], modifierPerPower: { poisonChance: 0.05 } },
+  venomous: { id: "venomous", compatibleWeapons: ["sword", "dagger", "axe", "throwingAxe", "staff"], modifierPerPower: { poisonChance: 0.1 } },
+  bleeding: { id: "bleeding", compatibleWeapons: ["sword", "dagger", "axe", "throwingAxe"], modifierPerPower: { bleedChance: 0.08 } },
   stunning: { id: "stunning", compatibleWeapons: ["club", "mace", "hammer"], modifierPerPower: { stunChance: 0.07 } },
   focused: { id: "focused", compatibleWeapons: ["staff"], modifierPerPower: { magicAmp: 0.1 } },
-  swift: { id: "swift", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "hammer", "staff"], modifierPerPower: { attackSpeedMultiplier: 0.12 } }
+  swift: { id: "swift", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer", "staff"], modifierPerPower: { attackSpeedMultiplier: 0.12 } }
 };
 
 export const ENEMY_ARCHETYPES: Readonly<Record<CreepKind, EnemyArchetypeDefinition>> = {

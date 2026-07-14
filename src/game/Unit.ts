@@ -4,7 +4,7 @@ import { derivedStats, type Stats } from "../../common/progression";
 import { RARITY_POWER, type ItemInstance } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
-import { bucklerBlockChance, bucklerBlockCost } from "../../common/combat";
+import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed } from "../../common/combat";
 
 export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
@@ -24,6 +24,8 @@ export abstract class Unit extends GameObject {
   mainHand?: ItemInstance;
   lastDamageSourceId?: string;
   damageFloorOne = false;
+  blockCooldown = 0;
+  blockCooldownMax = 0;
   onCombatText?: (text: CombatText) => void;
 
   protected constructor(position: Vector2, readonly radius: number, hp: number) {
@@ -42,10 +44,11 @@ export abstract class Unit extends GameObject {
     const hpBefore = this.hp;
     let remaining = amount; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
-    if (buckler?.itemKind === "buckler" && this.stamina >= blockCost) {
+    if (buckler?.itemKind === "buckler" && this.blockCooldown === 0 && this.stamina >= blockCost) {
       const chance = bucklerBlockChance(buckler, this.stats);
       if (random.next() < chance) {
         this.stamina -= blockCost;
+        const attackSpeed = this.mainHand ? weaponAttackSpeed(this.mainHand, this.stats) : 1; this.blockCooldownMax = buckler.reflectionComponents.includes("return") ? 1 / Math.max(0.01, attackSpeed) : 1; this.blockCooldown = this.blockCooldownMax;
         remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
         if (reflectable && source && buckler.reflectionComponents.length) {
           const power = RARITY_POWER[buckler.rarity]; let reflected = 0;
@@ -76,6 +79,7 @@ export abstract class Unit extends GameObject {
   }
 
   updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false): void {
+    this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
     const derived = derivedStats(this.stats);
     let periodicDamage = 0;
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable, { kind: status.kind === "poison" ? "poison" : "bleed" }); } }

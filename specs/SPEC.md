@@ -72,7 +72,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Training-kill no-reward feedback is an exception to routine notifications: it appears just above the experience/level badge and fades away after a few seconds.
 - The health and mana displays sit directly beside the centered experience/level badge rather than stretching toward the arena edges.
 - Cooldown spells use a compact Ubuntu-dock-like vertical rail on the left edge, anchored above the bottom-left health display and growing upward as spells are added without a scrollbar.
-- Reserve a 220px independently scrolling character/stat column and a 640px independently scrolling permanent equipment column. Each column has its own small arrow toggle and retracts independently to a 30px tab; the arena and HUD reclaim the released width immediately. The inventory uses `min-height: 200px` and `max-height: calc(100vh - 32px)`. Inspection replaces only the character column.
+- Reserve a 220px independently scrolling character/stat column and a 640px permanent equipment column. Each column has its own small arrow toggle and retracts independently to a 30px tab; the arena and HUD reclaim the released width immediately. The inventory spans from the viewport top to a 16px bottom inset with a 200px minimum height. Its currencies and equipment count remain fixed at the top while only the equipment list scrolls. Inspection replaces only the character column.
 - Canvas backing dimensions follow the canvas element itself, including every intermediate size during panel collapse/expand transitions; viewport and camera sizing must not depend only on browser-window resize events.
 - Keep all arena HUD elements inside the playable width without overlapping the 540px right-side build area.
 
@@ -112,8 +112,8 @@ Client to server:
 - `updateAllocation`: `{ allocation: { agility, strength, magic, spirit, intelligence } }`
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
-- `equipItem`, `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId }`
-- `setStackAutomation`: `{ tileId, mode }`
+- `equipItem`: `{ tileId }`
+- `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId, bulk? }`; `bulk: true` is authored by Shift+click and repeats the selected action server-side until it can no longer make progress.
 - `heroDefeated`: `{ sourceUnitId? }`
 - `requestWave`: `{}`
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
@@ -135,7 +135,7 @@ Server to client:
 
 The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected by opaque id. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The realm/inventory/skill/weight/passive/disposal-threshold schema is protocol version 10.
 
-The server persists authoritative player identity, score, wave number, progression, attributes, allocation, currencies, learned skills, equipped items, inventory stacks, quantities, and automation to a versioned JSON snapshot under `server-data/players.json` by default. Writes atomically replace the snapshot after state-changing commands and wave dispatches. Reconnection presents the opaque player id and recovers that durable state. Realm membership, matchmaking opt-in, issued units, ground drops, incoming sends, backlash queues, and socket state are transient and reset on server start. Browser storage keeps only `{ playerId, name }`; the client never persists or authors authoritative state.
+The server persists authoritative player identity, score, wave number, progression, attributes, allocation, currencies, learned skills, equipped items, inventory stacks, and quantities to a versioned JSON snapshot under `server-data/players.json` by default. Writes atomically replace the snapshot after state-changing commands and wave dispatches. Reconnection presents the opaque player id and recovers that durable state. Realm membership, matchmaking opt-in, issued units, ground drops, incoming sends, backlash queues, and socket state are transient and reset on server start. Browser storage keeps only `{ playerId, name }`; the client never persists or authors authoritative state.
 
 ## 10. Balance Profiles
 
@@ -174,7 +174,7 @@ This section records composition details that a clean-room implementation in ano
 - Each connection must join before gameplay commands. Invalid JSON or schema-invalid input receives `Ignored invalid message.`; a valid non-join command before identification receives `Join before playing.` A connection is associated with the accepted player id. The player disconnects only when its final simultaneous socket closes.
 - A single 60-second server timer drives global wave dispatch. At dispatch, every realm's down set is cleared; every connected realm member or opted-in solo increments its wave, while Training Grounds players repeat without incrementing; then every connected player receives the correct competitive, solo, or training wave. State is persisted after joins, commands, global dispatches, and orderly server close.
 - Persistence is a versioned JSON snapshot written through a temporary file followed by atomic rename. Durable data is identity, name, score, wave, and the complete `PlayerProgress`. On load, runtime-only connection, realm, issued-unit, ground-drop, and queue state is rebuilt empty; saved level/XP and newer inventory fields are migrated to valid current defaults.
-- Runtime validation is intentionally asymmetric in this prototype: client commands receive full discriminated-union validation, while server messages are validated by their recognized `type` envelope and then treated as the matching typed payload. Protocol compatibility is the numeric version 10 delivered in `welcome`.
+- Runtime validation is intentionally asymmetric in this prototype: client commands receive full discriminated-union validation, while server messages are validated by their recognized `type` envelope and then treated as the matching typed payload. Protocol compatibility is the numeric version 11 delivered in `welcome`.
 - Stable-DOM performance is behavioral: scalar resource/XP values update in place each frame; expensive character, spell, realm, and inventory subtrees are replaced only when their flattened signatures change. Canvas owns map, units, telegraphs, projectiles, drops, spell effects, selection, indicators, and floating combat text; DOM owns joining and all persistent interactive controls.
 
 ## 13. Development Process

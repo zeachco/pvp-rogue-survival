@@ -1,10 +1,10 @@
-import type { Rarity, SkillId } from "../../common/items";
-import type { InventoryAutomation } from "../../common/protocol";
+import type { SkillId } from "../../common/items";
 import type { Stats } from "../../common/progression";
 
 export interface HudCallbacks {
-  onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(tileId: string): void; onSell(tileId: string): void;
-  onPurge(tileId: string): void; onUpgrade(tileId: string): void; onSend(tileId: string): void; onExtract(tileId: string): void;
-  onAutomation(tileId: string, mode: InventoryAutomation, maxRarity: Rarity): void; onLeaveRealm(): void; onEnterRealm(): void; onBack(): void;
+  onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(tileId: string): void; onSell(tileId: string, bulk: boolean): void;
+  onPurge(tileId: string, bulk: boolean): void; onUpgrade(tileId: string, bulk: boolean): void; onSend(tileId: string, bulk: boolean): void; onExtract(tileId: string, bulk: boolean): void;
+  onLeaveRealm(): void; onEnterRealm(): void; onBack(): void;
 }
-export interface SpellSlot { id: SkillId; label: string; level: number; cooldown: number; cooldownMax: number }
+export type CurrencyPreview = Partial<Record<"gold" | "common" | "uncommon" | "rare" | "epic", number>>;
+export interface SpellSlot { id: SkillId; label: string; level: number; cooldown: number; cooldownMax: number; resource: "mana" | "stamina" | "life" }

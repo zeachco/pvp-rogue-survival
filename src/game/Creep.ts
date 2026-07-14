@@ -3,13 +3,13 @@ import { statsWithItemBonuses } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
-import { weaponAttackSpeed } from "../../common/combat";
+import { weaponAttackSpeed, weaponRange, weaponUsesProjectile } from "../../common/combat";
 import { Unit } from "./Unit";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 
 export type CreepAttack =
   | { type: "melee"; origin: Vector2; angle: number; windup: number; source: Creep }
-  | { type: "bubble"; origin: Vector2; target: Vector2; source: Creep };
+  | { type: "projectile"; origin: Vector2; target: Vector2; source: Creep };
 
 export class Creep extends Unit {
   readonly bounty: number;
@@ -53,7 +53,7 @@ export class Creep extends Unit {
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
     const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier;
     const acceleration = movement.acceleration;
-    const ranged = this.kind === "bubbleShooter" || this.build.mainHand.definitionId === "staff";
+    const ranged = weaponUsesProjectile(this.build.mainHand);
     const heroDistance = distance(this.position, hero);
     const attackSpeed = weaponAttackSpeed(this.build.mainHand, this.stats);
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
@@ -63,12 +63,12 @@ export class Creep extends Unit {
       this.steer({ x: 0, y: 0 }, acceleration, maxSpeed * 0.25, deltaSeconds);
       if (this.windup <= 0) {
         this.pendingAttack = false;
-        return ranged ? { type: "bubble", origin: { ...this.position }, target: { ...hero }, source: this } : undefined;
+        return ranged ? { type: "projectile", origin: { ...this.position }, target: { ...hero }, source: this } : undefined;
       }
       return undefined;
     }
 
-    const attackRange = ranged ? rangedMovement.attackRange : movement.attackRange;
+    const attackRange = ranged ? weaponRange(this.build.mainHand) : movement.attackRange;
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;
@@ -78,8 +78,10 @@ export class Creep extends Unit {
     }
 
     let direction = normalize({ x: hero.x - this.position.x, y: hero.y - this.position.y });
-    if (ranged && heroDistance < (rangedMovement.retreatRange ?? 0)) direction = { x: -direction.x, y: -direction.y };
-    else if (ranged && heroDistance <= (rangedMovement.preferredRange ?? rangedMovement.attackRange)) direction = { x: 0, y: 0 };
+    const retreatRange = this.build.mainHand.definitionId === "staff" ? rangedMovement.retreatRange ?? 0 : Math.max(0, attackRange - 75);
+    const preferredRange = this.build.mainHand.definitionId === "staff" ? rangedMovement.preferredRange ?? attackRange : Math.max(retreatRange, attackRange - 30);
+    if (ranged && heroDistance < retreatRange) direction = { x: -direction.x, y: -direction.y };
+    else if (ranged && heroDistance <= preferredRange) direction = { x: 0, y: 0 };
     if (!this.stunned) this.steer(direction, acceleration, maxSpeed, deltaSeconds);
     this.position.x = Math.max(-this.radius, Math.min(width + this.radius, this.position.x));
     this.position.y = Math.max(-this.radius, Math.min(height + this.radius, this.position.y));

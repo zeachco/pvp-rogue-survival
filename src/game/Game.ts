@@ -62,10 +62,10 @@ export class Game {
     this.hero.onCombatText = (text) => this.arena.addCombatText(text);
     this.hud = new Hud(hudRoot, {
       onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
-      onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId) => this.socket.send({ type: "sellItem", tileId }),
-      onPurge: (tileId) => this.socket.send({ type: "purgeItem", tileId }), onUpgrade: (tileId) => this.socket.send({ type: "upgradeItem", tileId }),
-      onSend: (tileId) => this.socket.send({ type: "sendItem", tileId }), onExtract: (tileId) => this.socket.send({ type: "extractSkill", tileId }),
-      onAutomation: (tileId, mode, maxRarity) => this.socket.send({ type: "setStackAutomation", tileId, mode, maxRarity }), onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
+      onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId, bulk) => this.socket.send({ type: "sellItem", tileId, bulk }),
+      onPurge: (tileId, bulk) => this.socket.send({ type: "purgeItem", tileId, bulk }), onUpgrade: (tileId, bulk) => this.socket.send({ type: "upgradeItem", tileId, bulk }),
+      onSend: (tileId, bulk) => this.socket.send({ type: "sendItem", tileId, bulk }), onExtract: (tileId, bulk) => this.socket.send({ type: "extractSkill", tileId, bulk }),
+      onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
       onEnterRealm: () => this.enterRealm(), onBack: () => this.clearInspection()
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.name); this.registerDebugGlobal();
@@ -90,7 +90,7 @@ export class Game {
       this.balance = message.config.balance; this.realmMode = message.realm.mode; this.scheduleAutoRealmEntry();
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.savedSession = { playerId: message.playerId, name: message.player.name }; this.sessionStorage.save(this.savedSession);
-      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setRealm(message.realm); this.hud.setNotice(""); this.hud.showCenterToast("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
+      this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero)); this.hud.setRealm(message.realm); this.hud.setNotice(""); this.hud.showCenterToast("WASD moves. Combat and skills cast automatically. Walk over glowing item drops.");
     } else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.realmMode !== "training") clearTimeout(this.autoRealmTimer); this.hud.setRealm(message.realm); }
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
@@ -101,7 +101,7 @@ export class Game {
       if (this.waveMode === "training") this.hud.showXpToast(message.reason); else this.hud.setNotice(message.reason);
     }
     else if (message.type === "progressionUpdated" && this.player) {
-      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress)); this.hud.setNotice(message.reason);
+      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero)); this.hud.setNotice(message.reason);
     } else if (message.type === "groundDropCreated") this.drops.push(new ItemDrop(message.drop.id, message.drop.item, { ...this.hero.position }));
     else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
@@ -137,7 +137,7 @@ export class Game {
       correctArenaBoundary(creep, this.map.width, this.map.height, deltaSeconds);
       const strike = rollWeaponStrike(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom); const presentation = { kind: creep.build.mainHand.definitionId === "staff" ? "magic" as const : "physical" as const, critical: strike.critical };
       if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, strike.damage, creep, undefined, creep.build.mainHand, presentation));
-      if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation));
+      if (attack?.type === "projectile") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation, creep.build.mainHand));
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
@@ -148,7 +148,7 @@ export class Game {
     this.arena.updateCombatTexts(deltaSeconds);
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops); removeInactive(this.arena.spellEffects);
     if (this.inspected && !this.inspected.active) this.clearInspection();
-    this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
+    this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress, this.hero)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
   }
 
   private collectKills(): void {

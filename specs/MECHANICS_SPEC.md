@@ -31,7 +31,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - When no living creep is active, the visible facing direction follows the latest non-zero WASD movement input.
 - The equipped weapon attacks the closest creep automatically when cooldown, resource, target, range, and health conditions allow.
 - Melee hero attacks use visible wind-up areas and damage only targets still overlapping when the area resolves.
-- Ranged hero attacks use projectiles and damage only on projectile collision.
+- Ranged hero attacks use projectiles and damage only on projectile collision. Staff attacks are magical; one-handed throwing-axe attacks and Rending Throw are physical, target only within their configured short range, and use the same single-hit projectile collision rules.
 
 ## Damage Sources
 
@@ -42,7 +42,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - A unit's own attack area or projectile never damages that unit.
 - Damage areas and projectiles use circle or area overlap checks against unit collision radii.
 - Public balance-profile multipliers are applied once at the combat calculation boundary. Development and production currently use identical combat multipliers so local play does not indirectly accelerate durable progression.
-- Every hostile damage event, including deterministic one-second status ticks, may be blocked by an equipped buckler. Dexterity references mean Agility.
+- Every hostile damage event, including deterministic one-second status ticks, may be blocked by an equipped buckler while its reactive Blocking spell is ready. A successful block starts its cooldown; damage received during that cooldown cannot block. Dexterity references mean Agility.
 - Block chance is `min(100%, 10% * rarityPower + 0.5% * (Strength + Agility))`. A block can occur only when the defender has its full block cost available. Each successful block immediately spends that cost; failed rolls spend nothing. Block cost has a hard floor of 1 stamina. A buckler without percentage return costs 1; a buckler with Return costs `1 + ((15% + 0.4% * Agility) * rarityPower) / (1 + 0.1 * itemLevel)`, so stronger percentage return costs more while upgrading the buckler moves the premium back toward the floor. Success prevents `min(incomingDamage, Strength)`.
 - Spiked bucklers reflect the rarity-scaled sum of rolled components: `1`, `0.2 * Strength`, and `incomingDamage * (15% + 0.4% * Agility)`. Reflection may be blocked but cannot reflect again, critically strike, apply affixes, or create statuses.
 - Damage and statuses retain source attribution for realm-kill credit.
@@ -56,8 +56,8 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - A melee attack area resolves after a wind-up duration derived from the attacker's attack speed.
 - If a creep dies during that wind-up, its unresolved melee attack area is canceled immediately and deals no damage.
 - The hero takes melee damage only if still inside the telegraphed area when it resolves.
-- Bubble shooters maintain distance, telegraph their shot, then launch a bubble toward the hero's position at firing time.
-- Bubble projectiles travel independently and deal damage only on circle collision with the hero.
+- Enemies with ranged weapons maintain a distance appropriate to their weapon, telegraph their shot, then launch a projectile toward the hero's position at firing time. Staff users retain the bubble presentation; throwing-axe users launch physical axes and engage at 210 pixels.
+- Enemy projectiles travel independently and deal damage only on circle collision with the hero. Their weapon on-hit effects, including throwing-axe bleed, resolve on collision.
 - A projectile that has already launched remains active if its source creep dies.
 - Orbiting Hammer projectiles stay source-relative while their hero remains active: their angle advances continuously and their orbit radius expands from 28 to 190 pixels over 2.4 seconds. Three are emitted per cast at evenly spaced starting angles. Each resolves at most one collision and is then removed.
 - Bubble projectiles can be dodged and expire at arena margins or after their lifetime.
@@ -88,5 +88,5 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Enemy melee areas have range 70, a full-circle arc, their computed wind-up, and 0.14 seconds resolved linger. Hero melee areas wind up for 0.18 and linger 0.13 seconds. Their half-arcs are full circle for Bash, Sweep, Shockwave, and unskilled club/mace/hammer attacks; 1.8 radians for Cleave; 1.1 for Flurry; and 0.72 otherwise.
 - Standard projectiles have radius 11, speed 245 px/s, lifetime 4 seconds, and disappear beyond a 40px arena margin. Orbiting Hammers live 2.4 seconds, rotate at 5.2 radians/second, and expand linearly from radius 28 to 190. Every projectile is single-hit.
 - A basic or non-Flurry skilled attack recovers in `1 / attacksPerSecond`; Flurry uses `0.35 / attacksPerSecond`. Physical skills add 0.35 stamina to the weapon's normal cost. Most magical skills cost 1 mana; Orbiting Hammers costs 3. Healing costs 2 mana, triggers only below 50% HP, and restores `(0.5 + 1.2 * Spirit) * magicAmp * spellPower(level)`.
-- Status procs roll independently on a direct weapon hit. Bleed lasts 3 seconds at 0.25 damage/second; poison lasts 4 seconds at `0.2 + 0.02 * targetSpirit` damage/second; stun lasts 0.7 seconds. Bash always stuns 1.1 seconds, Shockwave 0.6, Sweep bleeds for 3 seconds at 0.35/second, Cleave bleeds for 2 seconds at 0.45/second, and Arcane Bolt stuns 0.35 seconds. Status instances stack as separate records, periodic instances tick once per second, and any active stun prevents steering.
+- Status procs roll independently on a direct weapon hit. Throwing axes have a base 15% bleed chance before compatible affixes are added, and Rending Throw guarantees one standard bleed in addition to independently rolled procs. Bleed lasts 3 seconds at 0.25 damage/second; poison lasts 4 seconds at `0.2 + 0.02 * targetSpirit` damage/second; stun lasts 0.7 seconds. Bash always stuns 1.1 seconds, Shockwave 0.6, Sweep bleeds for 3 seconds at 0.35/second, Cleave bleeds for 2 seconds at 0.45/second, and Arcane Bolt stuns 0.35 seconds. Status instances stack as separate records, periodic instances tick once per second, and any active stun prevents steering.
 - The hero-down presentation lasts 1.8 seconds before local reset and replacement-wave request. Hover selection accepts the nearest active creep only within its radius plus 8 pixels. Drop pickup uses circle overlap, sends one request while pending, and after a rejected request suppresses retries until the hero leaves that drop's overlap.

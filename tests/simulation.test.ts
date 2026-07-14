@@ -12,6 +12,7 @@ import type { CombatText } from "../src/game/CombatText";
 import { SpellEffect } from "../src/game/SpellEffect";
 import { ItemDrop } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
+import { weaponAttackSpeed } from "../common/combat";
 
 describe("arena systems", () => {
   test("moves orbiting hammers around their moving source and expires them", () => { const hero = new Hero({ x: 50, y: 50 }); const hammer = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }); hero.position.x = 70; hammer.update(0.1); expect(Math.hypot(hammer.position.x - hero.position.x, hammer.position.y - hero.position.y)).toBeCloseTo(34.75); hammer.update(2.4); expect(hammer.active).toBeFalse(); });
@@ -61,6 +62,13 @@ describe("arena systems", () => {
     const hp = hero.hp; hero.receiveDamage(10, { next: () => 0.999 }); expect(hero.hp).toBe(hp); expect(hero.stamina).toBe(hero.maxStamina - 1);
     hero.stamina = 0; hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
     hero.stamina = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.stamina).toBe(1);
+  });
+
+  test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {
+    const hero = new Hero({ x: 50, y: 50 }); const club = starterClub(); const buckler = { ...generateBuckler(0, "common", 12), reflectionComponents: ["return" as const] };
+    const stats = { agility: 100, strength: 100, magic: 0, spirit: 0, intelligence: 0 }; hero.configureStats(stats, buckler, club);
+    const hp = hero.hp; hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(hp); expect(hero.blockCooldown).toBeCloseTo(1 / weaponAttackSpeed(club, stats));
+    hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(hp - 10); hero.updateResources(hero.blockCooldown, { next: () => 1 }); expect(hero.blockCooldown).toBe(0);
   });
 
   test("emits typed damage, healing, and inherited shield-return numbers", () => {

@@ -1,5 +1,5 @@
 import type { BalanceConfig } from "../../../common/balance";
-import { cooldownScale, rollWeaponStrike, skillCooldown, skillDamageMultiplier, skillLabel, skillRange, spellPower, weaponAttackSpeed } from "../../../common/combat";
+import { cooldownScale, rollWeaponStrike, skillCooldown, skillDamageMultiplier, skillLabel, skillRange, spellPower, weaponAttackSpeed, weaponRange, weaponUsesProjectile } from "../../../common/combat";
 import { statsWithItemBonuses, type ItemInstance, type SkillId } from "../../../common/items";
 import { derivedStats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
@@ -37,15 +37,16 @@ export class HeroCombatSystem {
     const candidate = this.availableSkills(progress, item).find(({ id }) => (this.skillCooldowns.get(id)?.remaining ?? 0) === 0);
     const manaCost = candidate?.id === "orbitingHammers" ? 3 : 1; const magicSkill = Boolean(candidate && SKILLS[candidate.id].resource === "mana" && hero.mana >= manaCost);
     const physicalSkill = Boolean(candidate && SKILLS[candidate.id].resource === "stamina" && hero.stamina >= item.staminaCost + 0.35);
-    const activeSkill = magicSkill || physicalSkill ? candidate : undefined;
-    const range = activeSkill ? skillRange(activeSkill.id, item, activeSkill.level, effectiveStats.spirit) : item.definitionId === "staff" ? 330 : 105;
-    const ranged = activeSkill ? activeSkill.id === "arcaneBolt" || activeSkill.id === "orbitingHammers" : item.definitionId === "staff";
-    const staminaCost = magicSkill ? 0 : item.staminaCost + (physicalSkill ? 0.35 : 0);
+    const lifeSkill = Boolean(candidate && SKILLS[candidate.id].resource === "life" && hero.hp > 1);
+    const activeSkill = magicSkill || physicalSkill || lifeSkill ? candidate : undefined;
+    const range = activeSkill ? skillRange(activeSkill.id, item, activeSkill.level, effectiveStats.spirit) : weaponRange(item);
+    const ranged = activeSkill ? activeSkill.id === "arcaneBolt" || activeSkill.id === "rendingThrow" || activeSkill.id === "orbitingHammers" : weaponUsesProjectile(item);
+    const staminaCost = magicSkill || lifeSkill ? 0 : item.staminaCost + (physicalSkill ? 0.35 : 0);
     if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < staminaCost) return;
-    hero.stamina -= staminaCost; if (magicSkill) hero.mana -= manaCost;
-    const strike = rollWeaponStrike(item, effectiveStats, "hero", balance, random); const damage = strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: ranged ? "magic" as const : "physical" as const, critical: strike.critical };
+    hero.stamina -= staminaCost; if (magicSkill) hero.mana -= manaCost; if (lifeSkill) hero.takeDamage(1);
+    const strike = rollWeaponStrike(item, effectiveStats, "hero", balance, random); const damage = strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: activeSkill?.id === "arcaneBolt" || activeSkill?.id === "orbitingHammers" || (!activeSkill && item.definitionId === "staff") ? "magic" as const : "physical" as const, critical: strike.critical };
     if (activeSkill?.id === "orbitingHammers") for (let index = 0; index < 3; index += 1) state.projectiles.push(Projectile.orbitingHammer(hero, hero.facing + index * Math.PI * 2 / 3, damage, { kind: "magic", critical: strike.critical }));
-    else if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined, hero, presentation));
+    else if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" || activeSkill?.id === "rendingThrow" ? activeSkill.id : undefined, hero, presentation, item));
     else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, range, activeSkill?.id === "bash" || activeSkill?.id === "sweep" || activeSkill?.id === "shockwave" || (!activeSkill && (item.definitionId === "mace" || item.definitionId === "club" || item.definitionId === "hammer")) ? Math.PI : activeSkill?.id === "cleave" ? 1.8 : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item, presentation));
     if (activeSkill) state.spellEffects.push(new SpellEffect(activeSkill.id, hero.position, hero.facing));
     if (activeSkill) { const duration = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.skillCooldowns.set(activeSkill.id, { remaining: duration, maximum: duration }); }
@@ -53,9 +54,9 @@ export class HeroCombatSystem {
     this.attackCooldownMax = this.attackCooldown;
   }
 
-  spellSlots(progress: PlayerProgress): SpellSlot[] {
-    const ids = new Set<SkillId>([...progress.learnedSkills, ...progress.mainHand.skills]);
-    return [...ids].map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: Math.max(1, this.skillLevel(progress, id) || 1), cooldown: id === "healing" ? this.healingCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : cooldown?.maximum ?? 0 }; });
+  spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
+    const ids = new Set<SkillId>([...progress.learnedSkills, ...progress.mainHand.skills, ...(progress.offHand?.skills ?? [])]);
+    return [...ids].map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: Math.max(1, this.skillLevel(progress, id) || 1), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : cooldown?.maximum ?? 0, resource: SKILLS[id].resource }; });
   }
 
   get attackProgress(): number { return this.attackCooldownMax > 0 ? 1 - this.attackCooldown / this.attackCooldownMax : 1; }
@@ -64,7 +65,7 @@ export class HeroCombatSystem {
   private availableSkills(progress: PlayerProgress, item: ItemInstance): { id: SkillId; level: number }[] {
     const skills = new Map<SkillId, number>();
     for (const skill of item.skills) if (skill !== "healing") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill) || 1));
-    for (const skill of progress.learnedSkills) if (skill !== "healing") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill)));
+    for (const skill of progress.learnedSkills) if (skill !== "healing" && skill !== "blocking") skills.set(skill, Math.max(skills.get(skill) ?? 0, this.skillLevel(progress, skill)));
     return [...skills].map(([id, level]) => ({ id, level: Math.max(1, level) }));
   }
 }

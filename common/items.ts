@@ -2,10 +2,10 @@ import { STAT_KEYS, type StatKey, type Stats } from "./progression";
 import { AFFIXES, WEAPONS } from "./content";
 import { SeededRandom } from "./random";
 
-export type WeaponClass = "club" | "sword" | "dagger" | "mace" | "axe" | "hammer" | "staff";
+export type WeaponClass = "club" | "sword" | "dagger" | "mace" | "axe" | "throwingAxe" | "hammer" | "staff";
 export type EquipmentDefinitionId = WeaponClass | "buckler" | "relic";
 export type Rarity = "common" | "uncommon" | "rare" | "epic";
-export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "orbitingHammers" | "arcaneBolt" | "healing";
+export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "healing" | "rent" | "blocking";
 export type AffixId = "rusty" | "venomous" | "bleeding" | "stunning" | "focused" | "swift";
 export type ReflectionComponent = "flat" | "strength" | "return";
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic"];
@@ -53,7 +53,7 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
     id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "buckler", definitionId: "buckler",
     name: `${spiked ? "Spiked " : ""}Buckler`, level, rarity, seed, hands: 0, weight: 0, affixes: [],
     requirements: level ? { strength: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: {},
-    modifiers: baseModifiers(1, 1), skills: [], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
+    modifiers: baseModifiers(1, 1), skills: ["blocking"], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
     sellValue: Math.max(1, Math.round((level + 1) * power * (spiked ? 5 : 4))), blockChance: 0.1 * power, reflectionComponents, attractionSpeed: 0
   };
 }
@@ -77,6 +77,7 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
   for (const affix of affixes) applyAffix(modifiers, affix, power);
   if (seed % 7 === 1) modifiers.lifeStealBase = 0.02; else if (seed % 7 === 2) modifiers.strengthRegenMultiplier = 0.002;
   if (weaponClass === "dagger") modifiers.critChance += 0.04 * power;
+  if (weaponClass === "throwingAxe") modifiers.bleedChance += 0.15;
   if (weaponClass === "staff") { modifiers.manaRegenMultiplier += power; modifiers.magicAmp += 0.12 * power; }
   const requirements: Partial<Record<StatKey, number>> = {};
   if (data.requirement && level > 0) requirements[data.requirement] = Math.max(1, Math.floor(level * 0.6 * power));
