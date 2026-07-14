@@ -45,6 +45,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Block chance is `min(75%, 10% * rarityPower + 0.5% * (Strength + Agility))`. Success prevents `min(incomingDamage, Strength)`.
 - Spiked bucklers reflect the rarity-scaled sum of rolled components: `1`, `0.2 * Strength`, and `incomingDamage * (15% + 0.4% * Agility)`. Reflection may be blocked but cannot reflect again, critically strike, apply affixes, or create statuses.
 - Damage and statuses retain source attribution for realm-kill credit.
+- Resolved damage and healing create short-lived floating canvas numbers that rise and fade from the affected unit. Physical damage is light gray; critical hits override the base color with yellow-white; magic is yellow; electric is cyan; poison is green; fire is red-orange; bleed is red; and healing is green. Shield reflection uses the triggering damage type's color, cannot be styled as a critical hit, and remains visible even when the damaged unit is removed in the same simulation update.
 
 ## Enemy Attacks
 

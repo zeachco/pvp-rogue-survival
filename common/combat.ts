@@ -5,11 +5,16 @@ import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
 export function rollWeaponDamage(item: ItemInstance, stats: Stats, owner: "hero" | "enemy", balance: BalanceConfig, random: RandomSource): number {
+  return rollWeaponStrike(item, stats, owner, balance, random).damage;
+}
+
+export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero" | "enemy", balance: BalanceConfig, random: RandomSource): { damage: number; critical: boolean } {
   const derived = derivedStats(stats);
   let damage = derived.baseDamage * item.modifiers.damageMultiplier;
   if (item.definitionId === "staff") damage *= derived.magicAmp + item.modifiers.magicAmp;
-  if (random.next() < derived.critChance + item.modifiers.critChance) damage *= derived.critMultiplier;
-  return damage * (owner === "hero" ? balance.combat.heroDamageMultiplier : balance.combat.enemyDamageMultiplier);
+  const critical = random.next() < derived.critChance + item.modifiers.critChance;
+  if (critical) damage *= derived.critMultiplier;
+  return { damage: damage * (owner === "hero" ? balance.combat.heroDamageMultiplier : balance.combat.enemyDamageMultiplier), critical };
 }
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }

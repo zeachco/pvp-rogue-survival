@@ -1,5 +1,5 @@
 import type { BalanceConfig } from "../../../common/balance";
-import { cooldownScale, rollWeaponDamage, skillCooldown, skillDamageMultiplier, skillLabel, skillRange, spellPower } from "../../../common/combat";
+import { cooldownScale, rollWeaponStrike, skillCooldown, skillDamageMultiplier, skillLabel, skillRange, spellPower } from "../../../common/combat";
 import { statsWithItemBonuses, type ItemInstance, type SkillId } from "../../../common/items";
 import { derivedStats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
@@ -25,7 +25,7 @@ export class HeroCombatSystem {
     const item = progress.mainHand; const effectiveStats = statsWithItemBonuses(progress.stats, item, progress.offHand); const derived = derivedStats(effectiveStats);
     if (progress.learnedSkills.includes("healing") && hero.hp < hero.maxHp * 0.5 && this.healingCooldown === 0 && hero.mana >= 2) {
       const level = this.skillLevel(progress, "healing"); hero.mana -= 2;
-      hero.hp = Math.min(hero.maxHp, hero.hp + (0.5 + effectiveStats.spirit * 1.2) * derived.magicAmp * spellPower(level));
+      hero.heal((0.5 + effectiveStats.spirit * 1.2) * derived.magicAmp * spellPower(level));
       this.healingCooldown = 8 * cooldownScale(level, derived.cooldownReduction); this.healingCooldownMax = this.healingCooldown;
     }
     const target = closestTarget(hero, state.creeps);
@@ -40,9 +40,9 @@ export class HeroCombatSystem {
     const ranged = item.definitionId === "staff" || activeSkill?.id === "arcaneBolt";
     if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < item.staminaCost) return;
     hero.stamina -= item.staminaCost + (physicalSkill ? 0.35 : 0); if (magicSkill) hero.mana -= 1;
-    const damage = rollWeaponDamage(item, effectiveStats, "hero", balance, random) * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1);
-    if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined, hero));
-    else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, activeSkill?.id === "sweep" ? 135 : range, activeSkill?.id === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item));
+    const strike = rollWeaponStrike(item, effectiveStats, "hero", balance, random); const damage = strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: ranged ? "magic" as const : "physical" as const, critical: strike.critical };
+    if (ranged) state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", activeSkill?.id === "arcaneBolt" ? activeSkill.id : undefined, hero, presentation));
+    else state.attacks.push(new AttackArea("hero", { ...hero.position }, hero.facing, activeSkill?.id === "sweep" ? 135 : range, activeSkill?.id === "sweep" || item.definitionId === "mace" || item.definitionId === "club" ? Math.PI : activeSkill?.id === "flurry" ? 1.1 : 0.72, 0.18, 0.13, damage, hero, meleeSkill(activeSkill?.id), item, presentation));
     if (activeSkill) { this.weaponSkillCooldown = skillCooldown(activeSkill.id) * cooldownScale(activeSkill.level, derived.cooldownReduction); this.weaponSkillCooldownMax = this.weaponSkillCooldown; }
     this.attackCooldown = (activeSkill?.id === "flurry" ? 0.2 : 0.7) / (derived.attackSpeed * item.modifiers.attackSpeedMultiplier);
     this.attackCooldownMax = this.attackCooldown;

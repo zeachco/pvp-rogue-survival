@@ -11,20 +11,20 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
     attack.markResolved();
     if (attack.owner === "hero") {
       for (const creep of state.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) {
-        creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined); if (attack.weapon) applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined);
+        creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon) applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined);
         if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 });
         if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 });
       }
     } else if (hero.active && attack.contains(hero.position, hero.radius)) {
-      hero.receiveDamage(attack.damage, random, attack.source as Unit | undefined); if (attack.weapon) applyWeaponEffects(hero, attack.weapon, random, attack.source as Unit | undefined);
+      hero.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon) applyWeaponEffects(hero, attack.weapon, random, attack.source as Unit | undefined);
     }
   }
   for (const projectile of state.projectiles) {
     if (!projectile.active) continue;
     if (projectile.owner === "hero") {
       const hit = state.creeps.find((creep) => creep.active && distance(projectile.position, creep.position) <= projectile.radius + creep.radius);
-      if (hit) { hit.receiveDamage(projectile.damage, random, projectile.source); applyWeaponEffects(hit, equipped, random, projectile.source); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); projectile.active = false; }
-    } else if (distance(projectile.position, hero.position) <= projectile.radius + hero.radius) { hero.receiveDamage(projectile.damage, random, projectile.source); projectile.active = false; }
+      if (hit) { hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); applyWeaponEffects(hit, equipped, random, projectile.source); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); projectile.active = false; }
+    } else if (distance(projectile.position, hero.position) <= projectile.radius + hero.radius) { hero.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); projectile.active = false; }
     if (projectile.position.x < -40 || projectile.position.y < -40 || projectile.position.x > width + 40 || projectile.position.y > height + 40) projectile.active = false;
   }
 }

@@ -35,7 +35,7 @@ export class GameService {
       case "creepDefeated": return this.resolveDefeat(player, message.unitId);
       case "collectDrop": return this.collectDrop(player, message.dropId);
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);
-      case "requestWave": return this.dispatchCurrentWave(player, player.realmId ? "competitive" : "training");
+      case "requestWave": return this.dispatchCurrentWave(player, this.waveMode(player));
       case "equipItem": return this.applyInventoryResult(player, equipFromInventory(player.progress, message.tileId));
       case "sellItem": return this.applyInventoryResult(player, sellFromInventory(player.progress, message.tileId));
       case "purgeItem": return this.applyInventoryResult(player, purgeFromInventory(player.progress, message.tileId));
@@ -51,7 +51,7 @@ export class GameService {
 
   dispatchWaves(): void {
     this.lastDispatchAt = Date.now(); for (const realm of this.realms.values()) realm.down.clear();
-    for (const player of this.options.repository.values()) if (player.connected) { if (player.realmId) { player.waveNumber += 1; this.dispatchCurrentWave(player, "competitive"); } else this.dispatchCurrentWave(player, "training"); }
+    for (const player of this.options.repository.values()) if (player.connected) { if (player.realmId || player.realmOptedIn) player.waveNumber += 1; this.dispatchCurrentWave(player, this.waveMode(player)); }
     this.broadcastRealms();
   }
 
@@ -64,7 +64,7 @@ export class GameService {
     this.options.repository.save(player); return player;
   }
 
-  private dispatchCurrentWave(player: Player, mode: "competitive" | "training"): void {
+  private dispatchCurrentWave(player: Player, mode: "competitive" | "solo" | "training"): void {
     const count = regularCount(player.waveNumber, this.options.balance); const level = regularLevel(player.waveNumber, player.progress.level, count, this.options.balance); const seed = this.seed();
     const template = this.generateBuild("Perimeter creep", level, false, seed, undefined, true); const spawns: CreepWave["spawns"] = [];
     const queued = mode === "competitive" ? this.takeQueued(player, count) : [];
@@ -102,7 +102,7 @@ export class GameService {
   private resolveDefeat(player: Player, unitId: string): void {
     const issued = player.issuedUnits.get(unitId); if (!issued) return this.notice(player, "Ignored an unknown or already resolved enemy."); player.issuedUnits.delete(unitId);
     if (issued.mode === "training") return this.options.send(player.id, { type: "creepDefeatResolved", unitId, score: player.score, progress: player.progress, reason: "Training kill: no rewards." });
-    const build = issued.build; player.score += build.isRival ? 10 : 2; const xp = Math.floor(build.xpReward * this.options.balance.rewards.xpMultiplier);
+    const build = issued.build; player.score += build.isRival ? 10 : 2; const xp = Math.floor(build.xpReward * this.options.balance.rewards.xpMultiplier * (issued.mode === "solo" ? 0.5 : 1));
     const goldChance = Math.min(1, (build.isRival ? 0.5 : 0.2) * this.options.balance.rewards.goldChanceMultiplier); const gold = this.options.random.next() < goldChance ? build.goldReward : 0;
     player.progress.gold += gold; this.grantXp(player, xp); const drop = this.rollDrop(player, build); const reason = gold ? `Gained ${xp} XP and found ${gold} gold.` : `Gained ${xp} XP.`;
     this.options.send(player.id, { type: "creepDefeatResolved", unitId, score: player.score, progress: player.progress, drop, reason }); this.broadcastRealms();
@@ -119,7 +119,7 @@ export class GameService {
   private collectDrop(player: Player, dropId: string): void { const item = player.groundDrops.get(dropId); if (!item) return this.options.send(player.id, { type: "collectItemResult", dropId, collected: false, reason: "That drop is no longer available." }); const result = collectIntoInventory(player.progress, item, () => this.createId(), () => this.seed()); if (result.changed) player.groundDrops.delete(dropId); this.options.send(player.id, { type: "collectItemResult", dropId, collected: result.changed, reason: result.reason }); if (result.changed) this.sendProgress(player, result.reason); }
 
   private heroDefeated(player: Player, sourceUnitId?: string): void {
-    if (!player.realmId) return this.notice(player, "Training Grounds prevent defeat.");
+    if (!player.realmId && !player.realmOptedIn) return this.notice(player, "Training Grounds prevent defeat.");
     const source = sourceUnitId ? player.issuedUnits.get(sourceUnitId)?.build : undefined; player.waveNumber = Math.floor(player.waveNumber / 2); player.issuedUnits.clear(); player.groundDrops.clear();
     this.options.send(player.id, { type: "waveAdjusted", waveNumber: player.waveNumber, reason: `Wave reduced to ${player.waveNumber} after defeat.` });
     if (player.realmId) { const realm = this.realms.get(player.realmId); if (realm) { realm.down.add(player.id); const side = realm.soloId === player.id ? [realm.soloId] : realm.teamIds; if (side.every((id) => realm.down.has(id))) { if (source?.emitterId && !source.backlash && source.emitterId !== player.id) { const killer = this.options.repository.get(source.emitterId); if (killer) { killer.progress.souls += 1; this.grantXp(killer, 100 * player.progress.level); this.sendProgress(killer, `Realm defeated: gained ${100 * player.progress.level} XP and 1 Soul.`); } } this.dissolveRealm(realm.id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); } } }
@@ -133,7 +133,7 @@ export class GameService {
   }
 
   private leaveRealm(player: Player): void { if (!player.realmId) { player.realmOptedIn = false; return this.broadcastRealms(); } if (!this.canLeave()) return this.notice(player, "Leave to Lobby opens after the final planned spawn."); const id = player.realmId; player.realmOptedIn = false; this.dissolveRealm(id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); this.dispatchCurrentWave(player, "training"); this.broadcastRealms(); }
-  private enterRealm(player: Player): void { player.realmOptedIn = true; player.waitingSince = Date.now(); const created = this.matchWaitingPlayers(); for (const realm of created) this.activateRealm(realm); this.broadcastRealms(); }
+  private enterRealm(player: Player): void { player.realmOptedIn = true; player.waitingSince = Date.now(); const created = this.matchWaitingPlayers(); for (const realm of created) this.activateRealm(realm); if (!player.realmId) { player.issuedUnits.clear(); player.groundDrops.clear(); this.dispatchCurrentWave(player, "solo"); } this.broadcastRealms(); }
 
   private matchWaitingPlayers(): Realm[] {
     const created: Realm[] = [];
@@ -154,6 +154,7 @@ export class GameService {
   private canLeave(): boolean { return Date.now() - this.lastDispatchAt >= this.options.balance.wave.prepareMs + 9 * this.options.balance.wave.batchIntervalMs; }
 
   private realmState(player: Player): RealmState { if (!player.realmId) return { mode: player.realmOptedIn ? "waiting" : "training", guards: [], attackers: [], outgoingQueued: this.queuedBy(player.id), incomingQueued: player.backlashQueue.length, canLeave: true }; const realm = this.realms.get(player.realmId)!; const opponents = this.realmOpponents(player); const member = (entry: Player): RealmMember => ({ ...this.publicPlayer(entry), down: realm.down.has(entry.id) }); return { mode: "competitive", guards: opponents.map(member), attackers: opponents.map(member), outgoingQueued: this.queuedBy(player.id), incomingQueued: [...player.incomingQueues.values()].reduce((n, q) => n + q.length, 0), canLeave: this.canLeave() }; }
+  private waveMode(player: Player): "competitive" | "solo" | "training" { return player.realmId ? "competitive" : player.realmOptedIn ? "solo" : "training"; }
   private broadcastRealms(): void { for (const player of this.options.repository.values()) if (player.connected) this.options.send(player.id, { type: "realmUpdated", realm: this.realmState(player) }); }
   private publicPlayer(player: Player): PublicPlayer { return { id: player.id, name: player.name, score: player.score, waveNumber: player.waveNumber, level: player.progress.level }; }
   private grantXp(player: Player, amount: number): void { const old = player.progress.level; player.progress.xp += amount; const next = levelForXp(player.progress.xp); for (let level = old; level < next; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key]; player.progress.level = next; processAutoUpgrades(player.progress, () => this.createId(), () => this.seed()); }

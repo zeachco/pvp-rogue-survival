@@ -1,5 +1,5 @@
 import { BALANCE_PROFILES, type BalanceConfig } from "../../common/balance";
-import { rollWeaponDamage } from "../../common/combat";
+import { rollWeaponStrike } from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type { CreepWave, ServerMessage, UnitBuild } from "../../common/protocol";
 import { SocketClient } from "../net/SocketClient";
@@ -44,7 +44,7 @@ export class Game {
   private defeatCooldown = 0;
   private hovered?: Creep;
   private inspected?: Creep;
-  private waveMode: "competitive" | "training" = "training";
+  private waveMode: "competitive" | "solo" | "training" = "training";
   private get creeps(): Creep[] { return this.arena.creeps; }
   private get attacks(): AttackArea[] { return this.arena.attacks; }
   private get projectiles(): Projectile[] { return this.arena.projectiles; }
@@ -56,6 +56,7 @@ export class Game {
   constructor(private readonly canvas: HTMLCanvasElement, hudRoot: HTMLDivElement) {
     const context = canvas.getContext("2d"); if (!context) throw new Error("Canvas 2D context unavailable"); this.ctx = context;
     this.renderer = new CanvasRenderer(this.ctx, this.map);
+    this.hero.onCombatText = (text) => this.arena.addCombatText(text);
     this.hud = new Hud(hudRoot, {
       onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
       onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId) => this.socket.send({ type: "sellItem", tileId }),
@@ -108,7 +109,7 @@ export class Game {
     this.waveMode = wave.mode;
     enqueueWave(this.arena, wave, performance.now());
     if (this.player) { this.player.waveNumber = wave.waveNumber; this.hud.setPlayer(this.player); }
-    this.hud.showWaveBanner(wave.mode === "training" ? "Training Grounds" : `Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
+    this.hud.showWaveBanner(wave.mode === "training" ? "Training Grounds" : wave.mode === "solo" ? `Solo Wave ${wave.waveNumber}` : `Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
   }
 
   private tick(timestamp: number): void {
@@ -129,14 +130,15 @@ export class Game {
       if (!creep.active) continue;
       const attack = creep.pursue(this.hero.position, deltaSeconds, this.map.width, this.map.height);
       correctArenaBoundary(creep, this.map.width, this.map.height, deltaSeconds);
-      const damage = rollWeaponDamage(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom);
-      if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, damage, creep, undefined, creep.build.mainHand));
-      if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, damage, "creep", undefined, creep));
+      const strike = rollWeaponStrike(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom); const presentation = { kind: creep.build.mainHand.definitionId === "staff" ? "magic" as const : "physical" as const, critical: strike.critical };
+      if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, strike.damage, creep, undefined, creep.build.mainHand, presentation));
+      if (attack?.type === "bubble") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation));
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     for (const drop of this.drops) correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds);
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
+    this.arena.updateCombatTexts(deltaSeconds);
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops);
     if (this.inspected && !this.inspected.active) this.clearInspection();
     this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
@@ -169,9 +171,9 @@ export class Game {
     this.hud.setNotice(reason);
   }
 
-  private spawnCreep(build: UnitBuild): void { this.creeps.push(new Creep(build, build.emitterId ?? "neutral", build.emitterName ?? build.name, this.map.randomEdgeSpawn(systemRandom), this.balance, systemRandom, this.waveMode === "training" ? 0.5 : 1)); }
+  private spawnCreep(build: UnitBuild): void { const creep = new Creep(build, build.emitterId ?? "neutral", build.emitterName ?? build.name, this.map.randomEdgeSpawn(systemRandom), this.balance, systemRandom, this.waveMode === "training" ? 0.5 : 1); creep.onCombatText = (text) => this.arena.addCombatText(text); this.creeps.push(creep); }
   private handleDefeat(): void { if (this.waveMode === "training") return; this.defeatCooldown = 1.8; this.socket.send({ type: "heroDefeated", sourceUnitId: this.hero.lastDamageSourceId }); this.hud.showWaveBanner("Hero down", "Wave reduced; progress and inventory retained"); }
-  private resetArena(): void { this.arena.clear(); this.heroCombat.reset(); this.hero = new Hero(this.map.center); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
+  private resetArena(): void { this.arena.clear(); this.heroCombat.reset(); this.hero = new Hero(this.map.center); this.hero.onCombatText = (text) => this.arena.addCombatText(text); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
   private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.attackProgress = this.heroCombat.attackProgress; this.player.gold = this.player.progress.gold; }
 
   private updateHover(event: MouseEvent): void { const world = this.eventWorld(event); this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0]; if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined; this.canvas.style.cursor = this.hovered ? "pointer" : "default"; }

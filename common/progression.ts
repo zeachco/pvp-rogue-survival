@@ -39,6 +39,7 @@ export function levelForXp(xp: number): number {
   while (xp >= cumulativeXpForLevel(level + 1)) level += 1;
   return level;
 }
+export function lerpXpDisplay(current: number, target: number): number { const next = current + (target - current) * 0.1; return Math.abs(target - next) < 0.01 ? target : next; }
 export function validAllocation(stats: Stats): boolean {
   return STAT_KEYS.every((key) => Number.isFinite(stats[key]) && stats[key] >= 0) && Math.abs(STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) - 5) < 0.001;
 }

@@ -363,6 +363,7 @@ input {
 .attribute-grid small { color: #9fb8bf; font-size: 10px; }
 .backpack-scroll { display: grid; max-width: 100%; gap: 7px; }
 .item-card { position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
+.item-card.is-equipped { outline: 2px solid #d8ad4f; outline-offset: 1px; box-shadow: 0 0 16px rgba(216,173,79,.24); }
 .item-card.is-empty { filter: grayscale(1); opacity: .55; }
 .equipped-item { isolation: isolate; cursor: default; overflow: hidden; }
 .equipped-main-hand::before { position: absolute; z-index: -1; top: 0; bottom: 0; left: 0; width: var(--attack-progress, 100%); content: ""; background: rgba(205, 216, 220, 0.12); transition: width 50ms linear; pointer-events: none; }

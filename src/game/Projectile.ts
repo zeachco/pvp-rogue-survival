@@ -1,6 +1,7 @@
 import { GameObject } from "./GameObject";
 import { normalize, type Camera, type Vector2 } from "./types";
 import type { Unit } from "./Unit";
+import type { DamagePresentation } from "./CombatText";
 
 export class Projectile extends GameObject {
   readonly position: Vector2;
@@ -9,7 +10,7 @@ export class Projectile extends GameObject {
   readonly velocity: Vector2;
   private lifetime = 4;
 
-  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: "arcaneBolt", readonly source?: Unit) {
+  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: "arcaneBolt", readonly source?: Unit, readonly presentation: DamagePresentation = { kind: "physical" }) {
     super(); this.position = { ...start };
     const direction = normalize({ x: target.x - start.x, y: target.y - start.y });
     this.velocity = { x: direction.x * 245, y: direction.y * 245 };

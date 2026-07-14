@@ -2,11 +2,12 @@
 /** @jsxFrag Fragment */
 import { skillLabel } from "../../common/combat";
 import { statsWithItemBonuses, type ItemInstance } from "../../common/items";
-import { STAT_KEYS, cumulativeXpForLevel, derivedStats, xpForNextLevel, type Stats } from "../../common/progression";
+import { STAT_KEYS, cumulativeXpForLevel, derivedStats, lerpXpDisplay, levelForXp, xpForNextLevel, type Stats } from "../../common/progression";
 import type { RealmState, UnitBuild } from "../../common/protocol";
 import type { PlayerState } from "../game/types";
 import { Fragment, h } from "./dom";
 import { itemTile, orderInventoryTiles } from "./InventoryView";
+import { occupiedInventorySlots } from "../../common/inventory";
 import type { HudCallbacks, SpellSlot } from "./types";
 export type { HudCallbacks, SpellSlot } from "./types";
 declare global { namespace JSX { interface IntrinsicElements { [elementName: string]: Record<string, unknown> } } }
@@ -22,6 +23,7 @@ export class Hud {
   private readonly centerToast = <div class="center-toast" role="status" aria-live="polite" /> as HTMLElement;
   private readonly xpToast = <div class="xp-toast" role="status" aria-live="polite" /> as HTMLElement;
   private waveTimer?: number; private centerToastTimer?: number; private xpToastTimer?: number;
+  private displayedXp?: number; private targetXp = 0;
   private staticSignature = "";
   constructor(private readonly root: HTMLDivElement, private readonly callbacks: HudCallbacks) {
     this.nameInput = <input name="name" maxlength="20" placeholder="Player name" autocomplete="off" /> as HTMLInputElement;
@@ -41,16 +43,16 @@ export class Hud {
   setNotice(notice: string): void { this.noticeNode.textContent = notice; this.noticeNode.classList.toggle("is-hidden", !notice); }
   showCenterToast(message: string): void { clearTimeout(this.centerToastTimer); this.centerToast.textContent = message; this.centerToast.classList.add("is-visible"); this.centerToastTimer = window.setTimeout(() => this.centerToast.classList.remove("is-visible"), 3200); }
   showXpToast(message: string): void { clearTimeout(this.xpToastTimer); this.xpToast.textContent = message; this.xpToast.classList.add("is-visible"); this.xpToastTimer = window.setTimeout(() => this.xpToast.classList.remove("is-visible"), 3200); }
-  setPlayer(player: PlayerState): void { this.player = player; this.renderDynamicHud(); const signature = JSON.stringify({ name: player.name, progress: player.progress }); if (signature !== this.staticSignature) { this.staticSignature = signature; this.renderStaticHud(); } this.updateVisibility(); }
+  setPlayer(player: PlayerState): void { this.player = player; this.targetXp = player.progress.xp; this.displayedXp = this.displayedXp === undefined ? this.targetXp : lerpXpDisplay(this.displayedXp, this.targetXp); this.renderDynamicHud(); const signature = JSON.stringify({ name: player.name, progress: player.progress }); if (signature !== this.staticSignature) { this.staticSignature = signature; this.renderStaticHud(); } this.updateVisibility(); }
   setInspection(build?: UnitBuild): void { this.inspected = build; this.renderStaticHud(); }
   setRealm(realm: RealmState): void { this.realm = realm; this.renderRealm(); }
   setSpells(spells: SpellSlot[]): void { this.spellBar.replaceChildren(...(spells.length ? spells.map((spell) => { const ratio = spell.cooldownMax > 0 ? Math.max(0, Math.min(1, spell.cooldown / spell.cooldownMax)) : 0; return <button class="spell-slot" type="button" title={`${spell.label} · Level ${spell.level}`}><span class="spell-cooldown" style={`height:${ratio * 100}%`} /><strong>{spell.label.slice(0, 2).toUpperCase()}</strong><small>Lv{spell.level}</small></button>; }) : [<small>No spells</small>])); }
   showWaveBanner(title: string, detail: string): void { clearTimeout(this.waveTimer); (this.waveBanner.querySelector("strong") as HTMLElement).textContent = title; (this.waveBanner.querySelector("span") as HTMLElement).textContent = detail; this.waveBanner.classList.add("is-visible"); this.waveTimer = window.setTimeout(() => this.waveBanner.classList.remove("is-visible"), 3200); }
-  private renderDynamicHud(): void { if (!this.player) return; const p = this.player.progress;
-    const into = p.xp - cumulativeXpForLevel(p.level); const needed = xpForNextLevel(p.level); const xpRatio = needed > 0 ? Math.max(0, Math.min(1, into / needed)) : 0;
+  private renderDynamicHud(): void { if (!this.player) return; const p = this.player.progress; const shownXp = this.displayedXp ?? p.xp; const shownLevel = levelForXp(shownXp);
+    const into = shownXp - cumulativeXpForLevel(shownLevel); const needed = xpForNextLevel(shownLevel); const xpRatio = needed > 0 ? Math.max(0, Math.min(1, into / needed)) : 0;
     this.resourceDock.replaceChildren(
       <div class="health-cluster">{resourceBar("Health", this.player.health, this.player.maxHealth, "health")}<div class="stamina-line" role="progressbar" aria-label="Stamina" aria-valuemin="0" aria-valuemax={this.player.maxStamina} aria-valuenow={this.player.stamina}><span style={`width:${resourceRatio(this.player.stamina, this.player.maxStamina) * 100}%`} /></div></div>,
-      <div class="xp-cluster">{this.xpToast}<div class="xp-badge" style={`--xp-angle:${xpRatio * 360}deg`} role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax={needed} aria-valuenow={into}><div><small>{this.player.name}</small><strong>{p.level}</strong></div></div></div>,
+      <div class="xp-cluster">{this.xpToast}<div class="xp-badge" style={`--xp-angle:${xpRatio * 360}deg`} role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax={needed} aria-valuenow={into}><div><small>{this.player.name}</small><strong>{shownLevel}</strong></div></div></div>,
       <div class="mana-cluster">{resourceBar("Mana", this.player.mana, this.player.maxMana, "mana")}</div>
     );
     const mainHand = this.root.querySelector(".equipped-main-hand") as HTMLElement | null; mainHand?.style.setProperty("--attack-progress", `${(this.inspected ? 1 : this.player.attackProgress) * 100}%`);
@@ -68,7 +70,7 @@ export class Hud {
       <strong>Main hand</strong>, equipmentSummary(main, effectiveStats, "main"), <strong>Offhand</strong>, off ? equipmentSummary(off, effectiveStats, "off") : <small>Empty</small>
     );
     (this.root.querySelector(".inspect-back") as HTMLElement).classList.toggle("is-hidden", !build); this.renderAllocation();
-    this.inventoryNode.replaceChildren(<strong>Equipment {p.inventoryTiles.length}/{4 + Math.ceil(p.level / 10)}</strong>, <div class="backpack-scroll">{orderInventoryTiles(p.inventoryTiles).map((tile) => itemTile(tile, this.callbacks))}</div>); this.renderRealm(); }
+    this.inventoryNode.replaceChildren(<strong>Equipment {occupiedInventorySlots(p)}/{4 + Math.ceil(p.level / 10)}</strong>, <div class="backpack-scroll">{orderInventoryTiles(p.inventoryTiles).map((tile) => itemTile(tile, this.callbacks, p))}</div>); this.renderRealm(); }
   private renderRealm(): void { if (!this.realm) return; const r = this.realm; const action = <button type="button">{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}</button> as HTMLButtonElement; action.onclick = r.mode === "training" ? this.callbacks.onEnterRealm : this.callbacks.onLeaveRealm;
     const title = r.mode === "training" ? "Halls of Realms" : r.mode === "waiting" ? "Waiting for realm" : `Wave ${this.player?.waveNumber ?? "—"}`;
     this.realmPanel.replaceChildren(<strong>{title}</strong>, <span>Guard: {r.guards.map((p) => `${p.name} L${p.level}${p.down ? " ↓" : ""}`).join(", ") || "—"}</span>, <span>Attacker: {r.attackers.map((p) => `${p.name} L${p.level}${p.down ? " ↓" : ""}`).join(", ") || "—"}</span>, <span>Queues {r.outgoingQueued} out / {r.incomingQueued} in</span>, action); }

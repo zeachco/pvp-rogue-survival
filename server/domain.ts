@@ -1,7 +1,7 @@
 import type { ItemInstance } from "../common/items.ts";
 import type { PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
 
-export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "training" }
+export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "solo" | "training" }
 export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; senderName: string; backlash: boolean }
 export interface Player {
   id: PlayerId; name: string; score: number; waveNumber: number; progress: PlayerProgress; connected: boolean;

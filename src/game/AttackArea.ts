@@ -1,6 +1,7 @@
 import { GameObject } from "./GameObject";
 import { distance, type Camera, type Vector2 } from "./types";
 import type { ItemInstance } from "../../common/items";
+import type { DamagePresentation } from "./CombatText";
 
 export type AttackOwner = "hero" | "creep";
 
@@ -19,7 +20,8 @@ export class AttackArea extends GameObject {
     readonly damage: number,
     readonly source?: { active: boolean },
     readonly skill?: "bash" | "sweep" | "flurry",
-    readonly weapon?: ItemInstance
+    readonly weapon?: ItemInstance,
+    readonly presentation: DamagePresentation = { kind: "physical" }
   ) { super(); }
 
   update(deltaSeconds: number): void {

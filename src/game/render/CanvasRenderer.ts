@@ -3,6 +3,7 @@ import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
 import type { GameMap } from "../Map";
 import { clamp, type Camera } from "../types";
+import { COMBAT_TEXT_COLORS, CRITICAL_TEXT_COLOR, type CombatText } from "../CombatText";
 
 export class CanvasRenderer {
   constructor(private readonly ctx: CanvasRenderingContext2D, private readonly map: GameMap) {}
@@ -18,6 +19,14 @@ export class CanvasRenderer {
     }
     for (const projectile of arena.projectiles) projectile.render(this.ctx, camera);
     hero.render(this.ctx, camera);
+    for (const text of arena.combatTexts) this.renderCombatText(text, camera);
+  }
+
+  private renderCombatText(text: CombatText, camera: Camera): void {
+    const progress = Math.min(1, text.age / text.lifetime); this.ctx.save();
+    this.ctx.globalAlpha = 1 - progress; this.ctx.fillStyle = text.critical ? CRITICAL_TEXT_COLOR : COMBAT_TEXT_COLORS[text.kind];
+    this.ctx.font = `${text.critical ? 700 : 600} ${text.critical ? 19 : 16}px Inter, sans-serif`; this.ctx.textAlign = "center"; this.ctx.textBaseline = "middle";
+    this.ctx.shadowColor = "rgba(0,0,0,.8)"; this.ctx.shadowBlur = 3; this.ctx.fillText(`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`, text.position.x - camera.x + text.drift * progress, text.position.y - camera.y - 22 - 38 * progress); this.ctx.restore();
   }
 
   private renderSelection(creep: Creep, camera: Camera): void {
@@ -34,3 +43,4 @@ export class CanvasRenderer {
     this.ctx.beginPath(); this.ctx.moveTo(12, 0); this.ctx.lineTo(-8, -7); this.ctx.lineTo(-8, 7); this.ctx.closePath(); this.ctx.fill(); this.ctx.restore();
   }
 }
+function formatCombatAmount(amount: number): string { return amount < 10 ? amount.toFixed(1).replace(/\.0$/, "") : String(Math.round(amount)); }

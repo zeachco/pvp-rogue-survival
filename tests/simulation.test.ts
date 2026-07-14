@@ -8,6 +8,7 @@ import { removeInactive } from "../src/game/systems/lifecycle";
 import { correctArenaBoundary } from "../src/game/bounds";
 import { Hero } from "../src/game/Hero";
 import { generateBuckler } from "../common/items";
+import type { CombatText } from "../src/game/CombatText";
 
 describe("arena systems", () => {
   test("cancels an unresolved enemy telegraph when its source dies", () => {
@@ -26,8 +27,8 @@ describe("arena systems", () => {
   test("cleanup and arena reset remove transient state", () => {
     const state = new ArenaState(); const projectile = new Projectile({ x: 0, y: 0 }, { x: 1, y: 0 });
     projectile.active = false; state.projectiles.push(projectile); removeInactive(state.projectiles); expect(state.projectiles).toHaveLength(0);
-    state.pendingPickups.add("drop"); state.defeatedPositions.set("unit", { x: 1, y: 2 }); state.clear();
-    expect(state.pendingPickups.size).toBe(0); expect(state.defeatedPositions.size).toBe(0);
+    state.pendingPickups.add("drop"); state.defeatedPositions.set("unit", { x: 1, y: 2 }); state.addCombatText({ position: { x: 1, y: 1 }, amount: 2, kind: "physical", critical: false, age: 0, lifetime: 1, drift: 0 }); state.clear();
+    expect(state.pendingPickups.size).toBe(0); expect(state.defeatedPositions.size).toBe(0); expect(state.combatTexts).toHaveLength(0);
   });
 
   test("edge spawning is reproducible with a seeded random source", () => {
@@ -47,5 +48,15 @@ describe("arena systems", () => {
     hero.configureStats({ agility: 5, strength: 5, magic: 0, spirit: 0, intelligence: 0 }, buckler);
     hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(6);
     hero.damageFloorOne = true; hero.receiveDamage(100, { next: () => 1 }); expect(hero.hp).toBe(1); expect(hero.active).toBeTrue();
+  });
+
+  test("emits typed damage, healing, and inherited shield-return numbers", () => {
+    const defender = new Hero({ x: 50, y: 50 }); const attacker = new Hero({ x: 60, y: 50 }); const texts: CombatText[] = [];
+    defender.onCombatText = (text) => texts.push(text); attacker.onCombatText = (text) => texts.push(text);
+    defender.receiveDamage(2, { next: () => 1 }, attacker, true, false, { kind: "magic", critical: true });
+    defender.heal(1); expect(texts.map(({ kind, critical }) => ({ kind, critical }))).toEqual([{ kind: "magic", critical: true }, { kind: "healing", critical: false }]);
+    const buckler = { ...generateBuckler(0, "common", 12), reflectionComponents: ["flat" as const] }; defender.configureStats({ agility: 0, strength: 1, magic: 0, spirit: 0, intelligence: 0 }, buckler); texts.length = 0;
+    defender.receiveDamage(2, { next: () => 0 }, attacker, true, false, { kind: "fire", critical: true });
+    expect(texts.some((text) => text.kind === "fire" && !text.critical && text.position.x === attacker.position.x)).toBeTrue();
   });
 });

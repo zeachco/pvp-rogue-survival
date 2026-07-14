@@ -3,6 +3,7 @@ import { clamp, type Vector2 } from "./types";
 import { derivedStats, type Stats } from "../../common/progression";
 import { RARITY_POWER, type ItemInstance } from "../../common/items";
 import type { RandomSource } from "../../common/random";
+import type { CombatText, DamagePresentation } from "./CombatText";
 
 export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
@@ -21,6 +22,7 @@ export abstract class Unit extends GameObject {
   offHand?: ItemInstance;
   lastDamageSourceId?: string;
   damageFloorOne = false;
+  onCombatText?: (text: CombatText) => void;
 
   protected constructor(position: Vector2, readonly radius: number, hp: number) {
     super();
@@ -34,7 +36,8 @@ export abstract class Unit extends GameObject {
     if (this.hp === 0) this.active = false;
   }
 
-  receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false): void {
+  receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): void {
+    const hpBefore = this.hp;
     let remaining = amount; const buckler = this.offHand;
     if (buckler?.itemKind === "buckler") {
       const chance = Math.min(0.75, buckler.blockChance + 0.005 * (this.stats.strength + this.stats.agility));
@@ -45,13 +48,16 @@ export abstract class Unit extends GameObject {
           if (buckler.reflectionComponents.includes("flat")) reflected += 1;
           if (buckler.reflectionComponents.includes("strength")) reflected += 0.2 * this.stats.strength;
           if (buckler.reflectionComponents.includes("return")) reflected += amount * (0.15 + 0.004 * this.stats.agility);
-          source.receiveDamage(reflected * power, random, this, false);
+          source.receiveDamage(reflected * power, random, this, false, false, { kind: presentation.kind });
         }
       }
     }
     if (source && "build" in source) this.lastDamageSourceId = (source as Unit & { build: { id: string } }).build.id;
     if (invulnerable || this.damageFloorOne) this.hp = Math.max(1, this.hp - remaining); else this.takeDamage(remaining);
+    const dealt = Math.max(0, hpBefore - this.hp); if (dealt > 0) this.emitCombatText(dealt, presentation.kind, Boolean(presentation.critical));
   }
+
+  heal(amount: number): void { const before = this.hp; this.hp = Math.min(this.maxHp, this.hp + amount); const restored = this.hp - before; if (restored > 0) this.emitCombatText(restored, "healing", false); }
 
   configureStats(stats: Stats, offHand?: ItemInstance): void {
     this.stats = { ...stats };
@@ -66,7 +72,7 @@ export abstract class Unit extends GameObject {
   updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false): void {
     const derived = derivedStats(this.stats);
     let periodicDamage = 0;
-    for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable); } }
+    for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable, { kind: status.kind === "poison" ? "poison" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
     this.hp = Math.min(this.maxHp, this.hp + derived.hpRegen * deltaSeconds);
@@ -76,6 +82,7 @@ export abstract class Unit extends GameObject {
 
   addStatus(status: StatusEffect): void { this.statuses.push(status); }
   get stunned(): boolean { return this.statuses.some((status) => status.kind === "stun"); }
+  private emitCombatText(amount: number, kind: CombatText["kind"], critical: boolean): void { this.onCombatText?.({ position: { ...this.position }, amount, kind, critical, age: 0, lifetime: 0.9, drift: Math.sin(this.position.x * 0.17 + this.position.y * 0.11 + amount) * 9 }); }
 
   steer(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number): void {
     const targetX = direction.x * maxSpeed;

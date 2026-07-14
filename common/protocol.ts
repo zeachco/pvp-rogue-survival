@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export type InventoryAutomation = "keep" | "sell" | "upgrade" | "purge";
@@ -23,7 +23,7 @@ export interface UnitBuild {
   emitterId?: PlayerId; emitterName?: string; backlash?: boolean;
 }
 export interface WaveSpawn { build: UnitBuild; spawnAtMs: number }
-export interface CreepWave { id: string; targetId: PlayerId; waveNumber: number; durationMs: number; mode: "competitive" | "training"; spawns: WaveSpawn[] }
+export interface CreepWave { id: string; targetId: PlayerId; waveNumber: number; durationMs: number; mode: "competitive" | "solo" | "training"; spawns: WaveSpawn[] }
 export interface GroundDrop { id: string; item: ItemInstance }
 
 const statsSchema = z.object({ agility: z.number(), strength: z.number(), magic: z.number(), spirit: z.number(), intelligence: z.number() });
