@@ -63,7 +63,7 @@ export class Game {
       onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId) => this.socket.send({ type: "sellItem", tileId }),
       onPurge: (tileId) => this.socket.send({ type: "purgeItem", tileId }), onUpgrade: (tileId) => this.socket.send({ type: "upgradeItem", tileId }),
       onSend: (tileId) => this.socket.send({ type: "sendItem", tileId }), onExtract: (tileId) => this.socket.send({ type: "extractSkill", tileId }),
-      onAutomation: (tileId, mode) => this.socket.send({ type: "setStackAutomation", tileId, mode }), onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
+      onAutomation: (tileId, mode, maxRarity) => this.socket.send({ type: "setStackAutomation", tileId, mode, maxRarity }), onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
       onEnterRealm: () => this.socket.send({ type: "enterRealm" }), onBack: () => this.clearInspection()
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.name); this.registerDebugGlobal();

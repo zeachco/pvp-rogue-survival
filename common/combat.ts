@@ -22,7 +22,7 @@ export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if 
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
 export function skillCooldown(skill: SkillId): number { return SKILLS[skill].cooldown; }
-export function skillRange(skill: SkillId, item: ItemInstance): number { return SKILLS[skill].range ?? (item.definitionId === "staff" ? 330 : 105); }
+export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit = 0): number { const base = SKILLS[skill].range ?? (item.definitionId === "staff" ? 330 : 105); return base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit)); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
 export function cooldownScale(level: number, reduction: number): number { return Math.max(0.25, (1 - reduction) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }

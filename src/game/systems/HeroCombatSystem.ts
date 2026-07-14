@@ -38,7 +38,7 @@ export class HeroCombatSystem {
     const manaCost = candidate?.id === "orbitingHammers" ? 3 : 1; const magicSkill = Boolean(candidate && SKILLS[candidate.id].resource === "mana" && hero.mana >= manaCost);
     const physicalSkill = Boolean(candidate && SKILLS[candidate.id].resource === "stamina" && hero.stamina >= item.staminaCost + 0.35);
     const activeSkill = magicSkill || physicalSkill ? candidate : undefined;
-    const range = activeSkill ? skillRange(activeSkill.id, item) : item.definitionId === "staff" ? 330 : 105;
+    const range = activeSkill ? skillRange(activeSkill.id, item, activeSkill.level, effectiveStats.spirit) : item.definitionId === "staff" ? 330 : 105;
     const ranged = activeSkill ? activeSkill.id === "arcaneBolt" || activeSkill.id === "orbitingHammers" : item.definitionId === "staff";
     const staminaCost = magicSkill ? 0 : item.staminaCost + (physicalSkill ? 0.35 : 0);
     if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < staminaCost) return;

@@ -384,6 +384,9 @@ input {
 .item-automation input { appearance: none; width: 12px; height: 12px; margin: 0; border: 1px solid #8ea4aa; border-radius: 50%; background: #10191c; cursor: pointer; }
 .item-automation input:checked { border: 3px solid #dffef8; background: #24d9b3; box-shadow: 0 0 6px rgba(58,255,212,.75); }
 .item-automation input:disabled { cursor: not-allowed; opacity: .35; }
+.item-automation .disposal-threshold { grid-column: 1 / -1; justify-content: space-between; }
+.disposal-threshold select { min-width: 92px; border: 1px solid #3e6868; border-radius: 3px; padding: 3px 5px; color: #e9fffb; background: #102427; text-transform: capitalize; }
+.disposal-threshold select:disabled { cursor: not-allowed; opacity: .4; }
 .rarity-uncommon { border-color: #62e88a; }
 .rarity-rare { border-color: #6ca8ff; }
 .rarity-epic { border-color: #ca75ff; }

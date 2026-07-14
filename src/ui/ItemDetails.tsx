@@ -26,6 +26,8 @@ function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string {
   if (item.modifiers.poisonChance > 0) effects.push(`${Math.round(item.modifiers.poisonChance * 100)}% poison`);
   if (item.modifiers.stunChance > 0) effects.push(`${Math.round(item.modifiers.stunChance * 100)}% stun`);
   if (item.modifiers.magicAmp > 0) effects.push(`+${Math.round(item.modifiers.magicAmp * 100)}% magic`);
+  if (item.modifiers.lifeStealBase > 0) effects.push(`${Math.round(item.modifiers.lifeStealBase * 100)}% + 0.1%/Spirit life steal`);
+  if (item.modifiers.strengthRegenMultiplier > 0) effects.push(`Vigorous regen: 0.01 + ${fmt(item.modifiers.strengthRegenMultiplier)}× Strength/s`);
   if (item.reflectionComponents.length) effects.push(`Reflect: ${item.reflectionComponents.map(capitalize).join("/")}`);
   for (const key of STAT_KEYS) if ((item.statBonuses[key] ?? 0) !== 0) effects.push(`+${fmt(item.statBonuses[key] ?? 0)} ${capitalize(key)}`);
   return effects.join(", ");

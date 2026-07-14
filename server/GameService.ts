@@ -41,7 +41,7 @@ export class GameService {
       case "purgeItem": return this.applyInventoryResult(player, purgeFromInventory(player.progress, message.tileId));
       case "upgradeItem": return this.applyInventoryResult(player, upgradeFromInventory(player.progress, message.tileId, () => this.createId(), () => this.seed()));
       case "extractSkill": return this.applyInventoryResult(player, extractFromInventory(player.progress, message.tileId));
-      case "setStackAutomation": return this.applyInventoryResult(player, setAutomation(player.progress, message.tileId, message.mode, () => this.createId(), () => this.seed()));
+      case "setStackAutomation": return this.applyInventoryResult(player, setAutomation(player.progress, message.tileId, message.mode, () => this.createId(), () => this.seed(), message.maxRarity));
       case "sendItem": return this.sendItem(player, message.tileId);
       case "leaveRealm": return this.leaveRealm(player);
       case "enterRealm": return this.enterRealm(player);
@@ -60,7 +60,7 @@ export class GameService {
     if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); return existing; }
     const club = starterClub(); const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [],
-      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1, automation: "keep" }], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
+      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1, automation: "keep", disposalRarity: "common" }], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 } } };
     this.options.repository.save(player); return player;
   }
 

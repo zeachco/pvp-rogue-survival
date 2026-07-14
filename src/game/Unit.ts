@@ -21,6 +21,7 @@ export abstract class Unit extends GameObject {
   statuses: StatusEffect[] = [];
   enteredArena = false;
   offHand?: ItemInstance;
+  mainHand?: ItemInstance;
   lastDamageSourceId?: string;
   damageFloorOne = false;
   onCombatText?: (text: CombatText) => void;
@@ -37,7 +38,8 @@ export abstract class Unit extends GameObject {
     if (this.hp === 0) this.active = false;
   }
 
-  receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): void {
+  receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): number {
+    const hpBefore = this.hp;
     let remaining = amount; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
     if (buckler?.itemKind === "buckler" && this.stamina >= blockCost) {
@@ -57,13 +59,15 @@ export abstract class Unit extends GameObject {
     if (source && "build" in source) this.lastDamageSourceId = (source as Unit & { build: { id: string } }).build.id;
     if (invulnerable || this.damageFloorOne) this.hp = Math.max(1, this.hp - remaining); else this.takeDamage(remaining);
     if (remaining > 0) this.emitCombatText(remaining, presentation.kind, Boolean(presentation.critical));
+    return Math.max(0, hpBefore - this.hp);
   }
 
   heal(amount: number): void { const before = this.hp; this.hp = Math.min(this.maxHp, this.hp + amount); const restored = this.hp - before; if (restored > 0) this.emitCombatText(restored, "healing", false); }
 
-  configureStats(stats: Stats, offHand?: ItemInstance): void {
+  configureStats(stats: Stats, offHand?: ItemInstance, mainHand?: ItemInstance): void {
     this.stats = { ...stats };
     this.offHand = offHand;
+    this.mainHand = mainHand;
     const derived = derivedStats(stats);
     this.maxHp = derived.maxHp;
     this.hp = derived.maxHp;
@@ -77,7 +81,8 @@ export abstract class Unit extends GameObject {
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable, { kind: status.kind === "poison" ? "poison" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
-    this.hp = Math.min(this.maxHp, this.hp + derived.hpRegen * deltaSeconds);
+    const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => sum + (item.modifiers.strengthRegenMultiplier > 0 ? 0.01 + item.modifiers.strengthRegenMultiplier * this.stats.strength : 0), 0);
+    this.hp = Math.min(this.maxHp, this.hp + (derived.hpRegen + vigorousRegen) * deltaSeconds);
     this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * deltaSeconds);
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
   }

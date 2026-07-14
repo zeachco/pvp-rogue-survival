@@ -14,7 +14,7 @@ export class Hero extends Unit {
 
   applyProgress(progress: PlayerProgress, preserveRatio = false): void {
     const ratio = preserveRatio ? this.hp / this.maxHp : 1;
-    this.configureStats(statsWithItemBonuses(progress.stats, progress.mainHand, progress.offHand), progress.offHand);
+    this.configureStats(statsWithItemBonuses(progress.stats, progress.mainHand, progress.offHand), progress.offHand, progress.mainHand);
     this.hp = Math.max(0, this.maxHp * ratio);
   }
 

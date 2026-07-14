@@ -14,7 +14,7 @@ export const RARITY_POWER: Record<Rarity, number> = { common: 1, uncommon: 1.25,
 export interface ItemModifiers {
   damageMultiplier: number; attackSpeedMultiplier: number; critChance: number;
   manaRegenMultiplier: number; magicAmp: number; bleedChance: number;
-  poisonChance: number; stunChance: number;
+  poisonChance: number; stunChance: number; lifeStealBase: number; strengthRegenMultiplier: number;
 }
 export interface ItemInstance {
   id: string; itemKind: "weapon" | "buckler" | "relic"; definitionId: EquipmentDefinitionId; name: string; level: number; rarity: Rarity;
@@ -60,8 +60,8 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
 }
 
 export function generateRelic(level: number, rarity: Rarity, seed: number): ItemInstance {
-  const source = new SeededRandom(seed); const power = RARITY_POWER[rarity]; const attractionSpeed = source.next() < 0.5 ? 35 : 0;
-  return { id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name: attractionSpeed ? "Attracting Relic" : "Spirit Relic", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers: baseModifiers(1, 1), skills: [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed };
+  const source = new SeededRandom(seed); const power = RARITY_POWER[rarity]; const attractionSpeed = source.next() < 0.5 ? 35 : 0; const sustain = source.next(); const modifiers = baseModifiers(1, 1); if (sustain < 0.25) modifiers.lifeStealBase = 0.02; else if (sustain < 0.5) modifiers.strengthRegenMultiplier = 0.002;
+  return { id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name: attractionSpeed ? "Attracting Relic" : "Spirit Relic", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills: [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed };
 }
 
 export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
@@ -69,13 +69,14 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
     const next = generateBuckler(base.level + 1, base.rarity, seed);
     return { ...next, name: base.name, reflectionComponents: [...base.reflectionComponents], blockChance: 0.1 * RARITY_POWER[base.rarity], sellValue: Math.max(1, Math.round((base.level + 2) * RARITY_POWER[base.rarity] * (base.reflectionComponents.length ? 5 : 4))) };
   }
-  if (base.itemKind === "relic") return { ...generateRelic(base.level + 1, base.rarity, seed), name: base.name, attractionSpeed: base.attractionSpeed };
-  return buildWeapon(base.definitionId as WeaponClass, base.level + 1, base.rarity, seed, [...base.affixes], seed % 1e8);
+  if (base.itemKind === "relic") { const next = generateRelic(base.level + 1, base.rarity, seed); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier; return { ...next, name: base.name, attractionSpeed: base.attractionSpeed }; }
+  const next = buildWeapon(base.definitionId as WeaponClass, base.level + 1, base.rarity, seed, [...base.affixes], seed % 1e8); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier; return next;
 }
 
 function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, seed: number, affixes: AffixId[], suffix: number): ItemInstance {
   const data = WEAPONS[weaponClass]; const power = RARITY_POWER[rarity]; const modifiers = baseModifiers(data.damage * (1 + level * 0.025) * power, 1);
   for (const affix of affixes) applyAffix(modifiers, affix, power);
+  if (seed % 7 === 1) modifiers.lifeStealBase = 0.02; else if (seed % 7 === 2) modifiers.strengthRegenMultiplier = 0.002;
   if (weaponClass === "dagger") modifiers.critChance += 0.04 * power;
   if (weaponClass === "staff") { modifiers.manaRegenMultiplier += power; modifiers.magicAmp += 0.12 * power; }
   const requirements: Partial<Record<StatKey, number>> = {};
@@ -97,14 +98,14 @@ export function itemStackKey(item: ItemInstance): string {
     skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed });
 }
 export function itemAutomationKey(item: ItemInstance): string {
-  return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, rarity: item.rarity, hands: item.hands,
+  return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, hands: item.hands,
     affixes: [...item.affixes].sort(), statBonuses: orderedStats(item.statBonuses), skills: [...item.skills].sort(),
-    reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed });
+    reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, lifeStealBase: item.modifiers.lifeStealBase, strengthRegenMultiplier: item.modifiers.strengthRegenMultiplier });
 }
 export function statsWithItemBonuses(stats: Stats, ...items: Array<ItemInstance | undefined>): Stats {
   return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] + items.reduce((sum, item) => sum + (item?.statBonuses[key] ?? 0), 0)])) as Stats;
 }
-function baseModifiers(damageMultiplier: number, attackSpeedMultiplier: number): ItemModifiers { return { damageMultiplier, attackSpeedMultiplier, critChance: 0, manaRegenMultiplier: 1, magicAmp: 0, bleedChance: 0, poisonChance: 0, stunChance: 0 }; }
+function baseModifiers(damageMultiplier: number, attackSpeedMultiplier: number): ItemModifiers { return { damageMultiplier, attackSpeedMultiplier, critChance: 0, manaRegenMultiplier: 1, magicAmp: 0, bleedChance: 0, poisonChance: 0, stunChance: 0, lifeStealBase: 0, strengthRegenMultiplier: 0 }; }
 function applyAffix(modifiers: ItemModifiers, affix: AffixId, power: number): void { for (const [key, value] of Object.entries(AFFIXES[affix].modifierPerPower) as [keyof ItemModifiers, number][]) modifiers[key] += value * power; }
 function capitalize(value: string): string { return value[0].toUpperCase() + value.slice(1); }
 function orderedStats(stats: Partial<Record<StatKey, number>>): Partial<Record<StatKey, number>> { return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] ?? 0])) as Partial<Record<StatKey, number>>; }

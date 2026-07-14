@@ -34,7 +34,7 @@ export class Creep extends Unit {
     this.build = build;
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
-    this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand);
+    this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand, build.mainHand);
     this.maxHp *= balance.combat.enemyHealthMultiplier; this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
