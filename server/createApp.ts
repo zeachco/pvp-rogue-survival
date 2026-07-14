@@ -20,7 +20,14 @@ export function createApp(options: AppOptions) {
   const sendToPlayer = (playerId: PlayerId, message: ServerMessage) => {
     for (const socket of sockets.values()) if (socket.playerId === playerId && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   };
-  const game = new GameService({ repository, balance: balanceProfile(options.balanceProfile), random: systemRandom, send: sendToPlayer });
+  const game = new GameService({
+    repository,
+    balance: balanceProfile(options.balanceProfile),
+    random: systemRandom,
+    send: sendToPlayer,
+    logPlayerLifecycle: (event, player) => console.log(`[MLH][player] ${event} id=${player.id} name=${JSON.stringify(player.name)}`),
+    logRealmLifecycle: (event, playerId, realmId, opponentIds) => console.log(`[MLH][realm] ${event} id=${playerId} realm=${realmId} opponents=${opponentIds.join(",")}`),
+  });
   const server = createServer((request, response) => serveStatic(request, response, publicRoot));
   const wss = new WebSocketServer({ server, path: "/ws" });
   wss.on("connection", (socket: PlayerSocket) => {

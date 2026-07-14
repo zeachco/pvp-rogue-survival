@@ -4,10 +4,19 @@ type MessageHandler = (message: ServerMessage) => void;
 type OpenHandler = () => void;
 type CloseHandler = () => void;
 type ErrorHandler = (event: Event) => void;
-export const DEFAULT_GAME_SERVER_HOST = "localhost";
-export function gameServerHost(search: string): string { const candidate = new URLSearchParams(search).get("ip")?.trim(); return candidate && isIpv4(candidate) ? candidate : DEFAULT_GAME_SERVER_HOST; }
-export function gameSocketUrl(location: Pick<Location, "protocol" | "port" | "search">): string { const protocol = location.protocol === "https:" ? "wss:" : "ws:"; const port = location.port ? `:${location.port}` : ""; return `${protocol}//${gameServerHost(location.search)}${port}/ws`; }
-function isIpv4(value: string): boolean { const parts = value.split("."); return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255 && String(Number(part)) === part); }
+export function gameSocketUrl(location: Pick<Location, "host" | "protocol" | "search">): string {
+  const pageProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const fallback = `${pageProtocol}//${location.host}/ws`;
+  const candidate = new URLSearchParams(location.search).get("server")?.trim();
+  if (!candidate) return fallback;
+  try {
+    const base = new URL(candidate.includes("://") ? candidate : `${location.protocol}//${candidate}`);
+    if (base.username || base.password || !["http:", "https:", "ws:", "wss:"].includes(base.protocol)) return fallback;
+    const protocol = base.protocol === "https:" || base.protocol === "wss:" ? "wss:" : "ws:";
+    const path = base.pathname.replace(/\/+$/, "");
+    return `${protocol}//${base.host}${path}/ws`;
+  } catch { return fallback; }
+}
 
 export class SocketClient {
   private socket?: WebSocket;

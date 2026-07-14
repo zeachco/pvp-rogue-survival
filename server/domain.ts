@@ -15,5 +15,5 @@ export class InMemoryPlayerRepository implements PlayerRepository {
   get(id: PlayerId): Player | undefined { return this.players.get(id); }
   save(player: Player): void { this.players.set(player.id, player); }
   values(): IterableIterator<Player> { return this.players.values(); }
-  persist(): void {}
+  persist(): void { }
 }

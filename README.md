@@ -21,6 +21,8 @@ Use Bun for project tooling and scripts.
 - `bun run build`: typecheck and build the client.
 - `bun test`: run deterministic domain, server-service, protocol, and WebSocket integration tests.
 
+To run only the local client against the production server, open [http://localhost:3000/?server=pvp.up.railway.app](http://localhost:3000/?server=pvp.up.railway.app).
+
 ## Architecture
 
 - `common/` contains runtime protocol schemas and pure balance, content, combat, inventory, progression, item, random, and wave rules.

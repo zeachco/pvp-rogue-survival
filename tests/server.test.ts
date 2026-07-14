@@ -8,12 +8,30 @@ import type { RandomSource } from "../common/random";
 import { InMemoryPlayerRepository } from "../server/domain";
 import { GameService } from "../server/GameService";
 
-class FixedRandom implements RandomSource { constructor(private readonly value = 0) {} next(): number { return this.value; } }
+class FixedRandom implements RandomSource { constructor(private readonly value = 0) { } next(): number { return this.value; } }
 class SequenceRandom implements RandomSource { private values: number[] = []; set(...values: number[]): void { this.values = values; } next(): number { return this.values.shift() ?? 0.5; } }
 function harness(random: RandomSource = new FixedRandom(0)) { const messages = new Map<PlayerId, ServerMessage[]>(); const repository = new InMemoryPlayerRepository(); let nextId = 0; const game = new GameService({ repository, balance: BALANCE_PROFILES.dev, random, createId: () => `id-${++nextId}`, send: (id, message) => messages.set(id, [...(messages.get(id) ?? []), structuredClone(message)]) }); return { game, repository, messages }; }
 function enterPair(game: GameService, one: ReturnType<GameService["join"]>, two: ReturnType<GameService["join"]>): void { game.handle(one.id, { type: "enterRealm" }); game.handle(two.id, { type: "enterRealm" }); }
 
 describe("realm game service", () => {
+  test("logs player connection lifecycle with stable identity", () => {
+    const repository = new InMemoryPlayerRepository(); const events: Array<{ event: "connected" | "disconnected"; id: string; name: string }> = []; let nextId = 0;
+    const game = new GameService({ repository, balance: BALANCE_PROFILES.dev, random: new FixedRandom(), createId: () => `id-${++nextId}`, send: () => { }, logPlayerLifecycle: (event, player) => events.push({ event, id: player.id, name: player.name }) });
+    const player = game.join(" Logger "); game.disconnect(player.id);
+    expect(events).toEqual([{ event: "connected", id: player.id, name: "Logger" }, { event: "disconnected", id: player.id, name: "Logger" }]);
+  });
+  test("logs realm entry and exit for each matched player", () => {
+    const repository = new InMemoryPlayerRepository(); const events: Array<{ event: "entered" | "left"; playerId: string; realmId: string; opponentIds: string[] }> = []; let nextId = 0;
+    const game = new GameService({ repository, balance: BALANCE_PROFILES.dev, random: new FixedRandom(), createId: () => `id-${++nextId}`, send: () => { }, logRealmLifecycle: (event, playerId, realmId, opponentIds) => events.push({ event, playerId, realmId, opponentIds }) });
+    const one = game.join("One"); const two = game.join("Two"); enterPair(game, one, two); const realmId = one.realmId!;
+    game.disconnect(one.id);
+    expect(events).toEqual([
+      { event: "entered", playerId: one.id, realmId, opponentIds: [two.id] },
+      { event: "entered", playerId: two.id, realmId, opponentIds: [one.id] },
+      { event: "left", playerId: one.id, realmId, opponentIds: [two.id] },
+      { event: "left", playerId: two.id, realmId, opponentIds: [one.id] },
+    ]);
+  });
   test("starts in the lobby and activates a stable 1v1 after opting in", () => { const { game, messages } = harness(); const one = game.join("One"); expect(one.realmOptedIn).toBeFalse(); expect(messages.get(one.id)?.find((m) => m.type === "incomingWave")?.wave.mode).toBe("training"); const two = game.join("Two"); expect(one.realmId).toBeUndefined(); enterPair(game, one, two); expect(one.realmId).toBe(two.realmId); expect(one.issuedUnits.size).toBe(13); expect([...one.issuedUnits.values()][0].mode).toBe("competitive"); });
   test("starts a half-XP solo game when no opponent is available", () => { const { game, messages } = harness(); const player = game.join("Solo"); game.handle(player.id, { type: "enterRealm" }); const wave = messages.get(player.id)?.filter((message) => message.type === "incomingWave").at(-1); expect(wave?.type === "incomingWave" ? wave.wave.mode : undefined).toBe("solo"); const unitId = [...player.issuedUnits.entries()].find(([, issued]) => !issued.build.isRival)?.[0]; expect(unitId).toBeDefined(); game.handle(player.id, { type: "creepDefeated", unitId: unitId! }); expect(player.progress.xp).toBe(5); expect(player.score).toBe(2); });
   test("shows the lobby player as their own neighbor and sends to a future training carrier", () => { const { game, messages } = harness(); const player = game.join("Mirror"); const welcome = messages.get(player.id)?.find((message) => message.type === "welcome"); expect(welcome?.type === "welcome" ? welcome.realm.guards[0]?.id : undefined).toBe(player.id); expect(welcome?.type === "welcome" ? welcome.realm.attackers[0]?.id : undefined).toBe(player.id); const item = generateItem(2, "rare", 75); player.progress.inventoryTiles.push({ id: "mirror-tile", key: itemStackKey(item), item, quantity: 1 }); game.handle(player.id, { type: "sendItem", tileId: "mirror-tile" }); expect(player.incomingQueues.get(player.id)).toHaveLength(1); game.dispatchWaves(); expect(player.incomingQueues.get(player.id)).toBeUndefined(); const carrier = [...player.issuedUnits.values()].find((issued) => issued.build.emitterId === player.id); expect(carrier?.mode).toBe("training"); expect(carrier?.build.mainHand.definitionId).toBe(item.definitionId); });
