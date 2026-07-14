@@ -46,19 +46,22 @@ export function equipFromInventory(progress: PlayerProgress, tileId: string): In
   return { changed: true, reason: `Equipped ${item.name}.` };
 }
 
-export function sellFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing(); if (isEquippedTile(progress, tile)) return { changed: false, reason: "Equipped items cannot be sold." }; tile.quantity -= 1; progress.gold += tile.item.sellValue; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Sold ${tile.item.name} for ${tile.item.sellValue} gold.` }; }
-export function purgeFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing(); if (isEquippedTile(progress, tile)) return { changed: false, reason: "Equipped items cannot be purged." }; tile.quantity -= 1; const amount = purgeYield(tile.item); progress.scraps[tile.item.rarity] += amount; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Purged ${tile.item.name} for ${amount} ${tile.item.rarity} scrap.` }; }
+export function sellFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); tile.quantity -= 1; progress.gold += tile.item.sellValue; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Sold ${tile.item.name} for ${tile.item.sellValue} gold.` }; }
+export function purgeFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); tile.quantity -= 1; const amount = purgeYield(tile.item); progress.scraps[tile.item.rarity] += amount; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Purged ${tile.item.name} for ${amount} ${tile.item.rarity} scrap.` }; }
 export function sendFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); tile.quantity -= 1; const result = { changed: true, reason: `Queued ${tile.item.name} for the enemy realm.`, sent: { ...tile.item, id: `${tile.item.id}-sent` } }; removeEmptyInventoryTiles(progress); return result; }
 
 export function upgradeFromInventory(progress: PlayerProgress, tileId: string, nextId: () => string, nextSeed: () => number): InventoryResult {
-  const tile = availableTile(progress, tileId); if (!tile) return missing();
+  const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing();
   const { gold, scraps } = upgradeCosts(tile.item);
   if (progress.gold < gold || progress.scraps[tile.item.rarity] < scraps) return { changed: false, reason: `Requires ${gold} gold and ${scraps} ${tile.item.rarity} scraps.` };
   const created = levelUpItem(tile.item, nextSeed()); const existing = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(created));
   const outputOccupiesSlot = !existing || existing.quantity === 0; const sourceFreesSlot = tile.quantity === 1;
   if (occupiedInventorySlots(progress) - Number(sourceFreesSlot) + Number(outputOccupiesSlot) > inventoryCapacity(progress.level)) return { changed: false, reason: "No inventory slot is available for the upgraded item." };
+  const upgradesEquippedCopy = tile.quantity <= equippedCopies(progress, tile); const upgradesMainHand = upgradesEquippedCopy && itemStackKey(progress.mainHand) === tile.key; const upgradesOffHand = upgradesEquippedCopy && Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key);
   tile.quantity -= 1; progress.gold -= gold; progress.scraps[tile.item.rarity] -= scraps;
   if (existing) existing.quantity += 1; else progress.inventoryTiles.push({ id: nextId(), key: itemStackKey(created), item: created, quantity: 1 });
+  if (upgradesMainHand) progress.mainHand = { ...created, id: `${created.id}-equipped` };
+  if (upgradesOffHand) progress.offHand = { ...created, id: `${created.id}-equipped` };
   removeEmptyInventoryTiles(progress);
   return { changed: true, reason: `Upgraded ${tile.item.name} to level ${created.level}.`, created };
 }
@@ -67,7 +70,7 @@ export function extractFromInventory(progress: PlayerProgress, tileId: string): 
   const tile = availableTile(progress, tileId); if (!tile) return missing(); const skills = tile.item.skills.filter((skill) => skill !== "healing");
   if (!skills.length) return { changed: false, reason: "That item has no extractable skill." }; const cost = tile.item.sellValue * 10;
   if (progress.gold < cost) return { changed: false, reason: `Extracting costs ${cost} gold.` }; progress.gold -= cost; tile.quantity -= 1;
-  for (const skill of skills) learnSkill(progress, skill); removeEmptyInventoryTiles(progress); return { changed: true, reason: `Extracted ${skills.join(", ")} for ${cost} gold.` };
+  const universal = tile.item.rarity === "epic"; for (const skill of skills) learnSkill(progress, skill, universal); removeEmptyInventoryTiles(progress); return { changed: true, reason: `Extracted ${skills.join(", ")} for ${cost} gold${universal ? "; available with any weapon" : ""}.` };
 }
 
 function storeExisting(progress: PlayerProgress, item: ItemInstance): boolean { let tile = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(item)); if ((!tile || tile.quantity === 0) && occupiedInventorySlots(progress) >= inventoryCapacity(progress.level)) return false; if (!tile) { tile = { id: `tile-${item.id}`, key: itemStackKey(item), item, quantity: 0 }; progress.inventoryTiles.push(tile); } tile.quantity += 1; return true; }
@@ -77,5 +80,5 @@ export function isEquippedTile(progress: PlayerProgress, tile: InventoryTile): b
 function equippedCopies(progress: PlayerProgress, tile: InventoryTile): number { return Number(itemStackKey(progress.mainHand) === tile.key) + Number(Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key)); }
 function missing(): InventoryResult { return { changed: false, reason: "That equipment is no longer available." }; }
 export function purgeYield(item: ItemInstance): number { return Math.max(1, Math.ceil(item.level / 3)); }
-function learnSkill(progress: PlayerProgress, skill: SkillId): void { if (!progress.learnedSkills.includes(skill)) progress.learnedSkills.push(skill); progress.learnedSkillLevels[skill] = (progress.learnedSkillLevels[skill] ?? 0) + 1; }
+function learnSkill(progress: PlayerProgress, skill: SkillId, universal: boolean): void { if (!progress.learnedSkills.includes(skill)) progress.learnedSkills.push(skill); progress.learnedSkillLevels[skill] = (progress.learnedSkillLevels[skill] ?? 0) + 1; if (universal && !progress.universalSkills.includes(skill)) progress.universalSkills.push(skill); }
 export function emptyScraps(): Record<Rarity, number> { return { common: 0, uncommon: 0, rare: 0, epic: 0 }; }

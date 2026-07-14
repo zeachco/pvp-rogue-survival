@@ -5,7 +5,7 @@ import { SeededRandom } from "./random";
 export type WeaponClass = "club" | "sword" | "dagger" | "mace" | "axe" | "throwingAxe" | "hammer" | "staff";
 export type EquipmentDefinitionId = WeaponClass | "buckler" | "relic";
 export type Rarity = "common" | "uncommon" | "rare" | "epic";
-export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "healing" | "rent" | "blocking";
+export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "gravityPull" | "thorns" | "reflectiveSurge" | "frostOrb" | "healing" | "rent" | "blocking";
 export type AffixId = "rusty" | "venomous" | "bleeding" | "stunning" | "focused" | "swift";
 export type ReflectionComponent = "flat" | "strength" | "return";
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic"];
@@ -53,22 +53,22 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
     id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "buckler", definitionId: "buckler",
     name: `${spiked ? "Spiked " : ""}Buckler`, level, rarity, seed, hands: 0, weight: 0, affixes: [],
     requirements: level ? { strength: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: {},
-    modifiers: baseModifiers(1, 1), skills: ["blocking"], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
+    modifiers: baseModifiers(1, 1), skills: ["blocking", ...(spiked && (rarity === "rare" || rarity === "epic") ? ["thorns" as const, "reflectiveSurge" as const] : [])], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
     sellValue: Math.max(1, Math.round((level + 1) * power * (spiked ? 5 : 4))), blockChance: 0.1 * power, reflectionComponents, attractionSpeed: 0
   };
 }
 
 export function generateRelic(level: number, rarity: Rarity, seed: number): ItemInstance {
   const source = new SeededRandom(seed); const power = RARITY_POWER[rarity]; const attractionSpeed = source.next() < 0.5 ? 35 : 0; const sustain = source.next(); const modifiers = baseModifiers(1, 1); if (sustain < 0.25) modifiers.lifeStealBase = 0.02; else if (sustain < 0.5) modifiers.strengthRegenMultiplier = 0.002;
-  return { id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name: attractionSpeed ? "Attracting Relic" : "Spirit Relic", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills: [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed };
+  return { id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name: attractionSpeed ? "Attracting Relic" : "Spirit Relic", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills: attractionSpeed ? ["gravityPull"] : [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed };
 }
 
 export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
   if (base.itemKind === "buckler") {
     const next = generateBuckler(base.level + 1, base.rarity, seed);
-    return { ...next, name: base.name, reflectionComponents: [...base.reflectionComponents], blockChance: 0.1 * RARITY_POWER[base.rarity], sellValue: Math.max(1, Math.round((base.level + 2) * RARITY_POWER[base.rarity] * (base.reflectionComponents.length ? 5 : 4))) };
+    return { ...next, name: base.name, skills: [...base.skills], reflectionComponents: [...base.reflectionComponents], blockChance: 0.1 * RARITY_POWER[base.rarity], sellValue: Math.max(1, Math.round((base.level + 2) * RARITY_POWER[base.rarity] * (base.reflectionComponents.length ? 5 : 4))) };
   }
-  if (base.itemKind === "relic") { const next = generateRelic(base.level + 1, base.rarity, seed); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase ?? 0; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier ?? 0; return { ...next, name: base.name, attractionSpeed: base.attractionSpeed }; }
+  if (base.itemKind === "relic") { const next = generateRelic(base.level + 1, base.rarity, seed); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase ?? 0; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier ?? 0; return { ...next, name: base.name, skills: [...base.skills], attractionSpeed: base.attractionSpeed }; }
   const next = buildWeapon(base.definitionId as WeaponClass, base.level + 1, base.rarity, seed, [...base.affixes], seed % 1e8); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase ?? 0; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier ?? 0; return next;
 }
 
@@ -84,7 +84,7 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
   return {
     id: `item-${seed}-${suffix}`, itemKind: "weapon", definitionId: weaponClass, name: `${affixes[0] ? `${capitalize(affixes[0])} ` : ""}${data.label}`,
     level, rarity, seed, hands: weaponClass === "staff" ? 2 : 1, weight: data.weight, affixes, requirements, statBonuses: {}, modifiers,
-    skills: data.skill ? [data.skill] : [], staminaCost: data.stamina,
+    skills: data.skill ? [data.skill, ...(weaponClass === "staff" && (rarity === "rare" || rarity === "epic") ? ["frostOrb" as const] : [])] : [], staminaCost: data.stamina,
     dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * (4 + affixes.length * 2))),
     blockChance: 0, reflectionComponents: [], attractionSpeed: weaponClass === "staff" && seed % 4 === 0 ? 35 : 0
   };

@@ -61,7 +61,7 @@ export class Game {
     this.renderer = new CanvasRenderer(this.ctx, this.map);
     this.hero.onCombatText = (text) => this.arena.addCombatText(text);
     this.hud = new Hud(hudRoot, {
-      onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }),
+      onJoin: (name) => this.join(name), onAllocation: (allocation) => this.socket.send({ type: "updateAllocation", allocation }), onRespec: (allocation) => this.socket.send({ type: "respecStats", allocation }),
       onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId, bulk) => this.socket.send({ type: "sellItem", tileId, bulk }),
       onPurge: (tileId, bulk) => this.socket.send({ type: "purgeItem", tileId, bulk }), onUpgrade: (tileId, bulk) => this.socket.send({ type: "upgradeItem", tileId, bulk }),
       onSend: (tileId, bulk) => this.socket.send({ type: "sendItem", tileId, bulk }), onExtract: (tileId, bulk) => this.socket.send({ type: "extractSkill", tileId, bulk }),
@@ -96,13 +96,13 @@ export class Game {
     else if (message.type === "creepDefeatResolved" && this.player) {
       this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;
       const position = this.arena.defeatedPositions.get(message.unitId); this.arena.defeatedPositions.delete(message.unitId);
-      if (message.drop && position) this.drops.push(new ItemDrop(message.drop.id, message.drop.item, position));
+      if (message.drop && position) this.drops.push(new ItemDrop(message.drop, position));
       this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player);
       if (this.waveMode === "training") this.hud.showXpToast(message.reason); else this.hud.setNotice(message.reason);
     }
     else if (message.type === "progressionUpdated" && this.player) {
       this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero)); this.hud.setNotice(message.reason);
-    } else if (message.type === "groundDropCreated") this.drops.push(new ItemDrop(message.drop.id, message.drop.item, { ...this.hero.position }));
+    } else if (message.type === "groundDropCreated") this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
     else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
     else if (message.type === "collectItemResult") this.handleCollectResult(message.dropId, message.collected, message.reason);
@@ -140,7 +140,9 @@ export class Game {
       if (attack?.type === "projectile") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation, creep.build.mainHand));
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
-    for (const projectile of this.projectiles) { projectile.update(deltaSeconds); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
+    const emittedProjectiles: Projectile[] = [];
+    for (const projectile of this.projectiles) { projectile.update(deltaSeconds); emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds)); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
+    this.projectiles.push(...emittedProjectiles);
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
     const attractionSpeed = Math.max(this.player.progress.mainHand.attractionSpeed, this.player.progress.offHand?.attractionSpeed ?? 0);
     for (const drop of this.drops) { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); }

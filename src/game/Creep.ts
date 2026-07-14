@@ -34,6 +34,7 @@ export class Creep extends Unit {
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
     this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand, build.mainHand);
+    for (const skill of [...build.mainHand.skills, ...(build.offHand?.skills ?? [])]) this.knownSkills.add(skill);
     this.maxHp *= balance.combat.enemyHealthMultiplier; this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
@@ -51,7 +52,7 @@ export class Creep extends Unit {
     this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
-    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier;
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * (this.frozen ? 0.5 : 1);
     const acceleration = movement.acceleration;
     const ranged = weaponUsesProjectile(this.build.mainHand);
     const heroDistance = distance(this.position, hero);

@@ -10,13 +10,15 @@ import { Hero } from "../src/game/Hero";
 import { generateBuckler } from "../common/items";
 import type { CombatText } from "../src/game/CombatText";
 import { SpellEffect } from "../src/game/SpellEffect";
-import { ItemDrop } from "../src/game/ItemDrop";
+import { dropRarityColor, ItemDrop } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
 import { weaponAttackSpeed } from "../common/combat";
 
 describe("arena systems", () => {
   test("moves orbiting hammers around their moving source and expires them", () => { const hero = new Hero({ x: 50, y: 50 }); const hammer = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }); hero.position.x = 70; hammer.update(0.1); expect(Math.hypot(hammer.position.x - hero.position.x, hammer.position.y - hero.position.y)).toBeCloseTo(34.75); hammer.update(2.4); expect(hammer.active).toBeFalse(); });
-  test("pulls item drops toward an attracting hero at a bounded speed", () => { const drop = new ItemDrop("drop", starterClub(), { x: 100, y: 0 }); drop.pullToward({ x: 0, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 65, y: 0 }); drop.pullToward({ x: 60, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 60, y: 0 }); });
+  test("moves Frozen Orb slowly and emits eight damaging radial spikes", () => { const hero = new Hero({ x: 0, y: 0 }); const orb = new Projectile(hero.position, { x: 100, y: 0 }, 5, "hero", "frostOrb", hero, { kind: "magic" }, starterClub()); orb.update(1); expect(orb.position.x).toBe(75); const spikes = orb.emitFrostSpikes(1 / 60); expect(spikes).toHaveLength(8); expect(spikes.every((spike) => spike.skill === "frostSpike" && spike.damage === 5)).toBeTrue(); });
+  test("pulls ground drops toward an attracting hero at a bounded speed", () => { const drop = new ItemDrop({ id: "drop", kind: "item", item: starterClub() }, { x: 100, y: 0 }); drop.pullToward({ x: 0, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 65, y: 0 }); drop.pullToward({ x: 60, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 60, y: 0 }); });
+  test("uses visible rarity colors for equipment and scrap drops", () => { expect(dropRarityColor("common")).toBe("#d8e5e8"); expect(dropRarityColor("uncommon")).toBe("#62e88a"); expect(dropRarityColor("rare")).toBe("#6ca8ff"); expect(dropRarityColor("epic")).toBe("#ca75ff"); });
   test("cancels an unresolved enemy telegraph when its source dies", () => {
     const source = { active: false };
     const attack = new AttackArea("creep", { x: 10, y: 10 }, 0, 70, Math.PI, 0.5, 0.1, 2, source);
@@ -63,6 +65,8 @@ describe("arena systems", () => {
     hero.stamina = 0; hero.receiveDamage(10, { next: () => 0 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
     hero.stamina = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.stamina).toBe(1);
   });
+
+  test("returns passive Thorns damage and doubles it during Reflective Surge", () => { const defender = new Hero({ x: 0, y: 0 }); const attacker = new Hero({ x: 10, y: 0 }); defender.knownSkills.add("thorns"); const random = { next: () => 1 }; const before = attacker.hp; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 1); attacker.hp = before; defender.reflectiveSurgeRemaining = 6; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 2.2); });
 
   test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {
     const hero = new Hero({ x: 50, y: 50 }); const club = starterClub(); const buckler = { ...generateBuckler(0, "common", 12), reflectionComponents: ["return" as const] };

@@ -1,12 +1,12 @@
 import { GameObject } from "./GameObject";
 import { clamp, type Vector2 } from "./types";
 import { derivedStats, type Stats } from "../../common/progression";
-import { RARITY_POWER, type ItemInstance } from "../../common/items";
+import { RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
 import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed } from "../../common/combat";
 
-export interface StatusEffect { kind: "bleed" | "poison" | "stun"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
+export interface StatusEffect { kind: "bleed" | "poison" | "stun" | "freeze"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
 export abstract class Unit extends GameObject {
   position: Vector2;
@@ -26,6 +26,8 @@ export abstract class Unit extends GameObject {
   damageFloorOne = false;
   blockCooldown = 0;
   blockCooldownMax = 0;
+  reflectiveSurgeRemaining = 0;
+  readonly knownSkills = new Set<SkillId>();
   onCombatText?: (text: CombatText) => void;
 
   protected constructor(position: Vector2, readonly radius: number, hp: number) {
@@ -42,7 +44,7 @@ export abstract class Unit extends GameObject {
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): number {
     const hpBefore = this.hp;
-    let remaining = amount; const buckler = this.offHand;
+    let remaining = amount; let blockReflection = 0; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
     if (buckler?.itemKind === "buckler" && this.blockCooldown === 0 && this.stamina >= blockCost) {
       const chance = bucklerBlockChance(buckler, this.stats);
@@ -55,9 +57,15 @@ export abstract class Unit extends GameObject {
           if (buckler.reflectionComponents.includes("flat")) reflected += 1;
           if (buckler.reflectionComponents.includes("strength")) reflected += 0.2 * this.stats.strength;
           if (buckler.reflectionComponents.includes("return")) reflected += amount * (0.15 + 0.004 * this.stats.agility);
-          source.receiveDamage(reflected * power, random, this, false, false, { kind: presentation.kind });
+          blockReflection = reflected * power;
         }
       }
+    }
+    if (reflectable && source) {
+      const passiveReflection = this.knownSkills.has("thorns") ? amount * 0.05 : 0;
+      const surgeBonus = this.reflectiveSurgeRemaining > 0 ? amount * 0.01 : 0;
+      const reflected = (blockReflection + passiveReflection) * (this.reflectiveSurgeRemaining > 0 ? 2 : 1) + surgeBonus;
+      if (reflected > 0) source.receiveDamage(reflected, random, this, false, false, { kind: presentation.kind });
     }
     if (source && "build" in source) this.lastDamageSourceId = (source as Unit & { build: { id: string } }).build.id;
     if (invulnerable || this.damageFloorOne) this.hp = Math.max(1, this.hp - remaining); else this.takeDamage(remaining);
@@ -80,6 +88,7 @@ export abstract class Unit extends GameObject {
 
   updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false): void {
     this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
+    this.reflectiveSurgeRemaining = Math.max(0, this.reflectiveSurgeRemaining - deltaSeconds);
     const derived = derivedStats(this.stats);
     let periodicDamage = 0;
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, true, invulnerable, { kind: status.kind === "poison" ? "poison" : "bleed" }); } }
@@ -93,6 +102,7 @@ export abstract class Unit extends GameObject {
 
   addStatus(status: StatusEffect): void { this.statuses.push(status); }
   get stunned(): boolean { return this.statuses.some((status) => status.kind === "stun"); }
+  get frozen(): boolean { return this.statuses.some((status) => status.kind === "freeze"); }
   private emitCombatText(amount: number, kind: CombatText["kind"], critical: boolean): void { this.onCombatText?.({ position: { ...this.position }, amount, kind, critical, age: 0, lifetime: 0.9, drift: Math.sin(this.position.x * 0.17 + this.position.y * 0.11 + amount) * 9 }); }
 
   steer(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number): void {

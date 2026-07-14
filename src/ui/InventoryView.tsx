@@ -23,7 +23,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped);
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
-    <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`}>
+    <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
       <div class="item-card-content"><div class="item-title"><strong>{item.name}</strong><b>{equipped ? "Equipped · " : ""}x{tile.quantity}</b></div>
         <small>L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · {item.rarity}</small>
         {itemDetails(item, stats)}
@@ -36,12 +36,14 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   ) as HTMLElement;
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });
   if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item); node.onmouseleave = () => { onPreview(); onCurrencyPreview?.(); }; }
-  if (equipped) { (buttons[1] as HTMLButtonElement).disabled = true; (buttons[2] as HTMLButtonElement).disabled = true; }
-  if (spare <= 0) for (const index of [3, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
+  if (spare <= 0) for (const index of [1, 2, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
+  if (equipped) for (const index of [1, 2, 4, 5]) if (buttons[index]) { (buttons[index] as HTMLButtonElement).disabled = true; (buttons[index] as HTMLButtonElement).title = "Unequip this stack first"; }
+  const costs = upgradeCosts(item); const upgradeButton = buttons[3] as HTMLButtonElement | undefined;
+  if (upgradeButton && (progress.gold < costs.gold || progress.scraps[item.rarity] < costs.scraps)) { upgradeButton.disabled = true; upgradeButton.title = `Requires ${costs.gold} gold and ${costs.scraps} ${item.rarity} scraps`; }
   buttons[0].onclick = () => callbacks.onEquip(tile.id);
-  const bindBulk = (index: number, callback: (tileId: string, bulk: boolean) => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.title = "Shift+click to repeat while possible"; button.onclick = (event) => callback(tile.id, event.shiftKey); };
+  const bindBulk = (index: number, callback: (tileId: string, bulk: boolean) => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; if (!button.disabled) button.title = "Shift+click to repeat while possible"; button.onclick = (event) => callback(tile.id, event.shiftKey); };
   bindBulk(1, callbacks.onSell); bindBulk(2, callbacks.onPurge); bindBulk(3, callbacks.onUpgrade); bindBulk(4, callbacks.onSend); bindBulk(5, callbacks.onExtract);
-  const previewButton = (index: number, preview: CurrencyPreview): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.onmouseenter = () => onCurrencyPreview?.(preview); button.onmouseleave = () => onCurrencyPreview?.(); };
-  const costs = upgradeCosts(item); previewButton(1, { gold: item.sellValue }); previewButton(2, { [item.rarity]: purgeYield(item) }); previewButton(3, { gold: -costs.gold, [item.rarity]: -costs.scraps });
+  const previewButton = (index: number, preview: CurrencyPreview): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button || button.disabled) return; button.onmouseenter = () => onCurrencyPreview?.(preview); button.onmouseleave = () => onCurrencyPreview?.(); };
+  previewButton(1, { gold: item.sellValue }); previewButton(2, { [item.rarity]: purgeYield(item) }); previewButton(3, { gold: -costs.gold, [item.rarity]: -costs.scraps });
   return node;
 }

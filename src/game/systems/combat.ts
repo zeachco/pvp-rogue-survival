@@ -24,8 +24,12 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
   for (const projectile of state.projectiles) {
     if (!projectile.active) continue;
     if (projectile.owner === "hero") {
-      const hit = state.creeps.find((creep) => creep.active && distance(projectile.position, creep.position) <= projectile.radius + creep.radius);
-      if (hit) { const weapon = projectile.weapon ?? equipped; const dealt = hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); applyWeaponEffects(hit, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); if (projectile.skill === "rendingThrow") hit.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source: projectile.source }); projectile.active = false; }
+      const hit = state.creeps.find((creep) => creep.active && projectile.canHit(creep.build.id) && distance(projectile.position, creep.position) <= projectile.radius + creep.radius);
+      if (hit) {
+        projectile.markHit(hit.build.id);
+        if (projectile.skill === "frostOrb") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source });
+        else { const weapon = projectile.weapon ?? equipped; const dealt = hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); applyWeaponEffects(hit, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); if (projectile.skill === "rendingThrow") hit.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source: projectile.source }); if (projectile.skill === "frostSpike") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source }); projectile.active = false; }
+      }
     } else if (distance(projectile.position, hero.position) <= projectile.radius + hero.radius) { const weapon = projectile.weapon ?? projectile.source?.mainHand; const dealt = hero.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (weapon) { applyWeaponEffects(hero, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); } projectile.active = false; }
     if (projectile.position.x < -40 || projectile.position.y < -40 || projectile.position.x > width + 40 || projectile.position.y > height + 40) projectile.active = false;
   }

@@ -2,7 +2,7 @@ import type { SkillId } from "../../common/items";
 import type { Stats } from "../../common/progression";
 
 export interface HudCallbacks {
-  onJoin(name: string): void; onAllocation(stats: Stats): void; onEquip(tileId: string): void; onSell(tileId: string, bulk: boolean): void;
+  onJoin(name: string): void; onAllocation(stats: Stats): void; onRespec(stats: Stats): void; onEquip(tileId: string): void; onSell(tileId: string, bulk: boolean): void;
   onPurge(tileId: string, bulk: boolean): void; onUpgrade(tileId: string, bulk: boolean): void; onSend(tileId: string, bulk: boolean): void; onExtract(tileId: string, bulk: boolean): void;
   onLeaveRealm(): void; onEnterRealm(): void; onBack(): void;
 }

@@ -1,12 +1,12 @@
 import type { ItemInstance } from "../common/items.ts";
-import type { PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
+import type { GroundDrop, PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
 
 export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "solo" | "training" }
 export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; senderName: string; backlash: boolean }
 export interface Player {
   id: PlayerId; name: string; score: number; waveNumber: number; progress: PlayerProgress; connected: boolean;
   realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
-  issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, ItemInstance>;
+  issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>;
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[];
 }
 export interface PlayerRepository { get(id: PlayerId): Player | undefined; save(player: Player): void; values(): IterableIterator<Player>; persist(): void }

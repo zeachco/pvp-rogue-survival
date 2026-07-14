@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
-import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
+import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
 import { generateBuckler, generateItem, generateRelic, itemStackKey, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type PlayerId, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
@@ -32,6 +32,7 @@ export class GameService {
     const player = this.options.repository.get(playerId); if (!player) return;
     switch (message.type) {
       case "updateAllocation": if (!validAllocation(message.allocation)) return this.notice(player, "Allocation must use non-negative integers totaling 5."); player.progress.allocation = { ...message.allocation }; return this.sendProgress(player, "Future level allocation updated.");
+      case "respecStats": return this.respecStats(player, message.allocation);
       case "creepDefeated": return this.resolveDefeat(player, message.unitId);
       case "collectDrop": return this.collectDrop(player, message.dropId);
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);
@@ -59,7 +60,7 @@ export class GameService {
     if (existing) { existing.name = trimmed; existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
     const club = starterClub(); const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 1, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), incomingQueues: new Map(), backlashQueue: [],
-      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1 }], learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 } } };
+      progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: club, offHand: undefined, inventoryTiles: [{ id: "starter-club-tile", key: itemStackKey(club), item: club, quantity: 1 }], learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 }, universalSkills: ["healing", "rent"] } };
     this.options.repository.save(player); return player;
   }
 
@@ -102,20 +103,22 @@ export class GameService {
     const issued = player.issuedUnits.get(unitId); if (!issued) return this.notice(player, "Ignored an unknown or already resolved enemy."); player.issuedUnits.delete(unitId);
     if (issued.mode === "training") return this.options.send(player.id, { type: "creepDefeatResolved", unitId, score: player.score, progress: player.progress, reason: "Training kill: no rewards." });
     const build = issued.build; player.score += build.isRival ? 10 : 2; const xp = Math.floor(build.xpReward * this.options.balance.rewards.xpMultiplier * (issued.mode === "solo" ? 0.5 : 1));
-    const goldChance = Math.min(1, (build.isRival ? 0.5 : 0.2) * this.options.balance.rewards.goldChanceMultiplier); const gold = this.options.random.next() < goldChance ? build.goldReward : 0;
-    player.progress.gold += gold; this.grantXp(player, xp); const drop = this.rollDrop(player, build); const reason = gold ? `Gained ${xp} XP and found ${gold} gold.` : `Gained ${xp} XP.`;
+    this.grantXp(player, xp); const drop = this.rollDrop(player, build); const reason = drop ? `Gained ${xp} XP. A ${drop.kind} reward dropped.` : `Gained ${xp} XP.`;
     this.options.send(player.id, { type: "creepDefeatResolved", unitId, score: player.score, progress: player.progress, drop, reason }); this.broadcastRealms();
   }
 
   private rollDrop(player: Player, build: UnitBuild): GroundDrop | undefined {
+    const goldChance = Math.min(1, (build.isRival ? 0.5 : 0.2) * this.options.balance.rewards.goldChanceMultiplier);
+    if (this.options.random.next() < goldChance) { const drop: GroundDrop = { id: this.createId(), kind: "gold", amount: build.goldReward }; player.groundDrops.set(drop.id, drop); return drop; }
     const sent = build.emitterId ? (build.mainHand.id.includes("sent") ? build.mainHand : build.offHand?.id.includes("sent") ? build.offHand : undefined) : undefined;
     for (const item of [sent, sent?.id === build.mainHand.id ? undefined : build.mainHand, sent?.id === build.offHand?.id ? undefined : build.offHand, ...build.carried].filter(Boolean) as ItemInstance[]) {
       const chance = Math.min(this.options.balance.rewards.maxDropChance, item.dropChance * this.options.balance.rewards.dropChanceMultiplier); if (this.options.random.next() >= chance) continue;
-      const id = this.createId(); const dropped = { ...item, id: `${item.id}-drop-${id}` }; player.groundDrops.set(id, dropped); return { id, item: dropped };
+      const id = this.createId(); if (this.options.random.next() < 0.25) { const drop: GroundDrop = { id, kind: "scrap", rarity: item.rarity, amount: purgeYield(item) }; player.groundDrops.set(id, drop); return drop; }
+      const dropped = { ...item, id: `${item.id}-drop-${id}` }; const drop: GroundDrop = { id, kind: "item", item: dropped }; player.groundDrops.set(id, drop); return drop;
     }
   }
 
-  private collectDrop(player: Player, dropId: string): void { const item = player.groundDrops.get(dropId); if (!item) return this.options.send(player.id, { type: "collectItemResult", dropId, collected: false, reason: "That drop is no longer available." }); const result = collectIntoInventory(player.progress, item, () => this.createId(), () => this.seed()); if (result.changed) player.groundDrops.delete(dropId); this.options.send(player.id, { type: "collectItemResult", dropId, collected: result.changed, reason: result.reason }); if (result.changed) this.sendProgress(player, result.reason); }
+  private collectDrop(player: Player, dropId: string): void { const drop = player.groundDrops.get(dropId); if (!drop) return this.options.send(player.id, { type: "collectItemResult", dropId, collected: false, reason: "That drop is no longer available." }); let changed = true; let reason: string; if (drop.kind === "gold") { player.progress.gold += drop.amount; reason = `Collected ${drop.amount} gold.`; } else if (drop.kind === "scrap") { player.progress.scraps[drop.rarity] += drop.amount; reason = `Collected ${drop.amount} ${drop.rarity} scrap.`; } else { const result = collectIntoInventory(player.progress, drop.item, () => this.createId(), () => this.seed()); changed = result.changed; reason = result.reason; } if (changed) player.groundDrops.delete(dropId); this.options.send(player.id, { type: "collectItemResult", dropId, collected: changed, reason }); if (changed) this.sendProgress(player, reason); }
 
   private heroDefeated(player: Player, sourceUnitId?: string): void {
     if (!player.realmId && !player.realmOptedIn) return this.notice(player, "Training Grounds prevent defeat.");
@@ -163,13 +166,14 @@ export class GameService {
   private broadcastRealms(): void { for (const player of this.options.repository.values()) if (player.connected) this.options.send(player.id, { type: "realmUpdated", realm: this.realmState(player) }); }
   private publicPlayer(player: Player): PublicPlayer { return { id: player.id, name: player.name, score: player.score, waveNumber: player.waveNumber, level: player.progress.level }; }
   private grantXp(player: Player, amount: number): void { const old = player.progress.level; player.progress.xp += amount; const next = levelForXp(player.progress.xp); for (let level = old; level < next; level += 1) for (const key of STAT_KEYS) player.progress.stats[key] += player.progress.allocation[key]; player.progress.level = next; }
+  private respecStats(player: Player, allocation: Stats): void { if (!validAllocation(allocation)) return this.notice(player, "Respec ratio must use non-negative integers totaling 5."); const cost = player.progress.level * 100; if (player.progress.gold < cost) return this.notice(player, `Respec requires ${cost} gold.`); player.progress.gold -= cost; player.progress.allocation = { ...allocation }; player.progress.stats = Object.fromEntries(STAT_KEYS.map((key) => [key, allocation[key] * player.progress.level])) as Stats; this.sendProgress(player, `Reapplied the allocation ratio across ${player.progress.level} levels for ${cost} gold.`); }
   private applyInventoryAction(player: Player, bulk: boolean | undefined, action: () => InventoryResult): void {
     let changed = 0; let result = action();
-    while (result.changed) { changed += 1; if (!bulk || changed >= 1000) break; result = action(); }
+    while (result.changed) { changed += 1; if (!bulk) break; result = action(); }
     removeEmptyInventoryTiles(player.progress); if (!changed) return this.notice(player, result.reason);
     this.sendProgress(player, bulk ? `Completed ${changed} item actions.` : result.reason);
   }
-  private applyInventoryResult(player: Player, result: InventoryResult): void { if (!result.changed) return this.notice(player, result.reason); for (const item of result.dropped ?? []) { const id = this.createId(); player.groundDrops.set(id, item); this.options.send(player.id, { type: "groundDropCreated", drop: { id, item } }); } removeEmptyInventoryTiles(player.progress); this.sendProgress(player, result.reason); }
+  private applyInventoryResult(player: Player, result: InventoryResult): void { if (!result.changed) return this.notice(player, result.reason); for (const item of result.dropped ?? []) { const id = this.createId(); const drop: GroundDrop = { id, kind: "item", item }; player.groundDrops.set(id, drop); this.options.send(player.id, { type: "groundDropCreated", drop }); } removeEmptyInventoryTiles(player.progress); this.sendProgress(player, result.reason); }
   private sendProgress(player: Player, reason: string): void { this.options.send(player.id, { type: "progressionUpdated", progress: player.progress, reason }); }
   private notice(player: Player, message: string): void { this.options.send(player.id, { type: "serverNotice", message }); }
   private seed(): number { return randomSeed(this.options.random); }

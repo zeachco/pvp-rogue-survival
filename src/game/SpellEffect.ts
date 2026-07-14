@@ -18,6 +18,9 @@ export class SpellEffect extends GameObject {
     else if (this.kind === "cleave") cleave(ctx, progress);
     else if (this.kind === "orbitingHammers") hammerCast(ctx, progress);
     else if (this.kind === "arcaneBolt") arcane(ctx, progress);
+    else if (this.kind === "gravityPull") impact(ctx, progress, "#b98cff", 180, 12);
+    else if (this.kind === "frostOrb") impact(ctx, progress, "#8de7ff", 70, 10);
+    else if (this.kind === "reflectiveSurge") impact(ctx, progress, "#ffe46b", 55, 8);
     else healing(ctx, progress);
     ctx.restore();
   }

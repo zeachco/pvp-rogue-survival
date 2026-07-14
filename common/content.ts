@@ -21,6 +21,7 @@ export interface SkillDefinition {
   cooldown: number;
   range?: number;
   resource: "stamina" | "mana" | "life";
+  description: string;
 }
 
 export interface AffixDefinition {
@@ -50,17 +51,21 @@ export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
 };
 
 export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
-  bash: { id: "bash", label: "Bash", damageMultiplier: 1.5, cooldown: 5, range: 105, resource: "stamina" },
-  sweep: { id: "sweep", label: "Sweep", damageMultiplier: 1.25, cooldown: 5, range: 135, resource: "stamina" },
-  flurry: { id: "flurry", label: "Flurry", damageMultiplier: 0.8, cooldown: 2.5, range: 105, resource: "stamina" },
-  shockwave: { id: "shockwave", label: "Shockwave", damageMultiplier: 1.35, cooldown: 4.5, range: 125, resource: "stamina" },
-  cleave: { id: "cleave", label: "Cleave", damageMultiplier: 1.45, cooldown: 4, range: 125, resource: "stamina" },
-  rendingThrow: { id: "rendingThrow", label: "Rending Throw", damageMultiplier: 1.35, cooldown: 4, range: 240, resource: "stamina" },
-  orbitingHammers: { id: "orbitingHammers", label: "Orbiting Hammers", damageMultiplier: 0.85, cooldown: 4.5, range: 240, resource: "mana" },
-  arcaneBolt: { id: "arcaneBolt", label: "Arcane Bolt", damageMultiplier: 1.7, cooldown: 5, range: 330, resource: "mana" },
-  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana" },
-  rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 105, resource: "life" },
-  blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina" }
+  bash: { id: "bash", label: "Bash", damageMultiplier: 1.5, cooldown: 5, range: 105, resource: "stamina", description: "A heavy full-circle strike that always stuns for 1.1 seconds." },
+  sweep: { id: "sweep", label: "Sweep", damageMultiplier: 1.25, cooldown: 5, range: 135, resource: "stamina", description: "A broad sword sweep that always inflicts a strong 3-second bleed." },
+  flurry: { id: "flurry", label: "Flurry", damageMultiplier: 0.8, cooldown: 2.5, range: 105, resource: "stamina", description: "A fast dagger attack with shortened recovery and a wide close-range arc." },
+  shockwave: { id: "shockwave", label: "Shockwave", damageMultiplier: 1.35, cooldown: 4.5, range: 125, resource: "stamina", description: "A full-circle physical impact that always stuns for 0.6 seconds." },
+  cleave: { id: "cleave", label: "Cleave", damageMultiplier: 1.45, cooldown: 4, range: 125, resource: "stamina", description: "A powerful axe cleave that always inflicts a 2-second bleed." },
+  rendingThrow: { id: "rendingThrow", label: "Rending Throw", damageMultiplier: 1.35, cooldown: 4, range: 240, resource: "stamina", description: "A short-ranged physical axe projectile that guarantees a standard bleed." },
+  orbitingHammers: { id: "orbitingHammers", label: "Orbiting Hammers", damageMultiplier: 0.85, cooldown: 4.5, range: 240, resource: "mana", description: "Launches three magical hammers that spiral outward and each hit one enemy." },
+  arcaneBolt: { id: "arcaneBolt", label: "Arcane Bolt", damageMultiplier: 1.7, cooldown: 5, range: 330, resource: "mana", description: "A long-ranged magical projectile that stuns its target for 0.35 seconds." },
+  gravityPull: { id: "gravityPull", label: "Gravity Pull", damageMultiplier: 0, cooldown: 18, range: 600, resource: "mana", description: "Spends 8 mana to pull every enemy up to 180 pixels toward you." },
+  thorns: { id: "thorns", label: "Thorns", damageMultiplier: 0, cooldown: 0, resource: "stamina", description: "Passive: returns 5% of incoming direct damage, even without a block." },
+  reflectiveSurge: { id: "reflectiveSurge", label: "Reflective Surge", damageMultiplier: 0, cooldown: 16, range: 600, resource: "stamina", description: "Spends 3 stamina to double returned damage and add 1% incoming damage for 6 seconds." },
+  frostOrb: { id: "frostOrb", label: "Frozen Orb", damageMultiplier: 0.7, cooldown: 20, range: 500, resource: "mana", description: "Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction." },
+  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana", description: "Automatically restores health while below 50% HP, scaling with Spirit and magic amplification." },
+  rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 105, resource: "life", description: "A physical strike that spends 1 health and cannot cast at 1 HP." },
+  blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina", description: "A reactive buckler block. Return bucklers divide recovery by main-hand attack speed." }
 };
 
 export const AFFIXES: Readonly<Record<AffixId, AffixDefinition>> = {
