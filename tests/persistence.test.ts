@@ -6,6 +6,7 @@ import { BALANCE } from "../common/balance";
 import type { RandomSource } from "../common/random";
 import { GameService } from "../server/GameService";
 import { SqlPlayerRepository } from "../server/SqlPlayerRepository";
+import { createApp } from "../server/createApp";
 
 class FixedRandom implements RandomSource { next(): number { return 0.5; } }
 
@@ -39,6 +40,14 @@ describe("Bun SQL player persistence", () => {
       const restored = await SqlPlayerRepository.open(url);
       expect(restored.get(changed.id)?.progress.gold).toBe(10); expect(restored.get(untouched.id)?.progress.gold).toBe(0);
       await restored.close();
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
+
+  test("flushes dirty hero state during idempotent graceful app shutdown", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "multi-line-shutdown-sql-")); const url = `sqlite://${join(directory, "players.sqlite")}`;
+    try {
+      const app = await createApp({ root: directory, databaseUrl: url }); const player = app.game.join("ShutdownSaved"); player.progress.gold = 321; app.repository.markDirty(player.id); const firstClose = app.close(); expect(app.close()).toBe(firstClose); await firstClose;
+      const restored = await SqlPlayerRepository.open(url); expect(restored.get(player.id)?.progress.gold).toBe(321); await restored.close();
     } finally { rmSync(directory, { recursive: true, force: true }); }
   });
 });

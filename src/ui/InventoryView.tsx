@@ -3,7 +3,7 @@ import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, statsWithItemBonuses } from "../../common/items";
 import { h } from "./dom";
 import type { CurrencyPreview, HudCallbacks } from "./types";
-import { itemDetails } from "./ItemDetails";
+import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import { extractableSkills, purgeYield, upgradeCosts } from "../../common/inventory";
 
 export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProgress): InventoryTile[] {
@@ -34,6 +34,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
       </div></div>
     </div>
   ) as HTMLElement;
+  bindRequirementPreview(node.querySelector<HTMLElement>(".equipment-details")!, item, stats);
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });
   if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item, equipped); node.onmouseleave = () => { onPreview(); onCurrencyPreview?.(); onSpellPreview?.(); }; }
   if (spare <= 0) for (const index of [1, 2, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
@@ -48,7 +49,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const extractButton = buttons[5] as HTMLButtonElement | undefined;
   if (extractButton && progress.gold < extractCost) { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
-  const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${shown.itemKind === "weapon" ? `${shown.hands}H` : shown.itemKind === "buckler" ? `${Math.round(shown.blockChance * 100)}% block` : "Relic"} · ${shown.rarity}` : `L${item.level} · ${item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; };
+  const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${shown.itemKind === "weapon" ? `${shown.hands}H` : shown.itemKind === "buckler" ? `${Math.round(shown.blockChance * 100)}% block` : "Relic"} · ${shown.rarity}` : `L${item.level} · ${item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
   bindActionPreview(1, { gold: item.sellValue }); bindActionPreview(2, { [item.rarity]: purgeYield(item) });
   const upgradePreview = buttons[3] as HTMLButtonElement | undefined; upgradePreview?.addEventListener("mouseenter", () => previewUpgradeCard(true)); upgradePreview?.addEventListener("mouseleave", () => previewUpgradeCard(false));

@@ -22,4 +22,4 @@ export class InMemoryPlayerRepository implements PlayerRepository {
   values(): IterableIterator<Player> { return this.players.values(); }
   persist(): void { }
 }
-function summary(player: Player): HeroSummary { return { id: player.id, username: player.name, level: player.progress.level, receivesDeathEchoes: false }; }
+function summary(player: Player): HeroSummary { return { id: player.id, username: player.name, level: player.progress.level, connected: player.connected, receivesDeathEchoes: false }; }

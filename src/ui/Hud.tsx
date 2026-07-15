@@ -6,7 +6,7 @@ import type { PlayerState } from "../game/types";
 import { h } from "./dom";
 import { itemTile, orderInventoryTiles } from "./InventoryView";
 import { occupiedInventorySlots } from "../../common/inventory";
-import { itemDetails } from "./ItemDetails";
+import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import type { CurrencyPreview, HudCallbacks, SpellSlot } from "./types";
 import { bucklerBlockChance, bucklerBlockCost, cappedSkillLevel, cooldownScale, healingCooldown, skillCooldown, skillRange, spellPower, weaponAttackSpeed, weaponDamage, weaponRange } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
@@ -66,7 +66,7 @@ export class Hud {
   showXpToast(message: string): void { clearTimeout(this.xpToastTimer); this.xpToast.textContent = message; this.xpToast.classList.add("is-visible"); this.xpToastTimer = window.setTimeout(() => this.xpToast.classList.remove("is-visible"), 3200); }
   setPlayer(player: PlayerState): void { this.player = player; this.targetXp = player.progress.xp; this.displayedXp = this.displayedXp === undefined ? this.targetXp : lerpXpDisplay(this.displayedXp, this.targetXp); this.renderDynamicHud(); if (this.staticProgress !== player.progress || this.staticPlayerName !== player.name || this.staticReceivesDeathEchoes !== player.receivesDeathEchoes) { this.staticProgress = player.progress; this.staticPlayerName = player.name; this.staticReceivesDeathEchoes = player.receivesDeathEchoes; const signature = staticStateSignature(player, this.inspected); if (signature !== this.staticSignature) { this.staticSignature = signature; this.renderStaticHud(); } } if (this.lastWaveNumber !== player.waveNumber) { this.lastWaveNumber = player.waveNumber; this.renderRealm(); } this.applyPanelTriggers(player.progress); this.updateVisibility(); }
   configurePanelTriggers(triggers: { character: boolean; inventory: boolean }): void { this.panelTriggers = { ...triggers }; if (triggers.character) this.setPanelCollapsed(this.characterPanel, this.characterToggle, "character", true); if (triggers.inventory) this.setPanelCollapsed(this.inventoryPanel, this.inventoryToggle, "inventory", true); }
-  setLeaderboard(heroes: HeroSummary[]): void { this.leaderboardNode.replaceChildren(...heroes.map((hero) => { const button = <button type="button"><strong>{rankedName(hero.username, hero.receivesDeathEchoes)}</strong><span>Level {hero.level}</span></button> as HTMLButtonElement; button.onclick = () => this.callbacks.onInspectHero(hero.id); return button; })); }
+  setLeaderboard(heroes: HeroSummary[]): void { this.leaderboardNode.replaceChildren(...heroes.map((hero) => { const button = <button class={hero.connected ? "is-online" : "is-offline"} type="button"><strong>{rankedName(hero.username, hero.receivesDeathEchoes)}</strong><span>Level {hero.level}</span></button> as HTMLButtonElement; button.onclick = () => this.callbacks.onInspectHero(hero.id); return button; })); }
   setPublicHero(hero?: PublicHeroProfile): void { if (!hero) { this.publicSheet.classList.add("is-hidden"); return; } const stats = statsWithItemBonuses(hero.stats, hero.mainHand, hero.offHand); this.publicSheet.replaceChildren(<div class="portrait"><strong>{hero.username}</strong><small>Level {hero.level} · Best wave {hero.maxWaveReached}</small></div>, <div class="attribute-grid">{STAT_KEYS.map((key) => <span><small>{key}</small><b>{fmt(stats[key])}</b></span>)}</div>, <strong>Effective stats</strong>, effectiveStatSheet(hero.mainHand, hero.offHand, stats), <strong>Main hand</strong>, equipmentSummary(hero.mainHand, stats, "main"), <strong>Offhand</strong>, hero.offHand ? equipmentSummary(hero.offHand, stats, "off") : <small>Empty</small>, <strong>Skills</strong>, <small>{[...new Set([...hero.learnedSkills, ...hero.mainHand.skills, ...(hero.offHand?.skills ?? [])])].map((id) => SKILLS[id].label).join(", ") || "None"}</small>); this.publicSheet.classList.remove("is-hidden"); }
   clearPlayer(): void { this.player = undefined; this.realm = undefined; this.inspected = undefined; this.staticProgress = undefined; this.staticSignature = ""; this.dynamicSignature = ""; this.updateVisibility(); }
   setInspection(build?: UnitBuild, xpReward?: number): void { this.inspected = build; this.inspectedXp = build ? xpReward ?? build.xpReward : undefined; this.staticSignature = `${staticStateSignature(this.player, build)}:${this.inspectedXp ?? ""}`; this.renderStaticHud(); }
@@ -124,12 +124,12 @@ export class Hud {
   private updateVisibility(): void { const joined = Boolean(this.player); this.joinPanel.classList.toggle("is-hidden", joined); this.gameHud.classList.toggle("is-hidden", !joined); }
 }
 function equipmentSummary(item: ItemInstance, stats: Stats, slot: "main" | "off", baselineItem?: ItemInstance, baselineStats?: Stats): HTMLElement {
-  return (
+  const node = (
     <div class={`item-card equipped-item equipped-${slot}-hand rarity-${item.rarity}`} style={slot === "main" ? "--attack-progress:100%" : undefined}>
       <strong>{item.name}</strong><small class={baselineItem && baselineItem.level !== item.level ? "is-gain-preview" : ""}>Level {formatPreviewValue({ currentVal: baselineItem?.level ?? item.level, newVal: item.level })} · {item.itemKind === "weapon" ? `${item.hands}-handed` : item.itemKind === "buckler" ? "Buckler" : "Relic"} · {item.rarity}</small>
       {itemDetails(item, stats, baselineItem, baselineStats)}
     </div>
-  ) as HTMLElement;
+  ) as HTMLElement; bindRequirementPreview(node.querySelector<HTMLElement>(".equipment-details")!, item, stats); return node;
 }
 function effectiveStatRows(main: ItemInstance, off: ItemInstance | undefined, stats: Stats): Array<[string, string]> {
   const derived = derivedStats(stats); const items = [main, off].filter(Boolean) as ItemInstance[]; const buckler = off?.itemKind === "buckler" ? off : undefined;

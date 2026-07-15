@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
-    "dev": "bun run --parallel client server",
+    "dev": "bun run --watch --parallel client server",
     "client": "bunx vite --host 0.0.0.0",
     "server": "bun --watch server/server.ts",
     "start": "bun server/server.ts",
     "build": "bunx tsc --noEmit && bunx vite build",
-    "prod": "bun install && bun run --parallel build start",
+    "prod": "bun run --parallel build start",
     "preview": "bunx vite preview --host 0.0.0.0"
   },
   "dependencies": {

@@ -16,8 +16,21 @@ export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineI
     {attacks ? <span><small>Stamina cost</small>{detailValue(baselineItem?.staminaCost ?? item.staminaCost, item.staminaCost, precise)}</span> : null}
     {item.weight > 0 ? <span><small>Weight</small><b>{item.weight}</b></span> : null}
     {effects || baselineEffects ? <span class="equipment-detail-wide"><small>Effects</small>{detailText(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small><b>{item.skills.map(skillLabel).join(", ")}</b></span> : null}
-    {requirements.length ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small><b class="requirement-values">{requirements.map((requirement, index) => <span class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}>{index ? ", " : ""}{capitalize(requirement.key)} {formatPreviewValue(requirement, fmt)}</span>)}</b>{effectiveness < 1 ? <em>{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
+    {requirements.length ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small><b class="requirement-values">{requirements.map((requirement, index) => <span class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}>{index ? ", " : ""}{capitalize(requirement.key)} {formatPreviewValue(requirement, fmt)}</span>)}</b>{effectiveness < 1 ? <em tabindex="0">{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
   </div> as HTMLElement;
+}
+
+export function requirementMetStats(item: ItemInstance, stats: Stats): Stats {
+  return Object.fromEntries(STAT_KEYS.map((key) => [key, Math.max(stats[key], item.requirements[key] ?? 0)])) as Stats;
+}
+
+export function bindRequirementPreview(details: HTMLElement, item: ItemInstance, stats: Stats): void {
+  const trigger = details.querySelector<HTMLElement>(".requirement-detail.is-unmet em"); if (!trigger) return;
+  const projected = itemDetails(item, requirementMetStats(item, stats), item, stats); const labels = new Map([...projected.querySelectorAll<HTMLElement>("small")].map((label) => [label.textContent, label]));
+  const originals = [...details.querySelectorAll<HTMLElement>("small")].filter((label) => label.textContent !== "Requirements").map((label) => { const value = label.nextElementSibling as HTMLElement | null; const next = labels.get(label.textContent)?.nextElementSibling as HTMLElement | null; return value && next ? { value, html: value.innerHTML, className: value.className, next } : undefined; }).filter(Boolean) as Array<{ value: HTMLElement; html: string; className: string; next: HTMLElement }>;
+  const show = (): void => { for (const entry of originals) { entry.value.innerHTML = entry.next.innerHTML; entry.value.className = entry.next.className; } };
+  const restore = (): void => { for (const entry of originals) { entry.value.innerHTML = entry.html; entry.value.className = entry.className; } };
+  trigger.onmouseenter = show; trigger.onmouseleave = restore; trigger.onfocus = show; trigger.onblur = restore;
 }
 
 export function itemRequirementRows(item: ItemInstance, stats: Stats, baselineItem?: ItemInstance): Array<{ key: typeof STAT_KEYS[number]; currentVal: number; newVal: number; unmet: boolean }> {
