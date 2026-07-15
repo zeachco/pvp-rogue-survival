@@ -5,13 +5,14 @@ import { SeededRandom } from "./random";
 export type WeaponClass = "club" | "sword" | "dagger" | "mace" | "axe" | "throwingAxe" | "hammer" | "staff" | "scepter";
 export type EquipmentDefinitionId = WeaponClass | "buckler" | "relic";
 export type Rarity = "common" | "uncommon" | "rare" | "epic";
-export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "gravityPull" | "thorns" | "reflectiveSurge" | "frostOrb" | "fireBreath" | "voodoo" | "healing" | "rent" | "blocking" | "slowAura" | "hinderingAura" | "deathBurst" | "sunburnAura" | "thunderAura";
+export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "whirlwind" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "gravityPull" | "attraction" | "manaDrain" | "penance" | "thorns" | "reflectiveSurge" | "frostOrb" | "fireBreath" | "voodoo" | "healing" | "rent" | "blocking" | "slowAura" | "hinderingAura" | "deathBurst" | "sunburnAura" | "thunderAura";
 export type AffixId = "rusty" | "venomous" | "bleeding" | "stunning" | "focused" | "swift";
 export type ReflectionComponent = "flat" | "strength" | "return";
 export type ItemPerkId = "defense" | "physicalResist" | "magicResist" | "fireResist" | "frostResist" | "poisonResist" | "bleedResist" | "dodgeChance";
 export const ITEM_PERKS: ItemPerkId[] = ["defense", "physicalResist", "magicResist", "fireResist", "frostResist", "poisonResist", "bleedResist", "dodgeChance"];
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic"];
 export const AURA_SKILLS: SkillId[] = ["slowAura", "hinderingAura", "deathBurst", "sunburnAura", "thunderAura"];
+export function auraSkillForSeed(seed: number, divisor = 1): SkillId { return AURA_SKILLS[Math.abs(Math.floor(seed / divisor)) % AURA_SKILLS.length]; }
 export const RARITY_POWER: Record<Rarity, number> = { common: 1, uncommon: 1.25, rare: 1.6, epic: 2.1 };
 export const MAX_ITEM_LEVEL: Record<Rarity, number> = { common: 10, uncommon: 15, rare: 30, epic: 50 };
 export const nextRarity = (rarity: Rarity): Rarity | undefined => RARITIES[RARITIES.indexOf(rarity) + 1];
@@ -63,7 +64,7 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
     id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "buckler", definitionId: "buckler",
     name: `${spiked ? "Spiked " : holy ? "Holy " : ""}Buckler`, level, rarity, seed, hands: 0, weight: 0, affixes: [],
     requirements: level ? { strength: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: {},
-    modifiers: { ...baseModifiers(1, 1), goldGain: 0.05 * power, rarityBoost: 0.02 * power }, skills: ["blocking", ...(spiked && (rarity === "rare" || rarity === "epic") ? ["thorns" as const, "reflectiveSurge" as const] : []), ...(holy ? AURA_SKILLS : [])], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
+    modifiers: { ...baseModifiers(1, 1), goldGain: 0.05 * power, rarityBoost: 0.02 * power }, skills: ["blocking", ...(spiked && (rarity === "rare" || rarity === "epic") ? ["thorns" as const, "reflectiveSurge" as const] : []), ...(holy ? [auraSkillForSeed(seed, 5)] : [])], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
     sellValue: Math.max(1, Math.round((level + 1) * power * (spiked ? 5 : 4))), blockChance: 0.1 * power, reflectionComponents, attractionSpeed: 0
   }, seed);
 }
@@ -71,9 +72,9 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
 export function generateRelic(level: number, rarity: Rarity, seed: number): ItemInstance {
   level = Math.min(level, MAX_ITEM_LEVEL[rarity]);
   const source = new SeededRandom(seed); const power = RARITY_POWER[rarity]; const attractionSpeed = source.next() < 0.5 ? 35 : 0; const sustain = source.next(); const perkRoll = source.next(); const modifiers = baseModifiers(1, 1); if (sustain < 0.25) modifiers.lifeStealBase = 0.02; else if (sustain < 0.5) modifiers.strengthRegenMultiplier = 0.002;
-  const perk: SkillId | undefined = perkRoll < 0.2 ? "voodoo" : perkRoll < 0.4 ? "fireBreath" : undefined;
-  const skills: SkillId[] = [...(attractionSpeed ? ["gravityPull" as const] : []), ...(perk ? [perk] : [])];
-  const name = perk === "voodoo" ? "Voodoo Doll" : perk === "fireBreath" ? "Ember Idol" : attractionSpeed ? "Attracting Relic" : "Spirit Relic";
+  const perk: SkillId | undefined = perkRoll < 0.2 ? "voodoo" : perkRoll < 0.4 ? "fireBreath" : perkRoll < 0.55 ? "manaDrain" : perkRoll < 0.7 ? "penance" : undefined;
+  const skills: SkillId[] = [...(attractionSpeed ? ["attraction" as const, "gravityPull" as const] : []), ...(perk ? [perk] : [])];
+  const name = perk === "voodoo" ? "Voodoo Doll" : perk === "fireBreath" ? "Ember Idol" : perk === "manaDrain" ? "Siphoning Idol" : perk === "penance" ? "Penance Idol" : attractionSpeed ? "Attracting Relic" : "Spirit Relic";
   return rollItemPerks({ id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name, level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills, staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed }, seed);
 }
 
@@ -107,7 +108,7 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
   return {
     id: `item-${seed}-${suffix}`, itemKind: "weapon", definitionId: weaponClass, name: `${affixes[0] ? `${capitalize(affixes[0])} ` : ""}${data.label}`,
     level, rarity, seed, hands: weaponClass === "staff" || weaponClass === "scepter" ? 2 : 1, weight: data.weight, affixes, requirements, statBonuses: {}, modifiers,
-    skills: weaponClass === "scepter" ? [...AURA_SKILLS] : data.skill ? [data.skill, ...(weaponClass === "staff" && (rarity === "rare" || rarity === "epic") ? ["frostOrb" as const] : []), ...(weaponClass === "mace" && (rarity === "rare" || rarity === "epic") ? ["healing" as const] : [])] : [], staminaCost: data.stamina * levelScale,
+    skills: weaponClass === "scepter" ? [auraSkillForSeed(seed)] : data.skill ? [data.skill, ...(weaponClass === "staff" && (rarity === "rare" || rarity === "epic") ? ["frostOrb" as const] : []), ...(weaponClass === "mace" && (rarity === "rare" || rarity === "epic") ? ["healing" as const] : []), ...(weaponClass === "axe" && (rarity === "rare" || rarity === "epic") ? ["whirlwind" as const] : [])] : [], staminaCost: data.stamina * levelScale,
     dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * (4 + affixes.length * 2))),
     blockChance: 0, reflectionComponents: [], attractionSpeed: weaponClass === "staff" && seed % 4 === 0 ? 35 : 0
   };

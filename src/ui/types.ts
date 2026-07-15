@@ -8,4 +8,4 @@ export interface HudCallbacks {
   onLogout(): void; onInspectHero(heroId: string): void; onToggleSpell(skill: SkillId): void; onDismissPanelTrigger(panel: "character" | "inventory"): void;
 }
 export type CurrencyPreview = Partial<Record<"gold" | "common" | "uncommon" | "rare" | "epic", number>>;
-export interface SpellSlot { id: SkillId; label: string; level: number; cooldown: number; cooldownMax: number; resource: "mana" | "stamina" | "life"; disabled?: boolean }
+export interface SpellSlot { id: SkillId; label: string; level: number; cooldown: number; cooldownMax: number; resource: "mana" | "stamina" | "life"; costLabel: string; disabled?: boolean }

@@ -47,6 +47,7 @@ export class AttackArea extends GameObject {
   }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
+    if (this.skill === "rent") return;
     ctx.save(); ctx.translate(this.origin.x - camera.x, this.origin.y - camera.y);
     ctx.beginPath(); ctx.moveTo(0, 0);
     ctx.arc(0, 0, this.range, this.angle - this.halfArc, this.angle + this.halfArc); ctx.closePath();

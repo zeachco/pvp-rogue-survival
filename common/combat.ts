@@ -1,6 +1,7 @@
 import type { BalanceConfig } from "./balance";
 import { SKILLS, WEAPONS } from "./content";
-import { itemRequirementMultiplier, RARITY_POWER, weaponLevelScale, weaponSkillLevelScale, type ItemInstance, type SkillId } from "./items";
+import { AURA_SKILLS, itemRequirementMultiplier, RARITY_POWER, weaponLevelScale, weaponSkillLevelScale, type ItemInstance, type SkillId } from "./items";
+import { auraRadius } from "./auras";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
@@ -27,12 +28,16 @@ export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if 
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
 export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats): number { return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
-export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit = 0): number { const base = SKILLS[skill].range ?? weaponRange(item); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item.level); }
+export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit = 0): number { if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? weaponRange(item); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item.level); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
 export function cooldownScale(level: number, reduction: number): number { return Math.max(0.25, (1 - reduction) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
 export const MAX_SKILL_LEVEL = 100;
 export function cappedSkillLevel(level: number): number { return Math.max(1, Math.min(MAX_SKILL_LEVEL, level)); }
+export function manaConversionFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.59 / 99); }
+export function whirlwindRadius(level: number): number { return 90 + 1.2 * cappedSkillLevel(level); }
+export function whirlwindDuration(spirit: number): number { return 2 + Math.min(6, 0.06 * Math.max(0, spirit)); }
+export function whirlwindDamage(strength: number): number { return 1 + 0.4 * Math.max(0, strength); }
 export function healingFraction(level: number): number { return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 99); }
 export function healingCooldown(level: number): number { return 15 - (cappedSkillLevel(level) - 1) * (14 / 99); }
 export function healingCast(currentHp: number, maxHp: number, level: number): { restoredHp: number; manaCost: number } { const restoredHp = Math.max(0, Math.min(maxHp - currentHp, currentHp * healingFraction(level))); return { restoredHp, manaCost: restoredHp * 2 }; }

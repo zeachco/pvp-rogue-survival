@@ -1,4 +1,5 @@
 import { itemRequirementMultiplier, type ItemInstance } from "../../../common/items";
+import { manaConversionFraction } from "../../../common/combat";
 import type { RandomSource } from "../../../common/random";
 import type { ArenaState } from "../ArenaState";
 import type { Hero } from "../Hero";
@@ -11,7 +12,7 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
     attack.markResolved();
     if (attack.owner === "hero") {
       for (const creep of state.creeps) if (creep.active && attack.contains(creep.position, creep.radius)) {
-        const dealt = creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon && !creep.lastHitDodged) { applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined); applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt); }
+        const dealt = creep.receiveDamage(attack.damage, random, attack.source as Unit | undefined, true, false, attack.presentation); if (attack.weapon && !creep.lastHitDodged) { applyWeaponEffects(creep, attack.weapon, random, attack.source as Unit | undefined); applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt); if (!attack.skill) applyManaDrain(attack.source as Unit | undefined, dealt); }
         if (attack.skill === "bash") creep.addStatus({ kind: "stun", remaining: 1.1, damagePerSecond: 0 });
         if (attack.skill === "shockwave") creep.addStatus({ kind: "stun", remaining: 0.6, damagePerSecond: 0 });
         if (attack.skill === "sweep") creep.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.35 });
@@ -29,7 +30,7 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
       if (hit) {
         projectile.markHit(hit.build.id);
         if (projectile.skill === "frostOrb") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source });
-        else { const weapon = projectile.weapon ?? equipped; const dealt = hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (!hit.lastHitDodged) { applyWeaponEffects(hit, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); if (projectile.skill === "rendingThrow") hit.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source: projectile.source }); if (projectile.skill === "frostSpike") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source }); } if (projectile.skill !== "orbitingHammers") projectile.active = false; }
+        else { const weapon = projectile.weapon ?? equipped; const dealt = hit.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (!hit.lastHitDodged) { applyWeaponEffects(hit, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); if (!projectile.skill) applyManaDrain(projectile.source, dealt); if (projectile.skill === "arcaneBolt") hit.addStatus({ kind: "stun", remaining: 0.35, damagePerSecond: 0, source: projectile.source }); if (projectile.skill === "rendingThrow") hit.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source: projectile.source }); if (projectile.skill === "frostSpike") hit.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0, source: projectile.source }); } if (projectile.skill !== "orbitingHammers") projectile.active = false; }
       }
     } else if (distance(projectile.position, hero.position) <= projectile.radius + hero.radius) { const weapon = projectile.weapon ?? projectile.source?.mainHand; const dealt = hero.receiveDamage(projectile.damage, random, projectile.source, true, false, projectile.presentation); if (weapon && !hero.lastHitDodged) { applyWeaponEffects(hero, weapon, random, projectile.source); applyLifeSteal(projectile.source, weapon, dealt); } projectile.active = false; }
     if (projectile.position.x < -40 || projectile.position.y < -40 || projectile.position.x > width + 40 || projectile.position.y > height + 40) projectile.active = false;
@@ -43,3 +44,4 @@ export function applyWeaponEffects(target: Unit, item: ItemInstance, random: Ran
   if (random.next() < item.modifiers.stunChance * effectiveness) target.addStatus({ kind: "stun", remaining: 0.7, damagePerSecond: 0, source });
 }
 function applyLifeSteal(source: Unit | undefined, weapon: ItemInstance, damageDealt: number): void { if (!source || damageDealt <= 0) return; const items = [weapon, source.offHand].filter(Boolean) as ItemInstance[]; const fraction = items.reduce((sum, item) => { const effectiveness = itemRequirementMultiplier(item, source.stats); const base = (item.modifiers.lifeStealBase ?? 0) * effectiveness; return sum + (base + (base > 0 ? 0.001 * source.stats.spirit : 0)) * effectiveness; }, 0); if (fraction > 0) source.heal(damageDealt * fraction); }
+function applyManaDrain(source: Unit | undefined, damageDealt: number): void { if (!source?.knownSkills.has("manaDrain") || damageDealt <= 0) return; source.restoreMana(damageDealt * manaConversionFraction(source.skillLevels.get("manaDrain") ?? 1)); }

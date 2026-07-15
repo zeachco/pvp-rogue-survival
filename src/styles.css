@@ -504,7 +504,7 @@ input {
 .backpack-scroll .item-card { grid-template-columns: minmax(0, 1fr) 230px; gap: 12px; align-items: start; }
 .item-card-content, .item-card-controls { min-width: 0; }
 .item-card-controls { display: grid; gap: 8px; align-content: start; border-left: 1px solid rgba(138,216,255,.16); padding-left: 10px; }
-.item-card.is-equipped { outline: 2px solid #d8ad4f; outline-offset: 1px; box-shadow: 0 0 16px rgba(216,173,79,.24); }
+.item-card.is-equipped { outline: 2px solid #d8ad4f; outline-offset: 1px; background: rgba(151, 101, 43, .28); box-shadow: 0 0 16px rgba(216,173,79,.24); }
 .item-card.is-empty { filter: grayscale(1); opacity: .55; }
 .equipped-item { isolation: isolate; cursor: default; overflow: hidden; }
 .equipped-main-hand::before { position: absolute; z-index: -1; top: 0; bottom: 0; left: 0; width: var(--attack-progress, 100%); content: ""; background: rgba(205, 216, 220, 0.12); transition: width 50ms linear; pointer-events: none; }

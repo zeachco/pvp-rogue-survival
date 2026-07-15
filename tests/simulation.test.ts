@@ -82,6 +82,7 @@ describe("arena systems", () => {
     hero.stamina = 0; hero.receiveDamage(10, { next: () => 1 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
     hero.stamina = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.stamina).toBe(1);
   });
+  test("restores Penance mana from damage prevented by a successful block", () => { const hero = new Hero({ x: 0, y: 0 }); const buckler = generateBuckler(0, "common", 12); hero.configureStats({ agility: 0, strength: 100, magic: 0, spirit: 10, intelligence: 100 }, buckler, starterClub()); hero.mana = 0; hero.knownSkills.add("penance"); hero.skillLevels.set("penance", 100); let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.mana).toBeGreaterThan(59); expect(hero.mana).toBeLessThan(60); });
 
   test("returns passive Thorns damage and doubles it during Reflective Surge", () => { const defender = new Hero({ x: 0, y: 0 }); const attacker = new Hero({ x: 10, y: 0 }); defender.knownSkills.add("thorns"); const random = { next: () => 1 }; const before = attacker.hp; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 1); attacker.hp = before; defender.reflectiveSurgeRemaining = 6; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 2.2); });
 

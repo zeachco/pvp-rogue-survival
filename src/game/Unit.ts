@@ -4,7 +4,7 @@ import { derivedStats, type Stats } from "../../common/progression";
 import { equippedPerks, itemRequirementMultiplier, RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
-import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed } from "../../common/combat";
+import { bucklerBlockChance, bucklerBlockCost, manaConversionFraction, weaponAttackSpeed } from "../../common/combat";
 
 export interface StatusEffect { kind: "bleed" | "poison" | "burn" | "stun" | "freeze"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
 
@@ -28,6 +28,7 @@ export abstract class Unit extends GameObject {
   blockCooldownMax = 0;
   reflectiveSurgeRemaining = 0;
   readonly knownSkills = new Set<SkillId>();
+  readonly skillLevels = new Map<SkillId, number>();
   onCombatText?: (text: CombatText) => void;
   lastHitDodged = false;
 
@@ -56,7 +57,8 @@ export abstract class Unit extends GameObject {
         this.emitOutcome("block", "BLOCK");
         this.stamina -= blockCost;
         const attackSpeed = this.mainHand ? weaponAttackSpeed(this.mainHand, this.stats) : 1; this.blockCooldownMax = buckler.reflectionComponents.includes("return") ? 1 / Math.max(0.01, attackSpeed) : 1; this.blockCooldown = this.blockCooldownMax;
-        remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
+        const beforeBlock = remaining; remaining = Math.max(0, amount - Math.min(amount, this.stats.strength));
+        if (this.knownSkills.has("penance")) this.restoreMana(Math.max(0, beforeBlock - remaining) * Math.max(0, this.stats.spirit) * manaConversionFraction(this.skillLevels.get("penance") ?? 1));
         if (reflectable && source && buckler.reflectionComponents.length) {
           const power = RARITY_POWER[buckler.rarity]; let reflected = 0;
           if (buckler.reflectionComponents.includes("flat")) reflected += 1;
@@ -80,6 +82,7 @@ export abstract class Unit extends GameObject {
   }
 
   heal(amount: number): void { const before = this.hp; this.hp = Math.min(this.maxHp, this.hp + amount); const restored = this.hp - before; if (restored > 0) this.emitCombatText(restored, "healing", false); }
+  restoreMana(amount: number): void { this.mana = Math.min(this.maxMana, this.mana + Math.max(0, amount)); }
 
   configureStats(stats: Stats, offHand?: ItemInstance, mainHand?: ItemInstance): void {
     this.stats = { ...stats };

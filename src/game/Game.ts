@@ -136,7 +136,7 @@ export class Game {
     if (!this.player) return;
     if (this.defeatCooldown > 0) { this.defeatCooldown -= deltaSeconds; if (this.defeatCooldown <= 0) this.resetArena(); return; }
     for (const build of releaseReadySpawns(this.arena, performance.now())) this.spawnCreep(build);
-    this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training"); this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero");
+    this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training"); this.hero.attackSlow = this.heroCombat.whirlwindActive || this.attacks.some((attack) => attack.active && attack.owner === "hero");
     const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
     this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
     this.heroCombat.update(deltaSeconds, movementInput, this.hero, this.arena, this.player.progress, this.balance, systemRandom);
@@ -155,7 +155,7 @@ export class Game {
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds)); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     this.projectiles.push(...emittedProjectiles);
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
-    const baseStats = this.player.progress.stats; const attractionSpeed = Math.max(this.player.progress.mainHand.attractionSpeed * itemRequirementMultiplier(this.player.progress.mainHand, baseStats), (this.player.progress.offHand?.attractionSpeed ?? 0) * (this.player.progress.offHand ? itemRequirementMultiplier(this.player.progress.offHand, baseStats) : 1));
+    const baseStats = this.player.progress.stats; const attractionEnabled = !this.heroCombat.disabledSkills.has("attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, this.player.progress.mainHand.attractionSpeed * itemRequirementMultiplier(this.player.progress.mainHand, baseStats), (this.player.progress.offHand?.attractionSpeed ?? 0) * (this.player.progress.offHand ? itemRequirementMultiplier(this.player.progress.offHand, baseStats) : 1)) : 0;
     for (const drop of this.drops) { if (drop.escaping) { drop.move(deltaSeconds); if (drop.outside(this.map.width, this.map.height) && drop.active) { drop.active = false; this.socket.send({ type: "deferDrop", dropId: drop.dropId }); } } else { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); } }
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); if (!this.heroCombat.disabledSkills.has("deathBurst")) this.auraSystem.resolveDeaths(this.hero, this.player.progress, this.creeps, systemRandom); this.collectKills(); this.collectDrops();
     if ([...this.pendingPickupAt.values()].some((sentAt) => performance.now() - sentAt >= 3000)) this.reconcileDrops();

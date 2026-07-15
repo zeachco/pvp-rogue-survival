@@ -4,6 +4,7 @@ import type { Hero } from "../Hero";
 import type { GameMap } from "../Map";
 import { clamp, type Camera } from "../types";
 import { COMBAT_TEXT_COLORS, CRITICAL_TEXT_COLOR, type CombatText } from "../CombatText";
+import { auraRadius } from "../../../common/auras";
 
 export class CanvasRenderer {
   constructor(private readonly ctx: CanvasRenderingContext2D, private readonly map: GameMap) {}
@@ -25,12 +26,12 @@ export class CanvasRenderer {
   }
 
   private renderAuras(hero: Hero, camera: Camera): void {
-    const x = hero.position.x - camera.x; const y = hero.position.y - camera.y; const time = performance.now() / 1000; this.ctx.save(); this.ctx.translate(x, y);
-    if (hero.knownSkills.has("slowAura")) { this.ctx.fillStyle = "rgba(50,130,255,.10)"; this.ctx.strokeStyle = "rgba(90,180,255,.42)"; this.ctx.lineWidth = 3; this.ctx.beginPath(); this.ctx.arc(0, 0, 180, 0, Math.PI * 2); this.ctx.fill(); this.ctx.stroke(); }
-    if (hero.knownSkills.has("hinderingAura")) { this.ctx.strokeStyle = "rgba(100,210,255,.30)"; this.ctx.lineWidth = 2; for (let ring = 0; ring < 4; ring += 1) { this.ctx.beginPath(); this.ctx.arc(0, 0, 45 + ring * 38 + Math.sin(time * 2 + ring) * 7, 0, Math.PI * 2); this.ctx.stroke(); } }
-    if (hero.knownSkills.has("deathBurst")) { this.ctx.fillStyle = "rgba(70,255,125,.13)"; this.ctx.beginPath(); for (let i = 0; i < 24; i += 1) { const a = i * Math.PI / 12; const r = i % 2 ? 145 : 175; const px = Math.cos(a) * r; const py = Math.sin(a) * r; if (!i) this.ctx.moveTo(px, py); else this.ctx.lineTo(px, py); } this.ctx.closePath(); this.ctx.fill(); }
-    if (hero.knownSkills.has("sunburnAura")) { this.ctx.fillStyle = "rgba(255,135,35,.11)"; for (let i = 0; i < 12; i += 1) { this.ctx.save(); this.ctx.rotate(i * Math.PI / 6 + time * .08); this.ctx.fillRect(55, -9, 115, 18); this.ctx.restore(); } }
-    if (hero.knownSkills.has("thunderAura")) { this.ctx.fillStyle = "rgba(255,255,255,.07)"; this.ctx.strokeStyle = "rgba(190,235,255,.65)"; this.ctx.fillRect(-180, -180, 360, 360); this.ctx.beginPath(); for (let i = 0; i < 28; i += 1) { const a = i * Math.PI * 2 / 28; const r = 174 + Math.sin(time * 7 + i * 2.3) * 8; const px = Math.cos(a) * r; const py = Math.sin(a) * r; if (!i) this.ctx.moveTo(px, py); else this.ctx.lineTo(px, py); } this.ctx.closePath(); this.ctx.stroke(); }
+    const x = hero.position.x - camera.x; const y = hero.position.y - camera.y; const time = performance.now() / 1000; const radius = (skill: "slowAura" | "hinderingAura" | "deathBurst" | "sunburnAura" | "thunderAura") => auraRadius(hero.skillLevels.get(skill) ?? 1, hero.stats.spirit); this.ctx.save(); this.ctx.translate(x, y);
+    if (hero.knownSkills.has("slowAura")) { const r = radius("slowAura"); this.ctx.fillStyle = "rgba(50,130,255,.10)"; this.ctx.strokeStyle = "rgba(90,180,255,.42)"; this.ctx.lineWidth = 3; this.ctx.beginPath(); this.ctx.arc(0, 0, r, 0, Math.PI * 2); this.ctx.fill(); this.ctx.stroke(); }
+    if (hero.knownSkills.has("hinderingAura")) { const scale = radius("hinderingAura") / 180; this.ctx.strokeStyle = "rgba(100,210,255,.30)"; this.ctx.lineWidth = 2; for (let ring = 0; ring < 4; ring += 1) { this.ctx.beginPath(); this.ctx.arc(0, 0, (45 + ring * 38 + Math.sin(time * 2 + ring) * 7) * scale, 0, Math.PI * 2); this.ctx.stroke(); } }
+    if (hero.knownSkills.has("deathBurst")) { const scale = radius("deathBurst") / 180; this.ctx.fillStyle = "rgba(70,255,125,.13)"; this.ctx.beginPath(); for (let i = 0; i < 24; i += 1) { const a = i * Math.PI / 12; const r = (i % 2 ? 145 : 175) * scale; const px = Math.cos(a) * r; const py = Math.sin(a) * r; if (!i) this.ctx.moveTo(px, py); else this.ctx.lineTo(px, py); } this.ctx.closePath(); this.ctx.fill(); }
+    if (hero.knownSkills.has("sunburnAura")) { const scale = radius("sunburnAura") / 180; this.ctx.fillStyle = "rgba(255,135,35,.11)"; for (let i = 0; i < 12; i += 1) { this.ctx.save(); this.ctx.rotate(i * Math.PI / 6 + time * .08); this.ctx.fillRect(55 * scale, -9, 115 * scale, 18); this.ctx.restore(); } }
+    if (hero.knownSkills.has("thunderAura")) { const r = radius("thunderAura"); this.ctx.fillStyle = "rgba(255,255,255,.07)"; this.ctx.strokeStyle = "rgba(190,235,255,.65)"; this.ctx.fillRect(-r, -r, r * 2, r * 2); this.ctx.beginPath(); for (let i = 0; i < 28; i += 1) { const a = i * Math.PI * 2 / 28; const edge = r - 6 + Math.sin(time * 7 + i * 2.3) * 8; const px = Math.cos(a) * edge; const py = Math.sin(a) * edge; if (!i) this.ctx.moveTo(px, py); else this.ctx.lineTo(px, py); } this.ctx.closePath(); this.ctx.stroke(); }
     this.ctx.restore();
   }
 
