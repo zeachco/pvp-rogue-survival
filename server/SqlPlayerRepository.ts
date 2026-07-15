@@ -4,7 +4,7 @@ import type { HeroSummary } from "../common/protocol.ts";
 import { cumulativeXpForLevel } from "../common/progression.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
-interface HeroBlob { score: number; waveNumber: number; progress: PlayerProgress; panelTriggers?: { character: boolean; inventory: boolean } }
+interface HeroBlob { score: number; waveNumber: number; maxWaveReached?: number; progress: PlayerProgress; panelTriggers?: { character: boolean; inventory: boolean } }
 interface HeroRow { id: string; username: string; level: number; hero: string }
 
 export class SqlPlayerRepository implements PlayerRepository {
@@ -59,7 +59,7 @@ export class SqlPlayerRepository implements PlayerRepository {
 function isPlayer(player: Player | undefined): player is Player { return Boolean(player); }
 
 function toRow(player: Player): HeroRow {
-  const blob: HeroBlob = { score: player.score, waveNumber: player.waveNumber, progress: player.progress, panelTriggers: player.panelTriggers };
+  const blob: HeroBlob = { score: player.score, waveNumber: player.waveNumber, maxWaveReached: player.maxWaveReached, progress: player.progress, panelTriggers: player.panelTriggers };
   return { id: player.id, username: player.name, level: player.progress.level, hero: JSON.stringify(blob) };
 }
 
@@ -69,5 +69,5 @@ function fromRow(row: HeroRow): Player | undefined {
   if (!blob?.progress || !Number.isFinite(blob.score) || !Number.isFinite(blob.waveNumber)) return undefined;
   blob.progress.level = Number(row.level);
   blob.progress.xp = Math.max(blob.progress.xp, cumulativeXpForLevel(blob.progress.level));
-  return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, progress: blob.progress, panelTriggers: blob.panelTriggers ?? { character: false, inventory: false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [] };
+  return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, maxWaveReached: Math.max(blob.waveNumber, blob.maxWaveReached ?? 0), progress: blob.progress, panelTriggers: blob.panelTriggers ?? { character: false, inventory: false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [] };
 }

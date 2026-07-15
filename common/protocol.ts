@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 20;
+export const PROTOCOL_VERSION = 21;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
@@ -14,7 +14,7 @@ export interface PlayerProgress {
 }
 export interface PublicPlayer { id: PlayerId; name: string; score: number; waveNumber: number; level: number; receivesDeathEchoes: boolean }
 export interface HeroSummary { id: PlayerId; username: string; level: number; receivesDeathEchoes: boolean }
-export interface PublicHeroProfile { id: PlayerId; username: string; level: number; stats: Stats; mainHand: ItemInstance; offHand?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[] }
+export interface PublicHeroProfile { id: PlayerId; username: string; level: number; maxWaveReached: number; stats: Stats; mainHand: ItemInstance; offHand?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[] }
 export interface RealmMember extends PublicPlayer { down: boolean }
 export interface RealmState { mode: "training" | "waiting" | "competitive"; guards: RealmMember[]; attackers: RealmMember[]; outgoingQueued: number; incomingQueued: number; canLeave: boolean }
 export interface ServerConfig { waveIntervalMs: number; protocolVersion: number; maxRealmAttackers: number; maxQueuedItems: number; balance: BalanceConfig }

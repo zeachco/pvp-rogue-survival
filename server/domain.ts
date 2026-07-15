@@ -4,7 +4,7 @@ import type { GroundDrop, HeroSummary, PlayerId, PlayerProgress, UnitBuild } fro
 export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "solo" | "training" }
 export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; senderName: string; backlash: boolean }
 export interface Player {
-  id: PlayerId; name: string; score: number; waveNumber: number; progress: PlayerProgress; connected: boolean;
+  id: PlayerId; name: string; score: number; waveNumber: number; maxWaveReached: number; progress: PlayerProgress; connected: boolean;
   panelTriggers: { character: boolean; inventory: boolean };
   realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
