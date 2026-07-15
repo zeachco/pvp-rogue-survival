@@ -6,6 +6,7 @@ export interface PlayerState {
   receivesDeathEchoes: boolean;
   score: number;
   waveNumber: number;
+  maxWaveReached: number;
   health: number;
   maxHealth: number;
   gold: number;

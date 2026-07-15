@@ -3,6 +3,7 @@ import type { InventoryTile, PlayerProgress } from "./protocol";
 import { MAX_SKILL_LEVEL } from "./combat";
 
 export interface InventoryResult { changed: boolean; reason: string; dropped?: ItemInstance[]; sent?: ItemInstance; created?: ItemInstance }
+export const sellYield = (item: ItemInstance): number => item.sellValue * 10;
 export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number } { const attributePoints = Object.values(item.statBonuses).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0); const factor = 1 + 0.1 * attributePoints; return { gold: Math.ceil(item.sellValue * 1.5 * factor), scraps: Math.ceil(2 * (item.level + 1) * factor) }; }
 export const inventoryCapacity = (level: number): number => 4 + Math.ceil(level / 10);
 export const occupiedInventorySlots = (progress: PlayerProgress): number => progress.inventoryTiles.filter((tile) => tile.quantity > 0).length;
@@ -40,7 +41,7 @@ export function equipFromInventory(progress: PlayerProgress, tileId: string): In
   return { changed: true, reason: `Equipped ${item.name}.` };
 }
 
-export function sellFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); tile.quantity -= 1; progress.gold += tile.item.sellValue; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Sold ${tile.item.name} for ${tile.item.sellValue} gold.` }; }
+export function sellFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); const gold = sellYield(tile.item); tile.quantity -= 1; progress.gold += gold; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Sold ${tile.item.name} for ${gold} gold.` }; }
 export function purgeFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); tile.quantity -= 1; const amount = purgeYield(tile.item); progress.scraps[tile.item.rarity] += amount; removeEmptyInventoryTiles(progress); return { changed: true, reason: `Purged ${tile.item.name} for ${amount} ${tile.item.rarity} scrap.` }; }
 export function sendFromInventory(progress: PlayerProgress, tileId: string): InventoryResult { const tile = availableTile(progress, tileId); if (!tile) return missing(); tile.quantity -= 1; const result = { changed: true, reason: `Queued ${tile.item.name} for the enemy realm.`, sent: { ...tile.item, id: `${tile.item.id}-sent` } }; removeEmptyInventoryTiles(progress); return result; }
 

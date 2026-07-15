@@ -90,7 +90,7 @@ export class Game {
   private enterRealm(): void { if (this.realmMode !== "training") return; this.realmMode = "waiting"; this.socket.send({ type: "enterRealm" }); }
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === "welcome") {
-      this.player = { id: message.playerId, name: message.player.name, receivesDeathEchoes: message.player.receivesDeathEchoes, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, gold: message.progress.gold, progress: message.progress };
+      this.player = { id: message.playerId, name: message.player.name, receivesDeathEchoes: message.player.receivesDeathEchoes, score: message.player.score, waveNumber: message.player.waveNumber, maxWaveReached: message.player.maxWaveReached, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, gold: message.progress.gold, progress: message.progress };
       this.balance = message.config.balance; this.realmMode = message.realm.mode;
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.savedSession = { heroId: message.playerId, username: message.player.name }; this.sessionStorage.save(this.savedSession);
@@ -98,7 +98,7 @@ export class Game {
     } else if (message.type === "loggedOut") { this.sessionStorage.clear(); this.savedSession = undefined; this.player = undefined; this.arena.clear(); this.pendingPickupAt.clear(); this.heroCombat.reset(); this.hud.clearPlayer(); this.hud.setPublicHero(); }
     else if (message.type === "leaderboard") this.hud.setLeaderboard(message.heroes);
     else if (message.type === "heroProfile") this.hud.setPublicHero(message.hero);
-    else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.player) { const member = [...message.realm.guards, ...message.realm.attackers].find(({ id }) => id === this.player!.id); if (member) this.player.receivesDeathEchoes = member.receivesDeathEchoes; } this.hud.setRealm(message.realm); if (this.player) this.hud.setPlayer(this.player); }
+    else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.player) { const member = [...message.realm.guards, ...message.realm.attackers].find(({ id }) => id === this.player!.id); if (member) { this.player.receivesDeathEchoes = member.receivesDeathEchoes; this.player.maxWaveReached = member.maxWaveReached; } } this.hud.setRealm(message.realm); if (this.player) this.hud.setPlayer(this.player); }
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
       this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;

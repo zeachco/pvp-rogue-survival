@@ -12,7 +12,7 @@ export interface PlayerProgress {
   mainHand?: ItemInstance; offHand?: ItemInstance; inventoryTiles: InventoryTile[];
   learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[];
 }
-export interface PublicPlayer { id: PlayerId; name: string; score: number; waveNumber: number; level: number; receivesDeathEchoes: boolean }
+export interface PublicPlayer { id: PlayerId; name: string; score: number; waveNumber: number; maxWaveReached: number; level: number; receivesDeathEchoes: boolean }
 export interface HeroSummary { id: PlayerId; username: string; level: number; connected: boolean; receivesDeathEchoes: boolean }
 export interface PublicHeroProfile { id: PlayerId; username: string; level: number; maxWaveReached: number; stats: Stats; mainHand?: ItemInstance; offHand?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[] }
 export interface RealmMember extends PublicPlayer { down: boolean }

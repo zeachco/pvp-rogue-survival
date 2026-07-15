@@ -4,7 +4,7 @@ import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, statsWithItemBonuses } from 
 import { h } from "./dom";
 import type { CurrencyPreview, HudCallbacks } from "./types";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
-import { extractableSkills, purgeYield, upgradeCosts } from "../../common/inventory";
+import { extractableSkills, purgeYield, sellYield, upgradeCosts } from "../../common/inventory";
 
 export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProgress): InventoryTile[] {
   void progress; return tiles.filter((tile) => tile.quantity > 0);
@@ -20,7 +20,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
         {itemDetails(item, stats)}
       </div>
       <div class="item-card-controls"><div class="item-menu">
-        <button type="button">Sell {item.sellValue}g</button><button type="button">Purge</button>
+        <button type="button">Sell {sellYield(item)}g</button><button type="button">Purge</button>
         <button type="button">Upgrade</button><button type="button">Send</button>{skills.length ? <button type="button">Extract</button> : null}
       </div></div>
     </div>
@@ -42,7 +42,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
   const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${itemKindLabel(shown)} · ${shown.rarity}` : `L${item.level} · ${itemKindLabel(item)} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
-  bindActionPreview(0, { gold: item.sellValue }); bindActionPreview(1, { [item.rarity]: purgeYield(item) });
+  bindActionPreview(0, { gold: sellYield(item) }); bindActionPreview(1, { [item.rarity]: purgeYield(item) });
   const upgradePreview = buttons[2] as HTMLButtonElement | undefined; upgradePreview?.addEventListener("mouseenter", () => previewUpgradeCard(true)); upgradePreview?.addEventListener("mouseleave", () => previewUpgradeCard(false));
   bindActionPreview(2, { gold: -costs.gold, [item.rarity]: -costs.scraps }, () => { if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade"); });
   bindActionPreview(3); bindActionPreview(4, { gold: -extractCost }, () => onSpellPreview?.(skills));
