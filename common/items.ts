@@ -53,7 +53,7 @@ export function starterClub(): ItemInstance {
 export function generateItem(level: number, rarity: Rarity, seed: number, filters: ItemGenerationFilters = {}): ItemInstance {
   level = Math.min(level, MAX_ITEM_LEVEL[rarity]);
   const source = new SeededRandom(seed); const random = () => source.next();
-  const classes = filters.allowedClasses?.length ? filters.allowedClasses : Object.keys(WEAPONS) as WeaponClass[];
+  const classes = filters.allowedClasses?.length ? filters.allowedClasses : (Object.keys(WEAPONS) as WeaponClass[]).filter((weaponClass) => weaponClass !== "scepter");
   const weaponClass = classes[Math.floor(random() * classes.length)];
   const affixes: AffixId[] = []; const rolls = filters.fewerAffixes ? 1 : ({ common: 1, uncommon: 2, rare: 3, epic: 4 }[rarity]);
   const pool = Object.values(AFFIXES).filter((affix) => affix.compatibleWeapons.includes(weaponClass)).map((affix) => affix.id);
@@ -114,6 +114,7 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
     const next = generateBuckler(nextLevel, rarity, seed);
     return { ...next, name: base.name, skills: [...base.skills], reflectionComponents: [...base.reflectionComponents], blockChance: 0.1 * RARITY_POWER[rarity], sellValue: Math.max(1, Math.round((nextLevel + 1) * RARITY_POWER[rarity] * (base.reflectionComponents.length ? 5 : 4))) };
   }
+  if (base.definitionId === "scepter") return buildWeapon("scepter", nextLevel, rarity, seed, [], seed % 1e8);
   if (base.itemKind === "relic") { const next = generateRelic(nextLevel, rarity, seed); const scaleRatio = weaponLevelScale(nextLevel) / weaponLevelScale(base.level); next.modifiers.lifeStealBase = (base.modifiers.lifeStealBase ?? 0) * scaleRatio; next.modifiers.strengthRegenMultiplier = (base.modifiers.strengthRegenMultiplier ?? 0) * scaleRatio; return { ...next, name: base.name, skills: [...base.skills], attractionSpeed: base.attractionSpeed }; }
   if (base.itemKind === "amulet" || base.itemKind === "charm") return { ...generateAccessory(nextLevel, rarity, seed, base.itemKind), name: base.name };
   const next = buildWeapon(base.definitionId as WeaponClass, nextLevel, rarity, seed, [...base.affixes], seed % 1e8); const scaleRatio = weaponLevelScale(next.level) / weaponLevelScale(base.level); next.modifiers.lifeStealBase = (base.modifiers.lifeStealBase ?? 0) * scaleRatio; next.modifiers.strengthRegenMultiplier = (base.modifiers.strengthRegenMultiplier ?? 0) * scaleRatio; return next;
@@ -121,6 +122,7 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
 
 export function changeItemRarity(base: ItemInstance, rarity: Rarity, seed: number): ItemInstance {
   const level = Math.min(base.level, MAX_ITEM_LEVEL[rarity]);
+  if (base.definitionId === "scepter") return buildWeapon("scepter", level, rarity, seed, [], seed % 1e8);
   if (base.itemKind === "buckler") { const next = generateBuckler(level, rarity, seed); return { ...next, name: base.name, skills: [...base.skills], reflectionComponents: [...base.reflectionComponents] }; }
   if (base.itemKind === "relic") { const next = generateRelic(level, rarity, seed); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier; return { ...next, name: base.name, skills: [...base.skills], attractionSpeed: base.attractionSpeed }; }
   if (base.itemKind === "amulet" || base.itemKind === "charm") return { ...generateAccessory(level, rarity, seed, base.itemKind), name: base.name };
@@ -129,18 +131,19 @@ export function changeItemRarity(base: ItemInstance, rarity: Rarity, seed: numbe
 
 function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, seed: number, affixes: AffixId[], suffix: number): ItemInstance {
   const data = WEAPONS[weaponClass]; const power = RARITY_POWER[rarity]; const modifiers = baseModifiers(data.damage * (1 + level * 0.025) * power, 1);
+  if (weaponClass === "scepter") return rollItemPerks({ id: `scepter-${seed}-${suffix}`, itemKind: "relic", definitionId: "scepter", name: "Scepter", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power * (1 + level * 0.04))), intelligence: Math.max(1, Math.round(power * (1 + level * 0.03))) }, modifiers: { ...baseModifiers(1, 1), manaRegenMultiplier: 1 + power, magicAmp: 0.12 * power }, skills: [auraSkillForSeed(seed)], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 5)), blockChance: 0, reflectionComponents: [], attractionSpeed: 0 }, seed);
   for (const affix of affixes) applyAffix(modifiers, affix, power);
   if (seed % 7 === 1) modifiers.lifeStealBase = 0.02; else if (seed % 7 === 2) modifiers.strengthRegenMultiplier = 0.002;
   if (weaponClass === "dagger") modifiers.critChance += 0.04 * power;
   if (weaponClass === "throwingAxe") modifiers.bleedChance += 0.15;
-  if (weaponClass === "staff" || weaponClass === "scepter") { modifiers.manaRegenMultiplier += power; modifiers.magicAmp += 0.12 * power; }
+  if (weaponClass === "staff") { modifiers.manaRegenMultiplier += power; modifiers.magicAmp += 0.12 * power; }
   const levelScale = weaponLevelScale(level); for (const key of ["critChance", "bleedChance", "poisonChance", "stunChance", "lifeStealBase", "strengthRegenMultiplier"] as const) modifiers[key] *= levelScale;
   const requirements: Partial<Record<StatKey, number>> = {};
   if (data.requirement && level > 0) requirements[data.requirement] = Math.max(1, Math.floor(level * 0.6 * power));
   return {
     id: `item-${seed}-${suffix}`, itemKind: "weapon", definitionId: weaponClass, name: `${affixes[0] ? `${capitalize(affixes[0])} ` : ""}${data.label}`,
-    level, rarity, seed, hands: weaponClass === "staff" || weaponClass === "scepter" ? 2 : 1, weight: data.weight, affixes, requirements, statBonuses: {}, modifiers,
-    skills: weaponClass === "scepter" ? [auraSkillForSeed(seed)] : data.skill ? [data.skill, ...(weaponClass === "staff" && (rarity === "rare" || rarity === "epic") ? ["frostOrb" as const] : []), ...(weaponClass === "mace" && (rarity === "rare" || rarity === "epic") ? ["healing" as const] : []), ...(weaponClass === "axe" && (rarity === "rare" || rarity === "epic") ? ["whirlwind" as const] : [])] : [], staminaCost: data.stamina * levelScale,
+    level, rarity, seed, hands: weaponClass === "staff" ? 2 : 1, weight: data.weight, affixes, requirements, statBonuses: {}, modifiers,
+    skills: data.skill ? [data.skill, ...(weaponClass === "staff" && (rarity === "rare" || rarity === "epic") ? ["frostOrb" as const] : []), ...(weaponClass === "mace" && (rarity === "rare" || rarity === "epic") ? ["healing" as const] : []), ...(weaponClass === "axe" && (rarity === "rare" || rarity === "epic") ? ["whirlwind" as const] : [])] : [], staminaCost: data.stamina * levelScale,
     dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * (4 + affixes.length * 2))),
     blockChance: 0, reflectionComponents: [], attractionSpeed: weaponClass === "staff" && seed % 4 === 0 ? 35 : 0
   };

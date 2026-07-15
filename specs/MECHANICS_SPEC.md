@@ -10,6 +10,8 @@ Every physical attack and every spell whose resource is Stamina pushes hit enemi
 
 Rent restores 1% of the caster's maximum HP for each distinct enemy touched by its attack area.
 
+All blood skills (skills configured to spend Life) require the caster to have at least 30% of maximum HP before casting. This is an availability threshold checked before the skill's Life cost is paid; reaching exactly 30% permits the cast.
+
 ## Simulation Loop
 
 - The client owns local arena simulation for the active combat slice.

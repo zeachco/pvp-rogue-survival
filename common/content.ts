@@ -25,6 +25,7 @@ export interface SkillDefinition {
   passive?: boolean;
   cost?: number;
   enemyEligible?: boolean;
+  minimumHealthFraction?: number;
 }
 
 export interface AffixDefinition {
@@ -51,7 +52,7 @@ export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
   throwingAxe: { id: "throwingAxe", label: "Throwing Axe", damage: 1.05, weight: 10, stamina: 0.18, requirement: "agility", skill: "rendingThrow", range: 210, projectile: true },
   hammer: { id: "hammer", label: "Hammer", damage: 1.18, weight: 16, stamina: 0.2, requirement: "strength", skill: "orbitingHammers" },
   staff: { id: "staff", label: "Staff", damage: 0.8, weight: 16, stamina: 0.1, requirement: "magic", skill: "arcaneBolt", range: 330, projectile: true },
-  scepter: { id: "scepter", label: "Scepter", damage: 0.7, weight: 18, stamina: 0.12, requirement: "intelligence", skill: "thunderAura", range: 300, projectile: true }
+  scepter: { id: "scepter", label: "Scepter", damage: 0, weight: 0, stamina: 0, requirement: "spirit", skill: "thunderAura" }
 };
 
 export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
@@ -62,7 +63,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
   cleave: { id: "cleave", label: "Cleave", damageMultiplier: 1.45, cooldown: 4, range: 125, resource: "stamina", description: "A powerful axe cleave that always inflicts a 2-second bleed." },
   whirlwind: { id: "whirlwind", label: "Whirlwind", damageMultiplier: 0, cooldown: 12, range: 90, resource: "stamina", cost: 3, description: "Spinning edges follow the hero, slow movement, and repeatedly deal Strength-scaled physical damage." },
   rendingThrow: { id: "rendingThrow", label: "Rending Throw", damageMultiplier: 1.35, cooldown: 4, range: 240, resource: "stamina", description: "A short-ranged physical axe projectile that guarantees a standard bleed." },
-  vampiricBoomerang: { id: "vampiricBoomerang", label: "Vampiric Boomerang", damageMultiplier: 1.1, cooldown: 8, range: 260, resource: "life", description: "Spends 30% maximum HP to launch a returning red crescent, then heals from all damage it dealt." },
+  vampiricBoomerang: { id: "vampiricBoomerang", label: "Vampiric Boomerang", damageMultiplier: 1.1, cooldown: 8, range: 260, resource: "life", minimumHealthFraction: 0.3, description: "Requires at least 30% HP. Spends 30% maximum HP to launch a returning red crescent, then heals from all damage it dealt." },
   orbitingHammers: { id: "orbitingHammers", label: "Orbiting Hammers", damageMultiplier: 0.85, cooldown: 4.5, range: 240, resource: "mana", description: "Launches three drifting magical hammers that spiral outward, persist through impacts, and hit each enemy at most once." },
   arcaneBolt: { id: "arcaneBolt", label: "Arcane Bolt", damageMultiplier: 1.7, cooldown: 5, range: 330, resource: "mana", description: "A long-ranged magical projectile that stuns its target for 0.35 seconds." },
   gravityPull: { id: "gravityPull", label: "Force Field", damageMultiplier: 0, cooldown: 18, range: 600, resource: "mana", description: "Spends 8 mana to pull enemies inward with a melee weapon or push them away with a ranged or magic weapon." },
@@ -75,7 +76,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
   fireBreath: { id: "fireBreath", label: "Fire Breath", damageMultiplier: 1.1, cooldown: 9, range: 150, resource: "mana", cost: 4, enemyEligible: true, description: "Breathes advancing fire arcs in a cone and burns targets for four seconds, scaling with Spirit." },
   voodoo: { id: "voodoo", label: "Voodoo", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passive: Spirit amplifies poison damage applied by this unit." },
   healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 15, resource: "mana", description: "Below 50% HP, restores 20–90% of current health and spends 2 mana per HP restored." },
-  rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 180, resource: "life", description: "A full-circle blood-edge attack that spends 10% maximum HP and adds the health lost to its damage." },
+  rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 180, resource: "life", minimumHealthFraction: 0.3, description: "Requires at least 30% HP. A full-circle blood-edge attack that spends 10% maximum HP and adds the health lost to its damage." },
   blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina", description: "A reactive buckler block. Return bucklers divide recovery by main-hand attack speed." },
   slowAura: { id: "slowAura", label: "Glacial Aura", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passively slows nearby enemy movement." },
   hinderingAura: { id: "hinderingAura", label: "Hindering Aura", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passively slows nearby enemy attacks." },
