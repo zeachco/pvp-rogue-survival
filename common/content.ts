@@ -50,7 +50,8 @@ export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
   axe: { id: "axe", label: "Axe", damage: 1.22, weight: 13, stamina: 0.22, requirement: "strength", skill: "cleave" },
   throwingAxe: { id: "throwingAxe", label: "Throwing Axe", damage: 1.05, weight: 10, stamina: 0.18, requirement: "agility", skill: "rendingThrow", range: 210, projectile: true },
   hammer: { id: "hammer", label: "Hammer", damage: 1.18, weight: 16, stamina: 0.2, requirement: "strength", skill: "orbitingHammers" },
-  staff: { id: "staff", label: "Staff", damage: 0.8, weight: 16, stamina: 0.1, requirement: "magic", skill: "arcaneBolt", range: 330, projectile: true }
+  staff: { id: "staff", label: "Staff", damage: 0.8, weight: 16, stamina: 0.1, requirement: "magic", skill: "arcaneBolt", range: 330, projectile: true },
+  scepter: { id: "scepter", label: "Scepter", damage: 0.7, weight: 18, stamina: 0.12, requirement: "intelligence", skill: "thunderAura", range: 300, projectile: true }
 };
 
 export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
@@ -68,9 +69,14 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
   frostOrb: { id: "frostOrb", label: "Frozen Orb", damageMultiplier: 0.7, cooldown: 20, range: 500, resource: "mana", description: "Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction." },
   fireBreath: { id: "fireBreath", label: "Fire Breath", damageMultiplier: 1.1, cooldown: 9, range: 150, resource: "mana", cost: 4, enemyEligible: true, description: "Breathes advancing fire arcs in a cone and burns targets for four seconds, scaling with Spirit." },
   voodoo: { id: "voodoo", label: "Voodoo", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passive: Spirit amplifies poison damage applied by this unit." },
-  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 60, resource: "mana", description: "Below 50% HP, restores 20–90% of current health and spends 2 mana per HP restored." },
+  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 15, resource: "mana", description: "Below 50% HP, restores 20–90% of current health and spends 2 mana per HP restored." },
   rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 105, resource: "life", description: "A physical strike that spends 1 health and cannot cast at 1 HP." },
-  blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina", description: "A reactive buckler block. Return bucklers divide recovery by main-hand attack speed." }
+  blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina", description: "A reactive buckler block. Return bucklers divide recovery by main-hand attack speed." },
+  slowAura: { id: "slowAura", label: "Glacial Aura", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passively slows nearby enemy movement." },
+  hinderingAura: { id: "hinderingAura", label: "Hindering Aura", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passively slows nearby enemy attacks." },
+  deathBurst: { id: "deathBurst", label: "Death Burst", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Nearby enemies explode when defeated, damaging other foes." },
+  sunburnAura: { id: "sunburnAura", label: "Sunburn", damageMultiplier: 0, cooldown: 5, resource: "mana", passive: true, description: "Burns every nearby foe; Spirit accelerates pulses and Intelligence raises damage." },
+  thunderAura: { id: "thunderAura", label: "Thunder Aura", damageMultiplier: 0, cooldown: 10, resource: "mana", passive: true, description: "Strikes a random nearby foe; critical strikes chain lightning." }
 };
 
 export const ENEMY_BONUS_SKILLS = Object.values(SKILLS).filter((skill) => skill.enemyEligible).map((skill) => skill.id);
@@ -80,8 +86,8 @@ export const AFFIXES: Readonly<Record<AffixId, AffixDefinition>> = {
   venomous: { id: "venomous", compatibleWeapons: ["sword", "dagger", "axe", "throwingAxe", "staff"], modifierPerPower: { poisonChance: 0.1 } },
   bleeding: { id: "bleeding", compatibleWeapons: ["sword", "dagger", "axe", "throwingAxe"], modifierPerPower: { bleedChance: 0.08 } },
   stunning: { id: "stunning", compatibleWeapons: ["club", "mace", "hammer"], modifierPerPower: { stunChance: 0.07 } },
-  focused: { id: "focused", compatibleWeapons: ["staff"], modifierPerPower: { magicAmp: 0.1 } },
-  swift: { id: "swift", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer", "staff"], modifierPerPower: { attackSpeedMultiplier: 0.12 } }
+  focused: { id: "focused", compatibleWeapons: ["staff", "scepter"], modifierPerPower: { magicAmp: 0.1 } },
+  swift: { id: "swift", compatibleWeapons: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer", "staff", "scepter"], modifierPerPower: { attackSpeedMultiplier: 0.12 } }
 };
 
 export const ENEMY_ARCHETYPES: Readonly<Record<CreepKind, EnemyArchetypeDefinition>> = {

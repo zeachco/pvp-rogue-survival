@@ -25,6 +25,10 @@ export function championCount(waveNumber: number): number {
   return Math.max(0, Math.round(waveNumber / 15));
 }
 
+export function realmCloneLevel(defenderLevel: number, attackerCount: number): number {
+  return Math.max(0, Math.floor(Math.max(0, defenderLevel) / Math.max(1, attackerCount)));
+}
+
 export function isIntroWave(waveNumber: number): boolean {
   return waveNumber >= 0 && waveNumber < 9;
 }

@@ -8,6 +8,8 @@ export function rollWeaponDamage(item: ItemInstance, stats: Stats, owner: "hero"
   return rollWeaponStrike(item, stats, owner, balance, random).damage;
 }
 
+export function isMagicWeapon(item: ItemInstance): boolean { return item.itemKind === "weapon" && (item.definitionId === "staff" || item.definitionId === "scepter"); }
+
 export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero" | "enemy", balance: BalanceConfig, random: RandomSource): { damage: number; critical: boolean } {
   const derived = derivedStats(stats);
   let damage = weaponDamage(item, stats);
@@ -16,8 +18,8 @@ export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero"
   return { damage: damage * (owner === "hero" ? balance.combat.heroDamageMultiplier : balance.combat.enemyDamageMultiplier), critical };
 }
 
-export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon" || item.weight <= 0) return 0; const handling = item.definitionId === "staff" ? (stats.strength + stats.spirit) / 2 : item.hands === 1 ? stats.agility : stats.strength; const effectiveness = itemRequirementMultiplier(item, stats); const baseSpeed = (10 + Math.max(0, handling) * 0.1) / item.weight; const modifier = 1 + (item.modifiers.attackSpeedMultiplier - 1) * effectiveness; return baseSpeed * Math.max(1, modifier); }
-export function weaponDamage(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon") return 0; const derived = derivedStats(stats); const effectiveness = itemRequirementMultiplier(item, stats); const magic = item.definitionId === "staff" ? derived.magicAmp + item.modifiers.magicAmp * effectiveness : 1; const penalized = derived.baseDamage * item.modifiers.damageMultiplier * magic * effectiveness; const levelZeroMagic = item.definitionId === "staff" ? derived.magicAmp + item.modifiers.magicAmp : 1; const levelZero = derived.baseDamage * (item.modifiers.damageMultiplier / weaponLevelScale(item.level)) * levelZeroMagic; return Math.max(levelZero, penalized); }
+export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon" || item.weight <= 0) return 0; const handling = isMagicWeapon(item) ? (stats.strength + stats.spirit) / 2 : item.hands === 1 ? stats.agility : stats.strength; const effectiveness = itemRequirementMultiplier(item, stats); const baseSpeed = (10 + Math.max(0, handling) * 0.1) / item.weight; const modifier = 1 + (item.modifiers.attackSpeedMultiplier - 1) * effectiveness; return baseSpeed * Math.max(1, modifier); }
+export function weaponDamage(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon") return 0; const derived = derivedStats(stats); const effectiveness = itemRequirementMultiplier(item, stats); const magic = isMagicWeapon(item) ? derived.magicAmp + item.modifiers.magicAmp * effectiveness : 1; const penalized = derived.baseDamage * item.modifiers.damageMultiplier * magic * effectiveness; const levelZeroMagic = isMagicWeapon(item) ? derived.magicAmp + item.modifiers.magicAmp : 1; const levelZero = derived.baseDamage * (item.modifiers.damageMultiplier / weaponLevelScale(item.level)) * levelZeroMagic; return Math.max(levelZero, penalized); }
 export function weaponRange(item: ItemInstance): number { return item.itemKind === "weapon" ? WEAPONS[item.definitionId as keyof typeof WEAPONS].range ?? 105 : 0; }
 export function weaponUsesProjectile(item: ItemInstance): boolean { return item.itemKind === "weapon" && Boolean(WEAPONS[item.definitionId as keyof typeof WEAPONS].projectile); }
 export function bucklerBlockChance(item: ItemInstance | undefined, stats: Stats): number { return item?.itemKind === "buckler" ? Math.min(1, (item.blockChance + 0.005 * (stats.strength + stats.agility)) * itemRequirementMultiplier(item, stats)) : 0; }
@@ -32,5 +34,5 @@ export function cooldownScale(level: number, reduction: number): number { return
 export const MAX_SKILL_LEVEL = 100;
 export function cappedSkillLevel(level: number): number { return Math.max(1, Math.min(MAX_SKILL_LEVEL, level)); }
 export function healingFraction(level: number): number { return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 99); }
-export function healingCooldown(level: number): number { return 60 - (cappedSkillLevel(level) - 1) * (59 / 99); }
+export function healingCooldown(level: number): number { return 15 - (cappedSkillLevel(level) - 1) * (14 / 99); }
 export function healingCast(currentHp: number, maxHp: number, level: number): { restoredHp: number; manaCost: number } { const restoredHp = Math.max(0, Math.min(maxHp - currentHp, currentHp * healingFraction(level))); return { restoredHp, manaCost: restoredHp * 2 }; }

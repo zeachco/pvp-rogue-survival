@@ -11,6 +11,7 @@ export class CanvasRenderer {
   render(camera: Camera, hero: Hero, arena: ArenaState, hovered?: Creep, inspected?: Creep): void {
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     this.map.render(this.ctx, camera);
+    this.renderAuras(hero, camera);
     for (const drop of arena.drops) drop.render(this.ctx, camera);
     for (const attack of arena.attacks) attack.render(this.ctx, camera);
     for (const creep of arena.creeps) {
@@ -21,6 +22,16 @@ export class CanvasRenderer {
     hero.render(this.ctx, camera);
     for (const effect of arena.spellEffects) effect.render(this.ctx, camera);
     for (const text of arena.combatTexts) this.renderCombatText(text, camera);
+  }
+
+  private renderAuras(hero: Hero, camera: Camera): void {
+    const x = hero.position.x - camera.x; const y = hero.position.y - camera.y; const time = performance.now() / 1000; this.ctx.save(); this.ctx.translate(x, y);
+    if (hero.knownSkills.has("slowAura")) { this.ctx.fillStyle = "rgba(50,130,255,.10)"; this.ctx.strokeStyle = "rgba(90,180,255,.42)"; this.ctx.lineWidth = 3; this.ctx.beginPath(); this.ctx.arc(0, 0, 180, 0, Math.PI * 2); this.ctx.fill(); this.ctx.stroke(); }
+    if (hero.knownSkills.has("hinderingAura")) { this.ctx.strokeStyle = "rgba(100,210,255,.30)"; this.ctx.lineWidth = 2; for (let ring = 0; ring < 4; ring += 1) { this.ctx.beginPath(); this.ctx.arc(0, 0, 45 + ring * 38 + Math.sin(time * 2 + ring) * 7, 0, Math.PI * 2); this.ctx.stroke(); } }
+    if (hero.knownSkills.has("deathBurst")) { this.ctx.fillStyle = "rgba(70,255,125,.13)"; this.ctx.beginPath(); for (let i = 0; i < 24; i += 1) { const a = i * Math.PI / 12; const r = i % 2 ? 145 : 175; const px = Math.cos(a) * r; const py = Math.sin(a) * r; if (!i) this.ctx.moveTo(px, py); else this.ctx.lineTo(px, py); } this.ctx.closePath(); this.ctx.fill(); }
+    if (hero.knownSkills.has("sunburnAura")) { this.ctx.fillStyle = "rgba(255,135,35,.11)"; for (let i = 0; i < 12; i += 1) { this.ctx.save(); this.ctx.rotate(i * Math.PI / 6 + time * .08); this.ctx.fillRect(55, -9, 115, 18); this.ctx.restore(); } }
+    if (hero.knownSkills.has("thunderAura")) { this.ctx.fillStyle = "rgba(255,255,255,.07)"; this.ctx.strokeStyle = "rgba(190,235,255,.65)"; this.ctx.fillRect(-180, -180, 360, 360); this.ctx.beginPath(); for (let i = 0; i < 28; i += 1) { const a = i * Math.PI * 2 / 28; const r = 174 + Math.sin(time * 7 + i * 2.3) * 8; const px = Math.cos(a) * r; const py = Math.sin(a) * r; if (!i) this.ctx.moveTo(px, py); else this.ctx.lineTo(px, py); } this.ctx.closePath(); this.ctx.stroke(); }
+    this.ctx.restore();
   }
 
   private renderCombatText(text: CombatText, camera: Camera): void {

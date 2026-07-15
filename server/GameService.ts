@@ -6,7 +6,7 @@ import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
 import { DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type HeroSummary, type PlayerId, type PublicHeroProfile, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
-import { championCount, creepsWithSpellsCount, isIntroWave, regularCount, regularLevel, rivalLevel, rivalXpReward, spawnAtMs } from "../common/waves.ts";
+import { championCount, creepsWithSpellsCount, isIntroWave, realmCloneLevel, regularCount, regularLevel, rivalLevel, rivalXpReward, spawnAtMs } from "../common/waves.ts";
 import type { Player, PlayerRepository, QueuedEquipment } from "./domain.ts";
 
 export interface GameServiceOptions { repository: PlayerRepository; balance: BalanceConfig; random: RandomSource; createId?: () => string; send: (playerId: PlayerId, message: ServerMessage) => void; logPlayerLifecycle?: (event: "connected" | "disconnected", player: Pick<Player, "id" | "name">) => void; logRealmLifecycle?: (event: "entered" | "left", playerId: PlayerId, realmId: string, opponentIds: PlayerId[]) => void }
@@ -65,6 +65,8 @@ export class GameService {
     this.broadcastRealms();
   }
 
+  refreshRealmStates(): void { this.broadcastRealms(); }
+
   private joinPlayer(name: string, heroId?: PlayerId): Player {
     const trimmed = name.trim().slice(0, 20); const existing = heroId ? this.options.repository.get(heroId) : this.options.repository.getByUsername(trimmed);
     if (existing) { existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
@@ -91,11 +93,9 @@ export class GameService {
       player.issuedUnits.set(build.id, { build, mode }); spawns.push({ build, spawnAtMs: spawnAtMs(index, count, this.options.balance) });
     }
     if (!intro) for (const echo of player.deathEchoes.splice(0)) { player.issuedUnits.set(echo.id, { build: echo, mode }); spawns.push({ build: echo, spawnAtMs: this.options.balance.wave.prepareMs }); }
-    const opponent = this.realmOpponents(player)[0]; const championLevel = rivalLevel(player.waveNumber, this.options.balance);
-    for (let index = 0; index < championCount(player.waveNumber); index += 1) {
-      const champion = this.generateBuild(opponent ? `${opponent.name}'s champion` : "Wandering champion", championLevel, true, this.seed(), opponent ? scaledStats(opponent.progress.allocation, championLevel) : undefined, false, intro ? meleeClasses : undefined);
-      player.issuedUnits.set(champion.id, { build: champion, mode }); spawns.push({ build: champion, spawnAtMs: this.options.balance.wave.prepareMs + Math.floor(7.5 * this.options.balance.wave.batchIntervalMs) });
-    }
+    const opponents = this.realmOpponents(player); const opponent = opponents[0]; const championLevel = rivalLevel(player.waveNumber, this.options.balance); const cloneAttackers = mode === "competitive" && player.waveNumber > 0 && player.waveNumber % 10 === 0 && opponents.length > 0 && this.options.random.next() < 0.5;
+    const champions = cloneAttackers ? opponents.map((attacker) => this.realmClone(player, attacker, opponents.length)) : Array.from({ length: championCount(player.waveNumber) }, () => this.generateBuild(opponent ? `${opponent.name}'s champion` : "Wandering champion", championLevel, true, this.seed(), opponent ? scaledStats(opponent.progress.allocation, championLevel) : undefined, false, intro ? meleeClasses : undefined));
+    for (const champion of champions) { player.issuedUnits.set(champion.id, { build: champion, mode }); spawns.push({ build: champion, spawnAtMs: this.options.balance.wave.prepareMs + Math.floor(7.5 * this.options.balance.wave.batchIntervalMs) }); }
     spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
     this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, resetHero, spawns } }); this.returnDeferredItems(player);
   }
@@ -104,15 +104,20 @@ export class GameService {
     const stats = suppliedStats ?? scaledStats(randomAllocation(seed), level); const mainHand = generateItem(level, rollRarity(seed + 11), seed + 17, { fewerAffixes: fewerItems, allowedClasses });
     const offHandRoll = this.options.random.next(); const offHand = !allowedClasses && mainHand.hands === 1 && offHandRoll < 0.25 ? (offHandRoll < 0.125 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : generateRelic(level, rollRarity(seed + 19), seed + 21)) : undefined;
     const carried = isRival && level > 0 ? [generateItem(level, rollRarity(seed + 23), seed + 29, { fewerAffixes: true })] : [];
-    return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, bonusSkills: [], isRival, xpReward: isRival ? rivalXpReward(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
+    return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" || mainHand.definitionId === "scepter" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, bonusSkills: [], isRival, xpReward: isRival ? rivalXpReward(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
+  }
+
+  private realmClone(defender: Player, attacker: Player, attackerCount: number): UnitBuild {
+    const level = realmCloneLevel(defender.progress.level, attackerCount); const seed = this.seed();
+    return { id: this.createId(), name: `${attacker.name}'s clone`, kind: "rival", level, stats: scaledStats(attacker.progress.allocation, level), mainHand: structuredClone(attacker.progress.mainHand), offHand: attacker.progress.offHand ? structuredClone(attacker.progress.offHand) : undefined, carried: [], bonusSkills: [], isRival: true, xpReward: rivalXpReward(level), goldReward: 3 + Math.floor(level / 2), seed };
   }
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number, intro = false): UnitBuild {
     const item = queued.item; let mainHand = build.mainHand; let offHand = build.offHand;
-    if (intro && (item.itemKind !== "weapon" || item.definitionId === "staff" || item.definitionId === "throwingAxe")) return { ...build, carried: [...build.carried, item], emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
+    if (intro && (item.itemKind !== "weapon" || item.definitionId === "staff" || item.definitionId === "scepter" || item.definitionId === "throwingAxe")) return { ...build, carried: [...build.carried, item], emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
     if (item.itemKind !== "weapon") { if (mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"] as WeaponClass[] }); offHand = item; }
     else { mainHand = item; if (item.hands === 2) offHand = undefined; }
-    return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
+    return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand.definitionId === "staff" || mainHand.definitionId === "scepter" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
   }
 
   private takeQueued(player: Player, limit: number, includeBacklash = true): QueuedEquipment[] {

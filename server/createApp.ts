@@ -63,8 +63,9 @@ export async function createApp(options: AppOptions) {
   const waveTimer = setInterval(() => game.dispatchWaves(), BALANCE.wave.intervalMs); waveTimer.unref();
   const persistTimer = setInterval(() => { void Promise.resolve(repository.persist()).catch((error) => console.error("[MLH][database] periodic persist failed", error instanceof Error ? error.message : error)); }, PERSIST_INTERVAL_MS); persistTimer.unref();
   const heartbeat = setInterval(() => { const now = Date.now(); for (const socket of sockets.values()) { if (now - socket.lastSeen >= 300_000) socket.terminate(); else if (socket.readyState === WebSocket.OPEN) socket.ping(); } }, 30_000); heartbeat.unref();
+  const realmStateTimer = setInterval(() => game.refreshRealmStates(), 1_000); realmStateTimer.unref();
   const close = (): Promise<void> => closePromise ??= (async () => {
-    closing = true; clearInterval(waveTimer); clearInterval(persistTimer); clearInterval(heartbeat); wss.close();
+    closing = true; clearInterval(waveTimer); clearInterval(persistTimer); clearInterval(heartbeat); clearInterval(realmStateTimer); wss.close();
     for (const socket of sockets.values()) if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) socket.close(1012, "Server shutting down");
     await Promise.all([...sockets.values()].map((socket) => socket.commandChain));
     await repository.persist(); await repository.close?.();

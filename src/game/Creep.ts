@@ -23,6 +23,7 @@ export class Creep extends Unit {
   private pendingAttack = false;
   private damageFlash = 0;
   private bonusSkillCooldown = 1.5;
+  private auraMovementMultiplier = 1; private auraAttackMultiplier = 1;
   readonly build: UnitBuild;
 
   constructor(
@@ -57,11 +58,11 @@ export class Creep extends Unit {
     this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
-    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier;
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * this.auraMovementMultiplier;
     const acceleration = movement.acceleration;
     const ranged = weaponUsesProjectile(this.build.mainHand);
     const heroDistance = distance(this.position, hero);
-    const attackSpeed = weaponAttackSpeed(this.build.mainHand, this.stats);
+    const attackSpeed = weaponAttackSpeed(this.build.mainHand, this.stats) * this.auraAttackMultiplier;
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
     this.bonusSkillCooldown = Math.max(0, this.bonusSkillCooldown - deltaSeconds);
 
@@ -86,8 +87,8 @@ export class Creep extends Unit {
     }
 
     let direction = normalize({ x: hero.x - this.position.x, y: hero.y - this.position.y });
-    const retreatRange = this.build.mainHand.definitionId === "staff" ? rangedMovement.retreatRange ?? 0 : Math.max(0, attackRange - 75);
-    const preferredRange = this.build.mainHand.definitionId === "staff" ? rangedMovement.preferredRange ?? attackRange : Math.max(retreatRange, attackRange - 30);
+    const retreatRange = this.build.mainHand.definitionId === "staff" || this.build.mainHand.definitionId === "scepter" ? rangedMovement.retreatRange ?? 0 : Math.max(0, attackRange - 75);
+    const preferredRange = this.build.mainHand.definitionId === "staff" || this.build.mainHand.definitionId === "scepter" ? rangedMovement.preferredRange ?? attackRange : Math.max(retreatRange, attackRange - 30);
     if (ranged && heroDistance < retreatRange) direction = { x: -direction.x, y: -direction.y };
     else if (ranged && heroDistance <= preferredRange) direction = { x: 0, y: 0 };
     this.moveFromVelocity(this.stunned ? { x: 0, y: 0 } : direction, acceleration, maxSpeed, deltaSeconds);
@@ -99,6 +100,7 @@ export class Creep extends Unit {
   update(): void {}
 
   interruptAttack(): void { this.attackVersion += 1; this.pendingAttack = false; this.windup = 0; }
+  setAuraMultipliers(movement?: number, attack?: number): void { if (movement !== undefined) this.auraMovementMultiplier = movement; if (attack !== undefined) this.auraAttackMultiplier = attack; }
 
   private moveFromVelocity(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number): void { if (this.frozen) this.slide(deltaSeconds); else this.steerWithFriction(direction, acceleration, maxSpeed, deltaSeconds, acceleration * 0.75); }
 

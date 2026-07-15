@@ -21,13 +21,15 @@ export class HeroCombatSystem {
   private healingCooldownMax = 0;
   private readonly skillCooldowns = new Map<SkillId, { remaining: number; maximum: number }>();
   private orbitCastSequence = 0;
+  readonly disabledSkills = new Set<SkillId>();
+  toggleSkill(skill: SkillId): void { if (this.disabledSkills.has(skill)) this.disabledSkills.delete(skill); else this.disabledSkills.add(skill); }
 
   update(deltaSeconds: number, movementInput: Vector2, hero: Hero, state: ArenaState, progress: PlayerProgress, balance: BalanceConfig, random: RandomSource): void {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); for (const cooldown of this.skillCooldowns.values()) cooldown.remaining = Math.max(0, cooldown.remaining - deltaSeconds);
     const item = progress.mainHand; const effectiveStats = statsWithItemBonuses(progress.stats, item, progress.offHand); const derived = derivedStats(effectiveStats);
-    hero.knownSkills.clear(); for (const skill of new Set([...progress.learnedSkills, ...item.skills, ...(progress.offHand?.skills ?? [])])) if (isSkillAvailable(progress, skill)) hero.knownSkills.add(skill);
+    hero.knownSkills.clear(); for (const skill of new Set([...progress.learnedSkills, ...item.skills, ...(progress.offHand?.skills ?? [])])) if (isSkillAvailable(progress, skill) && !this.disabledSkills.has(skill)) hero.knownSkills.add(skill);
     const healing = healingCast(hero.hp, hero.maxHp, effectiveSkillLevel(progress, "healing"));
-    if (progress.learnedSkills.includes("healing") && hero.hp < hero.maxHp * 0.5 && this.healingCooldown === 0 && healing.restoredHp > 0 && hero.mana >= healing.manaCost) {
+    if (!this.disabledSkills.has("healing") && progress.learnedSkills.includes("healing") && hero.hp < hero.maxHp * 0.5 && this.healingCooldown === 0 && healing.restoredHp > 0 && hero.mana >= healing.manaCost) {
       const level = effectiveSkillLevel(progress, "healing"); hero.mana -= healing.manaCost;
       hero.heal(healing.restoredHp);
       state.spellEffects.push(new SpellEffect("healing", hero.position));
@@ -47,7 +49,7 @@ export class HeroCombatSystem {
     const staminaCost = magicSkill || lifeSkill ? 0 : physicalSkill ? staminaSkillCost : item.staminaCost;
     if (targetDistance > range + target.radius || this.attackCooldown > 0 || hero.stamina < staminaCost) return;
     hero.stamina -= staminaCost; if (magicSkill) hero.mana -= manaCost; if (lifeSkill) hero.takeDamage(1);
-    const strike = rollWeaponStrike(item, effectiveStats, "hero", balance, random); const damage = strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: activeSkill?.id === "arcaneBolt" || activeSkill?.id === "orbitingHammers" || activeSkill?.id === "frostOrb" || (!activeSkill && item.definitionId === "staff") ? "magic" as const : "physical" as const, critical: strike.critical };
+    const strike = rollWeaponStrike(item, effectiveStats, "hero", balance, random); const damage = strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: activeSkill?.id === "arcaneBolt" || activeSkill?.id === "orbitingHammers" || activeSkill?.id === "frostOrb" || (!activeSkill && (item.definitionId === "staff" || item.definitionId === "scepter")) ? "magic" as const : "physical" as const, critical: strike.critical };
     if (activeSkill?.id === "orbitingHammers") { const sequence = this.orbitCastSequence++; for (let index = 0; index < 3; index += 1) { const drift = (((sequence * 3 + index) % 7) - 3) * 0.035; state.projectiles.push(Projectile.orbitingHammer(hero, hero.facing + index * Math.PI * 2 / 3, damage, { kind: "magic", critical: strike.critical }, drift)); } }
     else if (activeSkill?.id === "frostOrb") state.projectiles.push(new Projectile(hero.position, target.position, damage, "hero", "frostOrb", hero, presentation, item));
     else if (activeSkill?.id === "gravityPull") { const direction = weaponUsesProjectile(item) || item.definitionId === "staff" ? "push" : "pull"; for (const creep of state.creeps) forceField(creep, hero.position, 180, direction); if (direction === "push") for (const drop of state.drops) drop.applyPush(hero.position, 180); }
@@ -63,15 +65,15 @@ export class HeroCombatSystem {
 
   spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
     const ids = new Set<SkillId>([...progress.learnedSkills.filter((skill) => isSkillAvailable(progress, skill)), ...progress.mainHand.skills, ...(progress.offHand?.skills ?? [])]);
-    return [...ids].map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: Math.max(1, effectiveSkillLevel(progress, id)), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : cooldown?.maximum ?? 0, resource: SKILLS[id].resource }; });
+    return [...ids].map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: Math.max(1, effectiveSkillLevel(progress, id)), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : cooldown?.maximum ?? 0, resource: SKILLS[id].resource, disabled: this.disabledSkills.has(id) }; });
   }
 
   get attackProgress(): number { return this.attackCooldownMax > 0 ? 1 - this.attackCooldown / this.attackCooldownMax : 1; }
   reset(): void { this.attackCooldown = 0; this.attackCooldownMax = 0; this.healingCooldown = 0; this.healingCooldownMax = 0; this.orbitCastSequence = 0; this.skillCooldowns.clear(); }
   private availableSkills(progress: PlayerProgress, item: ItemInstance): { id: SkillId; level: number }[] {
     const skills = new Map<SkillId, number>();
-    for (const skill of [...item.skills, ...(progress.offHand?.skills ?? [])]) if (!SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, effectiveSkillLevel(progress, skill));
-    for (const skill of progress.learnedSkills) if (isSkillAvailable(progress, skill) && !SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, Math.max(skills.get(skill) ?? 0, effectiveSkillLevel(progress, skill)));
+    for (const skill of [...item.skills, ...(progress.offHand?.skills ?? [])]) if (!this.disabledSkills.has(skill) && !SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, effectiveSkillLevel(progress, skill));
+    for (const skill of progress.learnedSkills) if (!this.disabledSkills.has(skill) && isSkillAvailable(progress, skill) && !SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, Math.max(skills.get(skill) ?? 0, effectiveSkillLevel(progress, skill)));
     return [...skills].map(([id, level]) => ({ id, level: Math.max(1, level) }));
   }
 }
