@@ -9,15 +9,19 @@ export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineI
   const attacks = item.itemKind === "weapon";
   const damage = attacks ? weaponDamage(item, effectiveStats) : undefined;
   const attackSpeed = attacks ? weaponAttackSpeed(item, effectiveStats) : undefined;
-  const effectiveness = itemRequirementMultiplier(item, effectiveStats); const requirements = STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(item.requirements[key] ?? 0)}`).join(", "); const effects = itemEffectSummary(item, effectiveStats);
-  const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineStats ?? effectiveStats) : effects; const baselineRequirements = baselineItem ? STAT_KEYS.filter((key) => (baselineItem.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(baselineItem.requirements[key] ?? 0)}`).join(", ") : requirements;
+  const effectiveness = itemRequirementMultiplier(item, effectiveStats); const requirements = itemRequirementRows(item, effectiveStats, baselineItem); const effects = itemEffectSummary(item, effectiveStats);
+  const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineStats ?? effectiveStats) : effects;
   return <div class="equipment-details">
     {damage === undefined ? null : <span><small>Attack</small>{detailValue(baselineDamage ?? damage, damage, fmt)}</span>}{attackSpeed === undefined ? null : <span><small>Attack speed</small>{detailValue(baselineSpeed ?? attackSpeed, attackSpeed, (value) => `${fmt(value)}/s`)}</span>}
     {attacks ? <span><small>Stamina cost</small>{detailValue(baselineItem?.staminaCost ?? item.staminaCost, item.staminaCost, precise)}</span> : null}
     {item.weight > 0 ? <span><small>Weight</small><b>{item.weight}</b></span> : null}
     {effects || baselineEffects ? <span class="equipment-detail-wide"><small>Effects</small>{detailText(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small><b>{item.skills.map(skillLabel).join(", ")}</b></span> : null}
-    {requirements || baselineRequirements ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small>{detailText(baselineRequirements, requirements)}{effectiveness < 1 ? <em>{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
+    {requirements.length ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small><b class="requirement-values">{requirements.map((requirement, index) => <span class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}>{index ? ", " : ""}{capitalize(requirement.key)} {formatPreviewValue(requirement, fmt)}</span>)}</b>{effectiveness < 1 ? <em>{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
   </div> as HTMLElement;
+}
+
+export function itemRequirementRows(item: ItemInstance, stats: Stats, baselineItem?: ItemInstance): Array<{ key: typeof STAT_KEYS[number]; currentVal: number; newVal: number; unmet: boolean }> {
+  return STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0 || (baselineItem?.requirements[key] ?? 0) > 0).map((key) => { const newVal = item.requirements[key] ?? 0; return { key, currentVal: baselineItem?.requirements[key] ?? newVal, newVal, unmet: newVal > stats[key] }; });
 }
 
 function detailValue(currentVal: number, newVal: number, format: (value: number) => string): HTMLElement { const tone = previewTone({ currentVal, newVal }); return <b class={tone === "gain" ? "is-gain-preview" : tone === "cost" ? "is-cost-preview" : ""}>{formatPreviewValue({ currentVal, newVal }, format)}</b> as HTMLElement; }

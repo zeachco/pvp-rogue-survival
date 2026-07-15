@@ -12,6 +12,11 @@ export function regularLevel(waveNumber: number, heroLevel: number, count: numbe
   return Math.max(Math.floor(heroLevel / Math.max(1, count)), survivalTier(waveNumber, balance));
 }
 
+export function creepMaxHealth(level: number, derivedHealth: number, balance: BalanceConfig): number {
+  const normalizedLevel = Math.max(0, Math.floor(level));
+  return normalizedLevel < 8 ? normalizedLevel + 1 : derivedHealth * balance.combat.enemyHealthMultiplier;
+}
+
 export function rivalLevel(waveNumber: number, balance: BalanceConfig): number {
   return Math.max(1, survivalTier(waveNumber, balance) + 1);
 }
@@ -20,7 +25,12 @@ export function championCount(waveNumber: number): number {
   return Math.max(0, Math.round(waveNumber / 15));
 }
 
+export function isIntroWave(waveNumber: number): boolean {
+  return waveNumber >= 0 && waveNumber < 9;
+}
+
 export function creepsWithSpellsCount(waveNumber: number, regulars: number): number {
+  if (isIntroWave(waveNumber)) return 0;
   return Math.min(Math.max(0, regulars), 1 + Math.max(0, Math.round(waveNumber / 10)));
 }
 

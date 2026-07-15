@@ -509,8 +509,8 @@ input {
 .equipped-item .is-gain-preview, .equipment-details b.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
 .equipped-item .is-cost-preview, .equipment-details b.is-cost-preview { color: #ff6575; text-shadow: 0 0 6px rgba(255,101,117,.3); }
 .equipment-detail-wide { grid-column: 1 / -1; }
-.requirement-detail.is-unmet > b,
 .requirement-detail.is-unmet > em { color: #ff6575; }
+.requirement-value.is-unmet { color: #ff6575; text-shadow: 0 0 6px rgba(255,101,117,.3); }
 .requirement-detail > em { display: block; margin-top: 2px; font-size: 9px; font-style: normal; }
 .item-title { display: flex; justify-content: space-between; gap: 8px; }
 .item-subtitle.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }

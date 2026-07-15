@@ -8,7 +8,7 @@ export function gameSocketUrl(location: Pick<Location, "host" | "protocol" | "se
   const pageProtocol = location.protocol === "https:" ? "wss:" : "ws:";
   const fallback = `${pageProtocol}//${location.host}/ws`;
   const params = new URLSearchParams(location.search);
-  const candidate = (params.get("server") ?? params.get("ip"))?.trim();
+  const candidate = (params.get("server") ?? params.get("ip") ?? (params.has("prod") ? "pvp.up.railway.app" : undefined))?.trim();
   if (!candidate) return fallback;
   try {
     const base = new URL(candidate.includes("://") ? candidate : `https://${candidate}`);

@@ -7,6 +7,7 @@ import { weaponAttackSpeed, weaponRange, weaponUsesProjectile } from "../../comm
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
+import { creepMaxHealth } from "../../common/waves";
 
 export type CreepAttack =
   | { type: "melee"; origin: Vector2; angle: number; windup: number; source: Creep }
@@ -39,7 +40,7 @@ export class Creep extends Unit {
     this.kind = build.kind;
     this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand, build.mainHand);
     for (const skill of [...build.mainHand.skills, ...(build.offHand?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
-    this.maxHp *= balance.combat.enemyHealthMultiplier; this.hp = this.maxHp;
+    this.maxHp = creepMaxHealth(build.level, this.maxHp, balance); this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand.sellValue);
     this.scoreValue = build.isRival ? 10 : 2;
   }

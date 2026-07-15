@@ -21,7 +21,7 @@ Use Bun for project tooling and scripts.
 - `bun run build`: typecheck and build the client.
 - `bun test`: run deterministic domain, server-service, protocol, and WebSocket integration tests.
 
-To run only the local client against the production server, open [http://localhost:3000/?server=pvp.up.railway.app](http://localhost:3000/?server=pvp.up.railway.app).
+To run only the local client against the production server, open [http://localhost:3000/?prod](http://localhost:3000/?prod). The longer `?server=pvp.up.railway.app` form remains available for explicit endpoint overrides.
 
 ## Architecture
 

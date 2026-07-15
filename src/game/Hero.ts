@@ -14,8 +14,10 @@ export class Hero extends Unit {
 
   applyProgress(progress: PlayerProgress, preserveRatio = false): void {
     const ratio = preserveRatio ? this.hp / this.maxHp : 1;
+    const mana = this.mana; const stamina = this.stamina;
     this.configureStats(statsWithItemBonuses(progress.stats, progress.mainHand, progress.offHand), progress.offHand, progress.mainHand);
     this.hp = Math.max(0, this.maxHp * ratio);
+    if (preserveRatio) { this.mana = Math.min(this.maxMana, mana); this.stamina = Math.min(this.maxStamina, stamina); }
   }
 
   resetForRealm(): void {

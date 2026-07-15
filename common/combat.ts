@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "./balance";
 import { SKILLS, WEAPONS } from "./content";
-import { itemRequirementMultiplier, RARITY_POWER, weaponSkillLevelScale, type ItemInstance, type SkillId } from "./items";
+import { itemRequirementMultiplier, RARITY_POWER, weaponLevelScale, weaponSkillLevelScale, type ItemInstance, type SkillId } from "./items";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
@@ -16,8 +16,8 @@ export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero"
   return { damage: damage * (owner === "hero" ? balance.combat.heroDamageMultiplier : balance.combat.enemyDamageMultiplier), critical };
 }
 
-export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon" || item.weight <= 0) return 0; const handling = item.definitionId === "staff" ? (stats.strength + stats.spirit) / 2 : item.hands === 1 ? stats.agility : stats.strength; const effectiveness = itemRequirementMultiplier(item, stats); return (10 + Math.max(0, handling) * 0.1) / item.weight * (1 + (item.modifiers.attackSpeedMultiplier - 1) * effectiveness) * effectiveness; }
-export function weaponDamage(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon") return 0; const derived = derivedStats(stats); const effectiveness = itemRequirementMultiplier(item, stats); const magic = item.definitionId === "staff" ? derived.magicAmp + item.modifiers.magicAmp * effectiveness : 1; return Math.max(1, derived.baseDamage * item.modifiers.damageMultiplier * magic * effectiveness); }
+export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon" || item.weight <= 0) return 0; const handling = item.definitionId === "staff" ? (stats.strength + stats.spirit) / 2 : item.hands === 1 ? stats.agility : stats.strength; const effectiveness = itemRequirementMultiplier(item, stats); const baseSpeed = (10 + Math.max(0, handling) * 0.1) / item.weight; const modifier = 1 + (item.modifiers.attackSpeedMultiplier - 1) * effectiveness; return baseSpeed * Math.max(1, modifier); }
+export function weaponDamage(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon") return 0; const derived = derivedStats(stats); const effectiveness = itemRequirementMultiplier(item, stats); const magic = item.definitionId === "staff" ? derived.magicAmp + item.modifiers.magicAmp * effectiveness : 1; const penalized = derived.baseDamage * item.modifiers.damageMultiplier * magic * effectiveness; const levelZeroMagic = item.definitionId === "staff" ? derived.magicAmp + item.modifiers.magicAmp : 1; const levelZero = derived.baseDamage * (item.modifiers.damageMultiplier / weaponLevelScale(item.level)) * levelZeroMagic; return Math.max(levelZero, penalized); }
 export function weaponRange(item: ItemInstance): number { return item.itemKind === "weapon" ? WEAPONS[item.definitionId as keyof typeof WEAPONS].range ?? 105 : 0; }
 export function weaponUsesProjectile(item: ItemInstance): boolean { return item.itemKind === "weapon" && Boolean(WEAPONS[item.definitionId as keyof typeof WEAPONS].projectile); }
 export function bucklerBlockChance(item: ItemInstance | undefined, stats: Stats): number { return item?.itemKind === "buckler" ? Math.min(1, (item.blockChance + 0.005 * (stats.strength + stats.agility)) * itemRequirementMultiplier(item, stats)) : 0; }

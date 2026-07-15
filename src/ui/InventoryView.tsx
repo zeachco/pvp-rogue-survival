@@ -37,7 +37,6 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });
   if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item, equipped); node.onmouseleave = () => { onPreview(); onCurrencyPreview?.(); onSpellPreview?.(); }; }
   if (spare <= 0) for (const index of [1, 2, 4, 5]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
-  if (equipped) for (const index of [1, 2, 4, 5]) if (buttons[index]) { (buttons[index] as HTMLButtonElement).disabled = true; (buttons[index] as HTMLButtonElement).title = "Unequip this stack first"; }
   const sendButton = buttons[4] as HTMLButtonElement | undefined;
   if (sendButton && !canSend) { sendButton.disabled = true; sendButton.title = "Waiting for realm state"; }
   const costs = upgradeCosts(item); const upgradeButton = buttons[3] as HTMLButtonElement | undefined;
