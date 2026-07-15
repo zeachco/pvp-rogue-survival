@@ -1,7 +1,8 @@
 :root {
-  --character-panel-width: 220px;
-  --inventory-panel-width: 640px;
+  --character-panel-width: 320px;
+  --inventory-panel-width: 480px;
   --build-panel-width: calc(var(--character-panel-width) + var(--inventory-panel-width));
+  --game-header-height: 52px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #e8f9ff;
@@ -25,7 +26,8 @@ input {
 #game-canvas {
   display: block;
   width: calc(100vw - var(--build-panel-width));
-  height: 100vh;
+  height: calc(100vh - var(--game-header-height));
+  margin-top: var(--game-header-height);
   margin-left: var(--character-panel-width);
   transition: width 160ms ease, margin-left 160ms ease;
 }
@@ -41,16 +43,35 @@ input {
   pointer-events: auto;
 }
 
-.hud-top {
+.game-status-bar {
   position: absolute;
+  z-index: 5;
+  top: 0;
   left: calc(var(--character-panel-width) + 16px);
   right: calc(var(--inventory-panel-width) + 16px);
-  display: flex;
-  justify-content: flex-start;
+  height: var(--game-header-height);
+  border-bottom: 1px solid rgba(138, 216, 255, 0.28);
+  background: #101418;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .hud-top {
-  top: 16px;
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+}
+
+.canvas-overlay-top {
+  position: absolute;
+  z-index: 4;
+  top: var(--game-header-height);
+  left: calc(var(--character-panel-width) + 16px);
+  right: calc(var(--inventory-panel-width) + 16px);
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .spell-bar {
@@ -328,19 +349,19 @@ input {
 
 .wave-banner {
   position: absolute;
-  top: 50%;
-  left: calc(var(--character-panel-width) + (100vw - var(--character-panel-width) - var(--inventory-panel-width)) / 2);
+  top: 4px;
+  left: 50%;
   display: grid;
-  min-width: min(420px, calc(100vw - var(--character-panel-width) - var(--inventory-panel-width) - 32px));
-  gap: 6px;
+  width: min(360px, 36%);
+  gap: 2px;
   border: 1px solid rgba(58, 255, 212, 0.5);
-  padding: 18px 22px;
+  padding: 8px 14px;
   text-align: center;
   background: rgba(13, 20, 24, 0.9);
   box-shadow: 0 18px 56px rgba(0, 0, 0, 0.42);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -50%) scale(0.98);
+  transform: translateX(-50%) scale(0.98);
   transition:
     opacity 2600ms ease,
     transform 2600ms ease;
@@ -348,7 +369,7 @@ input {
 
 .wave-banner strong {
   color: #e8f9ff;
-  font-size: 26px;
+  font-size: 18px;
   line-height: 1.1;
 }
 
@@ -358,7 +379,7 @@ input {
 
 .wave-banner.is-visible {
   opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
+  transform: translateX(-50%) scale(1);
   transition:
     opacity 140ms ease,
     transform 140ms ease;
@@ -449,8 +470,8 @@ input {
 .character-panel > .panel-toggle { justify-self: end; }
 .inventory-content { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; gap: 8px; overflow: hidden; }
 .inventory-header { display: grid; gap: 8px; flex: none; }
-.realm-panel { display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; padding: 10px; border: 1px solid rgba(138,216,255,.35); background: rgba(13,20,24,.82); pointer-events: auto; white-space: nowrap; }
-.realm-panel button { border: 1px solid #3affd4; padding: 5px 7px; color: #dffeff; background: #15312f; }
+.realm-panel { display: flex; flex-wrap: nowrap; width: 100%; gap: 6px; align-items: center; padding: 6px 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; pointer-events: auto; white-space: nowrap; font-size: clamp(11px, 1vw, 15px); }
+.realm-panel button { flex: none; border: 1px solid #3affd4; padding: 4px 6px; color: #dffeff; background: #15312f; }
 .realm-panel .kill-player { border-color: #ff6575; color: #ffd9de; background: #401820; }
 .ranked-name { display: inline-flex; gap: 4px; align-items: center; }
 .death-echo-warning { position: relative; color: #ffc857; cursor: help; }
@@ -488,6 +509,9 @@ input {
 .equipped-item .is-gain-preview, .equipment-details b.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
 .equipped-item .is-cost-preview, .equipment-details b.is-cost-preview { color: #ff6575; text-shadow: 0 0 6px rgba(255,101,117,.3); }
 .equipment-detail-wide { grid-column: 1 / -1; }
+.requirement-detail.is-unmet > b,
+.requirement-detail.is-unmet > em { color: #ff6575; }
+.requirement-detail > em { display: block; margin-top: 2px; font-size: 9px; font-style: normal; }
 .item-title { display: flex; justify-content: space-between; gap: 8px; }
 .item-subtitle.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
 .rarity-uncommon { border-color: #62e88a; }
@@ -531,16 +555,18 @@ input {
 .notification-area {
   position: absolute;
   z-index: 3;
-  top: 16px;
-  right: calc(var(--inventory-panel-width) + 16px);
+  top: 4px;
+  right: 0;
   display: grid;
   justify-items: end;
-  width: min(420px, calc(100vw - 580px));
+  width: min(360px, 34%);
   pointer-events: none;
 }
 
 .realm-panel {
   position: static;
+  max-width: 100%;
+  overflow: visible;
 }
 
 .resource-dock {

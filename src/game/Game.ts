@@ -1,4 +1,5 @@
-import { BALANCE_PROFILES, type BalanceConfig } from "../../common/balance";
+import { BALANCE, type BalanceConfig } from "../../common/balance";
+import { itemRequirementMultiplier } from "../../common/items";
 import { rollWeaponStrike } from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type { CreepWave, GroundDrop, ServerMessage, UnitBuild } from "../../common/protocol";
@@ -38,7 +39,7 @@ export class Game {
   private camera: Camera = { x: 0, y: 0, width: 1, height: 1 };
   private player?: PlayerState;
   private savedSession = this.sessionStorage.load();
-  private balance: BalanceConfig = BALANCE_PROFILES.dev;
+  private balance: BalanceConfig = BALANCE;
   private debugName = this.savedSession?.username ?? "unjoined";
   private readonly pendingPickupAt = new Map<string, number>();
   private lastTimestamp = performance.now();
@@ -49,7 +50,6 @@ export class Game {
   private inspected?: Creep;
   private waveMode: "competitive" | "solo" | "training" = "training";
   private realmMode: "training" | "waiting" | "competitive" = "training";
-  private autoRealmTimer?: number;
   private get creeps(): Creep[] { return this.arena.creeps; }
   private get attacks(): AttackArea[] { return this.arena.attacks; }
   private get projectiles(): Projectile[] { return this.arena.projectiles; }
@@ -85,19 +85,18 @@ export class Game {
   }
 
   private join(name: string, heroId?: string): void { this.debugName = name.trim() || this.debugName; this.socket.send(heroId ? { type: "join", heroId } : { type: "join", name }); this.hud.setNotice("Joining arena..."); }
-  private enterRealm(): void { clearTimeout(this.autoRealmTimer); if (this.realmMode !== "training") return; this.realmMode = "waiting"; this.socket.send({ type: "enterRealm" }); }
-  private scheduleAutoRealmEntry(): void { clearTimeout(this.autoRealmTimer); if (!import.meta.env.DEV || this.realmMode !== "training") return; this.autoRealmTimer = window.setTimeout(() => this.enterRealm(), 10_000); }
+  private enterRealm(): void { if (this.realmMode !== "training") return; this.realmMode = "waiting"; this.socket.send({ type: "enterRealm" }); }
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === "welcome") {
-      this.player = { id: message.playerId, name: message.player.name, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, gold: message.progress.gold, progress: message.progress };
-      this.balance = message.config.balance; this.realmMode = message.realm.mode; this.scheduleAutoRealmEntry();
+      this.player = { id: message.playerId, name: message.player.name, receivesDeathEchoes: message.player.receivesDeathEchoes, score: message.player.score, waveNumber: message.player.waveNumber, health: 1, maxHealth: 1, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, gold: message.progress.gold, progress: message.progress };
+      this.balance = message.config.balance; this.realmMode = message.realm.mode;
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.savedSession = { heroId: message.playerId, username: message.player.name }; this.sessionStorage.save(this.savedSession);
       this.hud.configurePanelTriggers(message.panelTriggers); this.hud.setPlayer(this.player); this.hud.setPublicHero(); this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero)); this.hud.setRealm(message.realm); this.hud.setNotice(""); this.hud.showCenterToast("WASD moves. Combat and skills cast automatically. Walk over glowing item drops."); this.reconcileDrops();
-    } else if (message.type === "loggedOut") { clearTimeout(this.autoRealmTimer); this.sessionStorage.clear(); this.savedSession = undefined; this.player = undefined; this.arena.clear(); this.pendingPickupAt.clear(); this.heroCombat.reset(); this.hud.clearPlayer(); this.hud.setPublicHero(); }
+    } else if (message.type === "loggedOut") { this.sessionStorage.clear(); this.savedSession = undefined; this.player = undefined; this.arena.clear(); this.pendingPickupAt.clear(); this.heroCombat.reset(); this.hud.clearPlayer(); this.hud.setPublicHero(); }
     else if (message.type === "leaderboard") this.hud.setLeaderboard(message.heroes);
     else if (message.type === "heroProfile") this.hud.setPublicHero(message.hero);
-    else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.realmMode !== "training") clearTimeout(this.autoRealmTimer); this.hud.setRealm(message.realm); }
+    else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.player) { const member = [...message.realm.guards, ...message.realm.attackers].find(({ id }) => id === this.player!.id); if (member) this.player.receivesDeathEchoes = member.receivesDeathEchoes; } this.hud.setRealm(message.realm); if (this.player) this.hud.setPlayer(this.player); }
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
       this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;
@@ -123,7 +122,9 @@ export class Game {
     this.waveMode = wave.mode;
     enqueueWave(this.arena, wave, performance.now());
     if (this.player) { this.player.waveNumber = wave.waveNumber; this.hud.setPlayer(this.player); }
-    this.hud.showWaveBanner(wave.mode === "training" ? "Training Grounds" : wave.mode === "solo" ? `Solo Wave ${wave.waveNumber}` : `Wave ${wave.waveNumber}`, `${wave.spawns.length - 1} creeps and one rival`);
+    const champions = wave.spawns.filter(({ build }) => build.isRival).length; const regulars = wave.spawns.length - champions;
+    const detail = `${regulars} creep${regulars === 1 ? "" : "s"}${champions ? ` and ${champions} champion${champions === 1 ? "" : "s"}` : ""}`;
+    this.hud.showWaveBanner(wave.mode === "training" ? "Training Grounds" : wave.mode === "solo" ? `Solo Wave ${wave.waveNumber}` : `Wave ${wave.waveNumber}`, detail);
   }
 
   private tick(timestamp: number): void {
@@ -154,7 +155,7 @@ export class Game {
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds)); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     this.projectiles.push(...emittedProjectiles);
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
-    const attractionSpeed = Math.max(this.player.progress.mainHand.attractionSpeed, this.player.progress.offHand?.attractionSpeed ?? 0);
+    const baseStats = this.player.progress.stats; const attractionSpeed = Math.max(this.player.progress.mainHand.attractionSpeed * itemRequirementMultiplier(this.player.progress.mainHand, baseStats), (this.player.progress.offHand?.attractionSpeed ?? 0) * (this.player.progress.offHand ? itemRequirementMultiplier(this.player.progress.offHand, baseStats) : 1));
     for (const drop of this.drops) { if (drop.escaping) { drop.move(deltaSeconds); if (drop.outside(this.map.width, this.map.height) && drop.active) { drop.active = false; this.socket.send({ type: "deferDrop", dropId: drop.dropId }); } } else { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); } }
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.collectKills(); this.collectDrops();
     if ([...this.pendingPickupAt.values()].some((sentAt) => performance.now() - sentAt >= 3000)) this.reconcileDrops();

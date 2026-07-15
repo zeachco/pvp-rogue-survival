@@ -1,7 +1,5 @@
-export type BalanceProfileId = "normal" | "dev";
-
 export interface BalanceConfig {
-  id: BalanceProfileId;
+  id: "normal";
   wave: {
     intervalMs: number;
     prepareMs: number;
@@ -22,24 +20,12 @@ export interface BalanceConfig {
   };
 }
 
-const NORMAL: BalanceConfig = {
+export const BALANCE: BalanceConfig = Object.freeze({
   id: "normal",
   wave: { intervalMs: 60_000, prepareMs: 3_000, batchIntervalMs: 5_000, maxRegulars: 40, tierEveryWaves: 2 },
   combat: { heroDamageMultiplier: 1, enemyDamageMultiplier: 1, enemyHealthMultiplier: 1 },
   rewards: { xpMultiplier: 1, goldChanceMultiplier: 1, dropChanceMultiplier: 1, maxDropChance: 0.3 }
-};
-
-export const BALANCE_PROFILES: Readonly<Record<BalanceProfileId, BalanceConfig>> = Object.freeze({
-  normal: NORMAL,
-  dev: {
-    ...NORMAL,
-    id: "dev"
-  }
 });
-
-export function balanceProfile(id: string | undefined): BalanceConfig {
-  return id === "normal" ? BALANCE_PROFILES.normal : BALANCE_PROFILES.dev;
-}
 
 export function publicBalance(config: BalanceConfig): BalanceConfig {
   return structuredClone(config);

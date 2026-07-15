@@ -16,6 +16,14 @@ export function rivalLevel(waveNumber: number, balance: BalanceConfig): number {
   return Math.max(1, survivalTier(waveNumber, balance) + 1);
 }
 
+export function championCount(waveNumber: number): number {
+  return Math.max(0, Math.round(waveNumber / 15));
+}
+
+export function creepsWithSpellsCount(waveNumber: number, regulars: number): number {
+  return Math.min(Math.max(0, regulars), 1 + Math.max(0, Math.round(waveNumber / 10)));
+}
+
 export function rivalXpReward(level: number): number {
   return 25 + 3 * Math.max(0, Math.floor(level));
 }

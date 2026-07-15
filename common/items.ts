@@ -114,19 +114,25 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
 
 export function rollRarity(seed: number): Rarity { const roll = new SeededRandom(seed).next(); return roll < 0.58 ? "common" : roll < 0.83 ? "uncommon" : roll < 0.96 ? "rare" : "epic"; }
 export function meetsRequirements(item: ItemInstance, stats: Stats): boolean { return Object.entries(item.requirements).every(([key, value]) => stats[key as StatKey] >= (value ?? 0)); }
+export function itemRequirementMultiplier(item: ItemInstance, stats: Stats): number {
+  return Object.entries(item.requirements).reduce((multiplier, [key, required]) => {
+    const delta = Math.max(0, (required ?? 0) - stats[key as StatKey]);
+    return multiplier / (delta + 1);
+  }, 1);
+}
 export function itemStackKey(item: ItemInstance): string {
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, level: item.level, rarity: item.rarity, hands: item.hands, weight: item.weight,
     affixes: [...item.affixes].sort(), requirements: orderedStats(item.requirements), statBonuses: orderedStats(item.statBonuses), modifiers: item.modifiers,
     skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, perks: item.perks ?? {} });
 }
-export function equippedPerks(...items: Array<ItemInstance | undefined>): Record<ItemPerkId, number> { return Object.fromEntries(ITEM_PERKS.map((key) => [key, items.reduce((sum, item) => sum + (item?.perks?.[key] ?? 0), 0)])) as Record<ItemPerkId, number>; }
+export function equippedPerks(stats: Stats, ...items: Array<ItemInstance | undefined>): Record<ItemPerkId, number> { return Object.fromEntries(ITEM_PERKS.map((key) => [key, items.reduce((sum, item) => sum + (item?.perks?.[key] ?? 0) * (item ? itemRequirementMultiplier(item, stats) : 1), 0)])) as Record<ItemPerkId, number>; }
 export function itemAutomationKey(item: ItemInstance): string {
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, hands: item.hands,
     affixes: [...item.affixes].sort(), statBonuses: orderedStats(item.statBonuses), skills: [...item.skills].sort(),
     reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, lifeStealBase: item.modifiers.lifeStealBase ?? 0, strengthRegenMultiplier: item.modifiers.strengthRegenMultiplier ?? 0 });
 }
 export function statsWithItemBonuses(stats: Stats, ...items: Array<ItemInstance | undefined>): Stats {
-  return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] + items.reduce((sum, item) => sum + (item?.statBonuses[key] ?? 0), 0)])) as Stats;
+  return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] + items.reduce((sum, item) => sum + (item?.statBonuses[key] ?? 0) * (item ? itemRequirementMultiplier(item, stats) : 1), 0)])) as Stats;
 }
 function baseModifiers(damageMultiplier: number, attackSpeedMultiplier: number): ItemModifiers { return { damageMultiplier, attackSpeedMultiplier, critChance: 0, manaRegenMultiplier: 1, magicAmp: 0, bleedChance: 0, poisonChance: 0, stunChance: 0, lifeStealBase: 0, strengthRegenMultiplier: 0, goldGain: 0, rarityBoost: 0 }; }
 function applyAffix(modifiers: ItemModifiers, affix: AffixId, power: number): void { for (const [key, value] of Object.entries(AFFIXES[affix].modifierPerPower) as [keyof ItemModifiers, number][]) modifiers[key] += value * power; }

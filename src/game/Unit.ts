@@ -1,7 +1,7 @@
 import { GameObject } from "./GameObject";
 import { clamp, type Vector2 } from "./types";
 import { derivedStats, type Stats } from "../../common/progression";
-import { equippedPerks, RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
+import { equippedPerks, itemRequirementMultiplier, RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
 import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed } from "../../common/combat";
@@ -45,7 +45,7 @@ export abstract class Unit extends GameObject {
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): number {
     this.lastHitDodged = false;
-    const perks = equippedPerks(this.mainHand, this.offHand);
+    const perks = equippedPerks(this.stats, this.mainHand, this.offHand);
     if (reflectable && random.next() < Math.min(0.5, Math.max(0, this.stats.agility) * 0.003 + perks.dodgeChance)) { this.lastHitDodged = true; this.emitOutcome("dodge", "DODGE"); return 0; }
     const hpBefore = this.hp;
     const resistKey = presentation.kind === "magic" || presentation.kind === "electric" ? "magicResist" : presentation.kind === "fire" ? "fireResist" : presentation.kind === "poison" ? "poisonResist" : presentation.kind === "bleed" ? "bleedResist" : "physicalResist"; let remaining = Math.max(0, amount - perks.defense) * (1 - Math.min(.5, perks[resistKey])); let blockReflection = 0; const buckler = this.offHand;
@@ -62,13 +62,14 @@ export abstract class Unit extends GameObject {
           if (buckler.reflectionComponents.includes("flat")) reflected += 1;
           if (buckler.reflectionComponents.includes("strength")) reflected += 0.2 * this.stats.strength;
           if (buckler.reflectionComponents.includes("return")) reflected += amount * (0.15 + 0.004 * this.stats.agility);
-          blockReflection = reflected * power;
+          blockReflection = reflected * power * itemRequirementMultiplier(buckler, this.stats);
         }
       }
     }
     if (reflectable && source) {
-      const passiveReflection = this.knownSkills.has("thorns") ? amount * 0.05 : 0;
-      const surgeBonus = this.reflectiveSurgeRemaining > 0 ? amount * 0.01 : 0;
+      const reflectionEffectiveness = buckler?.itemKind === "buckler" ? itemRequirementMultiplier(buckler, this.stats) : 1;
+      const passiveReflection = this.knownSkills.has("thorns") ? amount * 0.05 * reflectionEffectiveness : 0;
+      const surgeBonus = this.reflectiveSurgeRemaining > 0 ? amount * 0.01 * reflectionEffectiveness : 0;
       const reflected = (blockReflection + passiveReflection) * (this.reflectiveSurgeRemaining > 0 ? 2 : 1) + surgeBonus;
       if (reflected > 0) source.receiveDamage(reflected, random, this, false, false, { kind: presentation.kind });
     }
@@ -99,9 +100,10 @@ export abstract class Unit extends GameObject {
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, false, invulnerable, { kind: status.kind === "poison" ? "poison" : status.kind === "burn" ? "fire" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
-    const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = item.modifiers.strengthRegenMultiplier ?? 0; return sum + (multiplier > 0 ? 0.01 + multiplier * this.stats.strength : 0); }, 0);
+    const equipped = [this.mainHand, this.offHand].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = (item.modifiers.strengthRegenMultiplier ?? 0) * itemRequirementMultiplier(item, this.stats); return sum + (multiplier > 0 ? (0.01 + multiplier * this.stats.strength) * itemRequirementMultiplier(item, this.stats) : 0); }, 0);
     this.hp = Math.min(this.maxHp, this.hp + (derived.hpRegen + vigorousRegen) * deltaSeconds);
-    this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * (this.mainHand?.modifiers.manaRegenMultiplier ?? 1) * deltaSeconds);
+    const manaMultiplier = this.mainHand ? 1 + (this.mainHand.modifiers.manaRegenMultiplier - 1) * itemRequirementMultiplier(this.mainHand, this.stats) : 1;
+    this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * manaMultiplier * deltaSeconds);
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
   }
 

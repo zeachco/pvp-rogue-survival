@@ -34,6 +34,6 @@ The server is authoritative for issued enemies, rewards, generated drops, progre
 
 ## Balance profiles
 
-Local runs use the `dev` profile id by default; production uses `normal`. Override either with `BALANCE_PROFILE=dev` or `BALANCE_PROFILE=normal` when starting the server. Both profiles currently use identical combat, wave, and reward values so development never accelerates persisted progression.
+Local and production runs use the same authoritative combat, wave, reward, and progression balance.
 
 Player progression and inventory are persisted through Bun SQL. Local development defaults to the git-ignored `server-data/players.sqlite`; production sets `DATABASE_URL` to a PostgreSQL connection string.

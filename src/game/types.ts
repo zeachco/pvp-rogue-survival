@@ -3,6 +3,7 @@ export interface Camera { x: number; y: number; width: number; height: number }
 export interface PlayerState {
   id: string;
   name: string;
+  receivesDeathEchoes: boolean;
   score: number;
   waveNumber: number;
   health: number;

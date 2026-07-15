@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BALANCE_PROFILES } from "../common/balance";
+import { BALANCE } from "../common/balance";
 import type { RandomSource } from "../common/random";
 import { GameService } from "../server/GameService";
 import { SqlPlayerRepository } from "../server/SqlPlayerRepository";
@@ -13,7 +13,7 @@ describe("Bun SQL player persistence", () => {
   test("round-trips the indexed hero fields and serialized progression through SQLite", async () => {
     const directory = mkdtempSync(join(tmpdir(), "multi-line-sql-")); const url = `sqlite://${join(directory, "players.sqlite")}`;
     try {
-      const firstRepository = await SqlPlayerRepository.open(url); const game = new GameService({ repository: firstRepository, balance: BALANCE_PROFILES.normal, random: new FixedRandom(), send: () => {} });
+      const firstRepository = await SqlPlayerRepository.open(url); const game = new GameService({ repository: firstRepository, balance: BALANCE, random: new FixedRandom(), send: () => {} });
       const player = game.join("Persistent"); player.score = 17; player.waveNumber = 9; player.progress.xp = 250; player.progress.level = 2; player.progress.gold = 88; player.panelTriggers.character = false;
       await firstRepository.persist(); await firstRepository.close();
       const restoredRepository = await SqlPlayerRepository.open(url); const restored = restoredRepository.get(player.id);
@@ -24,7 +24,7 @@ describe("Bun SQL player persistence", () => {
   });
 
   test("looks up usernames without case and orders leaderboard by level then name", async () => {
-    const repository = await SqlPlayerRepository.open(":memory:"); const game = new GameService({ repository, balance: BALANCE_PROFILES.normal, random: new FixedRandom(), send: () => {} });
+    const repository = await SqlPlayerRepository.open(":memory:"); const game = new GameService({ repository, balance: BALANCE, random: new FixedRandom(), send: () => {} });
     const low = game.join("zeta"); low.connected = false; const highB = game.join("Beta"); highB.progress.level = 3; highB.connected = false; const highA = game.join("alpha"); highA.progress.level = 3;
     expect(repository.getByUsername("BETA")?.id).toBe(highB.id); expect(game.leaderboard().map((hero) => hero.username)).toEqual(["alpha", "Beta", "zeta"]);
     await repository.close();
@@ -33,7 +33,7 @@ describe("Bun SQL player persistence", () => {
   test("flushes only heroes marked dirty", async () => {
     const directory = mkdtempSync(join(tmpdir(), "multi-line-dirty-sql-")); const url = `sqlite://${join(directory, "players.sqlite")}`;
     try {
-      const repository = await SqlPlayerRepository.open(url); const game = new GameService({ repository, balance: BALANCE_PROFILES.normal, random: new FixedRandom(), send: () => {} });
+      const repository = await SqlPlayerRepository.open(url); const game = new GameService({ repository, balance: BALANCE, random: new FixedRandom(), send: () => {} });
       const changed = game.join("Changed"); const untouched = game.join("Untouched"); await repository.persist();
       changed.progress.gold = 10; untouched.progress.gold = 20; repository.markDirty(changed.id); await repository.persist(); await repository.close();
       const restored = await SqlPlayerRepository.open(url);

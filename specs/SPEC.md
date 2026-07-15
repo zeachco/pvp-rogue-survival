@@ -25,7 +25,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Every joined player controls one hero in a private fixed arena, initially placed at the arena center.
 - The hero has health instead of lane lives.
 - Enemy body contact does not damage the hero; see `specs/MECHANICS_SPEC.md` for damage sources and attack resolution.
-- A newly created player starts with a deterministic level-0 Common Throwing Axe equipped in the main hand and a deterministic level-0 Common Buckler equipped offhand. Both retained equipment copies occupy backpack stacks. Existing saved players keep their current equipment when this default changes.
+- A newly created player equips the requirement-free Plain Club and receives exactly three randomly generated level-0 Common equipment items in the backpack. This starter roll happens only once at account creation; defeat neither grants nor rerolls starter equipment. Existing saved players keep their current equipment when this default changes.
 - Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `specs/PROGRESSION_SPEC.md`.
 - Hero auto-aim, automatic attacks, attack areas, projectiles, and dodge rules follow `specs/MECHANICS_SPEC.md`.
 - Active weapon and learned skill availability, costs, and scaling follow `specs/PROGRESSION_SPEC.md`.
@@ -65,10 +65,11 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Telegraph and combat rendering rules follow `specs/MECHANICS_SPEC.md`.
 - Show controls, drops, and inspected enemy highlight. Selecting a creep replaces the character column with its inspection details and shows the XP that defeating that creep is currently worth after mode and balance reward modifiers; Training Grounds therefore show 0 XP. The realm header includes a destructive Kill Player action. The current first-ranked leaderboard hero has a warning icon before their name everywhere realm membership is shown; its hover/focus tooltip explains that all other heroes' death echoes are sent into that hero's realm to fight.
 - Show movement and auto-attack guidance as a centered, non-blocking notification that fades after a few seconds.
-- Wave starts use a centered, non-blocking fading banner.
+- Wave starts use a centered, non-blocking fading banner over the top inside edge of the canvas; they do not reserve document space.
 - Joining never pauses play behind a first-wave confirmation modal.
-- A single-row realm header sits at the top-left of the playable arena. It reads Halls of Realms in the lobby, Waiting for realm while queued, and Wave N during competitive play, followed by Realm Guard, Realm Attacker, and queue information.
-- Routine notifications appear at the top-right edge of the playable arena, immediately left of the fixed build columns.
+- Reserve only one compact, fixed-height game-information row above the canvas across the playable width. The canvas begins immediately below this row, while the character and inventory columns continue to use the full viewport height.
+- A single-row, borderless realm summary sits at the left of the game-information header. It reads Halls of Realms in the lobby, Waiting for realm while queued, and Wave N during competitive play, followed by Realm Guard, Realm Attacker, and queue information. When the current hero is highest-ranked, the same death-echo warning shown beside realm names also appears beside that hero's name in the character panel.
+- Wave announcements are centered over the canvas's top inside edge. Routine notifications appear at the canvas's top-right edge, immediately left of the fixed build columns.
 - Training-kill no-reward feedback is an exception to routine notifications: it appears just above the experience/level badge and fades away after a few seconds.
 - The health and mana displays sit directly beside the centered experience/level badge rather than stretching toward the arena edges. When either resource decreases, its colored fill updates immediately while a white recent-loss segment holds the previous value. Repeated losses debounce that segment's catch-up; after a short pause it animates down to the current value in the familiar fighting-game damage-bar style. Resource gains synchronize the segment immediately.
 - Cooldown spells use a compact Ubuntu-dock-like vertical rail on the left edge, anchored above the bottom-left health display and growing upward as spells are added without a scrollbar.
@@ -102,7 +103,7 @@ Stable HTML HUD structures are created once. The fixed simulation loop may updat
 - `server/server.ts`: process composition and startup only. HTTP/WebSocket transport, the Bun SQL repository, and game services are independently startable and testable.
 - The server writes concise player and realm lifecycle logs using opaque hero ids and usernames. A hero is connected only after a successful id reconnect or case-insensitive username login claims that hero's single in-process active session.
 - `common/protocol.ts`: runtime-validated protocol messages and shared types.
-- `common/balance.ts`: typed normal and development balance profiles.
+- `common/balance.ts`: the single authoritative wave, combat, and reward balance configuration used in every environment.
 - Shared progression, inventory, content, combat, item, and wave rules live in `common/` and have no browser or server runtime dependencies.
 
 ## 9. WebSocket Protocol
@@ -151,7 +152,7 @@ Bun SQL is the authoritative durable hero store. The `heroes` table has four col
 
 ## 10. Balance Profiles
 
-- `normal` is the production profile. `dev` is the default for local development; `BALANCE_PROFILE=normal|dev` selects the server profile and public simulation modifiers are sent in `welcome`.
+- Local development and production use the same authoritative balance and progression configuration; there is no development balance variant. Public simulation modifiers are sent in `welcome`.
 - Normal waves contain `min(40, 10 + 2 * waveNumber)` regular enemies. The raw count stops growing at 40 so long-running games scale through enemy strength rather than unbounded active entities.
 - A normal regular enemy uses level `max(floor(heroLevel / regularCount), floor((waveNumber - 1) / 2))`. A golden rival uses the wave-authored level `max(1, floor((waveNumber - 1) / 2) + 1)`; neither its difficulty nor XP derives from either player's level.
 - The normal profile retains the 60-second wave interval, three-second preparation delay, ten cumulative spawn batches five seconds apart, and rival spawn after 75% of regulars.
@@ -165,7 +166,7 @@ Bun SQL is the authoritative durable hero store. The `heroes` table has four col
 - Randomized edge spawns aimed directly at the hero.
 - Melee creeps first, followed by ranged bubble shooters.
 - Telegraph/resolution attack areas and collision-based bubble projectiles, as specified in `specs/MECHANICS_SPEC.md`.
-- Character and inventory HUD with the starting Throwing Axe and Buckler loadout, allocation controls, backpack, item actions, and enemy inspection.
+- Character and inventory HUD with the Plain Club and three-item random starter backpack, allocation controls, item actions, and enemy inspection.
 - Server-authored waves, score awards, and neighbor summaries.
 
 ## 12. Future Scope
@@ -182,7 +183,7 @@ This section records composition details that a clean-room implementation in ano
 - The world is 1,600 by 1,000 logical pixels. The camera viewport equals the canvas CSS content size, follows the hero, and clamps independently on both axes. Canvas backing width and height equal CSS dimensions multiplied by device pixel ratio, and the 2D context transform restores logical-pixel drawing. Both window resize and `ResizeObserver` trigger this calculation.
 - The client validates incoming envelopes before dispatch. Outgoing messages sent before the socket is open are discarded rather than buffered. On socket open, a locally stored opaque hero id may be submitted automatically. The local-storage key is `multi-line-tower.session` and contains only `{ heroId, username }`; invalid JSON or missing fields is treated as no session. Logout clears it.
 - Joining by name trims the value, requires 1–20 ASCII letters, digits, `_`, or `-`, preserves its display casing, and compares it case-insensitively. The first accepted use creates the hero; later use loads that same hero without a password or secret. This username-possession login is an explicit prototype trust boundary and is not suitable for hostile public deployment without authentication. A new hero starts with the specified Throwing Axe/Buckler loadout and progression defaults.
-- The HTTP server serves the built `dist` directory when it exists (otherwise the repository root), maps `/` to `index.html`, uses explicit HTML/JavaScript/CSS/SVG content types, rejects normalized paths outside the public root with 403, and otherwise falls back to `index.html` for missing paths. The WebSocket server shares that HTTP listener and accepts connections only at `/ws`. It listens on LAN-reachable `0.0.0.0:3000` by default so the machine is available as `olim3.local`; `HOST`/`PORT` may override it. Production defaults to `normal`, other environments to `dev`, and an explicit valid `BALANCE_PROFILE=normal|dev` overrides that default.
+- The HTTP server serves the built `dist` directory when it exists (otherwise the repository root), maps `/` to `index.html`, uses explicit HTML/JavaScript/CSS/SVG content types, rejects normalized paths outside the public root with 403, and otherwise falls back to `index.html` for missing paths. The WebSocket server shares that HTTP listener and accepts connections only at `/ws`. It listens on LAN-reachable `0.0.0.0:3000` by default so the machine is available as `olim3.local`; `HOST`/`PORT` may override it. Every environment uses the same authoritative balance configuration.
 - Each connection must join before gameplay commands. Anonymous sockets may request leaderboard summaries and public hero profiles. Invalid JSON or schema-invalid input receives `Ignored invalid message.`; other commands before identification receive `Join before playing.` Only one socket in the authoritative game-server process may own a hero. Logout or disconnect releases it immediately.
 - The server runs WebSocket heartbeat checks using ping/pong. A socket without a pong or other valid inbound activity for five minutes is terminated and processed through normal disconnect cleanup. The five-minute application timeout is authoritative even when the WebSocket library or deployment platform has a different default.
 - A single 60-second server timer drives global wave dispatch. At dispatch, every realm's down set is cleared; every connected realm member or opted-in solo increments their wave, while Training Grounds players repeat without incrementing; then every connected player receives the correct competitive, solo, or training wave.

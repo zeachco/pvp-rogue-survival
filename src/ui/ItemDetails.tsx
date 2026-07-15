@@ -1,6 +1,6 @@
 /** @jsx h */
 import { bucklerBlockCost, skillLabel, weaponAttackSpeed, weaponDamage } from "../../common/combat";
-import { ITEM_PERKS, type ItemInstance } from "../../common/items";
+import { itemRequirementMultiplier, ITEM_PERKS, type ItemInstance } from "../../common/items";
 import { STAT_KEYS, type Stats } from "../../common/progression";
 import { h } from "./dom";
 import { formatPreviewValue, previewTone } from "./preview";
@@ -9,14 +9,14 @@ export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineI
   const attacks = item.itemKind === "weapon";
   const damage = attacks ? weaponDamage(item, effectiveStats) : undefined;
   const attackSpeed = attacks ? weaponAttackSpeed(item, effectiveStats) : undefined;
-  const requirements = STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(item.requirements[key] ?? 0)}`).join(", "); const effects = itemEffectSummary(item, effectiveStats);
+  const effectiveness = itemRequirementMultiplier(item, effectiveStats); const requirements = STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(item.requirements[key] ?? 0)}`).join(", "); const effects = itemEffectSummary(item, effectiveStats);
   const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineStats ?? effectiveStats) : effects; const baselineRequirements = baselineItem ? STAT_KEYS.filter((key) => (baselineItem.requirements[key] ?? 0) > 0).map((key) => `${capitalize(key)} ${fmt(baselineItem.requirements[key] ?? 0)}`).join(", ") : requirements;
   return <div class="equipment-details">
     {damage === undefined ? null : <span><small>Attack</small>{detailValue(baselineDamage ?? damage, damage, fmt)}</span>}{attackSpeed === undefined ? null : <span><small>Attack speed</small>{detailValue(baselineSpeed ?? attackSpeed, attackSpeed, (value) => `${fmt(value)}/s`)}</span>}
     {attacks ? <span><small>Stamina cost</small>{detailValue(baselineItem?.staminaCost ?? item.staminaCost, item.staminaCost, precise)}</span> : null}
     {item.weight > 0 ? <span><small>Weight</small><b>{item.weight}</b></span> : null}
     {effects || baselineEffects ? <span class="equipment-detail-wide"><small>Effects</small>{detailText(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small><b>{item.skills.map(skillLabel).join(", ")}</b></span> : null}
-    {requirements || baselineRequirements ? <span class="equipment-detail-wide"><small>Requirements</small>{detailText(baselineRequirements, requirements)}</span> : null}
+    {requirements || baselineRequirements ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small>{detailText(baselineRequirements, requirements)}{effectiveness < 1 ? <em>{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
   </div> as HTMLElement;
 }
 
@@ -24,21 +24,21 @@ function detailValue(currentVal: number, newVal: number, format: (value: number)
 function detailText(currentVal: string, newVal: string): HTMLElement { return <b class={currentVal !== newVal ? "is-gain-preview" : ""}>{formatPreviewValue({ currentVal, newVal })}</b> as HTMLElement; }
 
 function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string {
-  const effects = item.affixes.map(capitalize);
-  if (item.blockChance > 0) effects.push(`${Math.round(item.blockChance * 100)}% block`, `${fmt(bucklerBlockCost(item, effectiveStats))} stamina/block`);
-  if (item.attractionSpeed > 0) effects.push(`Attraction ${fmt(item.attractionSpeed)} px/s`);
-  if (item.modifiers.critChance > 0) effects.push(`${precise(item.modifiers.critChance * 100)}% crit`);
-  if (item.modifiers.bleedChance > 0) effects.push(`${precise(item.modifiers.bleedChance * 100)}% bleed`);
-  if (item.modifiers.poisonChance > 0) effects.push(`${precise(item.modifiers.poisonChance * 100)}% poison`);
-  if (item.modifiers.stunChance > 0) effects.push(`${precise(item.modifiers.stunChance * 100)}% stun`);
-  if (item.modifiers.magicAmp > 0) effects.push(`+${Math.round(item.modifiers.magicAmp * 100)}% magic`);
-  if (item.modifiers.lifeStealBase > 0) effects.push(`${precise(item.modifiers.lifeStealBase * 100)}% + 0.1%/Spirit life steal`);
-  if (item.modifiers.strengthRegenMultiplier > 0) effects.push(`Vigorous regen: 0.01 + ${precise(item.modifiers.strengthRegenMultiplier)}× Strength/s`);
-  if (item.modifiers.goldGain > 0) effects.push(`+${precise(item.modifiers.goldGain * 100)}% Gold gain`);
-  if (item.modifiers.rarityBoost > 0) effects.push(`+${precise(item.modifiers.rarityBoost * 100)}% Rarity boost`);
+  const effects = item.affixes.map(capitalize); const effectiveness = itemRequirementMultiplier(item, effectiveStats);
+  if (item.blockChance > 0) effects.push(`${precise(item.blockChance * effectiveness * 100)}% block`, `${fmt(bucklerBlockCost(item, effectiveStats))} stamina/block`);
+  if (item.attractionSpeed > 0) effects.push(`Attraction ${fmt(item.attractionSpeed * effectiveness)} px/s`);
+  if (item.modifiers.critChance > 0) effects.push(`${precise(item.modifiers.critChance * effectiveness * 100)}% crit`);
+  if (item.modifiers.bleedChance > 0) effects.push(`${precise(item.modifiers.bleedChance * effectiveness * 100)}% bleed`);
+  if (item.modifiers.poisonChance > 0) effects.push(`${precise(item.modifiers.poisonChance * effectiveness * 100)}% poison`);
+  if (item.modifiers.stunChance > 0) effects.push(`${precise(item.modifiers.stunChance * effectiveness * 100)}% stun`);
+  if (item.modifiers.magicAmp > 0) effects.push(`+${precise(item.modifiers.magicAmp * effectiveness * 100)}% magic`);
+  if (item.modifiers.lifeStealBase > 0) effects.push(`${precise(item.modifiers.lifeStealBase * effectiveness * 100)}% + 0.1%/Spirit life steal`);
+  if (item.modifiers.strengthRegenMultiplier > 0) effects.push(`Vigorous regen: 0.01 + ${precise(item.modifiers.strengthRegenMultiplier * effectiveness)}× Strength/s`);
+  if (item.modifiers.goldGain > 0) effects.push(`+${precise(item.modifiers.goldGain * effectiveness * 100)}% Gold gain`);
+  if (item.modifiers.rarityBoost > 0) effects.push(`+${precise(item.modifiers.rarityBoost * effectiveness * 100)}% Rarity boost`);
   if (item.reflectionComponents.length) effects.push(`Reflect: ${item.reflectionComponents.map(capitalize).join("/")}`);
-  for (const key of STAT_KEYS) if ((item.statBonuses[key] ?? 0) !== 0) effects.push(`+${fmt(item.statBonuses[key] ?? 0)} ${capitalize(key)}`);
-  for (const key of ITEM_PERKS) if ((item.perks?.[key] ?? 0) > 0) effects.push(`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]!) : `${precise(item.perks![key]! * 100)}%`}`);
+  for (const key of STAT_KEYS) if ((item.statBonuses[key] ?? 0) !== 0) effects.push(`+${fmt((item.statBonuses[key] ?? 0) * effectiveness)} ${capitalize(key)}`);
+  for (const key of ITEM_PERKS) if ((item.perks?.[key] ?? 0) > 0) effects.push(`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]! * effectiveness) : `${precise(item.perks![key]! * effectiveness * 100)}%`}`);
   return effects.join(", ");
 }
 function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }

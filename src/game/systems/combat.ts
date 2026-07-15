@@ -1,4 +1,4 @@
-import type { ItemInstance } from "../../../common/items";
+import { itemRequirementMultiplier, type ItemInstance } from "../../../common/items";
 import type { RandomSource } from "../../../common/random";
 import type { ArenaState } from "../ArenaState";
 import type { Hero } from "../Hero";
@@ -37,8 +37,9 @@ export function resolveCombat(state: ArenaState, hero: Hero, equipped: ItemInsta
 }
 
 export function applyWeaponEffects(target: Unit, item: ItemInstance, random: RandomSource, source?: Unit): void {
-  if (random.next() < item.modifiers.bleedChance) target.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source });
-  if (random.next() < item.modifiers.poisonChance) { const voodoo = source?.knownSkills.has("voodoo") ? 1 + Math.min(1.5, source.stats.spirit * 0.03) : 1; target.addStatus({ kind: "poison", remaining: 4, damagePerSecond: (0.2 + (source?.stats.spirit ?? 0) * 0.02) * voodoo, source }); }
-  if (random.next() < item.modifiers.stunChance) target.addStatus({ kind: "stun", remaining: 0.7, damagePerSecond: 0, source });
+  const effectiveness = source ? itemRequirementMultiplier(item, source.stats) : 1;
+  if (random.next() < item.modifiers.bleedChance * effectiveness) target.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: 0.25, source });
+  if (random.next() < item.modifiers.poisonChance * effectiveness) { const voodoo = source?.knownSkills.has("voodoo") ? 1 + Math.min(1.5, source.stats.spirit * 0.03) : 1; target.addStatus({ kind: "poison", remaining: 4, damagePerSecond: (0.2 + (source?.stats.spirit ?? 0) * 0.02) * voodoo, source }); }
+  if (random.next() < item.modifiers.stunChance * effectiveness) target.addStatus({ kind: "stun", remaining: 0.7, damagePerSecond: 0, source });
 }
-function applyLifeSteal(source: Unit | undefined, weapon: ItemInstance, damageDealt: number): void { if (!source || damageDealt <= 0) return; const items = [weapon, source.offHand].filter(Boolean) as ItemInstance[]; const fraction = items.reduce((sum, item) => { const base = item.modifiers.lifeStealBase ?? 0; return sum + base + (base > 0 ? 0.001 * source.stats.spirit : 0); }, 0); if (fraction > 0) source.heal(damageDealt * fraction); }
+function applyLifeSteal(source: Unit | undefined, weapon: ItemInstance, damageDealt: number): void { if (!source || damageDealt <= 0) return; const items = [weapon, source.offHand].filter(Boolean) as ItemInstance[]; const fraction = items.reduce((sum, item) => { const effectiveness = itemRequirementMultiplier(item, source.stats); const base = (item.modifiers.lifeStealBase ?? 0) * effectiveness; return sum + (base + (base > 0 ? 0.001 * source.stats.spirit : 0)) * effectiveness; }, 0); if (fraction > 0) source.heal(damageDealt * fraction); }

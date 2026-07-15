@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { balanceProfile, type BalanceProfileId } from "../common/balance.ts";
+import { BALANCE } from "../common/balance.ts";
 import { parseClientMessage, type PlayerId, type ServerMessage } from "../common/protocol.ts";
 import { systemRandom } from "../common/random.ts";
 import { InMemoryPlayerRepository } from "./domain.ts";
@@ -12,7 +12,7 @@ import { SqlPlayerRepository } from "./SqlPlayerRepository.ts";
 import { GameService } from "./GameService.ts";
 
 interface PlayerSocket extends WebSocket { playerId?: PlayerId; lastSeen: number; commandChain: Promise<void> }
-export interface AppOptions { root: string; balanceProfile?: BalanceProfileId; databaseUrl?: string | false }
+export interface AppOptions { root: string; databaseUrl?: string | false }
 const PERSIST_INTERVAL_MS = 60_000;
 
 export async function createApp(options: AppOptions) {
@@ -26,7 +26,7 @@ export async function createApp(options: AppOptions) {
   };
   const game = new GameService({
     repository,
-    balance: balanceProfile(options.balanceProfile),
+    balance: BALANCE,
     random: systemRandom,
     send: sendToPlayer,
     logPlayerLifecycle: (event, player) => console.log(`[MLH][player] ${event} id=${player.id} name=${JSON.stringify(player.name)}`),
@@ -56,7 +56,7 @@ export async function createApp(options: AppOptions) {
     });
     socket.on("close", () => { sockets.delete(connectionId); if (socket.playerId && !hasSocket(sockets, socket.playerId)) game.disconnect(socket.playerId); });
   });
-  const waveTimer = setInterval(() => game.dispatchWaves(), balanceProfile(options.balanceProfile).wave.intervalMs); waveTimer.unref();
+  const waveTimer = setInterval(() => game.dispatchWaves(), BALANCE.wave.intervalMs); waveTimer.unref();
   const persistTimer = setInterval(() => { void Promise.resolve(repository.persist()).catch((error) => console.error("[MLH][database] periodic persist failed", error instanceof Error ? error.message : error)); }, PERSIST_INTERVAL_MS); persistTimer.unref();
   const heartbeat = setInterval(() => { const now = Date.now(); for (const socket of sockets.values()) { if (now - socket.lastSeen >= 300_000) socket.terminate(); else if (socket.readyState === WebSocket.OPEN) socket.ping(); } }, 30_000); heartbeat.unref();
   return { server, game, repository, close: () => new Promise<void>((resolve, reject) => {

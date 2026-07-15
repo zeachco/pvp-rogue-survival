@@ -1,4 +1,4 @@
-import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, meetsRequirements, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
+import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
 import type { InventoryTile, PlayerProgress } from "./protocol";
 import { MAX_SKILL_LEVEL } from "./combat";
 
@@ -31,7 +31,6 @@ export function equipFromInventory(progress: PlayerProgress, tileId: string): In
     else fallbackTile.quantity = Math.max(1, fallbackTile.quantity);
     progress.mainHand = { ...fallback, id: `${fallback.id}-equipped` }; return { changed: true, reason: `Unequipped ${item.name}; restored Plain Club.` };
   }
-  if (!meetsRequirements(item, progress.stats)) return { changed: false, reason: "You do not meet that item's requirements." };
   if (item.itemKind !== "weapon" && progress.mainHand.hands === 2) return { changed: false, reason: "A two-handed weapon cannot use an offhand item." };
   const displaced: ItemInstance[] = [];
   if (item.itemKind !== "weapon") { if (progress.offHand) displaced.push(progress.offHand); }
