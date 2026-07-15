@@ -499,12 +499,11 @@ input {
 .combat-stat-grid small { overflow: hidden; color: #79949c; font-size: 8px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .combat-stat-grid b { overflow: hidden; color: #e4f5f8; font-size: 10px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .backpack-scroll { display: grid; min-height: 0; max-width: 100%; gap: 7px; align-content: start; overflow-y: auto; overscroll-behavior: contain; }
-.backpack-scroll::after { display: block; min-height: 190px; content: ""; }
-.item-card { position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
+.item-card { --rarity-rgb: 116, 133, 138; position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
 .backpack-scroll .item-card { grid-template-columns: minmax(0, 1fr) 230px; gap: 12px; align-items: start; }
 .item-card-content, .item-card-controls { min-width: 0; }
 .item-card-controls { display: grid; gap: 8px; align-content: start; border-left: 1px solid rgba(138,216,255,.16); padding-left: 10px; }
-.item-card.is-equipped { outline: 2px solid #d8ad4f; outline-offset: 1px; background: rgba(151, 101, 43, .28); box-shadow: 0 0 16px rgba(216,173,79,.24); }
+.item-card.is-equipped { outline: 1px solid rgba(var(--rarity-rgb), .9); outline-offset: 1px; background: rgba(var(--rarity-rgb), .14); box-shadow: inset 0 0 12px rgba(var(--rarity-rgb), .24), 0 0 4px 1px rgba(var(--rarity-rgb), .42); }
 .item-card.is-empty { filter: grayscale(1); opacity: .55; }
 .equipped-item { isolation: isolate; cursor: default; overflow: hidden; }
 .equipped-main-hand::before { position: absolute; z-index: -1; top: 0; bottom: 0; left: 0; width: var(--attack-progress, 100%); content: ""; background: rgba(205, 216, 220, 0.12); transition: width 50ms linear; pointer-events: none; }
@@ -523,9 +522,9 @@ input {
 .requirement-detail > em { display: block; margin-top: 2px; font-size: 9px; font-style: normal; }
 .item-title { display: flex; justify-content: space-between; gap: 8px; }
 .item-subtitle.is-gain-preview { color: #62e88a; text-shadow: 0 0 6px rgba(98,232,138,.3); }
-.rarity-uncommon { border-color: #62e88a; }
-.rarity-rare { border-color: #6ca8ff; }
-.rarity-epic { border-color: #ca75ff; }
+.rarity-uncommon { --rarity-rgb: 98, 232, 138; border-color: #62e88a; }
+.rarity-rare { --rarity-rgb: 108, 168, 255; border-color: #6ca8ff; }
+.rarity-epic { --rarity-rgb: 202, 117, 255; border-color: #ca75ff; }
 .item-menu { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; margin: 0; }
 .item-menu button { width: 100%; }
 .item-menu button, .allocation-panel button, .inspect-back { border: 1px solid #3affd4; border-radius: 3px; padding: 5px 7px; color: #dffeff; background: #15312f; cursor: pointer; }

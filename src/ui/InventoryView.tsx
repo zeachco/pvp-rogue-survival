@@ -7,16 +7,7 @@ import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import { extractableSkills, purgeYield, upgradeCosts } from "../../common/inventory";
 
 export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProgress): InventoryTile[] {
-  const equippedKeys = new Set([itemStackKey(progress.mainHand), progress.offHand ? itemStackKey(progress.offHand) : ""]);
-  return tiles
-    .filter((tile) => tile.quantity > 0)
-    .map((tile, index) => ({ tile, index }))
-    .sort((left, right) => {
-      const equipped = Number(equippedKeys.has(right.tile.key)) - Number(equippedKeys.has(left.tile.key));
-      if (equipped) return equipped;
-      return left.index - right.index;
-    })
-    .map(({ tile }) => tile);
+  void progress; return tiles.filter((tile) => tile.quantity > 0);
 }
 
 export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean, action?: "card" | "upgrade") => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void, canSend = false): HTMLElement {
@@ -24,7 +15,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
-      <div class="item-card-content"><div class="item-title"><strong>{item.name}</strong><b>{equipped ? "Equipped · " : ""}x{tile.quantity}</b></div>
+      <div class="item-card-content"><div class="item-title"><strong>{item.name}</strong><b>x{tile.quantity}</b></div>
         <small class="item-subtitle">L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · {item.rarity}</small>
         {itemDetails(item, stats)}
       </div>
