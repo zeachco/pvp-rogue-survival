@@ -86,6 +86,7 @@ import {
 import {gameSocketUrl} from "../src/net/SocketClient";
 import {itemRequirementRows, requirementMetStats} from "../src/ui/ItemDetails";
 import {formatPreviewValue, previewTone} from "../src/ui/preview";
+import {extractButtonStatus} from "../src/ui/inventoryAvailability";
 
 function progress(): PlayerProgress {
   return {
@@ -265,6 +266,21 @@ describe("XP curve", () => {
 });
 
 describe("permanent inventory", () => {
+  test("changes extraction availability only when Gold crosses the required cost", () => {
+    const state = progress();
+    const item = generateItem(2, "rare", 83);
+    item.skills = ["shockwave"];
+    const tile = {id : "extractable", key : itemStackKey(item), item, quantity : 1};
+    state.inventoryTiles.push(tile);
+    state.gold = item.sellValue * 10 - 2;
+    expect(extractButtonStatus(tile, state)).toBe("needs-gold");
+    state.gold += 1;
+    expect(extractButtonStatus(tile, state)).toBe("needs-gold");
+    state.gold += 1;
+    expect(extractButtonStatus(tile, state)).toBe("available");
+    state.mainHand = item;
+    expect(extractButtonStatus(tile, state)).toBe("equipped-only");
+  });
   test(
       "toggles an equipped weapon to an empty main hand without creating a fallback club",
       () => {

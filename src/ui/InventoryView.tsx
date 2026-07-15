@@ -5,13 +5,14 @@ import { h } from "./dom";
 import type { CurrencyPreview, HudCallbacks } from "./types";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import { extractableSkills, purgeYield, sellYield, upgradeCosts } from "../../common/inventory";
+import { extractButtonStatus } from "./inventoryAvailability";
 
 export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProgress): InventoryTile[] {
   void progress; return tiles.filter((tile) => tile.quantity > 0);
 }
 
 export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean, action?: "card" | "upgrade") => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void, canSend = false): HTMLElement {
-  const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped); const skills = extractableSkills(item); const extractCost = item.sellValue * 10;
+  const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped); const skills = extractableSkills(item); const extractCost = item.sellValue * 10; const extractStatus = extractButtonStatus(tile, progress);
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
@@ -38,7 +39,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const bindBulk = (index: number, callback: (tileId: string, bulk: boolean) => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; if (!button.disabled) button.title = "Shift+click to repeat while possible"; button.onclick = (event) => callback(tile.id, event.shiftKey); };
   bindBulk(0, callbacks.onSell); bindBulk(1, callbacks.onPurge); bindBulk(2, callbacks.onUpgrade); bindBulk(3, callbacks.onSend); bindBulk(4, callbacks.onExtract);
   const extractButton = buttons[4] as HTMLButtonElement | undefined;
-  if (extractButton && progress.gold < extractCost) { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
+  if (extractButton && extractStatus === "needs-gold") { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
   const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${itemKindLabel(shown)} · ${shown.rarity}` : `L${item.level} · ${itemKindLabel(item)} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
