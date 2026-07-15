@@ -9,6 +9,20 @@ export function rollWeaponDamage(item: ItemInstance, stats: Stats, owner: "hero"
   return rollWeaponStrike(item, stats, owner, balance, random).damage;
 }
 
+export interface AttackProfile { kind: "weapon" | "unarmed"; damage: number; attacksPerSecond: number; range: number; staminaCost: number; projectile: boolean; magic: boolean; weapon?: ItemInstance }
+
+export function attackProfile(mainHand: ItemInstance | undefined, stats: Stats, balance: BalanceConfig): AttackProfile {
+  if (!mainHand) return { kind: "unarmed", damage: balance.combat.unarmed.baseDamage + balance.combat.unarmed.strengthDamage * stats.strength, attacksPerSecond: balance.combat.unarmed.attacksPerSecond, range: balance.combat.unarmed.range, staminaCost: balance.combat.unarmed.staminaCost, projectile: false, magic: false };
+  return { kind: "weapon", damage: weaponDamage(mainHand, stats), attacksPerSecond: weaponAttackSpeed(mainHand, stats), range: weaponRange(mainHand), staminaCost: mainHand.staminaCost, projectile: weaponUsesProjectile(mainHand), magic: isMagicWeapon(mainHand), weapon: mainHand };
+}
+
+export function rollAttackStrike(mainHand: ItemInstance | undefined, stats: Stats, owner: "hero" | "enemy", balance: BalanceConfig, random: RandomSource): { damage: number; critical: boolean } {
+  if (mainHand) return rollWeaponStrike(mainHand, stats, owner, balance, random);
+  const derived = derivedStats(stats); const critical = random.next() < derived.critChance; let damage = attackProfile(undefined, stats, balance).damage;
+  if (critical) damage *= derived.critMultiplier;
+  return { damage: damage * (owner === "hero" ? balance.combat.heroDamageMultiplier : balance.combat.enemyDamageMultiplier), critical };
+}
+
 export function isMagicWeapon(item: ItemInstance): boolean { return item.itemKind === "weapon" && (item.definitionId === "staff" || item.definitionId === "scepter"); }
 
 export function rollWeaponStrike(item: ItemInstance, stats: Stats, owner: "hero" | "enemy", balance: BalanceConfig, random: RandomSource): { damage: number; critical: boolean } {
@@ -28,7 +42,7 @@ export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if 
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
 export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats): number { return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
-export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit = 0): number { if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? weaponRange(item); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item.level); }
+export function skillRange(skill: SkillId, item?: ItemInstance, level = 1, spirit = 0): number { if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item?.level ?? 0); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
 export function cooldownScale(level: number, reduction: number): number { return Math.max(0.2, (1 - Math.min(.8, reduction)) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }

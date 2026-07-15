@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, dropInventoryOverflow, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { changeItemRarity, generateAccessory, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemStackKey, nextRarity, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { changeItemRarity, generateAccessory, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemStackKey, nextRarity, rollRarity, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
 import { DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type HeroSummary, type PlayerId, type PublicHeroProfile, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
@@ -71,11 +71,11 @@ export class GameService {
     const trimmed = name.trim().slice(0, 20); const existing = heroId ? this.options.repository.get(heroId) : this.options.repository.getByUsername(trimmed);
     if (existing) { existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
     if (!/^[A-Za-z0-9_-]{1,20}$/.test(trimmed)) throw new Error("Invalid username.");
-    const mainHand = starterClub(); const starterItems = Array.from({ length: 3 }, () => { const seed = this.seed(); const roll = this.options.random.next(); return roll < 0.6 ? generateItem(0, "common", seed) : roll < 0.75 ? generateBuckler(0, "common", seed) : roll < 0.9 ? generateRelic(0, "common", seed) : generateAccessory(0, "common", seed); });
+    const starterItems = Array.from({ length: 3 }, () => { const seed = this.seed(); const roll = this.options.random.next(); return roll < 0.6 ? generateItem(0, "common", seed) : roll < 0.75 ? generateBuckler(0, "common", seed) : roll < 0.9 ? generateRelic(0, "common", seed) : generateAccessory(0, "common", seed); });
     const inventoryTiles: Player["progress"]["inventoryTiles"] = []; for (const item of starterItems) { const key = itemStackKey(item); const existing = inventoryTiles.find((tile) => tile.key === key); if (existing) existing.quantity += 1; else inventoryTiles.push({ id: `starter-random-tile-${inventoryTiles.length}`, key, item, quantity: 1 }); }
     const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 0, maxWaveReached: 0, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [],
-      panelTriggers: { character: true, inventory: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand, offHand: undefined, inventoryTiles, learnedSkills: ["healing", "rent"], learnedSkillLevels: { healing: 1, rent: 1 }, universalSkills: ["healing", "rent"] } };
+      panelTriggers: { character: true, inventory: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: undefined, offHand: undefined, inventoryTiles, learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] } };
     this.options.repository.save(player); return player;
   }
 
@@ -115,9 +115,9 @@ export class GameService {
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number, intro = false): UnitBuild {
     const item = queued.item; let mainHand = build.mainHand; let offHand = build.offHand;
     if (intro && (item.itemKind !== "weapon" || item.definitionId === "staff" || item.definitionId === "scepter" || item.definitionId === "throwingAxe")) return { ...build, carried: [...build.carried, item], emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
-    if (item.itemKind !== "weapon") { if (mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"] as WeaponClass[] }); offHand = item; }
+    if (item.itemKind !== "weapon") { if (!mainHand || mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"] as WeaponClass[] }); offHand = item; }
     else { mainHand = item; if (item.hands === 2) offHand = undefined; }
-    return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand.definitionId === "staff" || mainHand.definitionId === "scepter" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
+    return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand?.definitionId === "staff" || mainHand?.definitionId === "scepter" ? "bubbleShooter" : "melee", mainHand, offHand, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
   }
 
   private takeQueued(player: Player, limit: number, includeBacklash = true): QueuedEquipment[] {
@@ -138,8 +138,8 @@ export class GameService {
     const buckler = player.progress.offHand?.itemKind === "buckler" ? player.progress.offHand : undefined; const effectiveness = buckler ? itemRequirementMultiplier(buckler, player.progress.stats) : 1; const goldGain = (buckler?.modifiers.goldGain ?? 0) * effectiveness; const rarityBoost = (buckler?.modifiers.rarityBoost ?? 0) * effectiveness;
     const goldChance = Math.min(1, (build.isRival ? 0.5 : 0.2) * this.options.balance.rewards.goldChanceMultiplier);
     if (this.options.random.next() < goldChance) { const drop: GroundDrop = { id: this.createId(), kind: "gold", amount: Math.ceil(build.goldReward * (1 + goldGain)) }; player.groundDrops.set(drop.id, drop); return drop; }
-    const sent = build.emitterId ? (build.mainHand.id.includes("sent") ? build.mainHand : build.offHand?.id.includes("sent") ? build.offHand : undefined) : undefined;
-    for (const item of [sent, sent?.id === build.mainHand.id ? undefined : build.mainHand, sent?.id === build.offHand?.id ? undefined : build.offHand, ...build.carried].filter(Boolean) as ItemInstance[]) {
+    const sent = build.emitterId ? (build.mainHand?.id.includes("sent") ? build.mainHand : build.offHand?.id.includes("sent") ? build.offHand : undefined) : undefined;
+    for (const item of [sent, sent?.id === build.mainHand?.id ? undefined : build.mainHand, sent?.id === build.offHand?.id ? undefined : build.offHand, ...build.carried].filter(Boolean) as ItemInstance[]) {
       const chance = Math.min(this.options.balance.rewards.maxDropChance, item.dropChance * this.options.balance.rewards.dropChanceMultiplier); if (this.options.random.next() >= chance) continue;
       const id = this.createId(); const promoted = rarityBoost > 0 && nextRarity(item.rarity) && this.options.random.next() < rarityBoost ? changeItemRarity(item, nextRarity(item.rarity)!, this.seed()) : item; if (this.options.random.next() < 0.25) { const drop: GroundDrop = { id, kind: "scrap", rarity: promoted.rarity, amount: purgeYield(promoted) }; player.groundDrops.set(id, drop); return drop; }
       const dropped = { ...promoted, id: `${promoted.id}-drop-${id}` }; const drop: GroundDrop = { id, kind: "item", item: dropped }; player.groundDrops.set(id, drop); return drop;

@@ -1,6 +1,6 @@
 import { BALANCE, type BalanceConfig } from "../../common/balance";
 import { itemRequirementMultiplier } from "../../common/items";
-import { rollWeaponStrike } from "../../common/combat";
+import { rollAttackStrike } from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type { CreepWave, GroundDrop, ServerMessage, UnitBuild } from "../../common/protocol";
 import { SocketClient } from "../net/SocketClient";
@@ -145,7 +145,7 @@ export class Game {
       if (!creep.active) continue;
       const attack = creep.pursue(this.hero.position, deltaSeconds, this.map.width, this.map.height);
       correctArenaBoundary(creep, this.map.width, this.map.height, deltaSeconds);
-      const strike = rollWeaponStrike(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom); const presentation = { kind: creep.build.mainHand.definitionId === "staff" || creep.build.mainHand.definitionId === "scepter" ? "magic" as const : "physical" as const, critical: strike.critical };
+      const strike = rollAttackStrike(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom); const presentation = { kind: creep.build.mainHand?.definitionId === "staff" || creep.build.mainHand?.definitionId === "scepter" ? "magic" as const : "physical" as const, critical: strike.critical };
       if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, strike.damage, creep, undefined, creep.build.mainHand, presentation));
       if (attack?.type === "projectile") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation, creep.build.mainHand));
       if (attack?.type === "fireBreath") { this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 150, 0.62, 0.22, 0.18, strike.damage * 1.1, creep, "fireBreath", creep.build.mainHand, { kind: "fire", critical: strike.critical })); this.arena.spellEffects.push(new SpellEffect("fireBreath", attack.origin, attack.angle)); }
@@ -155,7 +155,7 @@ export class Game {
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds)); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     this.projectiles.push(...emittedProjectiles);
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
-    const baseStats = this.player.progress.stats; const attractionEnabled = !this.heroCombat.disabledSkills.has("attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, this.player.progress.mainHand.attractionSpeed * itemRequirementMultiplier(this.player.progress.mainHand, baseStats), (this.player.progress.offHand?.attractionSpeed ?? 0) * (this.player.progress.offHand ? itemRequirementMultiplier(this.player.progress.offHand, baseStats) : 1)) : 0;
+    const baseStats = this.player.progress.stats; const attractionEnabled = !this.heroCombat.disabledSkills.has("attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, (this.player.progress.mainHand?.attractionSpeed ?? 0) * itemRequirementMultiplier(this.player.progress.mainHand, baseStats), (this.player.progress.offHand?.attractionSpeed ?? 0) * (this.player.progress.offHand ? itemRequirementMultiplier(this.player.progress.offHand, baseStats) : 1)) : 0;
     for (const drop of this.drops) { if (drop.escaping) { drop.move(deltaSeconds); if (drop.outside(this.map.width, this.map.height) && drop.active) { drop.active = false; this.socket.send({ type: "deferDrop", dropId: drop.dropId }); } } else { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); } }
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); if (!this.heroCombat.disabledSkills.has("deathBurst")) this.auraSystem.resolveDeaths(this.hero, this.player.progress, this.creeps, systemRandom); this.collectKills(); this.collectDrops();
     if ([...this.pendingPickupAt.values()].some((sentAt) => performance.now() - sentAt >= 3000)) this.reconcileDrops();

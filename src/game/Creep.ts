@@ -3,7 +3,7 @@ import { statsWithItemBonuses } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
-import { weaponAttackSpeed, weaponRange, weaponUsesProjectile } from "../../common/combat";
+import { attackProfile } from "../../common/combat";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
@@ -31,7 +31,7 @@ export class Creep extends Unit {
     readonly emitterId: PlayerId | "neutral",
     readonly emitterName: string,
     position: Vector2,
-    balance: BalanceConfig,
+    private readonly balance: BalanceConfig,
     private readonly random: RandomSource,
     readonly movementMultiplier = 1
   ) {
@@ -40,9 +40,9 @@ export class Creep extends Unit {
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
     this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand), build.offHand, build.mainHand);
-    for (const skill of [...build.mainHand.skills, ...(build.offHand?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
+    for (const skill of [...(build.mainHand?.skills ?? []), ...(build.offHand?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
     this.maxHp = creepMaxHealth(build.level, this.maxHp, balance); this.hp = this.maxHp;
-    this.bounty = Math.max(1, build.mainHand.sellValue);
+    this.bounty = Math.max(1, build.mainHand?.sellValue ?? 1);
     this.scoreValue = build.isRival ? 10 : 2;
   }
 
@@ -60,9 +60,9 @@ export class Creep extends Unit {
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
     const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * this.auraMovementMultiplier;
     const acceleration = movement.acceleration;
-    const ranged = weaponUsesProjectile(this.build.mainHand);
+    const profile = attackProfile(this.build.mainHand, this.stats, this.balance); const ranged = profile.projectile;
     const heroDistance = distance(this.position, hero);
-    const attackSpeed = weaponAttackSpeed(this.build.mainHand, this.stats) * this.auraAttackMultiplier;
+    const attackSpeed = profile.attacksPerSecond * this.auraAttackMultiplier;
     this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
     this.bonusSkillCooldown = Math.max(0, this.bonusSkillCooldown - deltaSeconds);
 
@@ -76,7 +76,7 @@ export class Creep extends Unit {
       return undefined;
     }
 
-    const attackRange = ranged ? weaponRange(this.build.mainHand) : movement.attackRange;
+    const attackRange = ranged ? profile.range : this.build.mainHand ? movement.attackRange : profile.range;
     if (this.build.bonusSkills?.includes("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
@@ -87,8 +87,9 @@ export class Creep extends Unit {
     }
 
     let direction = normalize({ x: hero.x - this.position.x, y: hero.y - this.position.y });
-    const retreatRange = this.build.mainHand.definitionId === "staff" || this.build.mainHand.definitionId === "scepter" ? rangedMovement.retreatRange ?? 0 : Math.max(0, attackRange - 75);
-    const preferredRange = this.build.mainHand.definitionId === "staff" || this.build.mainHand.definitionId === "scepter" ? rangedMovement.preferredRange ?? attackRange : Math.max(retreatRange, attackRange - 30);
+    const magicRanged = this.build.mainHand?.definitionId === "staff" || this.build.mainHand?.definitionId === "scepter";
+    const retreatRange = magicRanged ? rangedMovement.retreatRange ?? 0 : Math.max(0, attackRange - 75);
+    const preferredRange = magicRanged ? rangedMovement.preferredRange ?? attackRange : Math.max(retreatRange, attackRange - 30);
     if (ranged && heroDistance < retreatRange) direction = { x: -direction.x, y: -direction.y };
     else if (ranged && heroDistance <= preferredRange) direction = { x: 0, y: 0 };
     this.moveFromVelocity(this.stunned ? { x: 0, y: 0 } : direction, acceleration, maxSpeed, deltaSeconds);

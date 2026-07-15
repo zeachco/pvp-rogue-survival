@@ -2,6 +2,14 @@
 
 This specification extends `specs/SPEC.md` and is authoritative for arena simulation, movement, targeting, telegraphs, projectiles, collision resolution, and local defeat reset behavior. Progression, itemization, stat formulas, wave composition, generated builds, XP, drops, and rival scaling belong in `specs/PROGRESSION_SPEC.md`.
 
+## Unarmed Combat
+
+An empty main-hand slot resolves to an unarmed physical attack profile: `1 + effective Strength` base damage, 70px range, one attack per second, and one Stamina per attack. Punches use the ordinary critical-hit and target-mitigation rules, but have no weapon affixes or weapon/offensive active skills. Independent offhand and globally bound effects—including Healing, auras, Attraction, and buckler Blocking—remain available. Insufficient Stamina prevents a punch. Empty-handed clones and death echoes use this same profile.
+
+Every physical attack and every spell whose resource is Stamina pushes hit enemies away from its source. Baseline pushback is derived from the attacker's effective Strength and current movement speed. Skill execution metadata may add a pushback multiplier or flat bonus for skills with stronger impact; this augments rather than replaces the shared baseline.
+
+Rent restores 1% of the caster's maximum HP for each distinct enemy touched by its attack area.
+
 ## Simulation Loop
 
 - The client owns local arena simulation for the active combat slice.

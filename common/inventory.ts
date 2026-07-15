@@ -1,4 +1,4 @@
-import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
+import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, type ItemInstance, type Rarity, type SkillId } from "./items";
 import type { InventoryTile, PlayerProgress } from "./protocol";
 import { MAX_SKILL_LEVEL } from "./combat";
 
@@ -24,19 +24,12 @@ export function collectIntoInventory(progress: PlayerProgress, item: ItemInstanc
 export function equipFromInventory(progress: PlayerProgress, tileId: string): InventoryResult {
   const tile = findTile(progress, tileId); if (!tile || tile.quantity <= 0) return missing(); const item = tile.item;
   if (progress.offHand && itemStackKey(progress.offHand) === tile.key) { progress.offHand = undefined; return { changed: true, reason: `Unequipped ${item.name}.` }; }
-  if (itemStackKey(progress.mainHand) === tile.key) {
-    const fallback = starterClub(); if (itemStackKey(fallback) === tile.key) return { changed: false, reason: "The starter club cannot be unequipped." };
-    let fallbackTile = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(fallback));
-    if ((!fallbackTile || fallbackTile.quantity === 0) && occupiedInventorySlots(progress) >= inventoryCapacity(progress.level)) return { changed: false, reason: "No inventory slot is available for the starter club." };
-    if (!fallbackTile) { fallbackTile = { id: "starter-club-tile", key: itemStackKey(fallback), item: fallback, quantity: 1 }; progress.inventoryTiles.push(fallbackTile); }
-    else fallbackTile.quantity = Math.max(1, fallbackTile.quantity);
-    progress.mainHand = { ...fallback, id: `${fallback.id}-equipped` }; return { changed: true, reason: `Unequipped ${item.name}; restored Plain Club.` };
-  }
-  if (item.itemKind !== "weapon" && progress.mainHand.hands === 2) return { changed: false, reason: "A two-handed weapon cannot use an offhand item." };
+  if (progress.mainHand && itemStackKey(progress.mainHand) === tile.key) { progress.mainHand = undefined; return { changed: true, reason: `Unequipped ${item.name}.` }; }
+  if (item.itemKind !== "weapon" && progress.mainHand?.hands === 2) return { changed: false, reason: "A two-handed weapon cannot use an offhand item." };
   const displaced: ItemInstance[] = [];
   if (item.itemKind !== "weapon") { if (progress.offHand) displaced.push(progress.offHand); }
   else {
-    displaced.push(progress.mainHand);
+    if (progress.mainHand) displaced.push(progress.mainHand);
     if (item.hands === 2 && progress.offHand) displaced.push(progress.offHand);
   }
   const missingItems = displaced.filter((old, index) => displaced.findIndex((candidate) => itemStackKey(candidate) === itemStackKey(old)) === index && !progress.inventoryTiles.some((candidate) => candidate.quantity > 0 && candidate.key === itemStackKey(old)));
@@ -59,7 +52,7 @@ export function upgradeFromInventory(progress: PlayerProgress, tileId: string, n
   const created = levelUpItem(tile.item, nextSeed()); const existing = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(created));
   const outputOccupiesSlot = !existing || existing.quantity === 0; const sourceFreesSlot = tile.quantity === 1;
   if (occupiedInventorySlots(progress) - Number(sourceFreesSlot) + Number(outputOccupiesSlot) > inventoryCapacity(progress.level)) return { changed: false, reason: "No inventory slot is available for the upgraded item." };
-  const upgradesEquippedCopy = tile.quantity <= equippedCopies(progress, tile); const upgradesMainHand = upgradesEquippedCopy && itemStackKey(progress.mainHand) === tile.key; const upgradesOffHand = upgradesEquippedCopy && Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key);
+  const upgradesEquippedCopy = tile.quantity <= equippedCopies(progress, tile); const upgradesMainHand = upgradesEquippedCopy && Boolean(progress.mainHand && itemStackKey(progress.mainHand) === tile.key); const upgradesOffHand = upgradesEquippedCopy && Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key);
   tile.quantity -= 1; progress.gold -= gold; progress.scraps[tile.item.rarity] -= scraps;
   if (existing) existing.quantity += 1; else progress.inventoryTiles.push({ id: nextId(), key: itemStackKey(created), item: created, quantity: 1 });
   if (upgradesMainHand) progress.mainHand = { ...created, id: `${created.id}-equipped` };
@@ -69,8 +62,10 @@ export function upgradeFromInventory(progress: PlayerProgress, tileId: string, n
 }
 
 export function extractFromInventory(progress: PlayerProgress, tileId: string): InventoryResult {
-  const tile = availableTile(progress, tileId); if (!tile) return missing(); const skills = extractableSkills(tile.item);
-  if (!skills.length) return { changed: false, reason: "That item has no extractable skill." }; const cost = tile.item.sellValue * 10;
+  const tile = availableTile(progress, tileId); if (!tile) return missing(); const carriedSkills = extractableSkills(tile.item);
+  if (!carriedSkills.length) return { changed: false, reason: "That item has no extractable skill." }; const cost = tile.item.sellValue * 10;
+  const skills = tile.item.rarity === "epic" ? carriedSkills : carriedSkills.filter((skill) => progress.universalSkills.includes(skill));
+  if (!skills.length) return { changed: false, reason: `${carriedSkills.join(", ")} must first be bound from Epic equipment.` };
   if (progress.gold < cost) return { changed: false, reason: `Extracting costs ${cost} gold.` }; progress.gold -= cost; tile.quantity -= 1;
   const universal = tile.item.rarity === "epic"; for (const skill of skills) learnSkill(progress, skill, universal); removeEmptyInventoryTiles(progress); return { changed: true, reason: `Extracted ${skills.join(", ")} for ${cost} gold${universal ? "; available with any weapon" : ""}.` };
 }
@@ -81,7 +76,7 @@ function storeExisting(progress: PlayerProgress, item: ItemInstance): boolean { 
 function availableTile(progress: PlayerProgress, id: string): InventoryTile | undefined { const tile = findTile(progress, id); return tile && tile.quantity > equippedCopies(progress, tile) ? tile : undefined; }
 function findTile(progress: PlayerProgress, id: string): InventoryTile | undefined { return progress.inventoryTiles.find((tile) => tile.id === id); }
 export function isEquippedTile(progress: PlayerProgress, tile: InventoryTile): boolean { return equippedCopies(progress, tile) > 0; }
-function equippedCopies(progress: PlayerProgress, tile: InventoryTile): number { return Number(itemStackKey(progress.mainHand) === tile.key) + Number(Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key)); }
+function equippedCopies(progress: PlayerProgress, tile: InventoryTile): number { return Number(Boolean(progress.mainHand && itemStackKey(progress.mainHand) === tile.key)) + Number(Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key)); }
 function missing(): InventoryResult { return { changed: false, reason: "That equipment is no longer available." }; }
 export function purgeYield(item: ItemInstance): number { return Math.max(1, Math.ceil(item.level / 3)); }
 function learnSkill(progress: PlayerProgress, skill: SkillId, universal: boolean): void { if (!progress.learnedSkills.includes(skill)) progress.learnedSkills.push(skill); progress.learnedSkillLevels[skill] = Math.min(MAX_SKILL_LEVEL, (progress.learnedSkillLevels[skill] ?? 0) + 1); if (universal && !progress.universalSkills.includes(skill)) progress.universalSkills.push(skill); }

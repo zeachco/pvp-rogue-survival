@@ -3,23 +3,23 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 28;
+export const PROTOCOL_VERSION = 29;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
 export interface PlayerProgress {
   level: number; xp: number; stats: Stats; allocation: Stats; gold: number; souls: number; scraps: Record<Rarity, number>;
-  mainHand: ItemInstance; offHand?: ItemInstance; inventoryTiles: InventoryTile[];
+  mainHand?: ItemInstance; offHand?: ItemInstance; inventoryTiles: InventoryTile[];
   learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[];
 }
 export interface PublicPlayer { id: PlayerId; name: string; score: number; waveNumber: number; level: number; receivesDeathEchoes: boolean }
 export interface HeroSummary { id: PlayerId; username: string; level: number; connected: boolean; receivesDeathEchoes: boolean }
-export interface PublicHeroProfile { id: PlayerId; username: string; level: number; maxWaveReached: number; stats: Stats; mainHand: ItemInstance; offHand?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[] }
+export interface PublicHeroProfile { id: PlayerId; username: string; level: number; maxWaveReached: number; stats: Stats; mainHand?: ItemInstance; offHand?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[] }
 export interface RealmMember extends PublicPlayer { down: boolean }
 export interface RealmState { mode: "training" | "waiting" | "competitive"; guards: RealmMember[]; attackers: RealmMember[]; outgoingQueued: number; incomingQueued: number; canLeave: boolean }
 export interface ServerConfig { waveIntervalMs: number; protocolVersion: number; maxRealmAttackers: number; maxQueuedItems: number; balance: BalanceConfig }
 export interface UnitBuild {
-  id: string; name: string; kind: CreepKind; level: number; stats: Stats; mainHand: ItemInstance; offHand?: ItemInstance;
+  id: string; name: string; kind: CreepKind; level: number; stats: Stats; mainHand?: ItemInstance; offHand?: ItemInstance;
   carried: ItemInstance[]; isRival: boolean; xpReward: number; goldReward: number; seed: number;
   bonusSkills?: SkillId[];
   emitterId?: PlayerId; emitterName?: string; backlash?: boolean;

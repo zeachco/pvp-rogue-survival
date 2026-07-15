@@ -14,17 +14,18 @@ function harness(random: RandomSource = new FixedRandom(0)) { const messages = n
 function enterPair(game: GameService, one: ReturnType<GameService["join"]>, two: ReturnType<GameService["join"]>): void { game.handle(one.id, { type: "enterRealm" }); game.handle(two.id, { type: "enterRealm" }); }
 
 describe("realm game service", () => {
-  test("starts new players at wave zero with a plain club and three random backpack items", () => {
+  test("starts new players empty-handed with three random backpack items and only Healing bound", () => {
     const { game } = harness(); const player = game.join("Starter");
-    expect(player.progress.mainHand.definitionId).toBe("club");
+    expect(player.progress.mainHand).toBeUndefined();
     expect(player.waveNumber).toBe(0);
     expect(player.progress.offHand).toBeUndefined();
     expect(player.progress.inventoryTiles.reduce((sum, tile) => sum + tile.quantity, 0)).toBe(3);
     expect(player.progress.inventoryTiles.every((tile) => tile.item.level === 0 && tile.item.rarity === "common")).toBeTrue();
+    expect(player.progress.universalSkills).toEqual(["healing"]);
     expect(player.panelTriggers).toEqual({ character: true, inventory: true }); game.handle(player.id, { type: "dismissPanelTrigger", panel: "character" }); expect(player.panelTriggers.character).toBeFalse();
   });
   test("reconciles server and client drop orphans without granting them", () => { const { game, messages } = harness(); const player = game.join("Drops"); player.groundDrops.set("server-only", { id: "server-only", kind: "gold", amount: 2 }); const gold = player.progress.gold; game.handle(player.id, { type: "reconcileDrops", activeDropIds: ["client-only"], pendingDropIds: ["resolved"] }); const result = messages.get(player.id)?.at(-1); expect(result?.type).toBe("dropsReconciled"); if (result?.type === "dropsReconciled") { expect(result.drops.map((drop) => drop.id)).toEqual(["server-only"]); expect(result.removeDropIds).toEqual(["client-only"]); expect(result.resolvedDropIds).toEqual(["resolved"]); } expect(player.progress.gold).toBe(gold); });
-  test("publishes build profiles and the lifetime best wave without currencies or inventory", () => { const { game } = harness(); const player = game.join("Public"); player.progress.level = 4; player.waveNumber = 7; game.handle(player.id, { type: "enterRealm" }); const profile = game.publicHeroProfile(player.id)!; expect(profile.level).toBe(4); expect(profile.maxWaveReached).toBe(7); expect(profile.mainHand.definitionId).toBe("club"); expect("gold" in profile).toBeFalse(); expect("inventoryTiles" in profile).toBeFalse(); });
+  test("publishes empty-handed build profiles and the lifetime best wave without currencies or inventory", () => { const { game } = harness(); const player = game.join("Public"); player.progress.level = 4; player.waveNumber = 7; game.handle(player.id, { type: "enterRealm" }); const profile = game.publicHeroProfile(player.id)!; expect(profile.level).toBe(4); expect(profile.maxWaveReached).toBe(7); expect(profile.mainHand).toBeUndefined(); expect("gold" in profile).toBeFalse(); expect("inventoryTiles" in profile).toBeFalse(); });
   test("logs player connection lifecycle with stable identity", () => {
     const repository = new InMemoryPlayerRepository(); const events: Array<{ event: "connected" | "disconnected"; id: string; name: string }> = []; let nextId = 0;
     const game = new GameService({ repository, balance: BALANCE, random: new FixedRandom(), createId: () => `id-${++nextId}`, send: () => { }, logPlayerLifecycle: (event, player) => events.push({ event, id: player.id, name: player.name }) });

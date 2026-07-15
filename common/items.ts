@@ -148,13 +148,15 @@ function buildWeapon(weaponClass: WeaponClass, level: number, rarity: Rarity, se
 
 export function rollRarity(seed: number): Rarity { const roll = new SeededRandom(seed).next(); return roll < 0.58 ? "common" : roll < 0.83 ? "uncommon" : roll < 0.96 ? "rare" : "epic"; }
 export function meetsRequirements(item: ItemInstance, stats: Stats): boolean { return Object.entries(item.requirements).every(([key, value]) => stats[key as StatKey] >= (value ?? 0)); }
-export function itemRequirementMultiplier(item: ItemInstance, stats: Stats): number {
+export function itemRequirementMultiplier(item: ItemInstance | undefined, stats: Stats): number {
+  if (!item) return 1;
   return Object.entries(item.requirements).reduce((multiplier, [key, required]) => {
     const delta = Math.max(0, (required ?? 0) - stats[key as StatKey]);
     return multiplier / (delta + 1);
   }, 1);
 }
-export function itemStackKey(item: ItemInstance): string {
+export function itemStackKey(item: ItemInstance | undefined): string {
+  if (!item) return "unarmed";
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, level: item.level, rarity: item.rarity, hands: item.hands, weight: item.weight,
     affixes: [...item.affixes].sort(), requirements: orderedStats(item.requirements), statBonuses: orderedStats(item.statBonuses), modifiers: item.modifiers,
     skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, perks: item.perks ?? {}, accessoryBonuses: item.accessoryBonuses ?? {} });

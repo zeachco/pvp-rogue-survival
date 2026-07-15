@@ -25,7 +25,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Every joined player controls one hero in a private fixed arena, initially placed at the arena center.
 - The hero has health instead of lane lives.
 - Enemy body contact does not damage the hero; see `specs/MECHANICS_SPEC.md` for damage sources and attack resolution.
-- A newly created player equips the requirement-free Plain Club and receives exactly three randomly generated level-0 Common equipment items in the backpack. This starter roll happens only once at account creation; defeat neither grants nor rerolls starter equipment. Existing saved players keep their current equipment when this default changes.
+- A newly created player is empty-handed and receives exactly three randomly generated level-0 Common equipment items in the backpack. This starter roll happens only once at account creation; defeat neither grants nor rerolls starter equipment. Existing saved players keep their current equipment when this default changes. Plain Clubs remain valid legacy and generated equipment, but the game never creates one as an equipment fallback.
 - Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `specs/PROGRESSION_SPEC.md`.
 - Hero auto-aim, automatic attacks, attack areas, projectiles, and dodge rules follow `specs/MECHANICS_SPEC.md`.
 - Active weapon and learned skill availability, costs, and scaling follow `specs/PROGRESSION_SPEC.md`.
@@ -82,6 +82,8 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 The codebase is a modular monolith with shared, environment-independent game-domain modules. Browser, canvas, WebSocket, HTTP, and process APIs stay at composition boundaries; progression, content generation, balance, wave construction, inventory transactions, and combat calculations remain pure and directly testable. Randomness, clocks, and identifiers are injected wherever outcomes affect game state.
 
 Stable HTML HUD structures are created once. The fixed simulation loop may update scalar text, style, and ARIA properties, but it does not replace panel, resource, realm, spell, inventory, or form subtrees unless a flattened render signature for that subtree changes. Inventory changes reconcile keyed equipment cards in place: unchanged cards and the scroll container retain their DOM identity, changed cards update at their ordered position, and adding, removing, equipping, or changing a stack quantity never resets the equipment list's scroll position. Canvas owns arena action rendering; HTML remains the accessibility and interaction surface for forms, inventory actions, and persistent stats.
+
+Inventory equipment cards reserve a compact fixed-width action column so item names, requirements, effects, and combat values remain readable inside the 320px drawer. Sell, Purge, Upgrade, Send, and Extract buttons use concise labels and remain full-width only within that narrow action column.
 
 ### Client
 

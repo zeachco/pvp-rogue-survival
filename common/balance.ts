@@ -11,6 +11,7 @@ export interface BalanceConfig {
     heroDamageMultiplier: number;
     enemyDamageMultiplier: number;
     enemyHealthMultiplier: number;
+    unarmed: { baseDamage: number; strengthDamage: number; range: number; attacksPerSecond: number; staminaCost: number };
   };
   rewards: {
     xpMultiplier: number;
@@ -23,7 +24,7 @@ export interface BalanceConfig {
 export const BALANCE: BalanceConfig = Object.freeze({
   id: "normal",
   wave: { intervalMs: 60_000, prepareMs: 3_000, batchIntervalMs: 5_000, maxRegulars: 40, tierEveryWaves: 2 },
-  combat: { heroDamageMultiplier: 1, enemyDamageMultiplier: 1, enemyHealthMultiplier: 1 },
+  combat: { heroDamageMultiplier: 1, enemyDamageMultiplier: 1, enemyHealthMultiplier: 1, unarmed: { baseDamage: 1, strengthDamage: 1, range: 70, attacksPerSecond: 1, staminaCost: 1 } },
   rewards: { xpMultiplier: 1, goldChanceMultiplier: 1, dropChanceMultiplier: 1, maxDropChance: 0.3 }
 });
 
