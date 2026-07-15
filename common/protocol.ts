@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 26;
+export const PROTOCOL_VERSION = 28;
 export type PlayerId = string;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
@@ -80,4 +80,4 @@ export type ServerMessage =
 
 export function parseClientMessage(value: unknown): ClientMessage | undefined { const result = clientMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
 export function parseServerMessage(value: unknown): ServerMessage | undefined { const result = serverMessageSchema.safeParse(value); return result.success ? result.data : undefined; }
-export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "cleave", "whirlwind", "rendingThrow", "orbitingHammers", "arcaneBolt", "gravityPull", "attraction", "manaDrain", "penance", "thorns", "reflectiveSurge", "frostOrb", "fireBreath", "voodoo", "healing", "rent", "blocking", "slowAura", "hinderingAura", "deathBurst", "sunburnAura", "thunderAura"].includes(value); }
+export function isSkillId(value: string): value is SkillId { return ["bash", "sweep", "flurry", "shockwave", "cleave", "whirlwind", "rendingThrow", "vampiricBoomerang", "orbitingHammers", "arcaneBolt", "gravityPull", "attraction", "manaDrain", "penance", "thorns", "reflectiveSurge", "frostOrb", "fireBreath", "voodoo", "healing", "rent", "blocking", "slowAura", "hinderingAura", "deathBurst", "sunburnAura", "thunderAura"].includes(value); }

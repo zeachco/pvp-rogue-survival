@@ -16,7 +16,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
       <div class="item-card-content"><div class="item-title"><strong>{item.name}</strong><b>x{tile.quantity}</b></div>
-        <small class="item-subtitle">L{item.level} · {item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · {item.rarity}</small>
+        <small class="item-subtitle">L{item.level} · {itemKindLabel(item)} · {item.rarity}</small>
         {itemDetails(item, stats)}
       </div>
       <div class="item-card-controls"><div class="item-menu">
@@ -40,7 +40,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const extractButton = buttons[4] as HTMLButtonElement | undefined;
   if (extractButton && progress.gold < extractCost) { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
-  const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${shown.itemKind === "weapon" ? `${shown.hands}H` : shown.itemKind === "buckler" ? `${Math.round(shown.blockChance * 100)}% block` : "Relic"} · ${shown.rarity}` : `L${item.level} · ${item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : "Relic"} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
+  const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${itemKindLabel(shown)} · ${shown.rarity}` : `L${item.level} · ${itemKindLabel(item)} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
   bindActionPreview(0, { gold: item.sellValue }); bindActionPreview(1, { [item.rarity]: purgeYield(item) });
   const upgradePreview = buttons[2] as HTMLButtonElement | undefined; upgradePreview?.addEventListener("mouseenter", () => previewUpgradeCard(true)); upgradePreview?.addEventListener("mouseleave", () => previewUpgradeCard(false));
@@ -48,3 +48,4 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   bindActionPreview(3); bindActionPreview(4, { gold: -extractCost }, () => onSpellPreview?.(skills));
   return node;
 }
+function itemKindLabel(item: InventoryTile["item"]): string { return item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : item.itemKind === "relic" ? "Relic" : item.itemKind === "amulet" ? "Amulet" : "Charm"; }

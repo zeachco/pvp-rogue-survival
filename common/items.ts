@@ -3,9 +3,9 @@ import { AFFIXES, WEAPONS } from "./content";
 import { SeededRandom } from "./random";
 
 export type WeaponClass = "club" | "sword" | "dagger" | "mace" | "axe" | "throwingAxe" | "hammer" | "staff" | "scepter";
-export type EquipmentDefinitionId = WeaponClass | "buckler" | "relic";
+export type EquipmentDefinitionId = WeaponClass | "buckler" | "relic" | "amulet" | "charm";
 export type Rarity = "common" | "uncommon" | "rare" | "epic";
-export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "whirlwind" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "gravityPull" | "attraction" | "manaDrain" | "penance" | "thorns" | "reflectiveSurge" | "frostOrb" | "fireBreath" | "voodoo" | "healing" | "rent" | "blocking" | "slowAura" | "hinderingAura" | "deathBurst" | "sunburnAura" | "thunderAura";
+export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "whirlwind" | "rendingThrow" | "vampiricBoomerang" | "orbitingHammers" | "arcaneBolt" | "gravityPull" | "attraction" | "manaDrain" | "penance" | "thorns" | "reflectiveSurge" | "frostOrb" | "fireBreath" | "voodoo" | "healing" | "rent" | "blocking" | "slowAura" | "hinderingAura" | "deathBurst" | "sunburnAura" | "thunderAura";
 export type AffixId = "rusty" | "venomous" | "bleeding" | "stunning" | "focused" | "swift";
 export type ReflectionComponent = "flat" | "strength" | "return";
 export type ItemPerkId = "defense" | "physicalResist" | "magicResist" | "fireResist" | "frostResist" | "poisonResist" | "bleedResist" | "dodgeChance";
@@ -24,14 +24,21 @@ export interface ItemModifiers {
   manaRegenMultiplier: number; magicAmp: number; bleedChance: number;
   poisonChance: number; stunChance: number; lifeStealBase: number; strengthRegenMultiplier: number; goldGain: number; rarityBoost: number;
 }
+export type PhysicalBonusKind = "frost" | "poison" | "bleed" | "fire" | "lightning";
+export interface AccessoryBonuses {
+  manaSkillLevels?: number; staminaSkillLevels?: number; allSkillLevels?: number; globalCooldownReduction?: number;
+  manaCostReduction?: number; lifeCostReduction?: number;
+  physicalDamage?: Partial<Record<PhysicalBonusKind, number>>;
+}
 export interface ItemInstance {
-  id: string; itemKind: "weapon" | "buckler" | "relic"; definitionId: EquipmentDefinitionId; name: string; level: number; rarity: Rarity;
+  id: string; itemKind: "weapon" | "buckler" | "relic" | "amulet" | "charm"; definitionId: EquipmentDefinitionId; name: string; level: number; rarity: Rarity;
   seed: number; hands: 0 | 1 | 2; affixes: AffixId[]; requirements: Partial<Record<StatKey, number>>;
   weight: number;
   statBonuses: Partial<Record<StatKey, number>>; modifiers: ItemModifiers; skills: SkillId[];
   staminaCost: number; dropChance: number; sellValue: number; blockChance: number;
   reflectionComponents: ReflectionComponent[]; attractionSpeed: number;
   perks?: Partial<Record<ItemPerkId, number>>;
+  accessoryBonuses?: AccessoryBonuses;
 }
 export interface ItemGenerationFilters { allowedClasses?: WeaponClass[]; fewerAffixes?: boolean }
 
@@ -78,6 +85,29 @@ export function generateRelic(level: number, rarity: Rarity, seed: number): Item
   return rollItemPerks({ id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name, level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills, staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed }, seed);
 }
 
+export function generateAccessory(level: number, rarity: Rarity, seed: number, kind?: "amulet" | "charm"): ItemInstance {
+  level = Math.min(level, MAX_ITEM_LEVEL[rarity]); const source = new SeededRandom(seed); const itemKind = kind ?? (source.next() < 0.5 ? "amulet" : "charm");
+  const [minimum, maximum] = ({ common: [1, 2], uncommon: [1, 3], rare: [2, 4], epic: [4, 6] } as const)[rarity];
+  const rollCount = minimum + Math.floor(source.next() * (maximum - minimum + 1)); const statBonuses: Partial<Record<StatKey, number>> = {}; const accessoryBonuses: AccessoryBonuses = {}; let attractionSpeed = 0;
+  if (itemKind === "amulet") {
+    const pool: Array<"stat" | "mana" | "all" | "stamina" | "pull" | "cooldown" | "manaCost" | "lifeCost"> = ["stat", "mana", "all", "stamina", "pull", "cooldown", "manaCost", "lifeCost"];
+    for (let index = 0; index < rollCount; index += 1) { const roll = pool.splice(Math.floor(source.next() * pool.length), 1)[0]; const scale = (level + 1) / 51;
+      if (roll === "stat") { const key = STAT_KEYS[Math.floor(source.next() * STAT_KEYS.length)]; statBonuses[key] = Math.max(1, Math.ceil((1 + level * 0.12) * RARITY_POWER[rarity])); }
+      else if (roll === "mana") accessoryBonuses.manaSkillLevels = 1 + Math.floor(source.next() * 5);
+      else if (roll === "all") accessoryBonuses.allSkillLevels = 1 + Math.floor(source.next() * 3);
+      else if (roll === "stamina") accessoryBonuses.staminaSkillLevels = 1 + Math.floor(source.next() * 10);
+      else if (roll === "pull") attractionSpeed = 35 + Math.round(level * 1.5);
+      else if (roll === "cooldown") accessoryBonuses.globalCooldownReduction = 0.05 + 0.75 * Math.min(1, scale * (0.75 + source.next() * 0.25));
+      else if (roll === "manaCost") accessoryBonuses.manaCostReduction = 0.05 + 0.85 * Math.min(1, scale * (0.75 + source.next() * 0.25));
+      else accessoryBonuses.lifeCostReduction = 0.05 + 0.85 * Math.min(1, scale * (0.75 + source.next() * 0.25));
+    }
+  } else {
+    const pool: Array<PhysicalBonusKind | "manaCost" | "lifeCost"> = ["frost", "poison", "bleed", "fire", "lightning", "manaCost", "lifeCost"];
+    const physicalDamage: Partial<Record<PhysicalBonusKind, number>> = {}; for (let index = 0; index < rollCount; index += 1) { const roll = pool.splice(Math.floor(source.next() * pool.length), 1)[0]; if (roll === "manaCost") accessoryBonuses.manaCostReduction = 0.05 + 0.85 * ((level + 1) / 51); else if (roll === "lifeCost") accessoryBonuses.lifeCostReduction = 0.05 + 0.85 * ((level + 1) / 51); else physicalDamage[roll] = 0.02 + 0.18 * ((level + 1) / 51) * (0.6 + source.next() * 0.4); } accessoryBonuses.physicalDamage = physicalDamage;
+  }
+  return rollItemPerks({ id: `${itemKind}-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind, definitionId: itemKind, name: itemKind === "amulet" ? "Runed Amulet" : "Vampiric Charm", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.25 * RARITY_POWER[rarity])) } : {}, statBonuses, modifiers: baseModifiers(1, 1), skills: itemKind === "charm" ? ["vampiricBoomerang"] : [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + RARITY_POWER[rarity] * 0.06), sellValue: Math.max(1, Math.round((level + 1) * RARITY_POWER[rarity] * (3 + rollCount))), blockChance: 0, reflectionComponents: [], attractionSpeed, accessoryBonuses }, seed);
+}
+
 export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
   const promotedRarity = base.level >= MAX_ITEM_LEVEL[base.rarity] ? nextRarity(base.rarity) : undefined; const rarity = promotedRarity ?? base.rarity; const nextLevel = promotedRarity ? 1 : Math.min(base.level + 1, MAX_ITEM_LEVEL[rarity]);
   if (base.itemKind === "buckler") {
@@ -85,6 +115,7 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
     return { ...next, name: base.name, skills: [...base.skills], reflectionComponents: [...base.reflectionComponents], blockChance: 0.1 * RARITY_POWER[rarity], sellValue: Math.max(1, Math.round((nextLevel + 1) * RARITY_POWER[rarity] * (base.reflectionComponents.length ? 5 : 4))) };
   }
   if (base.itemKind === "relic") { const next = generateRelic(nextLevel, rarity, seed); const scaleRatio = weaponLevelScale(nextLevel) / weaponLevelScale(base.level); next.modifiers.lifeStealBase = (base.modifiers.lifeStealBase ?? 0) * scaleRatio; next.modifiers.strengthRegenMultiplier = (base.modifiers.strengthRegenMultiplier ?? 0) * scaleRatio; return { ...next, name: base.name, skills: [...base.skills], attractionSpeed: base.attractionSpeed }; }
+  if (base.itemKind === "amulet" || base.itemKind === "charm") return { ...generateAccessory(nextLevel, rarity, seed, base.itemKind), name: base.name };
   const next = buildWeapon(base.definitionId as WeaponClass, nextLevel, rarity, seed, [...base.affixes], seed % 1e8); const scaleRatio = weaponLevelScale(next.level) / weaponLevelScale(base.level); next.modifiers.lifeStealBase = (base.modifiers.lifeStealBase ?? 0) * scaleRatio; next.modifiers.strengthRegenMultiplier = (base.modifiers.strengthRegenMultiplier ?? 0) * scaleRatio; return next;
 }
 
@@ -92,6 +123,7 @@ export function changeItemRarity(base: ItemInstance, rarity: Rarity, seed: numbe
   const level = Math.min(base.level, MAX_ITEM_LEVEL[rarity]);
   if (base.itemKind === "buckler") { const next = generateBuckler(level, rarity, seed); return { ...next, name: base.name, skills: [...base.skills], reflectionComponents: [...base.reflectionComponents] }; }
   if (base.itemKind === "relic") { const next = generateRelic(level, rarity, seed); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier; return { ...next, name: base.name, skills: [...base.skills], attractionSpeed: base.attractionSpeed }; }
+  if (base.itemKind === "amulet" || base.itemKind === "charm") return { ...generateAccessory(level, rarity, seed, base.itemKind), name: base.name };
   const next = buildWeapon(base.definitionId as WeaponClass, level, rarity, seed, [...base.affixes], seed % 1e8); next.modifiers.lifeStealBase = base.modifiers.lifeStealBase; next.modifiers.strengthRegenMultiplier = base.modifiers.strengthRegenMultiplier; return next;
 }
 
@@ -125,14 +157,18 @@ export function itemRequirementMultiplier(item: ItemInstance, stats: Stats): num
 export function itemStackKey(item: ItemInstance): string {
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, level: item.level, rarity: item.rarity, hands: item.hands, weight: item.weight,
     affixes: [...item.affixes].sort(), requirements: orderedStats(item.requirements), statBonuses: orderedStats(item.statBonuses), modifiers: item.modifiers,
-    skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, perks: item.perks ?? {} });
+    skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, perks: item.perks ?? {}, accessoryBonuses: item.accessoryBonuses ?? {} });
 }
 export function equippedPerks(stats: Stats, ...items: Array<ItemInstance | undefined>): Record<ItemPerkId, number> { return Object.fromEntries(ITEM_PERKS.map((key) => [key, items.reduce((sum, item) => sum + (item?.perks?.[key] ?? 0) * (item ? itemRequirementMultiplier(item, stats) : 1), 0)])) as Record<ItemPerkId, number>; }
 export function itemAutomationKey(item: ItemInstance): string {
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, hands: item.hands,
     affixes: [...item.affixes].sort(), statBonuses: orderedStats(item.statBonuses), skills: [...item.skills].sort(),
-    reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, lifeStealBase: item.modifiers.lifeStealBase ?? 0, strengthRegenMultiplier: item.modifiers.strengthRegenMultiplier ?? 0 });
+    reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, accessoryBonuses: item.accessoryBonuses ?? {}, lifeStealBase: item.modifiers.lifeStealBase ?? 0, strengthRegenMultiplier: item.modifiers.strengthRegenMultiplier ?? 0 });
 }
+export function itemSkillLevelBonus(item: ItemInstance | undefined, resource: "mana" | "stamina" | "life"): number { if (!item) return 0; const bonus = item.accessoryBonuses; return (bonus?.allSkillLevels ?? 0) + (resource === "mana" ? bonus?.manaSkillLevels ?? 0 : resource === "stamina" ? bonus?.staminaSkillLevels ?? 0 : 0); }
+export function itemCooldownReduction(...items: Array<ItemInstance | undefined>): number { return Math.min(0.8, items.reduce((sum, item) => sum + (item?.accessoryBonuses?.globalCooldownReduction ?? 0), 0)); }
+export function itemPhysicalBonusFraction(item: ItemInstance | undefined): number { return Object.values(item?.accessoryBonuses?.physicalDamage ?? {}).reduce((sum, value) => sum + (value ?? 0), 0); }
+export function itemResourceCostReduction(item: ItemInstance | undefined, resource: "mana" | "life", stats?: Stats): number { if (!item) return 0; const value = resource === "mana" ? item.accessoryBonuses?.manaCostReduction : item.accessoryBonuses?.lifeCostReduction; return Math.min(.9, (value ?? 0) * (stats ? itemRequirementMultiplier(item, stats) : 1)); }
 export function statsWithItemBonuses(stats: Stats, ...items: Array<ItemInstance | undefined>): Stats {
   return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] + items.reduce((sum, item) => sum + (item?.statBonuses[key] ?? 0) * (item ? itemRequirementMultiplier(item, stats) : 1), 0)])) as Stats;
 }

@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
-import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { changeItemRarity, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemStackKey, nextRarity, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { collectIntoInventory, dropInventoryOverflow, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
+import { changeItemRarity, generateAccessory, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemStackKey, nextRarity, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
 import { DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type HeroSummary, type PlayerId, type PublicHeroProfile, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
@@ -71,7 +71,7 @@ export class GameService {
     const trimmed = name.trim().slice(0, 20); const existing = heroId ? this.options.repository.get(heroId) : this.options.repository.getByUsername(trimmed);
     if (existing) { existing.connected = true; existing.realmOptedIn = false; existing.waitingSince = Date.now(); removeEmptyInventoryTiles(existing.progress); return existing; }
     if (!/^[A-Za-z0-9_-]{1,20}$/.test(trimmed)) throw new Error("Invalid username.");
-    const mainHand = starterClub(); const starterItems = Array.from({ length: 3 }, () => { const seed = this.seed(); const roll = this.options.random.next(); return roll < 0.7 ? generateItem(0, "common", seed) : roll < 0.85 ? generateBuckler(0, "common", seed) : generateRelic(0, "common", seed); });
+    const mainHand = starterClub(); const starterItems = Array.from({ length: 3 }, () => { const seed = this.seed(); const roll = this.options.random.next(); return roll < 0.6 ? generateItem(0, "common", seed) : roll < 0.75 ? generateBuckler(0, "common", seed) : roll < 0.9 ? generateRelic(0, "common", seed) : generateAccessory(0, "common", seed); });
     const inventoryTiles: Player["progress"]["inventoryTiles"] = []; for (const item of starterItems) { const key = itemStackKey(item); const existing = inventoryTiles.find((tile) => tile.key === key); if (existing) existing.quantity += 1; else inventoryTiles.push({ id: `starter-random-tile-${inventoryTiles.length}`, key, item, quantity: 1 }); }
     const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 0, maxWaveReached: 0, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [],
@@ -102,7 +102,7 @@ export class GameService {
 
   private generateBuild(name: string, level: number, isRival: boolean, seed: number, suppliedStats?: Stats, fewerItems = false, allowedClasses?: WeaponClass[]): UnitBuild {
     const stats = suppliedStats ?? scaledStats(randomAllocation(seed), level); const mainHand = generateItem(level, rollRarity(seed + 11), seed + 17, { fewerAffixes: fewerItems, allowedClasses });
-    const offHandRoll = this.options.random.next(); const offHand = !allowedClasses && mainHand.hands === 1 && offHandRoll < 0.25 ? (offHandRoll < 0.125 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : generateRelic(level, rollRarity(seed + 19), seed + 21)) : undefined;
+    const offHandRoll = this.options.random.next(); const offHand = !allowedClasses && mainHand.hands === 1 && offHandRoll < 0.3 ? (offHandRoll < 0.1 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : offHandRoll < 0.2 ? generateRelic(level, rollRarity(seed + 19), seed + 21) : generateAccessory(level, rollRarity(seed + 19), seed + 21)) : undefined;
     const carried = isRival && level > 0 ? [generateItem(level, rollRarity(seed + 23), seed + 29, { fewerAffixes: true })] : [];
     return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" || mainHand.definitionId === "scepter" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, bonusSkills: [], isRival, xpReward: isRival ? rivalXpReward(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
   }
@@ -158,7 +158,7 @@ export class GameService {
     const lostGold = Math.floor(player.progress.gold / 2); const lostSouls = Math.floor(player.progress.souls / 2); player.progress.gold -= lostGold; player.progress.souls -= lostSouls;
     if (killer) { killer.progress.gold += lostGold; killer.progress.souls += lostSouls; this.options.repository.markDirty(killer.id); this.sendProgress(killer, `Defeat spoils: gained ${lostGold} Gold and ${lostSouls} Souls.`); }
     player.progress.xp = 0; player.progress.level = 0; player.progress.stats = { ...ZERO_STATS };
-    player.waveNumber = 0; player.issuedUnits.clear(); player.groundDrops.clear(); this.options.repository.markDirty(player.id); this.sendProgress(player, `Defeated: XP, attributes, and wave reset; lost ${lostGold} Gold and ${lostSouls} Souls.`);
+    player.waveNumber = 0; player.issuedUnits.clear(); player.groundDrops.clear(); const overflow = dropInventoryOverflow(player.progress); for (const item of overflow) { const id = this.createId(); const drop: GroundDrop = { id, kind: "item", item: { ...item, id: `${item.id}-${id}` } }; player.groundDrops.set(id, drop); this.options.send(player.id, { type: "groundDropCreated", drop }); } this.options.repository.markDirty(player.id); this.sendProgress(player, `Defeated: XP, attributes, and wave reset; lost ${lostGold} Gold and ${lostSouls} Souls${overflow.length ? `; dropped ${overflow.length} backpack item${overflow.length === 1 ? "" : "s"}` : ""}.`);
     this.options.send(player.id, { type: "waveAdjusted", waveNumber: 0, reason: "Wave reset to 0 after defeat." });
     if (player.realmId) { const realm = this.realms.get(player.realmId); if (realm) { realm.down.add(player.id); const side = realm.soloId === player.id ? [realm.soloId] : realm.teamIds; if (side.every((id) => realm.down.has(id))) { if (killer) { killer.progress.souls += 1; this.options.repository.markDirty(killer.id); this.sendProgress(killer, "Realm defeated: gained 1 Soul."); } this.dissolveRealm(realm.id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); } } }
     this.broadcastRealms();

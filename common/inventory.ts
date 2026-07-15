@@ -7,6 +7,7 @@ export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number
 export const inventoryCapacity = (level: number): number => 4 + Math.ceil(level / 10);
 export const occupiedInventorySlots = (progress: PlayerProgress): number => progress.inventoryTiles.filter((tile) => tile.quantity > 0).length;
 export function removeEmptyInventoryTiles(progress: PlayerProgress): void { progress.inventoryTiles = progress.inventoryTiles.filter((tile) => tile.quantity > 0 || isEquippedTile(progress, tile)); }
+export function dropInventoryOverflow(progress: PlayerProgress): ItemInstance[] { const dropped: ItemInstance[] = []; for (let index = progress.inventoryTiles.length - 1; occupiedInventorySlots(progress) > inventoryCapacity(progress.level) && index >= 0; index -= 1) { const tile = progress.inventoryTiles[index]; if (isEquippedTile(progress, tile)) continue; for (let copy = 0; copy < tile.quantity; copy += 1) dropped.push({ ...tile.item, id: `${tile.item.id}-overflow-${copy}` }); progress.inventoryTiles.splice(index, 1); } return dropped; }
 
 export function collectIntoInventory(progress: PlayerProgress, item: ItemInstance, nextId: () => string, nextSeed: () => number): InventoryResult {
   let tile = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(item));

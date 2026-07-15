@@ -31,10 +31,11 @@ export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats
 export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit = 0): number { if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? weaponRange(item); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item.level); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
-export function cooldownScale(level: number, reduction: number): number { return Math.max(0.25, (1 - reduction) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
+export function cooldownScale(level: number, reduction: number): number { return Math.max(0.2, (1 - Math.min(.8, reduction)) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
 export const MAX_SKILL_LEVEL = 100;
 export function cappedSkillLevel(level: number): number { return Math.max(1, Math.min(MAX_SKILL_LEVEL, level)); }
 export function manaConversionFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.59 / 99); }
+export function vampiricBoomerangHealingFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.79 / 99); }
 export function whirlwindRadius(level: number): number { return 90 + 1.2 * cappedSkillLevel(level); }
 export function whirlwindDuration(spirit: number): number { return 2 + Math.min(6, 0.06 * Math.max(0, spirit)); }
 export function whirlwindDamage(strength: number): number { return 1 + 0.4 * Math.max(0, strength); }
