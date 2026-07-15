@@ -68,7 +68,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
   frostOrb: { id: "frostOrb", label: "Frozen Orb", damageMultiplier: 0.7, cooldown: 20, range: 500, resource: "mana", description: "Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction." },
   fireBreath: { id: "fireBreath", label: "Fire Breath", damageMultiplier: 1.1, cooldown: 9, range: 150, resource: "mana", cost: 4, enemyEligible: true, description: "Breathes advancing fire arcs in a cone and burns targets for four seconds, scaling with Spirit." },
   voodoo: { id: "voodoo", label: "Voodoo", damageMultiplier: 0, cooldown: 0, resource: "mana", passive: true, description: "Passive: Spirit amplifies poison damage applied by this unit." },
-  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 8, resource: "mana", description: "Automatically restores health while below 50% HP, scaling with Spirit and magic amplification." },
+  healing: { id: "healing", label: "Healing", damageMultiplier: 0, cooldown: 60, resource: "mana", description: "Below 50% HP, restores 20–90% of current health and spends 2 mana per HP restored." },
   rent: { id: "rent", label: "Rent", damageMultiplier: 1.25, cooldown: 4, range: 105, resource: "life", description: "A physical strike that spends 1 health and cannot cast at 1 HP." },
   blocking: { id: "blocking", label: "Blocking", damageMultiplier: 0, cooldown: 1, resource: "stamina", description: "A reactive buckler block. Return bucklers divide recovery by main-hand attack speed." }
 };

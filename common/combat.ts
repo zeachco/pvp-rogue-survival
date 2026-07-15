@@ -29,3 +29,8 @@ export function skillRange(skill: SkillId, item: ItemInstance, level = 1, spirit
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
 export function cooldownScale(level: number, reduction: number): number { return Math.max(0.25, (1 - reduction) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
+export const MAX_SKILL_LEVEL = 100;
+export function cappedSkillLevel(level: number): number { return Math.max(1, Math.min(MAX_SKILL_LEVEL, level)); }
+export function healingFraction(level: number): number { return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 99); }
+export function healingCooldown(level: number): number { return 60 - (cappedSkillLevel(level) - 1) * (59 / 99); }
+export function healingCast(currentHp: number, maxHp: number, level: number): { restoredHp: number; manaCost: number } { const restoredHp = Math.max(0, Math.min(maxHp - currentHp, currentHp * healingFraction(level))); return { restoredHp, manaCost: restoredHp * 2 }; }

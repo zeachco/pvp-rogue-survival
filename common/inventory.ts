@@ -1,5 +1,6 @@
 import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, meetsRequirements, starterClub, type ItemInstance, type Rarity, type SkillId } from "./items";
 import type { InventoryTile, PlayerProgress } from "./protocol";
+import { MAX_SKILL_LEVEL } from "./combat";
 
 export interface InventoryResult { changed: boolean; reason: string; dropped?: ItemInstance[]; sent?: ItemInstance; created?: ItemInstance }
 export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number } { const attributePoints = Object.values(item.statBonuses).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0); const factor = 1 + 0.1 * attributePoints; return { gold: Math.ceil(item.sellValue * 1.5 * factor), scraps: Math.ceil(2 * (item.level + 1) * factor) }; }
@@ -83,5 +84,5 @@ export function isEquippedTile(progress: PlayerProgress, tile: InventoryTile): b
 function equippedCopies(progress: PlayerProgress, tile: InventoryTile): number { return Number(itemStackKey(progress.mainHand) === tile.key) + Number(Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key)); }
 function missing(): InventoryResult { return { changed: false, reason: "That equipment is no longer available." }; }
 export function purgeYield(item: ItemInstance): number { return Math.max(1, Math.ceil(item.level / 3)); }
-function learnSkill(progress: PlayerProgress, skill: SkillId, universal: boolean): void { if (!progress.learnedSkills.includes(skill)) progress.learnedSkills.push(skill); progress.learnedSkillLevels[skill] = (progress.learnedSkillLevels[skill] ?? 0) + 1; if (universal && !progress.universalSkills.includes(skill)) progress.universalSkills.push(skill); }
+function learnSkill(progress: PlayerProgress, skill: SkillId, universal: boolean): void { if (!progress.learnedSkills.includes(skill)) progress.learnedSkills.push(skill); progress.learnedSkillLevels[skill] = Math.min(MAX_SKILL_LEVEL, (progress.learnedSkillLevels[skill] ?? 0) + 1); if (universal && !progress.universalSkills.includes(skill)) progress.universalSkills.push(skill); }
 export function emptyScraps(): Record<Rarity, number> { return { common: 0, uncommon: 0, rare: 0, epic: 0 }; }
