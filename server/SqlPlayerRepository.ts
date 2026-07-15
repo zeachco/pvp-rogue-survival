@@ -22,8 +22,8 @@ export class SqlPlayerRepository implements PlayerRepository {
 
   get(id: string): Player | undefined { return this.players.get(id); }
   getByUsername(username: string): Player | undefined { const key = username.toLowerCase(); return [...this.players.values()].find((player) => player.name.toLowerCase() === key); }
-  async findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level) })); }
-  async listSummaries(): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level) })); }
+  async findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level), receivesDeathEchoes: false })); }
+  async listSummaries(): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level), receivesDeathEchoes: false })); }
   save(player: Player): void { this.players.set(player.id, player); this.markDirty(player.id); }
   markDirty(playerId: string): void { if (this.players.has(playerId)) this.dirtyPlayerIds.add(playerId); }
   values(): IterableIterator<Player> { return this.players.values(); }
@@ -69,5 +69,5 @@ function fromRow(row: HeroRow): Player | undefined {
   if (!blob?.progress || !Number.isFinite(blob.score) || !Number.isFinite(blob.waveNumber)) return undefined;
   blob.progress.level = Number(row.level);
   blob.progress.xp = Math.max(blob.progress.xp, cumulativeXpForLevel(blob.progress.level));
-  return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, progress: blob.progress, panelTriggers: blob.panelTriggers ?? { character: false, inventory: false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [] };
+  return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, progress: blob.progress, panelTriggers: blob.panelTriggers ?? { character: false, inventory: false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [] };
 }

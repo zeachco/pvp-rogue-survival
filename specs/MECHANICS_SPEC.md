@@ -78,6 +78,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 ## Local Defeat Reset
 
 - Player health reaching zero starts a short defeat notice.
+- The realm-header Kill Player action asks for confirmation, then performs the server-owned defeat immediately and starts a fresh local arena with the replacement wave.
 - When the defeat notice finishes, the client clears active creeps, attack areas, projectiles, drops, and pending local wave spawns.
 - The hero is reset to the arena center with progression-derived resources.
 - Score, permanent progression, inventory, canonical username identity, and server-owned wave number are not reset by the local arena reset.

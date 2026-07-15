@@ -68,7 +68,7 @@ export class Game {
       onPurge: (tileId, bulk) => this.socket.send({ type: "purgeItem", tileId, bulk }), onUpgrade: (tileId, bulk) => this.socket.send({ type: "upgradeItem", tileId, bulk }),
       onSend: (tileId, bulk) => this.socket.send({ type: "sendItem", tileId, bulk }), onExtract: (tileId, bulk) => this.socket.send({ type: "extractSkill", tileId, bulk }),
       onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
-      onEnterRealm: () => this.enterRealm(), onBack: () => this.clearInspection(), onLogout: () => this.socket.send({ type: "logout" }),
+      onEnterRealm: () => this.enterRealm(), onKillPlayer: () => { if (window.confirm("Kill this hero? Death progression and currency penalties will apply.")) this.socket.send({ type: "suicide" }); }, onBack: () => this.clearInspection(), onLogout: () => this.socket.send({ type: "logout" }),
       onInspectHero: (heroId) => this.socket.send({ type: "inspectHero", heroId }), onDismissPanelTrigger: (panel) => this.socket.send({ type: "dismissPanelTrigger", panel })
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.username); this.registerDebugGlobal();
@@ -111,6 +111,7 @@ export class Game {
     } else if (message.type === "groundDropCreated") this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
     else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }
+    else if (message.type === "suicideResolved" && this.player) { this.defeatCooldown = 0; this.hud.showWaveBanner("Hero down", "Your death echo was sent to the highest-ranked hero"); this.resetArena(); }
     else if (message.type === "collectItemResult") this.handleCollectResult(message.dropId, message.collected, message.reason);
     else if (message.type === "dropsReconciled") this.handleDropsReconciled(message.drops, message.removeDropIds, message.resolvedDropIds);
     else if (message.type === "serverNotice") this.hud.setNotice(message.message);

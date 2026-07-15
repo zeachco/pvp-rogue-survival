@@ -8,7 +8,7 @@ export interface Player {
   panelTriggers: { character: boolean; inventory: boolean };
   realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
-  incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[];
+  incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[]; deathEchoes: UnitBuild[];
 }
 export interface PlayerRepository { get(id: PlayerId): Player | undefined; getByUsername(username: string): Player | undefined; findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>; listSummaries(): Promise<HeroSummary[]>; save(player: Player): void; markDirty(playerId: PlayerId): void; values(): IterableIterator<Player>; persist(): void | Promise<void>; close?(): void | Promise<void> }
 export class InMemoryPlayerRepository implements PlayerRepository {
@@ -22,4 +22,4 @@ export class InMemoryPlayerRepository implements PlayerRepository {
   values(): IterableIterator<Player> { return this.players.values(); }
   persist(): void { }
 }
-function summary(player: Player): HeroSummary { return { id: player.id, username: player.name, level: player.progress.level }; }
+function summary(player: Player): HeroSummary { return { id: player.id, username: player.name, level: player.progress.level, receivesDeathEchoes: false }; }
