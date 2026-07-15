@@ -9,6 +9,7 @@ interface HeroRow { id: string; username: string; level: number; hero: string }
 
 export class SqlPlayerRepository implements PlayerRepository {
   private readonly players = new Map<string, Player>();
+  private readonly dirtyPlayerIds = new Set<string>();
   private writeChain: Promise<void> = Promise.resolve();
 
   private constructor(private readonly sql: SQL) {}
@@ -23,17 +24,23 @@ export class SqlPlayerRepository implements PlayerRepository {
   getByUsername(username: string): Player | undefined { const key = username.toLowerCase(); return [...this.players.values()].find((player) => player.name.toLowerCase() === key); }
   async findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level) })); }
   async listSummaries(): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level) })); }
-  save(player: Player): void { this.players.set(player.id, player); }
+  save(player: Player): void { this.players.set(player.id, player); this.markDirty(player.id); }
+  markDirty(playerId: string): void { if (this.players.has(playerId)) this.dirtyPlayerIds.add(playerId); }
   values(): IterableIterator<Player> { return this.players.values(); }
 
   persist(): Promise<void> {
-    const rows = [...this.players.values()].map(toRow);
+    const playerIds = [...this.dirtyPlayerIds];
+    if (!playerIds.length) return this.writeChain;
+    const rows = playerIds.map((id) => this.players.get(id)).filter(isPlayer).map(toRow);
+    for (const id of playerIds) this.dirtyPlayerIds.delete(id);
     this.writeChain = this.writeChain.catch(() => {}).then(async () => {
-      for (const row of rows) await this.sql`
-        INSERT INTO heroes (id, username, level, hero)
-        VALUES (${row.id}, ${row.username}, ${row.level}, ${row.hero})
-        ON CONFLICT (id) DO UPDATE SET username = excluded.username, level = excluded.level, hero = excluded.hero
-      `;
+      try {
+        for (const row of rows) await this.sql`
+          INSERT INTO heroes (id, username, level, hero)
+          VALUES (${row.id}, ${row.username}, ${row.level}, ${row.hero})
+          ON CONFLICT (id) DO UPDATE SET username = excluded.username, level = excluded.level, hero = excluded.hero
+        `;
+      } catch (error) { for (const id of playerIds) this.dirtyPlayerIds.add(id); throw error; }
     });
     return this.writeChain;
   }
@@ -48,6 +55,8 @@ export class SqlPlayerRepository implements PlayerRepository {
     for (const row of rows) { const player = fromRow(row); if (player) this.players.set(player.id, player); }
   }
 }
+
+function isPlayer(player: Player | undefined): player is Player { return Boolean(player); }
 
 function toRow(player: Player): HeroRow {
   const blob: HeroBlob = { score: player.score, waveNumber: player.waveNumber, progress: player.progress, panelTriggers: player.panelTriggers };

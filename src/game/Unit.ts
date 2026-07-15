@@ -1,7 +1,7 @@
 import { GameObject } from "./GameObject";
 import { clamp, type Vector2 } from "./types";
 import { derivedStats, type Stats } from "../../common/progression";
-import { RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
+import { equippedPerks, RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
 import { bucklerBlockChance, bucklerBlockCost, weaponAttackSpeed } from "../../common/combat";
@@ -45,9 +45,10 @@ export abstract class Unit extends GameObject {
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): number {
     this.lastHitDodged = false;
-    if (reflectable && random.next() < Math.min(0.35, Math.max(0, this.stats.agility) * 0.003)) { this.lastHitDodged = true; this.emitOutcome("dodge", "DODGE"); return 0; }
+    const perks = equippedPerks(this.mainHand, this.offHand);
+    if (reflectable && random.next() < Math.min(0.5, Math.max(0, this.stats.agility) * 0.003 + perks.dodgeChance)) { this.lastHitDodged = true; this.emitOutcome("dodge", "DODGE"); return 0; }
     const hpBefore = this.hp;
-    let remaining = amount; let blockReflection = 0; const buckler = this.offHand;
+    const resistKey = presentation.kind === "magic" || presentation.kind === "electric" ? "magicResist" : presentation.kind === "fire" ? "fireResist" : presentation.kind === "poison" ? "poisonResist" : presentation.kind === "bleed" ? "bleedResist" : "physicalResist"; let remaining = Math.max(0, amount - perks.defense) * (1 - Math.min(.5, perks[resistKey])); let blockReflection = 0; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
     if (buckler?.itemKind === "buckler" && this.blockCooldown === 0 && this.stamina >= blockCost) {
       const chance = bucklerBlockChance(buckler, this.stats);

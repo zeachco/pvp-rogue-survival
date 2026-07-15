@@ -8,6 +8,8 @@ export type Rarity = "common" | "uncommon" | "rare" | "epic";
 export type SkillId = "bash" | "sweep" | "flurry" | "shockwave" | "cleave" | "rendingThrow" | "orbitingHammers" | "arcaneBolt" | "gravityPull" | "thorns" | "reflectiveSurge" | "frostOrb" | "fireBreath" | "voodoo" | "healing" | "rent" | "blocking";
 export type AffixId = "rusty" | "venomous" | "bleeding" | "stunning" | "focused" | "swift";
 export type ReflectionComponent = "flat" | "strength" | "return";
+export type ItemPerkId = "defense" | "physicalResist" | "magicResist" | "fireResist" | "frostResist" | "poisonResist" | "bleedResist" | "dodgeChance";
+export const ITEM_PERKS: ItemPerkId[] = ["defense", "physicalResist", "magicResist", "fireResist", "frostResist", "poisonResist", "bleedResist", "dodgeChance"];
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic"];
 export const RARITY_POWER: Record<Rarity, number> = { common: 1, uncommon: 1.25, rare: 1.6, epic: 2.1 };
 export const MAX_ITEM_LEVEL: Record<Rarity, number> = { common: 10, uncommon: 15, rare: 30, epic: 50 };
@@ -27,6 +29,7 @@ export interface ItemInstance {
   statBonuses: Partial<Record<StatKey, number>>; modifiers: ItemModifiers; skills: SkillId[];
   staminaCost: number; dropChance: number; sellValue: number; blockChance: number;
   reflectionComponents: ReflectionComponent[]; attractionSpeed: number;
+  perks?: Partial<Record<ItemPerkId, number>>;
 }
 export interface ItemGenerationFilters { allowedClasses?: WeaponClass[]; fewerAffixes?: boolean }
 
@@ -46,7 +49,7 @@ export function generateItem(level: number, rarity: Rarity, seed: number, filter
   const affixes: AffixId[] = []; const rolls = filters.fewerAffixes ? 1 : ({ common: 1, uncommon: 2, rare: 3, epic: 4 }[rarity]);
   const pool = Object.values(AFFIXES).filter((affix) => affix.compatibleWeapons.includes(weaponClass)).map((affix) => affix.id);
   for (let index = 0; index < rolls; index += 1) { const affix = pool[Math.floor(random() * pool.length)]; if (!affixes.includes(affix)) affixes.push(affix); }
-  return buildWeapon(weaponClass, level, rarity, seed, affixes, Math.floor(random() * 1e8));
+  return rollItemPerks(buildWeapon(weaponClass, level, rarity, seed, affixes, Math.floor(random() * 1e8)), seed);
 }
 
 export function generateBuckler(level: number, rarity: Rarity, seed: number): ItemInstance {
@@ -55,13 +58,13 @@ export function generateBuckler(level: number, rarity: Rarity, seed: number): It
   const pool: ReflectionComponent[] = ["flat", "strength", "return"]; const reflectionComponents: ReflectionComponent[] = [];
   while (spiked && reflectionComponents.length < componentCount) reflectionComponents.push(pool.splice(Math.floor(source.next() * pool.length), 1)[0]);
   const power = RARITY_POWER[rarity];
-  return {
+  return rollItemPerks({
     id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "buckler", definitionId: "buckler",
     name: `${spiked ? "Spiked " : ""}Buckler`, level, rarity, seed, hands: 0, weight: 0, affixes: [],
     requirements: level ? { strength: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: {},
     modifiers: { ...baseModifiers(1, 1), goldGain: 0.05 * power, rarityBoost: 0.02 * power }, skills: ["blocking", ...(spiked && (rarity === "rare" || rarity === "epic") ? ["thorns" as const, "reflectiveSurge" as const] : [])], staminaCost: 1, dropChance: Math.min(0.3, 0.04 + power * 0.06),
     sellValue: Math.max(1, Math.round((level + 1) * power * (spiked ? 5 : 4))), blockChance: 0.1 * power, reflectionComponents, attractionSpeed: 0
-  };
+  }, seed);
 }
 
 export function generateRelic(level: number, rarity: Rarity, seed: number): ItemInstance {
@@ -70,7 +73,7 @@ export function generateRelic(level: number, rarity: Rarity, seed: number): Item
   const perk: SkillId | undefined = perkRoll < 0.2 ? "voodoo" : perkRoll < 0.4 ? "fireBreath" : undefined;
   const skills: SkillId[] = [...(attractionSpeed ? ["gravityPull" as const] : []), ...(perk ? [perk] : [])];
   const name = perk === "voodoo" ? "Voodoo Doll" : perk === "fireBreath" ? "Ember Idol" : attractionSpeed ? "Attracting Relic" : "Spirit Relic";
-  return { id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name, level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills, staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed };
+  return rollItemPerks({ id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind: "relic", definitionId: "relic", name, level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) } : {}, statBonuses: { spirit: Math.max(1, Math.round(power)) }, modifiers, skills, staminaCost: 0, dropChance: Math.min(0.3, 0.04 + power * 0.06), sellValue: Math.max(1, Math.round((level + 1) * power * 4)), blockChance: 0, reflectionComponents: [], attractionSpeed }, seed);
 }
 
 export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
@@ -114,8 +117,9 @@ export function meetsRequirements(item: ItemInstance, stats: Stats): boolean { r
 export function itemStackKey(item: ItemInstance): string {
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, level: item.level, rarity: item.rarity, hands: item.hands, weight: item.weight,
     affixes: [...item.affixes].sort(), requirements: orderedStats(item.requirements), statBonuses: orderedStats(item.statBonuses), modifiers: item.modifiers,
-    skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed });
+    skills: [...item.skills].sort(), staminaCost: item.staminaCost, blockChance: item.blockChance, reflectionComponents: [...item.reflectionComponents].sort(), attractionSpeed: item.attractionSpeed, perks: item.perks ?? {} });
 }
+export function equippedPerks(...items: Array<ItemInstance | undefined>): Record<ItemPerkId, number> { return Object.fromEntries(ITEM_PERKS.map((key) => [key, items.reduce((sum, item) => sum + (item?.perks?.[key] ?? 0), 0)])) as Record<ItemPerkId, number>; }
 export function itemAutomationKey(item: ItemInstance): string {
   return JSON.stringify({ itemKind: item.itemKind, definitionId: item.definitionId, hands: item.hands,
     affixes: [...item.affixes].sort(), statBonuses: orderedStats(item.statBonuses), skills: [...item.skills].sort(),
@@ -128,3 +132,4 @@ function baseModifiers(damageMultiplier: number, attackSpeedMultiplier: number):
 function applyAffix(modifiers: ItemModifiers, affix: AffixId, power: number): void { for (const [key, value] of Object.entries(AFFIXES[affix].modifierPerPower) as [keyof ItemModifiers, number][]) modifiers[key] += value * power; }
 function capitalize(value: string): string { return value[0].toUpperCase() + value.slice(1); }
 function orderedStats(stats: Partial<Record<StatKey, number>>): Partial<Record<StatKey, number>> { return Object.fromEntries(STAT_KEYS.map((key) => [key, stats[key] ?? 0])) as Partial<Record<StatKey, number>>; }
+function rollItemPerks(item: ItemInstance, seed: number): ItemInstance { const source = new SeededRandom(seed + 7919); const count = ({ common: 1, uncommon: 2, rare: 3, epic: 4 } as const)[item.rarity]; const pool = [...ITEM_PERKS]; const perks: Partial<Record<ItemPerkId, number>> = {}; const requirements = { ...item.requirements }; const max: Record<ItemPerkId, number> = { defense: 10, physicalResist: .5, magicResist: .5, fireResist: .5, frostResist: .5, poisonResist: .5, bleedResist: .5, dodgeChance: .5 }; const attrs: Record<ItemPerkId, StatKey[]> = { defense: ["strength"], physicalResist: ["strength", "agility"], magicResist: ["intelligence"], fireResist: ["intelligence", "magic"], frostResist: ["intelligence"], poisonResist: ["spirit", "agility"], bleedResist: ["strength", "agility"], dodgeChance: ["agility"] }; for (let i=0;i<count;i+=1) { const key=pool.splice(Math.floor(source.next()*pool.length),1)[0]; const factor=((item.level + 1)/51) * (.5 + .5*source.next()); perks[key]=max[key]*factor; const need=Math.ceil(5*item.level*factor/attrs[key].length); for(const attr of attrs[key]) requirements[attr]=Math.max(requirements[attr] ?? 0, need); } return { ...item, perks, requirements }; }

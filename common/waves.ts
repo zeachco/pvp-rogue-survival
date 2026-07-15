@@ -12,8 +12,12 @@ export function regularLevel(waveNumber: number, heroLevel: number, count: numbe
   return Math.max(Math.floor(heroLevel / Math.max(1, count)), survivalTier(waveNumber, balance));
 }
 
-export function rivalLevel(waveNumber: number, heroLevel: number, balance: BalanceConfig): number {
-  return Math.max(Math.floor(heroLevel * 0.8), survivalTier(waveNumber, balance));
+export function rivalLevel(waveNumber: number, balance: BalanceConfig): number {
+  return Math.max(1, survivalTier(waveNumber, balance) + 1);
+}
+
+export function rivalXpReward(level: number): number {
+  return 25 + 3 * Math.max(0, Math.floor(level));
 }
 
 export function spawnAtMs(index: number, count: number, balance: BalanceConfig): number {

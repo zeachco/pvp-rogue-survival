@@ -39,6 +39,7 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 - Enemy body contact does not damage the hero.
 - Ranged enemy body contact never deals damage.
 - Hero health is reduced only by resolved enemy melee attack areas, hostile projectile collisions, and status effects.
+- Before health loss, equipped-item Dodge is added to attribute Dodge and capped at 50%. Defense then subtracts flat damage, and the matching Physical, Magic, Fire, Frost, Poison, or Bleed resistance reduces the remainder, capped at 50%.
 - Enemy health is reduced only by resolved hero melee attack areas, hero projectile collisions, and status effects.
 - A unit's own attack area or projectile never damages that unit.
 - Damage areas and projectiles use circle or area overlap checks against unit collision radii.

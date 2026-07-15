@@ -67,14 +67,14 @@ describe("arena systems", () => {
   });
 
   test("bucklers partially block with Strength and training damage stops at one", () => {
-    const hero = new Hero({ x: 50, y: 50 }); const buckler = generateBuckler(0, "common", 12);
+    const hero = new Hero({ x: 50, y: 50 }); const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
     hero.configureStats({ agility: 5, strength: 5, magic: 0, spirit: 0, intelligence: 0 }, buckler);
     let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(10); expect(hero.stamina).toBe(5);
     hero.damageFloorOne = true; hero.receiveDamage(100, { next: () => 1 }); expect(hero.hp).toBe(1); expect(hero.active).toBeTrue();
   });
 
   test("allows 100% block chance and spends stamina only on successful blocks", () => {
-    const hero = new Hero({ x: 50, y: 50 }); const buckler = generateBuckler(0, "common", 12);
+    const hero = new Hero({ x: 50, y: 50 }); const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
     hero.configureStats({ agility: 90, strength: 90, magic: 0, spirit: 0, intelligence: 0 }, buckler);
     const hp = hero.hp; let rolls = [1, 0.999]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(hp); expect(hero.stamina).toBe(hero.maxStamina - 1);
     hero.stamina = 0; hero.receiveDamage(10, { next: () => 1 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
@@ -84,7 +84,7 @@ describe("arena systems", () => {
   test("returns passive Thorns damage and doubles it during Reflective Surge", () => { const defender = new Hero({ x: 0, y: 0 }); const attacker = new Hero({ x: 10, y: 0 }); defender.knownSkills.add("thorns"); const random = { next: () => 1 }; const before = attacker.hp; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 1); attacker.hp = before; defender.reflectiveSurgeRemaining = 6; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 2.2); });
 
   test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {
-    const hero = new Hero({ x: 50, y: 50 }); const club = starterClub(); const buckler = { ...generateBuckler(0, "common", 12), reflectionComponents: ["return" as const] };
+    const hero = new Hero({ x: 50, y: 50 }); const club = starterClub(); const buckler = { ...generateBuckler(0, "common", 12), perks: {}, reflectionComponents: ["return" as const] };
     const stats = { agility: 100, strength: 100, magic: 0, spirit: 0, intelligence: 0 }; hero.configureStats(stats, buckler, club);
     const hp = hero.hp; let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(hp); expect(hero.blockCooldown).toBeCloseTo(1 / weaponAttackSpeed(club, stats));
     hero.receiveDamage(10, { next: () => 1 }); expect(hero.hp).toBe(hp - 10); hero.updateResources(hero.blockCooldown, { next: () => 1 }); expect(hero.blockCooldown).toBe(0);

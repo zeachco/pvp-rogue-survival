@@ -297,6 +297,7 @@ input {
 }
 
 .resource-bar-track {
+  position: relative;
   width: 100%;
   height: 10px;
   overflow: hidden;
@@ -306,14 +307,18 @@ input {
 }
 
 .resource-bar-track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
   display: block;
   height: 100%;
-  transition: width 100ms linear;
 }
 
-.resource-health .resource-bar-track > span { background: #e83f4f; }
-.resource-stamina .resource-bar-track > span { background: #f2ce45; }
-.resource-mana .resource-bar-track > span { background: #35d6ee; }
+.resource-bar-track > .resource-loss { background: rgba(255, 255, 255, 0.92); }
+.resource-bar-track > .resource-loss.is-catching-up { transition: width 650ms ease-out; }
+.resource-bar-track > .resource-fill { transition: width 100ms linear; }
+.resource-health .resource-bar-track > .resource-fill { background: #e83f4f; }
+.resource-stamina .resource-bar-track > .resource-fill { background: #f2ce45; }
+.resource-mana .resource-bar-track > .resource-fill { background: #35d6ee; }
 
 .notice {
   max-width: min(56vw, 520px);
@@ -561,8 +566,8 @@ input {
 .health-cluster { justify-self: end; }
 .mana-cluster { justify-self: start; }
 .resource-bar-track { height: 16px; }
-.resource-health .resource-bar-track > span { background: linear-gradient(90deg, #6f101d, #ed354b 58%, #ff7583); }
-.resource-mana .resource-bar-track > span { background: linear-gradient(90deg, #087ea4, #21c4e9 60%, #79efff); }
+.resource-health .resource-bar-track > .resource-fill { background: linear-gradient(90deg, #6f101d, #ed354b 58%, #ff7583); }
+.resource-mana .resource-bar-track > .resource-fill { background: linear-gradient(90deg, #087ea4, #21c4e9 60%, #79efff); }
 
 .stamina-line {
   height: 2px;

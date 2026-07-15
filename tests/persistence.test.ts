@@ -29,4 +29,16 @@ describe("Bun SQL player persistence", () => {
     expect(repository.getByUsername("BETA")?.id).toBe(highB.id); expect(game.leaderboard().map((hero) => hero.username)).toEqual(["alpha", "Beta", "zeta"]);
     await repository.close();
   });
+
+  test("flushes only heroes marked dirty", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "multi-line-dirty-sql-")); const url = `sqlite://${join(directory, "players.sqlite")}`;
+    try {
+      const repository = await SqlPlayerRepository.open(url); const game = new GameService({ repository, balance: BALANCE_PROFILES.normal, random: new FixedRandom(), send: () => {} });
+      const changed = game.join("Changed"); const untouched = game.join("Untouched"); await repository.persist();
+      changed.progress.gold = 10; untouched.progress.gold = 20; repository.markDirty(changed.id); await repository.persist(); await repository.close();
+      const restored = await SqlPlayerRepository.open(url);
+      expect(restored.get(changed.id)?.progress.gold).toBe(10); expect(restored.get(untouched.id)?.progress.gold).toBe(0);
+      await restored.close();
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
 });

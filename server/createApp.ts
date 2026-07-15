@@ -13,6 +13,7 @@ import { GameService } from "./GameService.ts";
 
 interface PlayerSocket extends WebSocket { playerId?: PlayerId; lastSeen: number; commandChain: Promise<void> }
 export interface AppOptions { root: string; balanceProfile?: BalanceProfileId; databaseUrl?: string | false }
+const PERSIST_INTERVAL_MS = 60_000;
 
 export async function createApp(options: AppOptions) {
   const publicRoot = existsSync(join(options.root, "dist")) ? join(options.root, "dist") : options.root;
@@ -40,26 +41,26 @@ export async function createApp(options: AppOptions) {
       socket.lastSeen = Date.now(); socket.commandChain = socket.commandChain.then(async () => {
         const message = decode(raw);
         if (!message) return sendSocket(socket, { type: "serverNotice", message: "Ignored invalid message." });
-        if (message.type === "listHeroes") return sendLeaderboard(socket, repository);
+        if (message.type === "listHeroes") return sendLeaderboard(socket, game);
         if (message.type === "inspectHero") { const hero = game.publicHeroProfile(message.heroId); return hero ? sendSocket(socket, { type: "heroProfile", hero }) : sendSocket(socket, { type: "serverNotice", message: "That hero is unavailable." }); }
         if (message.type === "join") {
           const existing = game.findPlayer(message.heroId, message.name); if (existing?.connected) return sendSocket(socket, { type: "serverNotice", message: "That username is already logged in." });
-          try { game.join(message.name ?? "", message.heroId, (playerId) => { socket.playerId = playerId; }); await repository.persist(); }
+          try { game.join(message.name ?? "", message.heroId, (playerId) => { socket.playerId = playerId; }); }
           catch { sendSocket(socket, { type: "serverNotice", message: message.heroId ? "That hero is unavailable." : "Username must use 1-20 letters, digits, underscores, or hyphens." }); }
           return;
         }
-        if (message.type === "logout") { if (socket.playerId) { game.logout(socket.playerId); socket.playerId = undefined; await repository.persist(); } sendSocket(socket, { type: "loggedOut" }); return sendLeaderboard(socket, repository); }
+        if (message.type === "logout") { if (socket.playerId) { game.logout(socket.playerId); socket.playerId = undefined; } sendSocket(socket, { type: "loggedOut" }); return sendLeaderboard(socket, game); }
         if (!socket.playerId) return sendSocket(socket, { type: "serverNotice", message: "Join before playing." });
-        game.handle(socket.playerId, message); await repository.persist();
+        game.handle(socket.playerId, message);
       }).catch((error) => { console.error("[MLH][database] command failed", error instanceof Error ? error.message : error); sendSocket(socket, { type: "serverNotice", message: "The server could not save that change." }); });
     });
     socket.on("close", () => { sockets.delete(connectionId); if (socket.playerId && !hasSocket(sockets, socket.playerId)) game.disconnect(socket.playerId); });
   });
-  const timer = setInterval(() => { game.dispatchWaves(); void repository.persist(); }, balanceProfile(options.balanceProfile).wave.intervalMs);
-  timer.unref();
+  const waveTimer = setInterval(() => game.dispatchWaves(), balanceProfile(options.balanceProfile).wave.intervalMs); waveTimer.unref();
+  const persistTimer = setInterval(() => { void Promise.resolve(repository.persist()).catch((error) => console.error("[MLH][database] periodic persist failed", error instanceof Error ? error.message : error)); }, PERSIST_INTERVAL_MS); persistTimer.unref();
   const heartbeat = setInterval(() => { const now = Date.now(); for (const socket of sockets.values()) { if (now - socket.lastSeen >= 300_000) socket.terminate(); else if (socket.readyState === WebSocket.OPEN) socket.ping(); } }, 30_000); heartbeat.unref();
   return { server, game, repository, close: () => new Promise<void>((resolve, reject) => {
-    clearInterval(timer); clearInterval(heartbeat); void Promise.resolve(repository.persist()).then(() => repository.close?.()).then(() => {
+    clearInterval(waveTimer); clearInterval(persistTimer); clearInterval(heartbeat); void Promise.resolve(repository.persist()).then(() => repository.close?.()).then(() => {
       if (!server.listening) { wss.close(); resolve(); return; }
       wss.close(() => server.close((error) => error ? reject(error) : resolve()));
     }, reject);
@@ -67,7 +68,7 @@ export async function createApp(options: AppOptions) {
 }
 
 function sendSocket(socket: PlayerSocket, message: ServerMessage): void { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message)); }
-async function sendLeaderboard(socket: PlayerSocket, repository: PlayerRepository): Promise<void> { sendSocket(socket, { type: "leaderboard", heroes: await repository.listSummaries() }); }
+function sendLeaderboard(socket: PlayerSocket, game: GameService): void { sendSocket(socket, { type: "leaderboard", heroes: game.leaderboard() }); }
 
 function decode(raw: RawData) { try { return parseClientMessage(JSON.parse(String(raw))); } catch { return undefined; } }
 function hasSocket(sockets: Map<string, PlayerSocket>, playerId: PlayerId): boolean { return [...sockets.values()].some((socket) => socket.playerId === playerId && socket.readyState === WebSocket.OPEN); }

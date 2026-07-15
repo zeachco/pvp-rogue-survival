@@ -6,7 +6,7 @@ import { generateBuckler, generateItem, generateRelic, itemStackKey, levelUpItem
 import { cumulativeXpForLevel, DEFAULT_ALLOCATION, derivedStats, lerpXpDisplay, levelForXp, xpForNextLevel, ZERO_STATS } from "../common/progression";
 import { parseClientMessage, type PlayerProgress } from "../common/protocol";
 import { SeededRandom } from "../common/random";
-import { regularCount, regularLevel, rivalLevel } from "../common/waves";
+import { regularCount, regularLevel, rivalLevel, rivalXpReward } from "../common/waves";
 import { WEAPONS, SKILLS } from "../common/content";
 import { effectiveSkillLevel, forceField } from "../src/game/systems/HeroCombatSystem";
 import { formatPreviewValue, previewTone } from "../src/ui/preview";
@@ -16,7 +16,7 @@ function progress(): PlayerProgress { return { level: 0, xp: 0, stats: { ...ZERO
 let id = 0;
 
 describe("balance and waves", () => {
-  test("keeps capped wave scaling", () => { const balance = BALANCE_PROFILES.normal; expect(regularCount(1, balance)).toBe(12); expect(regularLevel(3, 0, 16, balance)).toBe(1); expect(rivalLevel(5, 10, balance)).toBe(8); expect(regularCount(100, balance)).toBe(40); });
+  test("keeps capped waves and player-independent rival scaling", () => { const balance = BALANCE_PROFILES.normal; expect(regularCount(1, balance)).toBe(12); expect(regularLevel(3, 0, 16, balance)).toBe(1); expect(rivalLevel(1, balance)).toBe(1); expect(rivalLevel(5, balance)).toBe(3); expect(rivalXpReward(3)).toBe(34); expect(regularCount(100, balance)).toBe(40); });
   test("development does not accelerate combat or rewards", () => { const item = starterClub(); const normal = rollWeaponDamage(item, ZERO_STATS, "hero", BALANCE_PROFILES.normal, new SeededRandom(2)); expect(rollWeaponDamage(item, ZERO_STATS, "hero", BALANCE_PROFILES.dev, new SeededRandom(2))).toBeCloseTo(normal); expect(BALANCE_PROFILES.dev.rewards).toEqual(BALANCE_PROFILES.normal.rewards); });
 });
 describe("attack timing", () => { test("uses damped weight handling for physical and magic weapons", () => { const club = starterClub(); expect(weaponAttackSpeed(club, ZERO_STATS)).toBeCloseTo(10 / 12); expect(weaponAttackSpeed(club, { ...ZERO_STATS, agility: 100 })).toBeCloseTo(20 / 12); const generatedStaff = generateItem(0, "common", 5, { allowedClasses: ["staff"] }); const staff = { ...generatedStaff, modifiers: { ...generatedStaff.modifiers, attackSpeedMultiplier: 1 } }; expect(weaponAttackSpeed(staff, { ...ZERO_STATS, strength: 100, spirit: 100 })).toBeCloseTo(20 / 16); expect(weaponAttackSpeed(staff, { ...ZERO_STATS, agility: 1_000 })).toBeCloseTo(10 / 16); }); });

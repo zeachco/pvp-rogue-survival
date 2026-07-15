@@ -1,12 +1,12 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { changeItemRarity, generateBuckler, generateItem, generateRelic, itemStackKey, nextRarity, rollRarity, type ItemInstance, type WeaponClass } from "../common/items.ts";
+import { changeItemRarity, generateBuckler, generateItem, generateRelic, itemStackKey, nextRarity, rollRarity, starterClub, type ItemInstance, type WeaponClass } from "../common/items.ts";
 import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
-import { cumulativeXpForLevel, DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
+import { DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type HeroSummary, type PlayerId, type PublicHeroProfile, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
-import { regularCount, regularLevel, rivalLevel, spawnAtMs } from "../common/waves.ts";
+import { regularCount, regularLevel, rivalLevel, rivalXpReward, spawnAtMs } from "../common/waves.ts";
 import type { Player, PlayerRepository, QueuedEquipment } from "./domain.ts";
 
 export interface GameServiceOptions { repository: PlayerRepository; balance: BalanceConfig; random: RandomSource; createId?: () => string; send: (playerId: PlayerId, message: ServerMessage) => void; logPlayerLifecycle?: (event: "connected" | "disconnected", player: Pick<Player, "id" | "name">) => void; logRealmLifecycle?: (event: "entered" | "left", playerId: PlayerId, realmId: string, opponentIds: PlayerId[]) => void }
@@ -20,7 +20,7 @@ export class GameService {
   constructor(private readonly options: GameServiceOptions) { this.createId = options.createId ?? (() => crypto.randomUUID()); }
 
   join(name: string, heroId?: PlayerId, onIdentified?: (playerId: PlayerId) => void): Player {
-    const player = this.joinPlayer(name, heroId); onIdentified?.(player.id); this.options.logPlayerLifecycle?.("connected", player); const created = this.matchWaitingPlayers();
+    const player = this.joinPlayer(name, heroId); this.options.repository.markDirty(player.id); onIdentified?.(player.id); this.options.logPlayerLifecycle?.("connected", player); const created = this.matchWaitingPlayers();
     this.options.send(player.id, { type: "welcome", playerId: player.id, player: this.publicPlayer(player), progress: player.progress, panelTriggers: player.panelTriggers, realm: this.realmState(player), config: { waveIntervalMs: this.options.balance.wave.intervalMs, protocolVersion: PROTOCOL_VERSION, maxRealmAttackers: 3, maxQueuedItems: MAX_QUEUE, balance: publicBalance(this.options.balance) } });
     this.broadcastRealms();
     if (created.length) for (const realm of created) this.activateRealm(realm); else if (!player.realmId) this.dispatchCurrentWave(player, "training");
@@ -29,14 +29,14 @@ export class GameService {
 
   disconnect(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; player.connected = false; this.options.logPlayerLifecycle?.("disconnected", player); if (player.realmId) this.dissolveRealm(player.realmId); for (const realm of this.matchWaitingPlayers()) this.activateRealm(realm); this.broadcastRealms(); }
 
-  logout(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; this.disconnect(playerId); player.realmOptedIn = false; player.realmId = undefined; player.issuedUnits.clear(); player.groundDrops.clear(); player.deferredItems.length = 0; player.incomingQueues.clear(); player.backlashQueue.length = 0; for (const other of this.options.repository.values()) { other.incomingQueues.delete(playerId); other.backlashQueue = other.backlashQueue.filter((entry) => entry.senderId !== playerId); } }
+  logout(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; this.disconnect(playerId); player.realmOptedIn = false; player.realmId = undefined; player.issuedUnits.clear(); player.groundDrops.clear(); player.deferredItems.length = 0; player.incomingQueues.clear(); player.backlashQueue.length = 0; for (const other of this.options.repository.values()) { other.incomingQueues.delete(playerId); other.backlashQueue = other.backlashQueue.filter((entry) => entry.senderId !== playerId); } this.options.repository.markDirty(player.id); }
   findPlayer(heroId?: string, username?: string): Player | undefined { return heroId ? this.options.repository.get(heroId) : username ? this.options.repository.getByUsername(username) : undefined; }
   leaderboard(): HeroSummary[] { return [...this.options.repository.values()].map((player) => ({ id: player.id, username: player.name, level: player.progress.level })).sort((a, b) => b.level - a.level || a.username.localeCompare(b.username)); }
   publicHeroProfile(heroId: string): PublicHeroProfile | undefined { const player = this.options.repository.get(heroId); if (!player) return undefined; const p = player.progress; return { id: player.id, username: player.name, level: p.level, stats: p.stats, mainHand: p.mainHand, offHand: p.offHand, learnedSkills: p.learnedSkills, learnedSkillLevels: p.learnedSkillLevels, universalSkills: p.universalSkills }; }
 
   handle(playerId: PlayerId, message: Exclude<ClientMessage, { type: "join" }>): void {
     const player = this.options.repository.get(playerId); if (!player) return;
-    switch (message.type) {
+    try { switch (message.type) {
       case "updateAllocation": if (!validAllocation(message.allocation)) return this.notice(player, "Allocation must use non-negative integers totaling 5."); player.progress.allocation = { ...message.allocation }; return this.sendProgress(player, "Future level allocation updated.");
       case "respecStats": return this.respecStats(player, message.allocation);
       case "creepDefeated": return this.resolveDefeat(player, message.unitId);
@@ -55,12 +55,12 @@ export class GameService {
       case "enterRealm": return this.enterRealm(player);
       case "scoreSnapshot": case "logout": case "listHeroes": case "inspectHero": return;
       case "dismissPanelTrigger": player.panelTriggers[message.panel] = false; return;
-    }
+    } } finally { this.options.repository.markDirty(player.id); }
   }
 
   dispatchWaves(): void {
     this.lastDispatchAt = Date.now(); for (const realm of this.realms.values()) realm.down.clear();
-    for (const player of this.options.repository.values()) if (player.connected) { if (player.realmId || player.realmOptedIn) player.waveNumber += 1; this.dispatchCurrentWave(player, this.waveMode(player)); }
+    for (const player of this.options.repository.values()) if (player.connected) { if (player.realmId || player.realmOptedIn) player.waveNumber += 1; this.dispatchCurrentWave(player, this.waveMode(player)); this.options.repository.markDirty(player.id); }
     this.broadcastRealms();
   }
 
@@ -84,7 +84,7 @@ export class GameService {
       const entry = queued[index]; if (entry) build = this.applyQueuedEquipment(build, entry, level);
       player.issuedUnits.set(build.id, { build, mode }); spawns.push({ build, spawnAtMs: spawnAtMs(index, count, this.options.balance) });
     }
-    const opponent = this.realmOpponents(player)[0]; const rivalBuildLevel = rivalLevel(player.waveNumber, player.progress.level, this.options.balance);
+    const opponent = this.realmOpponents(player)[0]; const rivalBuildLevel = rivalLevel(player.waveNumber, this.options.balance);
     const rival = this.generateBuild(opponent ? `${opponent.name}'s echo` : "Wandering rival", rivalBuildLevel, true, this.seed(), opponent ? scaledStats(opponent.progress.allocation, rivalBuildLevel) : undefined, false);
     player.issuedUnits.set(rival.id, { build: rival, mode }); spawns.push({ build: rival, spawnAtMs: this.options.balance.wave.prepareMs + Math.floor(7.5 * this.options.balance.wave.batchIntervalMs) }); spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
     this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, resetHero, spawns } }); this.returnDeferredItems(player);
@@ -94,7 +94,7 @@ export class GameService {
     const stats = suppliedStats ?? scaledStats(randomAllocation(seed), level); const mainHand = generateItem(level, rollRarity(seed + 11), seed + 17, { fewerAffixes: fewerItems });
     const offHandRoll = this.options.random.next(); const offHand = mainHand.hands === 1 && offHandRoll < 0.25 ? (offHandRoll < 0.125 ? generateBuckler(level, rollRarity(seed + 19), seed + 21) : generateRelic(level, rollRarity(seed + 19), seed + 21)) : undefined;
     const carried = isRival && level > 0 ? [generateItem(level, rollRarity(seed + 23), seed + 29, { fewerAffixes: true })] : [];
-    return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, bonusSkills: [], isRival, xpReward: isRival ? cumulativeXpForLevel(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
+    return { id: this.createId(), name, kind: isRival ? "rival" : mainHand.definitionId === "staff" ? "bubbleShooter" : "melee", level, stats, mainHand, offHand, carried, bonusSkills: [], isRival, xpReward: isRival ? rivalXpReward(level) : 10 + level, goldReward: isRival ? 3 + Math.floor(level / 2) : 1 + Math.floor(level / 5), seed };
   }
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number): UnitBuild {
@@ -137,9 +137,14 @@ export class GameService {
 
   private heroDefeated(player: Player, sourceUnitId?: string): void {
     if (!player.realmId && !player.realmOptedIn) return this.notice(player, "Training Grounds prevent defeat.");
-    const source = sourceUnitId ? player.issuedUnits.get(sourceUnitId)?.build : undefined; player.waveNumber = Math.floor(player.waveNumber / 2); player.issuedUnits.clear(); player.groundDrops.clear();
+    const source = sourceUnitId ? player.issuedUnits.get(sourceUnitId)?.build : undefined; const killer = source?.emitterId && !source.backlash && source.emitterId !== player.id ? this.options.repository.get(source.emitterId) : undefined;
+    const lostGold = Math.floor(player.progress.gold / 2); const lostSouls = Math.floor(player.progress.souls / 2); player.progress.gold -= lostGold; player.progress.souls -= lostSouls;
+    if (killer) { killer.progress.gold += lostGold; killer.progress.souls += lostSouls; this.options.repository.markDirty(killer.id); this.sendProgress(killer, `Defeat spoils: gained ${lostGold} Gold and ${lostSouls} Souls.`); }
+    player.progress.xp = 0; player.progress.level = 0; player.progress.stats = { ...ZERO_STATS }; const fallback = starterClub(); player.progress.mainHand = { ...fallback, id: `${fallback.id}-equipped` }; player.progress.offHand = undefined;
+    if (!player.progress.inventoryTiles.some((tile) => tile.key === itemStackKey(fallback))) player.progress.inventoryTiles.push({ id: "starter-club-tile", key: itemStackKey(fallback), item: fallback, quantity: 1 });
+    player.waveNumber = Math.floor(player.waveNumber / 2); player.issuedUnits.clear(); player.groundDrops.clear(); this.options.repository.markDirty(player.id); this.sendProgress(player, `Defeated: XP and attributes reset; lost ${lostGold} Gold and ${lostSouls} Souls.`);
     this.options.send(player.id, { type: "waveAdjusted", waveNumber: player.waveNumber, reason: `Wave reduced to ${player.waveNumber} after defeat.` });
-    if (player.realmId) { const realm = this.realms.get(player.realmId); if (realm) { realm.down.add(player.id); const side = realm.soloId === player.id ? [realm.soloId] : realm.teamIds; if (side.every((id) => realm.down.has(id))) { if (source?.emitterId && !source.backlash && source.emitterId !== player.id) { const killer = this.options.repository.get(source.emitterId); if (killer) { killer.progress.souls += 1; this.grantXp(killer, 100 * player.progress.level); this.sendProgress(killer, `Realm defeated: gained ${100 * player.progress.level} XP and 1 Soul.`); } } this.dissolveRealm(realm.id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); } } }
+    if (player.realmId) { const realm = this.realms.get(player.realmId); if (realm) { realm.down.add(player.id); const side = realm.soloId === player.id ? [realm.soloId] : realm.teamIds; if (side.every((id) => realm.down.has(id))) { if (killer) { killer.progress.souls += 1; this.options.repository.markDirty(killer.id); this.sendProgress(killer, "Realm defeated: gained 1 Soul."); } this.dissolveRealm(realm.id); for (const created of this.matchWaitingPlayers()) this.activateRealm(created); } } }
     this.broadcastRealms();
   }
 

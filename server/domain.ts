@@ -10,7 +10,7 @@ export interface Player {
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[];
 }
-export interface PlayerRepository { get(id: PlayerId): Player | undefined; getByUsername(username: string): Player | undefined; findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>; listSummaries(): Promise<HeroSummary[]>; save(player: Player): void; values(): IterableIterator<Player>; persist(): void | Promise<void>; close?(): void | Promise<void> }
+export interface PlayerRepository { get(id: PlayerId): Player | undefined; getByUsername(username: string): Player | undefined; findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>; listSummaries(): Promise<HeroSummary[]>; save(player: Player): void; markDirty(playerId: PlayerId): void; values(): IterableIterator<Player>; persist(): void | Promise<void>; close?(): void | Promise<void> }
 export class InMemoryPlayerRepository implements PlayerRepository {
   private readonly players = new Map<PlayerId, Player>();
   get(id: PlayerId): Player | undefined { return this.players.get(id); }
@@ -18,6 +18,7 @@ export class InMemoryPlayerRepository implements PlayerRepository {
   async findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]> { return [...this.players.values()].filter((player) => player.progress.level >= minimum && player.progress.level <= maximum).map(summary); }
   async listSummaries(): Promise<HeroSummary[]> { return [...this.players.values()].map(summary).sort((a, b) => b.level - a.level || a.username.localeCompare(b.username)); }
   save(player: Player): void { this.players.set(player.id, player); }
+  markDirty(_playerId: PlayerId): void { }
   values(): IterableIterator<Player> { return this.players.values(); }
   persist(): void { }
 }

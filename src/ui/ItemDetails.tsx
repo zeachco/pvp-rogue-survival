@@ -1,6 +1,6 @@
 /** @jsx h */
 import { bucklerBlockCost, skillLabel, weaponAttackSpeed, weaponDamage } from "../../common/combat";
-import type { ItemInstance } from "../../common/items";
+import { ITEM_PERKS, type ItemInstance } from "../../common/items";
 import { STAT_KEYS, type Stats } from "../../common/progression";
 import { h } from "./dom";
 import { formatPreviewValue, previewTone } from "./preview";
@@ -38,6 +38,7 @@ function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string {
   if (item.modifiers.rarityBoost > 0) effects.push(`+${precise(item.modifiers.rarityBoost * 100)}% Rarity boost`);
   if (item.reflectionComponents.length) effects.push(`Reflect: ${item.reflectionComponents.map(capitalize).join("/")}`);
   for (const key of STAT_KEYS) if ((item.statBonuses[key] ?? 0) !== 0) effects.push(`+${fmt(item.statBonuses[key] ?? 0)} ${capitalize(key)}`);
+  for (const key of ITEM_PERKS) if ((item.perks?.[key] ?? 0) > 0) effects.push(`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]!) : `${precise(item.perks![key]! * 100)}%`}`);
   return effects.join(", ");
 }
 function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
