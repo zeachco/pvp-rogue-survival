@@ -32,7 +32,7 @@ export class GroundSwamp extends GameObject {
   }
 
   private applyPoison(creep: Creep): void {
-    const voodoo = this.source.knownSkills.has("voodoo") ? 1 + Math.min(1.5, this.source.stats.spirit * .03) : 1;
+      const voodoo = this.source.isSkillOperational("voodoo") ? 1 + Math.min(1.5, this.source.stats.spirit * .03) : 1;
     creep.addStatus({ kind: "poison", remaining: 8, damagePerSecond: (.2 + this.source.stats.spirit * .02) * voodoo, source: this.source });
   }
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { BALANCE } from "../common/balance";
 import { emptyScraps, upgradeCosts } from "../common/inventory";
-import { generateItem, itemStackKey } from "../common/items";
+import { generateBuckler, generateItem, itemStackKey } from "../common/items";
 import { cumulativeXpForLevel } from "../common/progression";
 import type { PlayerId, ServerMessage } from "../common/protocol";
 import type { RandomSource } from "../common/random";
@@ -17,7 +17,7 @@ describe("realm game service", () => {
   test("starts new players empty-handed with three random backpack items and only Healing bound", () => {
     const { game } = harness(); const player = game.join("Starter");
     expect(player.progress.mainHand).toBeUndefined();
-    expect(player.waveNumber).toBe(0);
+    expect(player.waveNumber).toBe(1);
     expect(player.progress.offHand).toBeUndefined();
     expect(player.progress.inventoryTiles.reduce((sum, tile) => sum + tile.quantity, 0)).toBe(3);
     expect(player.progress.inventoryTiles.every((tile) => tile.item.level === 0 && tile.item.rarity === "common")).toBeTrue();
@@ -53,7 +53,7 @@ describe("realm game service", () => {
   });
   test("starts in the lobby and activates a stable 1v1 after opting in", () => { const { game, messages } = harness(); const one = game.join("One"); expect(one.realmOptedIn).toBeFalse(); const training = messages.get(one.id)?.find((m) => m.type === "incomingWave"); expect(training?.type === "incomingWave" ? training.wave.mode : undefined).toBe("training"); expect(training?.type === "incomingWave" ? training.wave.resetHero : undefined).toBeFalse(); const two = game.join("Two"); expect(one.realmId).toBeUndefined(); enterPair(game, one, two); expect(one.realmId).toBe(two.realmId); expect(one.issuedUnits.size).toBe(10); expect([...one.issuedUnits.values()][0].mode).toBe("competitive"); const competitive = messages.get(one.id)?.filter((message) => message.type === "incomingWave").at(-1); expect(competitive?.type === "incomingWave" ? competitive.wave.resetHero : undefined).toBeTrue(); });
   test("starts a half-XP solo game when no opponent is available", () => { const { game, messages } = harness(); const player = game.join("Solo"); game.handle(player.id, { type: "enterRealm" }); const wave = messages.get(player.id)?.filter((message) => message.type === "incomingWave").at(-1); expect(wave?.type === "incomingWave" ? wave.wave.mode : undefined).toBe("solo"); expect(wave?.type === "incomingWave" ? wave.wave.resetHero : undefined).toBeTrue(); const unitId = [...player.issuedUnits.entries()].find(([, issued]) => !issued.build.isRival)?.[0]; expect(unitId).toBeDefined(); game.handle(player.id, { type: "creepDefeated", unitId: unitId! }); expect(player.progress.xp).toBe(5); expect(player.score).toBe(2); });
-  test("restarts realm entry at wave zero after death and keeps the best wave", () => { const { game, messages } = harness(); const player = game.join("Restarted"); player.waveNumber = 12; game.handle(player.id, { type: "suicide" }); expect(player.waveNumber).toBe(0); expect(player.maxWaveReached).toBe(12); const adjusted = messages.get(player.id)?.filter((message) => message.type === "waveAdjusted").at(-1); expect(adjusted?.type === "waveAdjusted" ? adjusted.waveNumber : undefined).toBe(0); game.handle(player.id, { type: "enterRealm" }); const wave = messages.get(player.id)?.filter((message) => message.type === "incomingWave").at(-1); expect(wave?.type === "incomingWave" ? wave.wave.waveNumber : undefined).toBe(0); expect(player.maxWaveReached).toBe(12); });
+  test("restarts realm entry at wave one after death and keeps the best wave", () => { const { game, messages } = harness(); const player = game.join("Restarted"); player.waveNumber = 12; game.handle(player.id, { type: "suicide" }); expect(player.waveNumber).toBe(1); expect(player.maxWaveReached).toBe(12); const adjusted = messages.get(player.id)?.filter((message) => message.type === "waveAdjusted").at(-1); expect(adjusted?.type === "waveAdjusted" ? adjusted.waveNumber : undefined).toBe(1); game.handle(player.id, { type: "enterRealm" }); const wave = messages.get(player.id)?.filter((message) => message.type === "incomingWave").at(-1); expect(wave?.type === "incomingWave" ? wave.wave.waveNumber : undefined).toBe(1); expect(player.maxWaveReached).toBe(12); });
   test("omits early champions and authors later champion difficulty from the wave", () => { const { game } = harness(); const player = game.join("EliteHunter"); expect([...player.issuedUnits.values()].some((entry) => entry.build.isRival)).toBeFalse(); player.waveNumber = 8; player.progress.level = 10; game.handle(player.id, { type: "enterRealm" }); const [unitId, issued] = [...player.issuedUnits.entries()].find(([, entry]) => entry.build.isRival)!; expect(issued.build.level).toBe(4); expect(issued.build.xpReward).toBe(37); game.handle(player.id, { type: "creepDefeated", unitId }); expect(player.progress.xp).toBe(18); });
   test("replaces modulo-ten champions with an equipped attacker clone on a successful roll", () => { const { game } = harness(new FixedRandom(0)); const defender = game.join("Defender"); const attacker = game.join("Attacker"); defender.progress.level = 11; attacker.progress.allocation = { agility: 2, strength: 1, magic: 1, spirit: 1, intelligence: 0 }; attacker.progress.mainHand = generateItem(7, "rare", 404, { allowedClasses: ["axe"] }); enterPair(game, defender, attacker); defender.waveNumber = 10; game.handle(defender.id, { type: "requestWave" }); const clone = [...defender.issuedUnits.values()].map(({ build }) => build).find(({ name }) => name === "Attacker's clone")!; expect(clone.level).toBe(11); expect(clone.stats).toEqual({ agility: 22, strength: 11, magic: 11, spirit: 11, intelligence: 0 }); expect(clone.mainHand).toEqual(attacker.progress.mainHand); expect(clone.carried).toEqual([]); expect(clone.xpReward).toBe(58); });
   test("adds one eligible persisted hero as a level-capped equipped boss on divisible-by-ten waves", () => {
@@ -73,6 +73,53 @@ describe("realm game service", () => {
   test("defers pushed equipment and returns it to the same player next wave", () => { const { game } = harness(); const player = game.join("Boomerang"); const item = generateItem(2, "rare", 92); player.groundDrops.set("outbound", { id: "outbound", kind: "item", item }); game.handle(player.id, { type: "deferDrop", dropId: "outbound" }); expect(player.groundDrops.has("outbound")).toBeFalse(); expect(player.deferredItems).toHaveLength(1); game.dispatchWaves(); expect(player.deferredItems).toHaveLength(0); expect(player.progress.inventoryTiles.some((tile) => tile.key === itemStackKey(item))).toBeTrue(); });
   test("converts a successful equipment roll into a typed Scrap drop", () => { const random = new SequenceRandom(); const { game } = harness(random); const one = game.join("One"); const two = game.join("Two"); enterPair(game, one, two); const [unitId, issued] = [...one.issuedUnits.entries()].find(([, value]) => !value.build.isRival)!; random.set(0.3, 0, 0); game.handle(one.id, { type: "creepDefeated", unitId }); const drop = [...one.groundDrops.values()][0]; expect(drop.kind).toBe("scrap"); if (drop.kind === "scrap") { expect(drop.rarity).toBe(issued.build.mainHand.rarity); expect(drop.amount).toBe(Math.max(1, Math.ceil(issued.build.mainHand.level / 3))); } });
   test("sends equipment into a future carrier and retains attribution", () => { const { game } = harness(); const sender = game.join("Sender"); const target = game.join("Target"); enterPair(game, sender, target); const item = generateItem(2, "rare", 77); sender.progress.inventoryTiles.push({ id: "tile", key: itemStackKey(item), item, quantity: 2 }); game.handle(sender.id, { type: "sendItem", tileId: "tile" }); expect(target.incomingQueues.get(sender.id)).toHaveLength(1); game.dispatchWaves(); const carrier = [...target.issuedUnits.values()].find((issued) => issued.build.emitterId === sender.id); expect(carrier?.build.mainHand.definitionId).toBe(item.definitionId); expect(sender.progress.inventoryTiles.find((tile) => tile.id === "tile")?.quantity).toBe(1); });
+  test("preserves a sent item's level and raises its carrier stats and rewards", () => {
+    const { game } = harness();
+    const player = game.join("Armorer");
+    const item = { ...generateItem(12, "rare", 701, { allowedClasses: ["axe"] }), requirements: { strength: 17, intelligence: 19 } };
+    player.progress.inventoryTiles.push({ id: "high-level-send", key: itemStackKey(item), item, quantity: 1 });
+    game.handle(player.id, { type: "sendItem", tileId: "high-level-send" });
+    game.dispatchWaves();
+    const carrier = [...player.issuedUnits.values()].find(({ build }) => build.emitterId === player.id)?.build;
+    expect(carrier?.mainHand).toEqual({ ...item, id: `${item.id}-sent` });
+    expect(carrier).toMatchObject({
+      level: 12,
+      stats: { agility: 12, strength: 17, magic: 12, spirit: 12, intelligence: 19 },
+      xpReward: 22,
+      goldReward: 3
+    });
+  });
+  test("rerolls a sent offhand carrier's two-handed weapon at the raised level", () => {
+    const random = new SequenceRandom();
+    const { game } = harness(random);
+    const player = game.join("ShieldBearer");
+    const item = { ...generateBuckler(7, "rare", 702), requirements: { strength: 15 } };
+    player.progress.inventoryTiles.push({ id: "high-level-offhand", key: itemStackKey(item), item, quantity: 1 });
+    game.handle(player.id, { type: "sendItem", tileId: "high-level-offhand" });
+    player.waveNumber = 9;
+    random.set(19.5 / 0x7fffffff, 0.5, 0, 0);
+    game.handle(player.id, { type: "requestWave" });
+    const carrier = [...player.issuedUnits.values()].find(({ build }) => build.emitterId === player.id)?.build;
+    expect(carrier?.offHand).toEqual({ ...item, id: `${item.id}-sent` });
+    expect(carrier?.mainHand?.hands).toBe(1);
+    expect(carrier?.mainHand?.level).toBe(7);
+    expect(carrier?.level).toBe(7);
+    expect(carrier?.stats.strength).toBeGreaterThanOrEqual(15);
+    expect(carrier?.xpReward).toBe(17);
+    expect(carrier?.goldReward).toBe(2);
+  });
+  test("does not raise intro carriers for sent items that remain carried", () => {
+    const { game } = harness();
+    const player = game.join("IntroCarrier");
+    const item = generateItem(20, "epic", 703, { allowedClasses: ["staff"] });
+    player.progress.inventoryTiles.push({ id: "intro-carried", key: itemStackKey(item), item, quantity: 1 });
+    game.handle(player.id, { type: "sendItem", tileId: "intro-carried" });
+    game.dispatchWaves();
+    const carrier = [...player.issuedUnits.values()].find(({ build }) => build.emitterId === player.id)?.build;
+    expect(carrier?.carried).toContainEqual({ ...item, id: `${item.id}-sent` });
+    expect(carrier).toMatchObject({ level: 0, xpReward: 10, goldReward: 1 });
+    expect(carrier?.mainHand?.id).not.toContain("-sent");
+  });
   test("shift bulk sends every available copy", () => { const { game } = harness(); const sender = game.join("Sender"); const target = game.join("Target"); enterPair(game, sender, target); const item = generateItem(2, "rare", 79); sender.progress.inventoryTiles.push({ id: "bulk-tile", key: itemStackKey(item), item, quantity: 3 }); game.handle(sender.id, { type: "sendItem", tileId: "bulk-tile", bulk: true }); expect(target.incomingQueues.get(sender.id)).toHaveLength(3); expect(sender.progress.inventoryTiles.some((tile) => tile.id === "bulk-tile")).toBeFalse(); });
   test("maps each sent item rarity to its configured XP multiplier", () => { const { game } = harness(); const player = game.join("Multiplier"); const expected = { common: 1.2, uncommon: 1.5, rare: 2, epic: 3 } as const; for (const [rarity, multiplier] of Object.entries(expected) as [keyof typeof expected, number][]) { const item = generateItem(1, rarity, 90 + Math.round(multiplier * 10)); const tileId = `multiplier-${rarity}`; player.progress.inventoryTiles.push({ id: tileId, key: itemStackKey(item), item, quantity: 1 }); game.handle(player.id, { type: "sendItem", tileId }); expect(player.xpSendBuffs.at(-1)?.multiplier).toBe(multiplier); } });
   test("queues sent XP buffs and advances to the next rarity multiplier after expiry", () => { let now = 1_000; const { game } = harness(new FixedRandom(0), () => now); const sender = game.join("Sender"); const target = game.join("Target"); enterPair(game, sender, target); const rare = generateItem(2, "rare", 80); const epic = generateItem(1, "epic", 81); sender.progress.inventoryTiles.push({ id: "rare-xp-buff", key: itemStackKey(rare), item: rare, quantity: 1 }, { id: "epic-xp-buff", key: itemStackKey(epic), item: epic, quantity: 1 }); game.handle(sender.id, { type: "sendItem", tileId: "rare-xp-buff" }); game.handle(sender.id, { type: "sendItem", tileId: "epic-xp-buff" }); expect(sender.xpSendBuffs).toEqual([{ multiplier: 2, expiresAt: 21_000 }, { multiplier: 3, expiresAt: 31_000 }]); const firstUnit = sender.issuedUnits.keys().next().value as string; game.handle(sender.id, { type: "creepDefeated", unitId: firstUnit }); expect(sender.progress.xp).toBe(20); now = 21_000; const secondUnit = [...sender.issuedUnits.keys()][0]!; game.handle(sender.id, { type: "creepDefeated", unitId: secondUnit }); expect(sender.progress.xp).toBe(50); expect(sender.xpSendBuffs).toEqual([{ multiplier: 3, expiresAt: 31_000 }]); now = 31_000; const thirdUnit = [...sender.issuedUnits.keys()][0]!; game.handle(sender.id, { type: "creepDefeated", unitId: thirdUnit }); expect(sender.progress.xp).toBe(60); expect(sender.xpSendBuffs).toEqual([]); });
@@ -84,5 +131,5 @@ describe("realm game service", () => {
   test("suicide resets the hero, preserves equipment, and queues its exact death echo until wave nine", () => { const { game, messages } = harness(); const sovereign = game.join("Sovereign"); const victim = game.join("Victim"); sovereign.progress.level = 8; victim.progress.level = 5; victim.progress.xp = cumulativeXpForLevel(5); victim.progress.stats = { agility: 7, strength: 6, magic: 5, spirit: 4, intelligence: 3 }; victim.progress.gold = 11; const weapon = generateItem(4, "rare", 123); victim.progress.mainHand = weapon; game.handle(victim.id, { type: "suicide" }); expect(victim.progress.level).toBe(0); expect(victim.progress.gold).toBe(6); expect(victim.progress.mainHand).toEqual(weapon); expect(sovereign.deathEchoes).toHaveLength(1); expect(sovereign.deathEchoes[0]).toMatchObject({ name: "Victim's death echo", level: 5, stats: { agility: 7, strength: 6, magic: 5, spirit: 4, intelligence: 3 } }); expect(sovereign.deathEchoes[0].mainHand).toEqual(weapon); expect(messages.get(victim.id)?.at(-1)?.type).toBe("suicideResolved"); game.dispatchWaves(); expect(sovereign.deathEchoes).toHaveLength(1); sovereign.waveNumber = 9; game.handle(sovereign.id, { type: "requestWave" }); expect(sovereign.deathEchoes).toHaveLength(0); expect([...sovereign.issuedUnits.values()].some(({ build }) => build.name === "Victim's death echo")).toBeTrue(); });
   test("marks leaderboard presence and only the first hero as the death-echo recipient", () => { const { game } = harness(); const beta = game.join("beta"); const alpha = game.join("alpha"); beta.progress.level = 3; alpha.progress.level = 3; game.disconnect(beta.id); expect(game.leaderboard().map(({ username, connected, receivesDeathEchoes }) => [username, connected, receivesDeathEchoes])).toEqual([["alpha", true, true], ["beta", false, false]]); });
   test("training kills grant nothing", () => { const { game } = harness(); const player = game.join("Trainee"); const unitId = player.issuedUnits.keys().next().value as string; game.handle(player.id, { type: "creepDefeated", unitId }); expect(player.score).toBe(0); expect(player.progress.xp).toBe(0); expect(player.progress.scraps).toEqual(emptyScraps()); });
-  test("keeps waves zero through eight melee-only and begins bonus spells at wave nine", () => { const { game } = harness(new FixedRandom(0)); const player = game.join("Skilled"); player.waveNumber = 8; game.handle(player.id, { type: "requestWave" }); expect([...player.issuedUnits.values()].every(({ build }) => build.kind !== "bubbleShooter" && build.mainHand.definitionId !== "throwingAxe" && !build.offHand && !build.bonusSkills?.length)).toBeTrue(); player.waveNumber = 9; game.handle(player.id, { type: "requestWave" }); const regulars = [...player.issuedUnits.values()].filter(({ build }) => !build.isRival); expect(regulars.filter(({ build }) => build.bonusSkills?.includes("fireBreath"))).toHaveLength(2); });
+  test("keeps waves one through eight melee-only and begins bonus spells at wave nine", () => { const { game } = harness(new FixedRandom(0)); const player = game.join("Skilled"); player.waveNumber = 8; game.handle(player.id, { type: "requestWave" }); expect([...player.issuedUnits.values()].every(({ build }) => build.kind !== "bubbleShooter" && build.mainHand.definitionId !== "throwingAxe" && !build.offHand && !build.bonusSkills?.length)).toBeTrue(); player.waveNumber = 9; game.handle(player.id, { type: "requestWave" }); const regulars = [...player.issuedUnits.values()].filter(({ build }) => !build.isRival); expect(regulars.filter(({ build }) => build.bonusSkills?.includes("fireBreath"))).toHaveLength(2); });
 });

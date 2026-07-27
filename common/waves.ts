@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "./balance";
 
 export function regularCount(waveNumber: number, balance: BalanceConfig): number {
-  return Math.min(balance.wave.maxRegulars, 10 + 2 * Math.max(0, waveNumber));
+  return Math.min(balance.wave.maxRegulars, 10 + 2 * Math.max(0, waveNumber - 1));
 }
 
 export function survivalTier(waveNumber: number, balance: BalanceConfig): number {
@@ -12,9 +12,12 @@ export function regularLevel(waveNumber: number, heroLevel: number, count: numbe
   return Math.max(Math.floor(heroLevel / Math.max(1, count)), survivalTier(waveNumber, balance));
 }
 
-export function creepMaxHealth(level: number, derivedHealth: number, balance: BalanceConfig): number {
+export function creepMaxHealth(level: number, derivedHealth: number, balance: BalanceConfig, hasEquippedSentItem = false): number {
   const normalizedLevel = Math.max(0, Math.floor(level));
-  return normalizedLevel < 8 ? normalizedLevel + 1 : derivedHealth * balance.combat.enemyHealthMultiplier;
+  const baseHealth = normalizedLevel < 8
+    ? 10 + normalizedLevel
+    : 5 * derivedHealth * balance.combat.enemyHealthMultiplier * 1.12 ** (normalizedLevel - 8);
+  return baseHealth * (hasEquippedSentItem ? 2 : 1);
 }
 
 export function rivalLevel(waveNumber: number, balance: BalanceConfig): number {

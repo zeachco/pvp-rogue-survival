@@ -19,12 +19,12 @@ export class Hero extends Unit {
     const mana = this.mana; const stamina = this.stamina;
     this.configureStats(statsWithItemBonuses(progress.stats, progress.mainHand, progress.offHand, progress.amulet, progress.charm), progress.offHand, progress.mainHand, progress.amulet, progress.charm);
     this.hp = Math.max(0, this.maxHp * ratio);
-    if (preserveRatio) { this.mana = Math.min(this.maxMana, mana); this.stamina = Math.min(this.maxStamina, stamina); }
+    if (preserveRatio) { this.mana = Math.max(0, Math.min(this.maxMana, mana)); this.stamina = Math.max(0, Math.min(this.maxStamina, stamina)); }
   }
 
   resetForRealm(): void {
     this.hp = this.maxHp; this.mana = this.maxMana; this.stamina = this.maxStamina; this.statuses = []; this.velocity = { x: 0, y: 0 };
-    this.active = true; this.attackSlow = false; this.movementSpeedMultiplier = 1; this.healthRegenMultiplier = 1; this.healthRegenFlat = 0; this.lastDamageSourceId = undefined; this.blockCooldown = 0; this.blockCooldownMax = 0; this.reflectiveSurgeRemaining = 0; this.lastHitDodged = false;
+    this.active = true; this.attackSlow = false; this.movementSpeedMultiplier = 1; this.healthRegenMultiplier = 1; this.healthRegenFlat = 0; this.lastDamageSourceId = undefined; this.blockCooldown = 0; this.blockCooldownMax = 0; this.reflectiveSurgeRemaining = 0; this.reflectiveSurgeCooldown = 0; this.reflectiveSurgeCooldownMax = 0; this.lastHitDodged = false;
   }
 
   move(input: Vector2, deltaSeconds: number, width: number, height: number): void {

@@ -1,3 +1,5 @@
-# Mana Drain (`manaDrain`)
+# Spirit Wounds (`manaDrain`)
 
-**Source:** extractable Idol perk passive. **Activation:** zero-cost togglable passive. **Effect:** restores mana from actual basic main-hand damage only, at 1% at level 1 scaling linearly to 60% at level 99; it caps at maximum mana. Skills, statuses, auras, reflection, and overkill do not trigger it.
+**Source:** extractable Spirit Wounds Idol aura. **Activation:** togglable passive aura with no upkeep. **Effect:** whenever any damage caused by the bearer critically strikes, the wound tears into the target's spirit. The bearer restores Mana equal to 1% of the actual critical damage at level 1, scaling linearly to 60% at level 99, capped at maximum Mana. The target is simultaneously dealt bonus Cold damage equal to that same pre-mitigation amount; Defense and Frost resistance apply to the bonus damage normally.
+
+Every bearer-authored damage type is eligible: basic attacks, skills, projectiles, auras, reflected damage, physical or accessory bonus damage, and individual bleed, poison, burn, or continuous-damage resolutions. Damage paths that already author a critical result retain that result; other eligible resolutions roll the bearer's normal critical chance. The bonus Cold damage cannot critically strike, reflect, or trigger Spirit Wounds again. Mana restoration is based only on the actual health removed by the triggering critical, so overkill does not increase it.

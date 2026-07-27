@@ -82,7 +82,7 @@ export function extractFromInventory(progress: PlayerProgress, tileId: string): 
   const universal = tile.item.rarity === "epic"; for (const skill of skills) learnSkill(progress, skill, universal); removeEmptyInventoryTiles(progress); return { changed: true, reason: `Extracted ${skills.join(", ")} for ${cost} gold${universal ? "; available with any weapon" : ""}.` };
 }
 
-export function extractableSkills(item: ItemInstance): SkillId[] { return item.skills.filter((skill) => skill !== "blocking"); }
+export function extractableSkills(item: ItemInstance): SkillId[] { return [...item.skills]; }
 export function extractionCost(progress: PlayerProgress, skills: SkillId[]): number { return skills.reduce((total, skill) => total + 10 * (progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0)), 0); }
 export function promoteScraps(scraps: Record<Rarity, number>, target: Rarity, bulk = false): ScrapPromotionResult {
   const rarities: Rarity[] = ["common", "uncommon", "rare", "epic"];

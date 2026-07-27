@@ -16,7 +16,7 @@ import { starterClub } from "../common/items";
 import { weaponAttackSpeed } from "../common/combat";
 import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
-import { Creep } from "../src/game/Creep";
+import { Creep, resourceBarWidth } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
 import { cancelHostileProjectiles, castForceField, castForceFieldTargets, forceField, HeroCombatSystem, skillAffordable } from "../src/game/systems/HeroCombatSystem";
 import { resolveCombat } from "../src/game/systems/combat";
@@ -48,6 +48,34 @@ describe("arena systems", () => {
     hero.update(1, undefined, false, true); expect(hero.stamina).toBeCloseTo(.3);
     hero.update(1, undefined, false, false); expect(hero.stamina).toBeCloseTo(.3);
   });
+  test("drains combined passive upkeep and suspends effects until Mana reaches one", () => {
+    const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS);
+    hero.knownSkills.add("attraction"); hero.knownSkills.add("penance");
+    hero.skillLevels.set("attraction", 10); hero.skillLevels.set("penance", 10); hero.mana = 5;
+    hero.update(1); expect(hero.mana).toBeCloseTo(4.99); expect(hero.stamina).toBeCloseTo(.98);
+
+    hero.knownSkills.clear(); hero.skillLevels.clear(); hero.knownSkills.add("deathBurst"); hero.skillLevels.set("deathBurst", 99); hero.mana = 0;
+    hero.update(1); expect(hero.mana).toBeCloseTo(.2); expect(hero.isSkillOperational("deathBurst")).toBeFalse();
+    hero.update(1); hero.update(1); hero.update(1);
+    expect(hero.mana).toBeCloseTo(.8); expect(hero.isSkillOperational("deathBurst")).toBeFalse();
+    hero.update(1); expect(hero.mana).toBeCloseTo(.01); expect(hero.isSkillOperational("deathBurst")).toBeTrue();
+  });
+  test("clamps resources and renders bounded creep resource-bar widths", () => {
+    const hero = new Hero({ x: 0, y: 0 }); hero.configureStats(ZERO_STATS);
+    hero.mana = .5; hero.stamina = .5;
+    expect(hero.spendMana(1)).toBeFalse(); expect(hero.mana).toBe(.5);
+    expect(hero.spendStamina(1)).toBeFalse(); expect(hero.stamina).toBe(.5);
+    hero.takeDamage(hero.maxHp + 100); expect(hero.hp).toBe(0);
+    expect(resourceBarWidth(-1, 10)).toBe(0);
+    expect(resourceBarWidth(5, 10)).toBe(16);
+    expect(resourceBarWidth(20, 10)).toBe(32);
+    expect(resourceBarWidth(1, 0)).toBe(0);
+  });
+  test("applies passive upkeep suspension to spawned enemies", () => {
+    const creep = new Creep({ id: "upkeep", name: "Upkeep", kind: "melee", level: 99, stats: { ...ZERO_STATS }, mainHand: starterClub(), carried: [], isRival: false, xpReward: 0, goldReward: 0, seed: 1, skillLevels: { deathBurst: 99 } }, "neutral", "neutral", { x: 100, y: 0 }, BALANCE, new SeededRandom(1));
+    creep.mana = 0; creep.pursue({ x: 0, y: 0 }, 1, 1_000, 1_000);
+    expect(creep.mana).toBeCloseTo(.2); expect(creep.isSkillOperational("deathBurst")).toBeFalse();
+  });
   test("reports spell affordability from the hero's current resources", () => {
     const hero = new Hero({ x: 50, y: 50 }); const weapon = starterClub(); hero.configureStats({ ...ZERO_STATS, intelligence: 5 }, undefined, weapon);
     const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS, intelligence: 5 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: weapon, inventoryTiles: [], learnedSkills: ["bash" as const, "gravityPull" as const, "rent" as const, "penance" as const], learnedSkillLevels: { bash: 1, gravityPull: 1, rent: 1, penance: 1 }, universalSkills: [] };
@@ -55,6 +83,7 @@ describe("arena systems", () => {
     hero.mana = 7; expect(skillAffordable("gravityPull", progress, hero)).toBeFalse();
     hero.mana = 8; expect(skillAffordable("gravityPull", progress, hero)).toBeTrue();
     hero.hp = 1; expect(skillAffordable("rent", progress, hero)).toBeFalse();
+    new HeroCombatSystem().syncSkills(progress, hero);
     expect(skillAffordable("penance", progress, hero)).toBeTrue();
   });
   test("Time Harvest removes every tracked hero cooldown after a kill", () => {
@@ -62,10 +91,58 @@ describe("arena systems", () => {
     const combat = new HeroCombatSystem();
     const internal = combat as unknown as { attackCooldown: number; healingCooldown: number; skillCooldowns: Map<string, { remaining: number; maximum: number }> };
     internal.attackCooldown = 5; internal.healingCooldown = 3; internal.skillCooldowns.set("bash", { remaining: 2, maximum: 2 });
-    const amulet = { ...generateAccessory(0, "epic", 1, "amulet"), requirements: {} };
+    const amulet = Array.from({ length: 100 }, (_, seed) => ({ ...generateAccessory(0, "epic", seed, "amulet"), requirements: {} })).find((item) => item.skills.includes("timeHarvest"))!;
     const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [] };
     expect(combat.onKill(progress, hero)).toBe(1);
     expect(internal.attackCooldown).toBe(4); expect(internal.healingCooldown).toBe(2); expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1); expect(hero.blockCooldown).toBe(3);
+  });
+  test("restores stacked requirement-adjusted accessory resources on kill", () => {
+    const hero = new Hero({ x: 0, y: 0 });
+    const amulet = { ...generateAccessory(10, "rare", 31, "amulet"), requirements: {}, statBonuses: {}, accessoryBonuses: { healthOnKill: 20, manaOnKill: 30 } };
+    const charm = { ...generateAccessory(10, "rare", 32, "charm"), requirements: { spirit: 1 }, statBonuses: {}, accessoryBonuses: { healthOnKill: 10, manaOnKill: 20 } };
+    const state = { level: 1, xp: 0, stats: { ...ZERO_STATS, strength: 100, intelligence: 100 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, charm, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [] };
+    hero.applyProgress(state);
+    hero.hp = 1;
+    hero.mana = 0;
+    new HeroCombatSystem().onKill(state, hero);
+    expect(hero.hp).toBe(26);
+    expect(hero.mana).toBe(40);
+  });
+  test("Spirit Wounds restores Mana and echoes every critical damage kind as non-recursive Cold damage", () => {
+    const source = new Hero({ x: 0, y: 0 }); source.configureStats({ ...ZERO_STATS, intelligence: 100 });
+    source.knownSkills.add("manaDrain"); source.skillLevels.set("manaDrain", 1); source.mana = 0;
+    for (const kind of ["physical", "magic", "electric", "poison", "fire", "bleed"] as const) {
+      const target = new Hero({ x: 10, y: 0 }); target.configureStats({ ...ZERO_STATS, strength: 100 });
+      const texts: CombatText[] = []; target.onCombatText = (text) => texts.push(text);
+      const hp = target.hp;
+      expect(target.receiveDamage(20, { next: () => 1 }, source, false, false, { kind, critical: true })).toBe(20);
+      expect(target.hp).toBeCloseTo(hp - 20.2);
+      expect(texts).toMatchObject([
+        { kind, critical: true },
+        { kind: "cold", critical: false },
+      ]);
+    }
+    expect(source.mana).toBeCloseTo(1.2);
+  });
+  test("Spirit Wounds lets status damage roll criticals and applies Frost resistance only to its Cold echo", () => {
+    const source = new Hero({ x: 0, y: 0 }); source.configureStats({ ...ZERO_STATS, agility: 100, intelligence: 10 });
+    source.knownSkills.add("manaDrain"); source.skillLevels.set("manaDrain", 99); source.mana = 0;
+    const frostWard = { ...starterClub(), perks: { frostResist: .5 } };
+    const target = new Hero({ x: 10, y: 0 }); target.configureStats({ ...ZERO_STATS, strength: 100 }, undefined, frostWard);
+    target.addStatus({ kind: "poison", remaining: 2, damagePerSecond: 10, source });
+    const hp = target.hp;
+    target.updateResources(1, { next: () => 0 });
+    expect(source.mana).toBeCloseTo(12);
+    expect(target.hp).toBeCloseTo(hp - 20 - 6 + .005);
+  });
+  test("Spirit Wounds does nothing for non-critical damage", () => {
+    const source = new Hero({ x: 0, y: 0 }); source.configureStats({ ...ZERO_STATS, intelligence: 100 });
+    source.knownSkills.add("manaDrain"); source.skillLevels.set("manaDrain", 99); source.mana = 0;
+    const target = new Hero({ x: 10, y: 0 }); target.configureStats({ ...ZERO_STATS, strength: 100 });
+    const hp = target.hp;
+    target.receiveDamage(20, { next: () => 1 }, source, false, false, { kind: "magic", critical: false });
+    expect(source.mana).toBe(0);
+    expect(target.hp).toBe(hp - 20);
   });
   test("chains rotating skill casts while basic attacks run on their own cooldown", () => {
     const hero = new Hero({ x: 50, y: 50 });
@@ -160,12 +237,35 @@ describe("arena systems", () => {
     attack.update(0.4); source.attackVersion += 1;
     expect(attack.shouldResolve()).toBeFalse(); expect(attack.active).toBeFalse();
   });
-  test("stops locomotion on Freeze then slides applied velocity without friction", () => {
+  test("Frost stacks slow toward a resistance-scaled threshold, then slide without friction", () => {
     const hero = new Hero({ x: 50, y: 50 }); hero.velocity = { x: 30, y: 0 };
-    hero.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0 }); expect(hero.velocity).toEqual({ x: 0, y: 0 });
+    hero.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0 });
+    expect(hero.frozen).toBeFalse(); expect(hero.freezeMovementMultiplier).toBeCloseTo(2 / 3); expect(hero.velocity.x).toBe(30);
+    hero.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0 });
+    hero.addStatus({ kind: "freeze", remaining: 2, damagePerSecond: 0 });
+    expect(hero.frozen).toBeTrue(); expect(hero.velocity).toEqual({ x: 0, y: 0 });
     hero.velocity.x = 40; hero.slide(0.5); expect(hero.position.x).toBe(70); expect(hero.velocity.x).toBe(40);
+    const frostWard = { ...starterClub(), perks: { frostResist: .5 } };
+    const resistant = new Hero({ x: 0, y: 0 }); resistant.configureStats(ZERO_STATS, undefined, frostWard);
+    for (let index = 0; index < 8; index += 1) resistant.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 });
+    expect(resistant.freezeThreshold).toBe(9); expect(resistant.frozen).toBeFalse();
+    resistant.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 }); expect(resistant.frozen).toBeTrue();
+    const creep = new Creep({ id: "chilled", name: "Chilled", kind: "melee", level: 0, stats: { ...ZERO_STATS }, mainHand: starterClub(), carried: [], isRival: false, xpReward: 0, goldReward: 0, seed: 1 }, "neutral", "neutral", { x: 0, y: 0 }, BALANCE, new SeededRandom(1));
+    creep.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 });
+    creep.pursue({ x: 500, y: 0 }, 1, 1_000, 1_000);
+    expect(creep.position.x).toBeCloseTo(48);
   });
-  test("Arcane Bolt freezes a creep while preserving its impact push", () => {
+  test("requirement-active immunity prevents matching damage and statuses", () => {
+    const ward = { ...starterClub(), immunities: ["frost", "fire", "poison", "bleed"] as const };
+    const hero = new Hero({ x: 0, y: 0 }); hero.configureStats(ZERO_STATS, undefined, ward);
+    expect(hero.receiveDamage(5, { next: () => 1 }, undefined, false, false, { kind: "cold" })).toBe(0);
+    hero.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 });
+    hero.addStatus({ kind: "burn", remaining: 4, damagePerSecond: 1 });
+    hero.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 1 });
+    hero.addStatus({ kind: "bleed", remaining: 4, damagePerSecond: 1 });
+    expect(hero.statuses).toHaveLength(0);
+  });
+  test("Arcane Bolt adds Frost while preserving its impact push", () => {
     const state = new ArenaState(); const hero = new Hero({ x: 0, y: 0 }); hero.configureStats({ ...ZERO_STATS, strength: 10 }); const creep = new Creep({ id: "arcane-target", name: "Target", kind: "melee", level: 0, stats: { ...ZERO_STATS }, mainHand: starterClub(), carried: [], isRival: false, xpReward: 0, goldReward: 0, seed: 1 }, "neutral", "neutral", { x: 20, y: 0 }, BALANCE, new SeededRandom(1));
     state.creeps.push(creep); state.projectiles.push(new Projectile(hero.position, creep.position, 1, "hero", "arcaneBolt", hero, { kind: "magic" }, starterClub()));
     resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
@@ -212,9 +312,36 @@ describe("arena systems", () => {
     hero.stamina = 0; hero.receiveDamage(10, { next: () => 1 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
     hero.stamina = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.stamina).toBe(1);
   });
+  test("adds one block-chance percentage point per effective Blocking level", () => {
+    const hero = new Hero({ x: 50, y: 50 }); const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
+    hero.configureStats({ ...ZERO_STATS, strength: 1 }, buckler);
+    hero.skillLevels.set("blocking", 10);
+    const stamina = hero.stamina;
+    hero.receiveDamage(5, { next: () => .15 });
+    expect(hero.stamina).toBe(stamina - 1);
+    expect(hero.blockCooldown).toBe(1);
+  });
   test("restores Penance mana from damage prevented by a successful block", () => { const hero = new Hero({ x: 0, y: 0 }); const buckler = generateBuckler(0, "common", 12); hero.configureStats({ agility: 0, strength: 100, magic: 0, spirit: 10, intelligence: 100 }, buckler, starterClub()); hero.mana = 0; hero.knownSkills.add("penance"); hero.skillLevels.set("penance", 99); let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.mana).toBeGreaterThan(59); expect(hero.mana).toBeLessThan(60); });
 
   test("returns passive Thorns damage and doubles it during Reflective Surge", () => { const defender = new Hero({ x: 0, y: 0 }); const attacker = new Hero({ x: 10, y: 0 }); defender.knownSkills.add("thorns"); const random = { next: () => 1 }; const before = attacker.hp; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 1); attacker.hp = before; defender.reflectiveSurgeRemaining = 6; defender.receiveDamage(20, random, attacker); expect(attacker.hp).toBe(before - 2.2); });
+
+  test("activates Reflective Surge only in response to a non-dodged hit", () => {
+    const defender = new Hero({ x: 0, y: 0 }); const attacker = new Hero({ x: 10, y: 0 });
+    defender.configureStats({ ...ZERO_STATS, strength: 10 });
+    defender.knownSkills.add("thorns"); defender.knownSkills.add("reflectiveSurge"); defender.skillLevels.set("reflectiveSurge", 1);
+    defender.stamina = 4;
+    const before = attacker.hp;
+    expect(defender.reflectiveSurgeRemaining).toBe(0);
+    defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, { kind: "physical", critical: false });
+    expect(defender.stamina).toBe(1);
+    expect(defender.reflectiveSurgeRemaining).toBe(6);
+    expect(defender.reflectiveSurgeCooldown).toBeGreaterThan(0);
+    expect(attacker.hp).toBeCloseTo(before - .55);
+    const cooldown = defender.reflectiveSurgeCooldown;
+    defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, { kind: "physical", critical: false });
+    expect(defender.stamina).toBe(1);
+    expect(defender.reflectiveSurgeCooldown).toBe(cooldown);
+  });
 
   test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {
     const hero = new Hero({ x: 50, y: 50 }); const club = starterClub(); const buckler = { ...generateBuckler(0, "common", 12), perks: {}, reflectionComponents: ["return" as const] };

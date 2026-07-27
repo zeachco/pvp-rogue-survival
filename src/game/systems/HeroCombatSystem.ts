@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "../../../common/balance";
-import { attackProfile, bucklerBlockCost, cappedSkillLevel, cooldownScale, forceFieldRange, healingCast, healingCooldown, orbitingHammerDuration, rapidRegenDuration, rapidRegenMultiplier, rollAttackStrike, skillCastTime, skillCooldown, skillDamageMultiplier, skillLabel, skillRange, spellPower, swampRadius, timeHarvestCooldownReduction, timeHarvestItemSkillBonus, vampiricBoomerangHealingFraction, whirlwindDamage, whirlwindDuration, whirlwindMovementSpeed, whirlwindRadius } from "../../../common/combat";
-import { itemCooldownReduction, itemRequirementMultiplier, itemResourceCostReduction, itemSkillLevelBonus, statsWithItemBonuses, type ItemInstance, type SkillId } from "../../../common/items";
+import { attackProfile, bucklerBlockCost, cappedSkillLevel, cooldownScale, forceFieldRange, healingCast, healingCooldown, orbitingHammerDuration, rapidRegenDuration, rapidRegenMultiplier, rollAttackStrike, skillCastTime, skillCooldown, skillDamageMultiplier, skillLabel, skillRange, skillUpkeepPerSecond, spellPower, swampRadius, timeHarvestCooldownReduction, timeHarvestItemSkillBonus, vampiricBoomerangHealingFraction, whirlwindDamage, whirlwindDuration, whirlwindMovementSpeed, whirlwindRadius } from "../../../common/combat";
+import { itemCooldownReduction, itemKillRestoration, itemRequirementMultiplier, itemResourceCostReduction, itemSkillLevelBonus, statsWithItemBonuses, type ItemInstance, type SkillId } from "../../../common/items";
 import { derivedStats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
@@ -28,20 +28,24 @@ export class HeroCombatSystem {
   private casting?: { id: SkillId; elapsed: number; total: number };
   private whirlwindRemaining = 0; private whirlwindPulse = 0; private whirlwindRange = 0; private whirlwindHitDamage = 0; private whirlwindSpeed = 1;
   private rapidRegenRemaining = 0; private rapidRegenMultiplierValue = 1;
+  syncSkills(progress: PlayerProgress, hero: Hero): void {
+    hero.knownSkills.clear(); hero.skillLevels.clear();
+    for (const skill of activeSkillIds(progress)) { hero.knownSkills.add(skill); hero.skillLevels.set(skill, effectiveSkillLevel(progress, skill)); }
+  }
   update(deltaSeconds: number, movementInput: Vector2, hero: Hero, state: ArenaState, progress: PlayerProgress, balance: BalanceConfig, random: RandomSource): void {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); this.rapidRegenRemaining = Math.max(0, this.rapidRegenRemaining - deltaSeconds); if (this.casting) this.casting.elapsed += deltaSeconds; for (const cooldown of this.skillCooldowns.values()) cooldown.remaining = Math.max(0, cooldown.remaining - deltaSeconds); if (this.whirlwindRemaining > 0) { this.whirlwindRemaining = Math.max(0, this.whirlwindRemaining - deltaSeconds); this.whirlwindPulse -= deltaSeconds; while (this.whirlwindPulse <= 0 && this.whirlwindRemaining > 0) { const force = emittedImpactForce(hero, "radial", hero.position); for (const creep of state.creeps) if (creep.active && distance(hero.position, creep.position) <= this.whirlwindRange + creep.radius) { const dealt = creep.receiveDamage(this.whirlwindHitDamage, random, hero, false, false, { kind: "physical" }); if (dealt > 0) applyImpactForce(creep, force); } this.whirlwindPulse += 0.25; } }
     const item = progress.mainHand; const effectiveStats = statsWithItemBonuses(progress.stats, item, progress.offHand, progress.amulet, progress.charm); const derived = derivedStats(effectiveStats);
-    hero.knownSkills.clear(); hero.skillLevels.clear(); for (const skill of activeSkillIds(progress)) { hero.knownSkills.add(skill); hero.skillLevels.set(skill, effectiveSkillLevel(progress, skill)); }
+    this.syncSkills(progress, hero);
     const healing = healingCast(hero.hp, hero.maxHp, hero.stamina, hero.maxStamina, effectiveSkillLevel(progress, "healing")); const healingManaCost = healing.manaCost * (1 - resourceReduction(progress, "mana", effectiveStats));
     if (isSkillActive(progress, "healing") && hero.hp < hero.maxHp * 0.75 && this.healingCooldown === 0 && healing.restoredHp > 0 && hero.mana >= healingManaCost) {
-      const level = effectiveSkillLevel(progress, "healing"); hero.mana -= healingManaCost;
+      const level = effectiveSkillLevel(progress, "healing"); hero.spendMana(healingManaCost);
       hero.heal(healing.restoredHp);
       state.spellEffects.push(new SpellEffect("healing", hero.position));
       this.healingCooldown = healingCooldown(level); this.healingCooldownMax = this.healingCooldown;
     }
     const rapidRegenLevel = effectiveSkillLevel(progress, "rapidRegen"); const rapidRegenCost = skillManaCost("rapidRegen") * (1 - resourceReduction(progress, "mana", effectiveStats));
     if (isSkillActive(progress, "rapidRegen") && rapidRegenLevel > 0 && hero.hp < hero.maxHp && this.rapidRegenRemaining === 0 && (this.skillCooldowns.get("rapidRegen")?.remaining ?? 0) === 0 && hero.mana >= rapidRegenCost) {
-      hero.mana -= rapidRegenCost; this.rapidRegenRemaining = rapidRegenDuration(rapidRegenLevel); this.rapidRegenMultiplierValue = rapidRegenMultiplier(rapidRegenLevel); state.spellEffects.push(new SpellEffect("rapidRegen", hero.position, 0, 0, this.rapidRegenRemaining, hero));
+      hero.spendMana(rapidRegenCost); this.rapidRegenRemaining = rapidRegenDuration(rapidRegenLevel); this.rapidRegenMultiplierValue = rapidRegenMultiplier(rapidRegenLevel); state.spellEffects.push(new SpellEffect("rapidRegen", hero.position, 0, 0, this.rapidRegenRemaining, hero));
       const equipmentCooldown = itemCooldownReduction(...accessories(progress)); const duration = skillCooldown("rapidRegen", item, effectiveStats) * cooldownScale(rapidRegenLevel, Math.min(.8, derived.cooldownReduction + equipmentCooldown)); this.skillCooldowns.set("rapidRegen", { remaining: duration, maximum: duration });
     }
     const target = closestTarget(hero, state.creeps);
@@ -66,7 +70,7 @@ export class HeroCombatSystem {
       castOverflow = this.casting ? Math.max(0, this.casting.elapsed - this.casting.total) : 0;
       this.casting = undefined;
     }
-    const lifeCost = lifeSkill && candidate ? bloodSkillLifeCost(candidate.id, hero.hp, lifeReduction) : 0; hero.stamina -= staminaCost; if (magicSkill) hero.mana -= manaCost; if (lifeCost > 0) hero.takeDamage(lifeCost);
+    const lifeCost = lifeSkill && candidate ? bloodSkillLifeCost(candidate.id, hero.hp, lifeReduction) : 0; hero.spendStamina(staminaCost); if (magicSkill) hero.spendMana(manaCost); if (lifeCost > 0) hero.takeDamage(lifeCost);
     const strike = activeSkill?.id === "swamp" ? { damage: 0, critical: false } : rollAttackStrike(item, effectiveStats, "hero", balance, random); const damage = activeSkill && SKILLS[activeSkill.id].resource === "life" ? bloodSkillDamage(activeSkill.id, activeSkill.level, strike.damage, lifeCost) : strike.damage * (activeSkill ? skillDamageMultiplier(activeSkill.id) * spellPower(activeSkill.level) : 1); const presentation = { kind: activeSkill?.id === "arcaneBolt" || activeSkill?.id === "orbitingHammers" || activeSkill?.id === "frostOrb" || activeSkill?.id === "swamp" || (!activeSkill && profile.magic) ? "magic" as const : "physical" as const, critical: strike.critical };
     if (activeSkill?.id === "orbitingHammers") { const sequence = this.orbitCastSequence++; const lifetime = orbitingHammerDuration(activeSkill.level); for (let index = 0; index < 3; index += 1) { const drift = (((sequence * 3 + index) % 7) - 3) * 0.035; state.projectiles.push(Projectile.orbitingHammer(hero, hero.facing + index * Math.PI * 2 / 3, damage, { kind: "magic", critical: strike.critical }, drift, lifetime)); } }
     else if (activeSkill?.id === "vampiricBoomerang" && item) state.projectiles.push(Projectile.vampiricBoomerang(hero, target.position, damage, range, vampiricBoomerangHealingFraction(activeSkill.level), item));
@@ -87,7 +91,7 @@ export class HeroCombatSystem {
   }
 
   spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
-    return orderedSkillIds(progress).map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: effectiveSkillLevel(progress, id), actualLevel: actualSkillLevel(progress, id), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : cooldown?.maximum ?? 0, castProgress: this.casting?.id === id ? Math.min(1, this.casting.elapsed / this.casting.total) : undefined, affordable: skillAffordable(id, progress, hero), resource: SKILLS[id].resource, costLabel: skillCostLabel(id, progress), active: isSkillActive(progress, id), bar: learnedSkillIds(progress).includes(id) ? "learned" as const : "geared" as const }; });
+    return orderedSkillIds(progress).map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: effectiveSkillLevel(progress, id), actualLevel: actualSkillLevel(progress, id), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : id === "reflectiveSurge" ? hero.reflectiveSurgeCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : id === "reflectiveSurge" ? hero.reflectiveSurgeCooldownMax : cooldown?.maximum ?? 0, castProgress: this.casting?.id === id ? Math.min(1, this.casting.elapsed / this.casting.total) : undefined, affordable: SKILLS[id].upkeep ? hero.isSkillOperational(id) : skillAffordable(id, progress, hero), resource: SKILLS[id].resource, costLabel: skillCostLabel(id, progress), active: isSkillActive(progress, id), bar: learnedSkillIds(progress).includes(id) ? "learned" as const : "geared" as const }; });
   }
 
   get attackProgress(): number { return this.attackCooldownMax > 0 ? 1 - this.attackCooldown / this.attackCooldownMax : 1; }
@@ -97,7 +101,12 @@ export class HeroCombatSystem {
   get rapidRegenMultiplier(): number { return this.rapidRegenRemaining > 0 ? this.rapidRegenMultiplierValue : 1; }
   get rapidRegenFlat(): number { return this.rapidRegenRemaining > 0 ? .1 : 0; }
   onKill(progress: PlayerProgress, hero: Hero): number {
-    if (!isSkillActive(progress, "timeHarvest")) return 0;
+    this.syncSkills(progress, hero);
+    const stats = statsWithItemBonuses(progress.stats, progress.mainHand, progress.offHand, progress.amulet, progress.charm);
+    const restoration = itemKillRestoration(stats, progress.mainHand, progress.offHand, progress.amulet, progress.charm);
+    hero.heal(restoration.health);
+    hero.restoreMana(restoration.mana);
+    if (!hero.isSkillOperational("timeHarvest")) return 0;
     const reduction = timeHarvestCooldownReduction(effectiveSkillLevel(progress, "timeHarvest"));
     this.attackCooldown = Math.max(0, this.attackCooldown - reduction);
     this.healingCooldown = Math.max(0, this.healingCooldown - reduction);
@@ -108,12 +117,12 @@ export class HeroCombatSystem {
   reset(): void { this.attackCooldown = 0; this.attackCooldownMax = 0; this.healingCooldown = 0; this.healingCooldownMax = 0; this.orbitCastSequence = 0; this.skillPriorityCursor = 0; this.casting = undefined; this.whirlwindRemaining = 0; this.whirlwindPulse = 0; this.whirlwindSpeed = 1; this.rapidRegenRemaining = 0; this.rapidRegenMultiplierValue = 1; this.skillCooldowns.clear(); }
   private availableSkills(progress: PlayerProgress): { id: SkillId; level: number }[] {
     const skills = new Map<SkillId, number>();
-    for (const skill of activeSkillIds(progress)) if (!SKILLS[skill].passive && skill !== "healing" && skill !== "blocking" && skill !== "rapidRegen") skills.set(skill, effectiveSkillLevel(progress, skill));
+    for (const skill of activeSkillIds(progress)) if (!SKILLS[skill].passive && skill !== "healing" && skill !== "blocking" && skill !== "rapidRegen" && skill !== "reflectiveSurge") skills.set(skill, effectiveSkillLevel(progress, skill));
     return activeSkillIds(progress).filter((id) => skills.has(id)).map((id) => ({ id, level: Math.max(1, skills.get(id) ?? 0) }));
   }
   private tryBasicAttack(hero: Hero, target: Creep, targetDistance: number, item: ItemInstance | undefined, effectiveStats: ReturnType<typeof statsWithItemBonuses>, profile: ReturnType<typeof attackProfile>, state: ArenaState, balance: BalanceConfig, random: RandomSource): void {
     if (this.attackCooldown > 0 || targetDistance > profile.range + target.radius || hero.stamina < profile.staminaCost) return;
-    hero.stamina -= profile.staminaCost;
+    hero.spendStamina(profile.staminaCost);
     const strike = rollAttackStrike(item, effectiveStats, "hero", balance, random);
     const presentation = { kind: profile.magic ? "magic" as const : "physical" as const, critical: strike.critical };
     if (profile.projectile) state.projectiles.push(new Projectile(hero.position, target.position, strike.damage, "hero", undefined, hero, presentation, item));
@@ -127,7 +136,7 @@ function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined { let tar
 function skillManaCost(skill: SkillId): number { return SKILLS[skill].cost ?? (skill === "frostOrb" ? 10 : skill === "gravityPull" ? 8 : skill === "orbitingHammers" ? 3 : 1); }
 export function skillAffordable(skill: SkillId, progress: PlayerProgress, hero: Hero): boolean {
   const definition = SKILLS[skill];
-  if (definition.passive) return true;
+  if (definition.upkeep) return hero.isSkillOperational(skill);
   const stats = statsWithItemBonuses(progress.stats, progress.mainHand, ...accessories(progress));
   if (skill === "healing") return hero.mana >= healingCast(hero.hp, hero.maxHp, hero.stamina, hero.maxStamina, effectiveSkillLevel(progress, skill)).manaCost * (1 - resourceReduction(progress, "mana", stats));
   if (skill === "blocking") return progress.offHand?.itemKind === "buckler" && hero.stamina >= bucklerBlockCost(progress.offHand, stats);
@@ -136,7 +145,7 @@ export function skillAffordable(skill: SkillId, progress: PlayerProgress, hero: 
   const cost = skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.staminaCost ?? 1) + .35;
   return hero.stamina >= cost;
 }
-function skillCostLabel(skill: SkillId, progress: PlayerProgress): string { const definition = SKILLS[skill]; if (definition.passive) return `0 ${capitalizeResource(definition.resource)}`; const stats = statsWithItemBonuses(progress.stats, progress.mainHand, ...accessories(progress)); if (skill === "healing") return `${formatCost(2 * (1 - resourceReduction(progress, "mana", stats)))} Mana / HP`; if (skill === "blocking") return `${formatCost(progress.offHand?.staminaCost ?? 0)} Stamina`; if (definition.resource === "mana") return `${formatCost(skillManaCost(skill) * (1 - resourceReduction(progress, "mana", stats)))} Mana`; if (definition.resource === "life") return `${formatCost((skill === "vampiricBoomerang" ? 30 : 10) * (1 - resourceReduction(progress, "life", stats)))}% Remaining HP`; return `${formatCost(skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.staminaCost ?? 1) + 0.35)} Stamina`; }
+function skillCostLabel(skill: SkillId, progress: PlayerProgress): string { const definition = SKILLS[skill]; const stats = statsWithItemBonuses(progress.stats, progress.mainHand, ...accessories(progress)); if (definition.passive && definition.upkeep) return `${formatCost(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`; if (skill === "healing") return `${formatCost(2 * (1 - resourceReduction(progress, "mana", stats)))} Mana / HP`; if (skill === "blocking") return `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Stamina / block`; if (definition.resource === "mana") return `${formatCost(skillManaCost(skill) * (1 - resourceReduction(progress, "mana", stats)))} Mana`; if (definition.resource === "life") return skill === "vampiricBoomerang" ? "max(3% Remaining HP, 1 HP)" : `${formatCost(10 * (1 - resourceReduction(progress, "life", stats)))}% Remaining HP`; return `${formatCost(skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.staminaCost ?? 1) + 0.35)} Stamina`; }
 function formatCost(value: number): string { return Number(value.toFixed(3)).toString(); }
 function capitalizeResource(resource: "mana" | "stamina" | "life"): string { return resource[0].toUpperCase() + resource.slice(1); }
 export function forceField(target: { position: Vector2; velocity: Vector2; interruptAttack?: () => void }, source: Vector2, impulse: number): void { const dx = target.position.x - source.x; const dy = target.position.y - source.y; const length = Math.hypot(dx, dy); if (length <= 0) return; target.velocity.x = dx / length * impulse; target.velocity.y = dy / length * impulse; target.interruptAttack?.(); }
@@ -165,13 +174,15 @@ export function isSkillActive(progress: PlayerProgress, skill: SkillId): boolean
 export function actualSkillLevel(progress: PlayerProgress, skill: SkillId): number { if (!isSkillAvailable(progress, skill)) return 0; const learned = progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0); const equipped = progress.mainHand?.skills.includes(skill) || accessories(progress).some((item) => item?.skills.includes(skill)) ? 1 : 0; const stats = statsWithItemBonuses(progress.stats, progress.mainHand, ...accessories(progress)); const accessory = accessories(progress).reduce((sum, candidate) => sum + itemSkillLevelBonus(candidate, SKILLS[skill].resource) * (candidate ? itemRequirementMultiplier(candidate, stats) : 1), 0); const timeHarvestBonus = skill === "timeHarvest" && progress.amulet?.skills.includes(skill) ? timeHarvestItemSkillBonus(progress.amulet.level) : 0; return cappedSkillLevel(learned + equipped + Math.floor(accessory) + timeHarvestBonus); }
 export function effectiveSkillLevel(progress: PlayerProgress, skill: SkillId): number { return Math.min(actualSkillLevel(progress, skill), progress.level); }
 function accessories(progress: PlayerProgress): Array<ItemInstance | undefined> { return [progress.offHand, progress.amulet, progress.charm]; }
-function resourceReduction(progress: PlayerProgress, resource: "mana" | "life", stats: ReturnType<typeof statsWithItemBonuses>): number { return Math.min(.9, accessories(progress).reduce((sum, item) => sum + itemResourceCostReduction(item, resource, stats), 0)); }
+export function resourceReduction(progress: PlayerProgress, resource: "mana" | "life", stats: ReturnType<typeof statsWithItemBonuses>): number { return Math.min(.9, accessories(progress).reduce((sum, item) => sum + itemResourceCostReduction(item, resource, stats), 0)); }
 export function skillHealthRequirementMet(skill: SkillId, currentHp: number, _maxHp: number): boolean { return SKILLS[skill].resource !== "life" || currentHp > 1; }
 export function bloodSkillLifeCost(skill: SkillId, currentHp: number, lifeCostReduction = 0): number {
   if (SKILLS[skill].resource !== "life" || currentHp <= 1) return 0;
-  const fraction = skill === "vampiricBoomerang" ? 0.3 : 0.1;
-  return Math.min(currentHp * fraction * (1 - Math.min(0.9, Math.max(0, lifeCostReduction))), currentHp - 1);
+  const reduction = 1 - Math.min(0.9, Math.max(0, lifeCostReduction));
+  const rawCost = skill === "vampiricBoomerang" ? Math.max(currentHp * 0.03 * reduction, 1) : currentHp * 0.1 * reduction;
+  return Math.min(rawCost, currentHp - 1);
 }
 export function bloodSkillDamage(skill: SkillId, level: number, baseDamage: number, hpSpent: number): number {
+  if (skill === "vampiricBoomerang") return baseDamage + hpSpent * (1 + level / 10);
   return (baseDamage + hpSpent) * skillDamageMultiplier(skill) * spellPower(level);
 }

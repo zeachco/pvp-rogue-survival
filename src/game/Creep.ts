@@ -6,7 +6,7 @@ import { ENEMY_ARCHETYPES } from "../../common/content";
 import { attackProfile, forceFieldRange } from "../../common/combat";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
-import { distance, normalize, type Camera, type Vector2 } from "./types";
+import { clamp, distance, normalize, type Camera, type Vector2 } from "./types";
 import { creepMaxHealth } from "../../common/waves";
 import { renderStatusEffects } from "./render/statusEffects";
 
@@ -44,9 +44,10 @@ export class Creep extends Unit {
     this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand, build.amulet, build.charm), build.offHand, build.mainHand, build.amulet, build.charm);
     for (const skill of [...(build.mainHand?.skills ?? []), ...(build.offHand?.skills ?? []), ...(build.amulet?.skills ?? []), ...(build.charm?.skills ?? []), ...(build.bonusSkills ?? []), ...Object.keys(build.skillLevels ?? {})] as SkillId[]) {
       this.knownSkills.add(skill);
-      const level = build.skillLevels?.[skill]; if (level !== undefined) this.skillLevels.set(skill, level);
+      const level = build.skillLevels?.[skill]; this.skillLevels.set(skill, level ?? 1);
     }
-    this.maxHp = creepMaxHealth(build.level, this.maxHp, balance); this.hp = this.maxHp;
+    const hasEquippedSentItem = [build.mainHand, build.offHand, build.amulet, build.charm].some((item) => item?.id.includes("-sent"));
+    this.maxHp = creepMaxHealth(build.level, this.maxHp, balance, hasEquippedSentItem); this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand?.sellValue ?? 1);
     this.scoreValue = build.isRival ? 10 : 2;
   }
@@ -62,7 +63,7 @@ export class Creep extends Unit {
     this.updateResources(deltaSeconds, this.random);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
-    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * this.auraMovementMultiplier * this.groundMovementMultiplier;
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * this.auraMovementMultiplier * this.groundMovementMultiplier * this.freezeMovementMultiplier;
     const acceleration = movement.acceleration;
     const profile = attackProfile(this.build.mainHand, this.stats, this.balance); const ranged = profile.projectile;
     const heroDistance = distance(this.position, hero);
@@ -81,8 +82,8 @@ export class Creep extends Unit {
     }
 
     const attackRange = ranged ? profile.range : this.build.mainHand ? movement.attackRange : profile.range;
-    if (this.knownSkills.has("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
-    if (this.knownSkills.has("gravityPull") && this.bonusSkillCooldown === 0 && this.mana >= 8 && heroDistance < forceFieldRange(this.skillLevels.get("gravityPull") ?? 1)) { this.mana -= 8; this.bonusSkillCooldown = 18; return { type: "forceField", source: this }; }
+    if (this.knownSkills.has("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.spendMana(4); this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
+    if (this.knownSkills.has("gravityPull") && this.bonusSkillCooldown === 0 && this.mana >= 8 && heroDistance < forceFieldRange(this.skillLevels.get("gravityPull") ?? 1)) { this.spendMana(8); this.bonusSkillCooldown = 18; return { type: "forceField", source: this }; }
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;
@@ -131,7 +132,11 @@ export class Creep extends Unit {
       ctx.fillStyle = "#dff8ff"; ctx.beginPath(); ctx.arc(5, -5, 5, 0, Math.PI * 2); ctx.fill();
     }
     ctx.fillStyle = "rgba(0,0,0,.5)"; ctx.fillRect(-16, -28, 32, 4);
-    ctx.fillStyle = "#f1fffa"; ctx.fillRect(-16, -28, 32 * this.hp / this.maxHp, 4);
+    ctx.fillStyle = "#f1fffa"; ctx.fillRect(-16, -28, resourceBarWidth(this.hp, this.maxHp), 4);
+    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(-16, -24, 32, 2);
+    ctx.fillStyle = "#45a9ff"; ctx.fillRect(-16, -24, resourceBarWidth(this.mana, this.maxMana), 2);
+    ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(-16, -22, 32, 2);
+    ctx.fillStyle = "#ffd166"; ctx.fillRect(-16, -22, resourceBarWidth(this.stamina, this.maxStamina), 2);
     if (sentItem) {
       ctx.font = "600 12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
       ctx.fillStyle = "#eafffb"; ctx.shadowColor = "rgba(0,0,0,.95)"; ctx.shadowBlur = 4;
@@ -143,4 +148,8 @@ export class Creep extends Unit {
     if (this.build.bonusSkills?.length) { ctx.strokeStyle = "#ff6534"; ctx.lineWidth = 2; ctx.shadowColor = "#ff3d20"; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); ctx.stroke(); }
     ctx.restore();
   }
+}
+
+export function resourceBarWidth(current: number, maximum: number): number {
+  return maximum > 0 ? 32 * clamp(current / maximum, 0, 1) : 0;
 }

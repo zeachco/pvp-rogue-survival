@@ -1,7 +1,9 @@
 /** @jsx h */
 import {
+  equippedImmunities,
   equippedPerks,
   itemCooldownReduction,
+  itemKillRestoration,
   itemRequirementMultiplier,
   itemResourceCostReduction,
   itemStackKey,
@@ -56,6 +58,7 @@ import {
   skillDamagePreview,
   skillRange,
   skillStatBonusDescription,
+  skillUpkeepPerSecond,
   timeHarvestCooldownReduction,
   whirlwindDuration,
   whirlwindMovementSpeed,
@@ -71,7 +74,7 @@ import {
   thunderDamage,
   thunderInterval,
 } from "../../common/auras";
-import { actualSkillLevel } from "../game/systems/HeroCombatSystem";
+import { actualSkillLevel, effectiveSkillLevel, resourceReduction } from "../game/systems/HeroCombatSystem";
 import {
   applyPreviewClass,
   formatPreviewValue,
@@ -80,6 +83,7 @@ import {
   type PreviewValue,
 } from "./preview";
 import { extractButtonStatus } from "./inventoryAvailability";
+import { viewportTooltipPosition } from "./tooltipPosition";
 export type { HudCallbacks, SpellSlot } from "./types";
 declare global {
   namespace JSX {
@@ -97,10 +101,18 @@ function formatSkillDamage(damage: SkillDamagePreview): string {
 function formatSpellLevel(activeLevel: number, actualLevel: number): string { return activeLevel < actualLevel ? `${activeLevel}/${actualLevel}` : String(activeLevel); }
 
 export class Hud {
+  private spellTooltipOverlay?: HTMLElement;
   private player?: PlayerState;
   private inspected?: UnitBuild;
   private inspectedXp?: number;
   private inspectedBestWave?: number;
+  private inspectedMaxHp?: number;
+  private committedInspection?: {
+    build?: UnitBuild;
+    xpReward?: number;
+    bestWave?: number;
+    maxHp?: number;
+  };
   private realm?: RealmState;
   private readonly joinPanel: HTMLElement;
   private readonly gameHud: HTMLElement;
@@ -240,6 +252,7 @@ export class Hud {
   private activeMainHand?: HTMLElement;
   private currentSpells: SpellSlot[] = [];
   private spellPreview?: Map<SkillId, number | null>;
+  private spellPreviewProgress?: PlayerProgress;
   private inventoryHover?: { tileId: string; actionIndex?: number };
   private activeScrapPromotion?: Exclude<Rarity, "common">;
   private readonly spellNodes = new Map<string, HTMLElement>();
@@ -520,7 +533,7 @@ export class Hud {
         ))}
       </div>,
       <strong>Effective stats</strong>,
-      effectiveStatSheet(hero.mainHand, hero.offHand, stats),
+      effectiveStatSheet(hero.mainHand, hero.offHand, hero.amulet, hero.charm, stats),
       <strong>Main hand</strong>,
       equipmentSummary(hero.mainHand, stats, "main"),
       <strong>Offhand</strong>,
@@ -562,14 +575,27 @@ export class Hud {
     this.player = undefined;
     this.realm = undefined;
     this.inspected = undefined;
+    this.committedInspection = undefined;
     this.staticProgress = undefined;
     this.dynamicSignature = "";
     this.updateVisibility();
   }
-  setInspection(build?: UnitBuild, xpReward?: number, bestWave?: number): void {
+  setInspection(build?: UnitBuild, xpReward?: number, bestWave?: number, maxHp?: number): void {
+    this.committedInspection = { build, xpReward, bestWave, maxHp };
+    this.showInspection(build, xpReward, bestWave, maxHp);
+  }
+  setInspectionPreview(build?: UnitBuild, xpReward?: number, bestWave?: number, maxHp?: number): void {
+    this.showInspection(build, xpReward, bestWave, maxHp);
+  }
+  clearInspectionPreview(): void {
+    const committed = this.committedInspection;
+    this.showInspection(committed?.build, committed?.xpReward, committed?.bestWave, committed?.maxHp);
+  }
+  private showInspection(build?: UnitBuild, xpReward?: number, bestWave?: number, maxHp?: number): void {
     this.inspected = build;
     this.inspectedXp = build ? (xpReward ?? build.xpReward) : undefined;
     this.inspectedBestWave = build ? bestWave : undefined;
+    this.inspectedMaxHp = build ? maxHp : undefined;
     this.renderStaticHud();
   }
   setRealm(realm: RealmState): void {
@@ -583,6 +609,7 @@ export class Hud {
     this.renderSpellSlots();
   }
   private previewSpellLevels(skills?: SkillId[]): void {
+    this.spellPreviewProgress = undefined;
     this.spellPreview =
       skills && this.player
         ? new Map(
@@ -614,8 +641,8 @@ export class Hud {
           cooldownMax: 0,
           affordable: true,
           resource: SKILLS[id].resource,
-          costLabel: SKILLS[id].passive
-            ? `0 ${capitalize(SKILLS[id].resource)}`
+          costLabel: SKILLS[id].upkeep
+            ? `${SKILLS[id].upkeep!.resource}/s`
             : capitalize(SKILLS[id].resource),
           active: false,
           bar: this.player?.progress.learnedSkills.includes(id) ? "learned" as const : "geared" as const,
@@ -681,8 +708,36 @@ export class Hud {
                   {this.renderSkillTooltip(spell, shownLevel)}
                 </button>
               ) as HTMLButtonElement;
+              const tooltip = button.querySelector<HTMLElement>(".spell-tooltip");
+              if (tooltip) {
+                button.addEventListener("mouseenter", () => this.showSpellTooltip(button, tooltip));
+                button.addEventListener("mouseleave", () => this.hideSpellTooltip());
+                button.addEventListener("focus", () => this.showSpellTooltip(button, tooltip));
+                button.addEventListener("blur", () => this.hideSpellTooltip());
+              }
               button.onclick = () => this.callbacks.onToggleSkill(spell.id);
               return button;
+  }
+  private showSpellTooltip(button: HTMLButtonElement, template: HTMLElement): void {
+    this.hideSpellTooltip();
+    const tooltip = template.cloneNode(true) as HTMLElement;
+    tooltip.classList.add("is-overlay", "is-visible");
+    document.body.append(tooltip);
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const position = viewportTooltipPosition(
+      button.getBoundingClientRect(),
+      tooltipRect.width,
+      tooltipRect.height,
+      window.innerWidth,
+      window.innerHeight,
+    );
+    tooltip.style.left = `${position.left}px`;
+    tooltip.style.top = `${position.top}px`;
+    this.spellTooltipOverlay = tooltip;
+  }
+  private hideSpellTooltip(): void {
+    this.spellTooltipOverlay?.remove();
+    this.spellTooltipOverlay = undefined;
   }
   private renderSkillTooltip(spell: SpellSlot, level: number): HTMLElement {
     const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
@@ -706,12 +761,14 @@ export class Hud {
   ): HTMLElement {
     const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
     const skill = SKILLS[spell.id];
-    const progress = this.player?.progress;
+    const progress = this.spellPreviewProgress ?? this.player?.progress;
     const stats = progress
       ? statsWithItemBonuses(
           progress.stats,
           progress.mainHand,
           progress.offHand,
+          progress.amulet,
+          progress.charm,
         )
       : undefined;
     const cooldownSeconds =
@@ -746,13 +803,20 @@ export class Hud {
         BALANCE,
       ).attacksPerSecond,
     );
+    const costLabel = spell.id === "blocking" && progress && stats
+      ? `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Stamina / block`
+      : spell.costLabel;
     if (skill.passive) {
+      const upkeep = skill.upkeep && progress && stats
+        ? skillUpkeepPerSecond(spell.id, shownLevel, resourceReduction(progress, "mana", stats))
+        : 0;
       return (
         <span class="spell-tooltip-property-column">
           <b>{heading}</b>
           <span class="spell-tooltip-stats">
             <span><small>Level</small><strong>{shownLevel}</strong></span>
-            <span><small>Activation</small><strong>Always active</strong></span>
+            <span><small>Activation</small><strong>{spell.id === "manaDrain" ? "Critical aura" : "Continuous"}</strong></span>
+            {skill.upkeep ? <span><small>Upkeep</small><strong>{fmt(upkeep)} {capitalize(skill.upkeep.resource)}/s</strong></span> : null}
             {passiveSkillMetrics(spell.id, shownLevel, stats).map((metric) => (
               <span><small>{metric.label}</small><strong>{metric.value}</strong></span>
             ))}
@@ -770,8 +834,12 @@ export class Hud {
           </span>
           <span>
             <small>Cost</small>
-            <strong>{spell.costLabel}</strong>
+            <strong>{costLabel}</strong>
           </span>
+          {skill.upkeep && progress && stats ? <span>
+            <small>Upkeep</small>
+            <strong>{fmt(skillUpkeepPerSecond(spell.id, shownLevel, resourceReduction(progress, "mana", stats)))} {capitalize(skill.upkeep.resource)}/s</strong>
+          </span> : null}
           {damage ? (
             <span>
               <small>Damage</small>
@@ -964,6 +1032,9 @@ export class Hud {
       amulet,
       charm,
     );
+    const blockingLevel = build
+      ? build.skillLevels?.blocking ?? ([main, off, amulet, charm].some((item) => item?.skills.includes("blocking")) ? 1 : 0)
+      : effectiveSkillLevel(p, "blocking");
     const mainSummary = equipmentSummary(main, effectiveStats, "main");
     this.activeMainHand = build ? mainSummary : undefined;
     this.sheetNode.replaceChildren(
@@ -998,7 +1069,7 @@ export class Hud {
       </div>,
       this.allocationNode,
       <strong>Effective stats</strong>,
-      effectiveStatSheet(main, off, effectiveStats),
+      effectiveStatSheet(main, off, amulet, charm, effectiveStats, undefined, this.inspectedMaxHp, blockingLevel),
       ...(build
         ? [
             <strong>Main hand</strong>,
@@ -1129,6 +1200,7 @@ export class Hud {
     if (!item) {
       this.previewBuild(p.mainHand, p.offHand, p.amulet, p.charm, false);
       this.spellPreview = undefined;
+      this.spellPreviewProgress = undefined;
       this.renderSpellSlots();
       return;
     }
@@ -1156,6 +1228,7 @@ export class Hud {
     else if (!main || main.hands === 1) off = item;
     this.previewBuild(main, off, amulet, charm, true);
     const projected = { ...p, mainHand: main, offHand: off, amulet, charm };
+    this.spellPreviewProgress = projected;
     const ids = new Set<SkillId>([
       ...this.currentSpells.map((spell) => spell.id),
       ...p.learnedSkills,
@@ -1337,16 +1410,21 @@ export class Hud {
       this.sheetNode.querySelector<HTMLElement>(".combat-stat-grid");
     if (!current) return;
     const effective = statsWithItemBonuses(baseStats, main, off, amulet, charm);
+    const blockingLevel = effectiveSkillLevel(this.player.progress, "blocking");
     let baseline: Array<[string, string]> | undefined;
     if (highlight) {
       const p = this.player.progress;
       baseline = effectiveStatRows(
         p.mainHand,
         p.offHand,
+        p.amulet,
+        p.charm,
         statsWithItemBonuses(p.stats, p.mainHand, p.offHand, p.amulet, p.charm),
+        undefined,
+        blockingLevel,
       );
     }
-    current.replaceWith(effectiveStatSheet(main, off, effective, baseline));
+    current.replaceWith(effectiveStatSheet(main, off, amulet, charm, effective, baseline, undefined, blockingLevel));
   }
   private renderRealm(): void {
     if (!this.realm) return;
@@ -1766,16 +1844,21 @@ function equipmentSummary(
   );
   return node;
 }
-function effectiveStatRows(
+export function effectiveStatRows(
   main: ItemInstance | undefined,
   off: ItemInstance | undefined,
+  amulet: ItemInstance | undefined,
+  charm: ItemInstance | undefined,
   stats: Stats,
+  maxHp?: number,
+  blockingLevel = 0,
 ): Array<[string, string]> {
   const derived = derivedStats(stats);
   const items = [main, off].filter(Boolean) as ItemInstance[];
   const buckler = off?.itemKind === "buckler" ? off : undefined;
   const profile = attackProfile(main, stats, BALANCE);
-  const perks = equippedPerks(stats, main, off);
+  const perks = equippedPerks(stats, main, off, amulet, charm);
+  const immunities = equippedImmunities(stats, main, off, amulet, charm);
   const mainEffectiveness = itemRequirementMultiplier(main, stats);
   const bucklerEffectiveness = buckler
     ? itemRequirementMultiplier(buckler, stats)
@@ -1796,6 +1879,7 @@ function effectiveStatRows(
         : 0)
     );
   }, 0);
+  const onKill = itemKillRestoration(stats, main, off, amulet, charm);
   return [
     ["Damage", fmt(profile.damage)],
     ["Attacks/s", fmt(profile.attacksPerSecond)],
@@ -1836,7 +1920,7 @@ function effectiveStatRows(
     ],
     ["Spell range/Lv", `+${fmt(0.5 * stats.spirit)}px`],
     ["Spell power/Lv", "+15%"],
-    ["Max health", fmt(derived.maxHp)],
+    ["Max health", fmt(maxHp ?? derived.maxHp)],
     ["Max stamina", fmt(derived.maxStamina)],
     ["Max mana", fmt(derived.maxMana)],
     ["Defense", fmt(perks.defense + (buckler ? stats.strength : 0))],
@@ -1844,13 +1928,13 @@ function effectiveStatRows(
       "Dodge chance",
       percent(Math.min(0.5, stats.agility * 0.003 + perks.dodgeChance)),
     ],
-    ["Physical resist", percent(Math.min(0.5, perks.physicalResist))],
-    ["Magic resist", percent(Math.min(0.5, perks.magicResist))],
-    ["Fire resist", percent(Math.min(0.5, perks.fireResist))],
-    ["Frost resist", percent(Math.min(0.5, perks.frostResist))],
-    ["Poison resist", percent(Math.min(0.5, perks.poisonResist))],
-    ["Bleed resist", percent(Math.min(0.5, perks.bleedResist))],
-    ["Block chance", percent(bucklerBlockChance(buckler, stats))],
+    ["Physical resist", immunities.has("physical") ? "Immune" : percent(Math.min(0.5, perks.physicalResist))],
+    ["Magic resist", immunities.has("magic") ? "Immune" : percent(Math.min(0.5, perks.magicResist))],
+    ["Fire resist", immunities.has("fire") ? "Immune" : percent(Math.min(0.5, perks.fireResist))],
+    ["Frost resist", immunities.has("frost") ? "Immune" : percent(Math.min(0.5, perks.frostResist))],
+    ["Poison resist", immunities.has("poison") ? "Immune" : percent(Math.min(0.5, perks.poisonResist))],
+    ["Bleed resist", immunities.has("bleed") ? "Immune" : percent(Math.min(0.5, perks.bleedResist))],
+    ["Block chance", percent(bucklerBlockChance(buckler, stats, blockingLevel))],
     [
       "Block cost",
       buckler ? `${fmt(bucklerBlockCost(buckler, stats))} stamina` : "0",
@@ -1861,6 +1945,8 @@ function effectiveStatRows(
       `${fmt(derived.manaRegen * (1 + ((main?.modifiers.manaRegenMultiplier ?? 1) - 1) * mainEffectiveness))}/s`,
     ],
     ["Stamina regen", `${fmt(derived.staminaRegen)}/s`],
+    ["HP on kill", fmt(onKill.health)],
+    ["Mana on kill", fmt(onKill.mana)],
     ["Life steal", percent(lifeSteal)],
     [
       "Mana cost reduction",
@@ -1900,11 +1986,15 @@ function effectiveStatRows(
 function effectiveStatSheet(
   main: ItemInstance | undefined,
   off: ItemInstance | undefined,
+  amulet: ItemInstance | undefined,
+  charm: ItemInstance | undefined,
   stats: Stats,
   baseline?: Array<[string, string]>,
+  maxHp?: number,
+  blockingLevel = 0,
 ): HTMLElement {
   const previous = new Map(baseline);
-  const rows = effectiveStatRows(main, off, stats);
+  const rows = effectiveStatRows(main, off, amulet, charm, stats, maxHp, blockingLevel);
   const offensive = new Set([
     "Damage",
     "Attacks/s",
@@ -2092,8 +2182,9 @@ export function passiveSkillMetrics(skill: SkillId, level: number, stats?: Stats
   const radius = (): { label: string; value: string } => ({ label: "Radius", value: `${fmt(auraRadius(level, effectiveStats.spirit))}px` });
   switch (skill) {
     case "attraction": return [{ label: "Pull speed", value: "35px/s" }];
-    case "manaDrain":
+    case "manaDrain": return [{ label: "Mana + Cold", value: `${fmt(manaConversionFraction(level) * 100)}% crit damage` }];
     case "penance": return [{ label: "Conversion", value: `${fmt(manaConversionFraction(level) * 100)}%` }];
+    case "blocking": return [{ label: "Base block chance", value: `+${fmt(level)}%` }];
     case "thorns": return [{ label: "Damage returned", value: "5%" }];
     case "voodoo": return [{ label: "Poison damage", value: `+${fmt(Math.min(1.5, 0.03 * Math.max(0, effectiveStats.spirit)) * 100)}%` }];
     case "slowAura": return [{ label: "Enemy movement", value: `${fmt(auraSlowMultiplier(level) * 100)}%` }, radius()];

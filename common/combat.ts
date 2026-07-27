@@ -11,6 +11,13 @@ export function rollWeaponDamage(item: ItemInstance, stats: Stats, owner: "hero"
 
 export interface AttackProfile { kind: "weapon" | "unarmed"; damage: number; attacksPerSecond: number; range: number; staminaCost: number; projectile: boolean; magic: boolean; weapon?: ItemInstance }
 
+export function skillUpkeepPerSecond(skill: SkillId, level: number, manaCostReduction = 0): number {
+  const upkeep = SKILLS[skill].upkeep;
+  if (!upkeep) return 0;
+  const reduction = upkeep.resource === "mana" ? Math.min(0.9, Math.max(0, manaCostReduction)) : 0;
+  return upkeep.perLevelPerSecond * Math.max(0, level) * (1 - reduction);
+}
+
 export function attackProfile(mainHand: ItemInstance | undefined, stats: Stats, balance: BalanceConfig): AttackProfile {
   if (!mainHand) return { kind: "unarmed", damage: balance.combat.unarmed.baseDamage + balance.combat.unarmed.strengthDamage * stats.strength, attacksPerSecond: balance.combat.unarmed.attacksPerSecond, range: balance.combat.unarmed.range, staminaCost: balance.combat.unarmed.staminaCost, projectile: false, magic: false };
   return { kind: "weapon", damage: weaponDamage(mainHand, stats), attacksPerSecond: weaponAttackSpeed(mainHand, stats), range: weaponRange(mainHand), staminaCost: mainHand.staminaCost, projectile: weaponUsesProjectile(mainHand), magic: isMagicWeapon(mainHand), weapon: mainHand };
@@ -37,7 +44,7 @@ export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number { if
 export function weaponDamage(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "weapon") return 0; const derived = derivedStats(stats); const effectiveness = itemRequirementMultiplier(item, stats); const magic = isMagicWeapon(item) ? derived.magicAmp + item.modifiers.magicAmp * effectiveness : 1; const penalized = derived.baseDamage * item.modifiers.damageMultiplier * magic * effectiveness; const levelZeroMagic = isMagicWeapon(item) ? derived.magicAmp + item.modifiers.magicAmp : 1; const levelZero = derived.baseDamage * (item.modifiers.damageMultiplier / weaponLevelScale(item.level)) * levelZeroMagic; return Math.max(levelZero, penalized); }
 export function weaponRange(item: ItemInstance): number { return item.itemKind === "weapon" ? WEAPONS[item.definitionId as keyof typeof WEAPONS].range ?? 105 : 0; }
 export function weaponUsesProjectile(item: ItemInstance): boolean { return item.itemKind === "weapon" && Boolean(WEAPONS[item.definitionId as keyof typeof WEAPONS].projectile); }
-export function bucklerBlockChance(item: ItemInstance | undefined, stats: Stats): number { return item?.itemKind === "buckler" ? Math.min(1, (item.blockChance + 0.005 * (stats.strength + stats.agility)) * itemRequirementMultiplier(item, stats)) : 0; }
+export function bucklerBlockChance(item: ItemInstance | undefined, stats: Stats, blockingLevel = 0): number { return item?.itemKind === "buckler" ? Math.min(1, 0.01 * Math.max(0, blockingLevel) + (item.blockChance + 0.005 * (stats.strength + stats.agility)) * itemRequirementMultiplier(item, stats)) : 0; }
 export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "buckler") return 0; if (!item.reflectionComponents.includes("return")) return 1; const returnedFraction = (0.15 + 0.004 * Math.max(0, stats.agility)) * RARITY_POWER[item.rarity]; return 1 + returnedFraction / (1 + 0.1 * Math.max(0, item.level)); }
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
@@ -75,7 +82,7 @@ export function whirlwindMovementSpeed(level: number): number { return .5 + (cap
 export function rapidRegenDuration(level: number): number { return 10 + (cappedSkillLevel(level) - 1) / 98 * 20; }
 export function rapidRegenMultiplier(level: number): number { return 1.2 + (cappedSkillLevel(level) - 1) / 98 * 3.8; }
 export function swampRadius(level: number): number { return 200 + (cappedSkillLevel(level) - 1) * (300 / 98); }
-export function swampCooldown(level: number): number { return 100 - (cappedSkillLevel(level) - 1) * (85 / 98); }
+export function swampCooldown(level: number): number { return 45 - (cappedSkillLevel(level) - 1) * (30 / 98); }
 export function whirlwindDamage(strength: number): number { return 1 + 0.4 * Math.max(0, strength); }
 export function healingFraction(level: number): number { return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 98); }
 export function healingCooldown(level: number): number { return 15 - (cappedSkillLevel(level) - 1) * (14 / 98); }
@@ -108,7 +115,7 @@ export function skillStatBonusDescription(skill: SkillId): string | undefined {
     case "fireBreath": bonuses.push("Spirit increases Burn damage"); break;
     case "swamp": bonuses.push("Skill level increases swamp radius and reduces its cooldown"); break;
     case "voodoo": bonuses.push("Spirit increases poison amplification"); break;
-    case "manaDrain": bonuses.push("Skill level increases mana restoration"); break;
+    case "manaDrain": bonuses.push("Skill level increases Mana restoration and bonus Cold damage"); break;
     case "penance": bonuses.push("Spirit and skill level increase mana restoration"); break;
     case "timeHarvest": bonuses.push("Skill level increases cooldown removal per kill"); break;
     case "sunburnAura": bonuses.push("Intelligence increases damage; Spirit shortens pulse interval"); break;

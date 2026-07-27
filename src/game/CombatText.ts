@@ -1,11 +1,11 @@
 import type { Vector2 } from "./types";
 
-export type DamageKind = "physical" | "magic" | "electric" | "poison" | "fire" | "bleed";
+export type DamageKind = "physical" | "magic" | "cold" | "electric" | "poison" | "fire" | "bleed";
 export interface DamagePresentation { kind: DamageKind; critical?: boolean }
 export type CombatTextKind = DamageKind | "healing" | "dodge" | "block";
 export interface CombatText { position: Vector2; amount: number; kind: CombatTextKind; critical: boolean; age: number; lifetime: number; drift: number; label?: string }
 
 export const COMBAT_TEXT_COLORS: Readonly<Record<CombatTextKind, string>> = {
-  physical: "#d8dde2", magic: "#f4d35e", electric: "#7df9ff", poison: "#df6bff", fire: "#ff6534", bleed: "#ff6575", healing: "#65e58b", dodge: "#a8f3ff", block: "#ffd86b"
+  physical: "#d8dde2", magic: "#f4d35e", cold: "#9eeaff", electric: "#7df9ff", poison: "#df6bff", fire: "#ff6534", bleed: "#ff6575", healing: "#65e58b", dodge: "#a8f3ff", block: "#ffd86b"
 };
 export const CRITICAL_TEXT_COLOR = "#fff3bd";

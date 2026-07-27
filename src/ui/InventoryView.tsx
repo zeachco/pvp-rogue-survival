@@ -43,12 +43,16 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   if (extractButton && extractStatus === "needs-gold") { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
   if (extractButton && extractStatus === "unlearned-skill") { extractButton.disabled = true; extractButton.title = `Learn ${skills.filter((skill) => !progress.learnedSkills.includes(skill)).join(", ")} before extracting`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
+  const highlightExtractableSkills = (active: boolean): void => { const extractable = new Set(skills); for (const row of details.querySelectorAll<HTMLElement>(".item-skill-list [data-skill-id]")) row.classList.toggle("is-extract-preview", active && extractable.has(row.dataset.skillId as typeof skills[number])); };
   const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); const level = formatProjectedValue({ currentVal: item.level, newVal: shown.level }); subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onHoverChange?.(tile.id, index); onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onHoverChange?.(tile.id); onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
   bindActionPreview(0, { gold: sellYield(item) }); bindActionPreview(1, { [item.rarity]: purgeYield(item) });
   const upgradePreview = buttons[2] as HTMLButtonElement | undefined; upgradePreview?.addEventListener("mouseenter", () => previewUpgradeCard(true)); upgradePreview?.addEventListener("mouseleave", () => previewUpgradeCard(false));
   bindActionPreview(2, { gold: -costs.gold, [item.rarity]: -costs.scraps }, () => { if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade"); });
-  bindActionPreview(3); bindActionPreview(4, { gold: -extractCost }, () => onSpellPreview?.(skills));
+  bindActionPreview(3); bindActionPreview(4, { gold: -extractCost }, () => { onSpellPreview?.(skills); highlightExtractableSkills(true); });
+  extractButton?.addEventListener("mouseleave", () => highlightExtractableSkills(false));
+  extractButton?.addEventListener("blur", () => highlightExtractableSkills(false));
+  extractButton?.addEventListener("focus", () => highlightExtractableSkills(true));
   return node;
 }
 function itemKindLabel(item: InventoryTile["item"]): string { return item.itemKind === "weapon" ? `${item.hands}H` : item.itemKind === "buckler" ? `${Math.round(item.blockChance * 100)}% block` : item.itemKind === "relic" ? "Relic" : item.itemKind === "amulet" ? "Amulet" : "Charm"; }

@@ -1,4 +1,5 @@
 import {describe, expect, test} from "bun:test";
+import {viewportTooltipPosition} from "../src/ui/tooltipPosition";
 
 import {
   auraRadius,
@@ -12,6 +13,7 @@ import {
 import {BALANCE} from "../common/balance";
 import {
   attackProfile,
+  bucklerBlockChance,
   bucklerBlockCost,
   forceFieldRange,
   flurryCooldown,
@@ -26,6 +28,8 @@ import {
   skillCooldown,
   skillDamagePreview,
   skillRange,
+  skillStatBonusDescription,
+  skillUpkeepPerSecond,
   timeHarvestCooldownReduction,
   timeHarvestItemSkillBonus,
   swampCooldown,
@@ -59,6 +63,7 @@ import {
 } from "../common/inventory";
 import {
   AURA_SKILLS,
+  equippedImmunities,
   equippedPerks,
   generateAccessory,
   generateBuckler,
@@ -105,10 +110,10 @@ import {
   skillHealthRequirementMet
 } from "../src/game/systems/HeroCombatSystem";
 import {gameSocketUrl} from "../src/net/SocketClient";
-import {itemRequirementRows, requirementDisplayStats, requirementMetStats} from "../src/ui/ItemDetails";
+import {itemRequirementRows, itemSkillDescription, requirementDisplayStats, requirementMetStats} from "../src/ui/ItemDetails";
 import {formatPreviewValue, formatProjectedValue, previewTone} from "../src/ui/preview";
 import {extractButtonStatus} from "../src/ui/inventoryAvailability";
-import {passiveSkillMetrics, statusEffectSummaries, xpSendBuffSummary} from "../src/ui/Hud";
+import {effectiveStatRows, passiveSkillMetrics, statusEffectSummaries, xpSendBuffSummary} from "../src/ui/Hud";
 
 function progress(): PlayerProgress {
   return {
@@ -128,11 +133,38 @@ function progress(): PlayerProgress {
 }
 let id = 0;
 
+describe("viewport tooltip positioning", () => {
+  test("keeps a top skill tooltip inside the viewport", () => {
+    expect(
+      viewportTooltipPosition(
+        {left: 48, right: 104, bottom: 60},
+        510,
+        300,
+        1280,
+        720,
+      ),
+    ).toEqual({left: 114, top: 8});
+  });
+
+  test("flips left and clamps to the bottom edge when needed", () => {
+    expect(
+      viewportTooltipPosition(
+        {left: 900, right: 956, bottom: 700},
+        400,
+        250,
+        1000,
+        720,
+      ),
+    ).toEqual({left: 490, top: 450});
+  });
+});
+
 describe("balance and waves", () => {
   test("keeps capped waves and player-independent champion scaling", () => {
     const balance = BALANCE;
     expect(regularCount(0, balance)).toBe(10);
-    expect(regularCount(1, balance)).toBe(12);
+    expect(regularCount(1, balance)).toBe(10);
+    expect(regularCount(2, balance)).toBe(12);
     expect(regularLevel(3, 0, 16, balance)).toBe(1);
     expect(rivalLevel(1, balance)).toBe(1);
     expect(rivalLevel(5, balance)).toBe(3);
@@ -152,12 +184,23 @@ describe("balance and waves", () => {
     expect(realmCloneLevel(11, 3)).toBe(3);
     expect(realmCloneLevel(0, 2)).toBe(0);
   });
-  test("gives enemy levels zero through seven exactly one through eight HP",
-       () => {
-         for (let level = 0; level < 8; level += 1)
-           expect(creepMaxHealth(level, 99, BALANCE)).toBe(level + 1);
-         expect(creepMaxHealth(8, 18, BALANCE)).toBe(18);
-       });
+  test("keeps introductory enemy HP fixed, scales later HP by twelve percent, and doubles sent-item carriers", () => {
+    for (let level = 0; level < 8; level += 1)
+      expect(creepMaxHealth(level, 99, BALANCE)).toBe(10 + level);
+    expect(creepMaxHealth(0, 99, BALANCE)).toBe(10);
+    expect(creepMaxHealth(8, 18, BALANCE)).toBe(90);
+    expect(creepMaxHealth(9, 18, BALANCE)).toBeCloseTo(90 * 1.12);
+    expect(creepMaxHealth(20, 30, BALANCE)).toBeCloseTo(150 * 1.12 ** 12);
+    expect(creepMaxHealth(50, 60, BALANCE)).toBeCloseTo(300 * 1.12 ** 42);
+    expect(creepMaxHealth(9.9, 18, BALANCE)).toBeCloseTo(90 * 1.12);
+    expect(creepMaxHealth(28, 54.333, BALANCE)).toBeCloseTo(271.665 * 1.12 ** 20);
+    expect(creepMaxHealth(45, 55, BALANCE)).toBeCloseTo(275 * 1.12 ** 37);
+    expect(creepMaxHealth(45, 55, BALANCE, true)).toBeCloseTo(550 * 1.12 ** 37);
+    const doubled = { ...BALANCE, combat: { ...BALANCE.combat, enemyHealthMultiplier: 2 } };
+    expect(creepMaxHealth(20, 30, doubled)).toBeCloseTo(300 * 1.12 ** 12);
+    expect(creepMaxHealth(20, 30, BALANCE, true)).toBeCloseTo(300 * 1.12 ** 12);
+    expect(new Map(effectiveStatRows(undefined, undefined, undefined, undefined, ZERO_STATS, 3642.75)).get("Max health")).toBe("3642.75");
+  });
 });
 describe("attack timing", () => {
   test("uses damped weight handling for physical and magic weapons", () => {
@@ -197,6 +240,17 @@ test("resolves the configured unarmed profile from effective Strength", () => {
       });
 });
 describe("equipment requirements", () => {
+  test("rolls and preserves requirement-active immunities only from generated level-25+ items", () => {
+    const lowLevel = Array.from({ length: 500 }, (_, seed) => generateItem(24, "rare", seed));
+    expect(lowLevel.every((item) => (item.immunities?.length ?? 0) === 0)).toBeTrue();
+    const immune = Array.from({ length: 500 }, (_, seed) => generateItem(25, "rare", seed)).find((item) => item.immunities?.length);
+    expect(immune?.immunities?.length).toBeGreaterThan(0);
+    expect(levelUpItem(immune!, 999).immunities).toEqual(immune!.immunities);
+    const frostWard = { ...starterClub(), immunities: ["frost" as const], requirements: { intelligence: 5 } };
+    expect(equippedImmunities({ ...ZERO_STATS, intelligence: 5 }, frostWard).has("frost")).toBeTrue();
+    expect(equippedImmunities({ ...ZERO_STATS, intelligence: 4 }, frostWard).has("frost")).toBeFalse();
+    expect(new Map(effectiveStatRows(frostWard, undefined, undefined, undefined, { ...ZERO_STATS, intelligence: 5 })).get("Frost resist")).toBe("Immune");
+  });
   test(
       "permits under-requirement equipment and scales item output by missing stat plus one",
       () => {
@@ -620,12 +674,24 @@ describe("amulets and charms", () => {
                       Number(bonus.globalCooldownReduction !== undefined) +
                       Number(bonus.manaCostReduction !== undefined) +
                       Number(bonus.lifeCostReduction !== undefined) +
+                      Number(bonus.healthOnKill !== undefined) +
+                      Number(bonus.manaOnKill !== undefined) +
                       Number(item.attractionSpeed > 0) +
                       Number(item.skills.includes("timeHarvest")) +
                       Object.keys(bonus.physicalDamage ?? {}).length;
         expect(count).toBeGreaterThanOrEqual(bounds[rarity][0]);
         expect(count).toBeLessThanOrEqual(bounds[rarity][1]);
       }
+    const rolled = Array.from({ length: 500 }, (_, seed) => [
+      generateAccessory(20, "epic", seed, "amulet"),
+      generateAccessory(20, "epic", seed, "charm"),
+    ]).flat();
+    const healthRolls = rolled.flatMap((item) => item.accessoryBonuses?.healthOnKill ?? []);
+    const manaRolls = rolled.flatMap((item) => item.accessoryBonuses?.manaOnKill ?? []);
+    expect(healthRolls.length).toBeGreaterThan(0);
+    expect(manaRolls.length).toBeGreaterThan(0);
+    expect(healthRolls.every((value) => Number.isInteger(value) && value >= 1 && value <= 25)).toBeTrue();
+    expect(manaRolls.every((value) => Number.isInteger(value) && value >= 1 && value <= 50)).toBeTrue();
     const state = progress();
     const charm = generateAccessory(10, "rare", 3, "charm");
     const amulet = generateAccessory(10, "rare", 4, "amulet");
@@ -662,9 +728,9 @@ describe("amulets and charms", () => {
         expect(effectiveSkillLevel(state, "healing")).toBe(9);
         expect(effectiveSkillLevel(state, "bash")).toBe(14);
         expect(itemCooldownReduction(state.offHand)).toBe(.8);
-      });
+  });
   test("rolls the extractable Time Harvest passive and scales its cooldown removal", () => {
-    const amulet = generateAccessory(50, "epic", 1, "amulet");
+    const amulet = Array.from({ length: 100 }, (_, seed) => generateAccessory(50, "epic", seed, "amulet")).find((item) => item.skills.includes("timeHarvest"))!;
     expect(amulet.skills).toContain("timeHarvest");
     expect(extractableSkills(amulet)).toContain("timeHarvest");
     expect(timeHarvestCooldownReduction(1)).toBe(1);
@@ -753,7 +819,7 @@ test("adds Healing to high-rarity maces and permits permanent Healing upgrades",
        expect(state.learnedSkillLevels.healing).toBe(2);
        expect(state.universalSkills).toContain("healing");
      });
-test("does not charge or consume equipment with only reactive Blocking", () => {
+test("extracts Blocking and adds one base block percentage point per effective level", () => {
   const state = progress();
   const buckler = generateBuckler(1, "common", 12);
   state.inventoryTiles.push({
@@ -762,21 +828,35 @@ test("does not charge or consume equipment with only reactive Blocking", () => {
     item : buckler,
     quantity : 1
   });
-  const gold = state.gold;
-  expect(extractableSkills(buckler)).toEqual([]);
-  expect(extractFromInventory(state, "buckler")).toMatchObject({
-    changed : false,
-    reason : "That item has no extractable skill."
-  });
-  expect(state.gold).toBe(gold);
-  expect(state.inventoryTiles[0].quantity).toBe(1);
+  state.learnedSkills.push("blocking");
+  state.learnedSkillLevels.blocking = 3;
+  state.gold = 1_000;
+  expect(extractableSkills(buckler)).toEqual(["blocking"]);
+  expect(extractFromInventory(state, "buckler").changed).toBeTrue();
+  expect(state.gold).toBe(970);
+  expect(state.learnedSkillLevels.blocking).toBe(4);
+  expect(state.inventoryTiles).toHaveLength(0);
+  expect(bucklerBlockChance(buckler, ZERO_STATS, 3) - bucklerBlockChance(buckler, ZERO_STATS, 0)).toBeCloseTo(.03);
 });
 describe("spell resources", () => {
   test("registers Rent as life and buckler blocking as stamina", () => {
     expect(SKILLS.rent.resource).toBe("life");
     expect(SKILLS.blocking.resource).toBe("stamina");
+    expect(SKILLS.blocking.passive).toBeTrue();
     expect(generateBuckler(0, "common", 12).skills).toEqual([ "blocking" ]);
   });
+});
+
+test("defines exact level-scaled passive upkeep tiers and applies Mana-cost reduction", () => {
+  expect(skillUpkeepPerSecond("attraction", 10)).toBeCloseTo(.01);
+  expect(skillUpkeepPerSecond("penance", 10)).toBeCloseTo(.02);
+  expect(skillUpkeepPerSecond("thorns", 10)).toBeCloseTo(.05);
+  expect(skillUpkeepPerSecond("sunburnAura", 10)).toBeCloseTo(.1);
+  expect(skillUpkeepPerSecond("blocking", 10)).toBeCloseTo(.01);
+  expect(skillUpkeepPerSecond("sunburnAura", 99, .9)).toBeCloseTo(.099);
+  expect(SKILLS.thorns.upkeep).toEqual({ resource: "mana", perLevelPerSecond: .005 });
+  expect(SKILLS.penance).toMatchObject({ resource: "stamina", upkeep: { resource: "stamina", perLevelPerSecond: .002 } });
+  expect(SKILLS.blocking.upkeep).toEqual({ resource: "stamina", perLevelPerSecond: .001 });
 });
 test("blood skills spend remaining HP, scale damage with the amount spent, and preserve one HP", () => {
   for (const skill of Object.values(SKILLS).filter(({resource}) =>
@@ -786,11 +866,14 @@ test("blood skills spend remaining HP, scale damage with the amount spent, and p
   }
   expect(bloodSkillLifeCost("rent", 100)).toBe(10);
   expect(bloodSkillLifeCost("rent", 50)).toBe(5);
-  expect(bloodSkillLifeCost("vampiricBoomerang", 50)).toBe(15);
+  expect(bloodSkillLifeCost("vampiricBoomerang", 50)).toBe(1.5);
+  expect(bloodSkillLifeCost("vampiricBoomerang", 20)).toBe(1);
   expect(bloodSkillLifeCost("vampiricBoomerang", 1.1)).toBeCloseTo(0.1);
   expect(bloodSkillLifeCost("rent", 100, 0.5)).toBe(5);
   expect(bloodSkillDamage("rent", 1, 10, 10)).toBeGreaterThan(
       bloodSkillDamage("rent", 1, 10, 5));
+  expect(bloodSkillDamage("vampiricBoomerang", 10, 20, 3)).toBe(26);
+  expect(bloodSkillDamage("vampiricBoomerang", 99, 20, 3)).toBe(52.7);
   expect(skillHealthRequirementMet("bash", 1, 100)).toBeTrue();
 });
 test("grants Gold gain and rarity boost on bucklers by rarity", () => {
@@ -1143,6 +1226,12 @@ test("registers configurable Spirit relic perks", () => {
   expect(SKILLS.fireBreath).toMatchObject({enemyEligible : true, cost : 4});
   expect(SKILLS.voodoo.passive).toBeTrue();
   expect(SKILLS.manaDrain.passive).toBeTrue();
+  expect(SKILLS.manaDrain.label).toBe("Spirit Wounds");
+  expect(SKILLS.manaDrain.upkeep).toBeUndefined();
+  expect(SKILLS.manaDrain.description).toContain("Critical damage from attacks, spells, projectiles, auras, reflection, statuses, and continuous effects");
+  expect(passiveSkillMetrics("manaDrain", 9, ZERO_STATS)).toEqual([
+    {label : "Mana + Cold", value : "5.816% crit damage"}
+  ]);
   expect(SKILLS.penance.passive).toBeTrue();
   expect(SKILLS.thorns.passive).toBeTrue();
   expect(SKILLS.penance.description).toContain("blocked damage × Spirit × level conversion");
@@ -1169,10 +1258,17 @@ test("registers configurable Spirit relic perks", () => {
   expect(perks.some((skills) => skills.includes("penance"))).toBeTrue();
   expect(perks.some((skills) => skills.includes("rapidRegen"))).toBeTrue();
 });
+test("item skill rows reuse the skillbar descriptions", () => {
+  expect(itemSkillDescription("reflectiveSurge")).toEqual({
+    label: SKILLS.reflectiveSurge.label,
+    description: SKILLS.reflectiveSurge.description,
+    statBonuses: skillStatBonusDescription("reflectiveSurge"),
+  });
+});
 test("scales Gooey Swamp exactly from its level-one to level-ninety-nine endpoints", () => {
   expect(swampRadius(1)).toBe(200);
   expect(swampRadius(99)).toBe(500);
-  expect(swampCooldown(1)).toBe(100);
+  expect(swampCooldown(1)).toBe(45);
   expect(swampCooldown(99)).toBe(15);
   expect(skillRange("swamp", starterClub(), 99, 999)).toBe(500);
   expect(skillCooldown("swamp", starterClub(), {...ZERO_STATS, intelligence: 99, agility: 99}, 99)).toBe(15);

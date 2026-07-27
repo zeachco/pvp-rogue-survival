@@ -22,7 +22,7 @@ export function derivedStats(stats: Stats): DerivedStats {
     cooldownReduction: Math.min(0.6, stats.intelligence * 0.01),
     magicAmp: 1 + stats.intelligence * 0.02,
     hpRegen: 0.005 + stats.spirit * 0.005,
-    manaRegen: 0.02 + stats.spirit * 0.1,
+    manaRegen: 0.2 + stats.spirit * 0.1,
     staminaRegen: 0.05 + stats.spirit * 0.025
   };
 }

@@ -19,7 +19,7 @@ describe("server protocol integration", () => {
     const roundTripped = messages.map((message) => parseServerMessage(JSON.parse(JSON.stringify(message))));
     const welcome = roundTripped.find((message) => message?.type === "welcome"); const wave = roundTripped.find((message) => message?.type === "incomingWave");
     expect(welcome?.config.balance.id).toBe("normal"); expect(welcome?.config.protocolVersion).toBe(34); expect(welcome?.realm.mode).toBe("training");
-    expect(wave?.wave.mode).toBe("training"); expect(wave?.wave.waveNumber).toBe(0); expect(wave?.wave.spawns).toHaveLength(10);
+    expect(wave?.wave.mode).toBe("training"); expect(wave?.wave.waveNumber).toBe(1); expect(wave?.wave.spawns).toHaveLength(10);
     expect(parseClientMessage({ type: "toggleSkill", skillId: "healing" })?.type).toBe("toggleSkill");
     expect(parseClientMessage({ type: "creepKilled", unitId: "fake", xpReward: 1_000_000 })).toBeUndefined();
   });

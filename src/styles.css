@@ -21,9 +21,12 @@
   box-sizing: border-box;
 }
 
+html,
 body {
+  width: 100%;
+  height: 100%;
   margin: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 button,
@@ -240,13 +243,16 @@ input {
 }
 
 .spell-tooltip {
-  position: absolute;
-  bottom: -1px;
-  left: calc(100% + 10px);
+  position: fixed;
+  top: 0;
+  left: 0;
   z-index: 30;
   display: grid;
   gap: 8px;
   width: 510px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   padding: 12px;
   border: 1px solid #607980;
   border-radius: 5px;
@@ -264,11 +270,10 @@ input {
   pointer-events: none;
 }
 
-.spell-slot:hover .spell-tooltip,
-.spell-slot:focus .spell-tooltip {
+.spell-tooltip.is-overlay.is-visible {
   opacity: 1;
   visibility: visible;
-  transform: translateX(0);
+  transform: none;
 }
 
 .spell-tooltip > b {
@@ -1231,9 +1236,29 @@ input {
   color: #62e88a;
   text-shadow: 0 0 6px rgba(98, 232, 138, 0.3);
 }
+.item-skill-list li.is-extract-preview {
+  color: #55c8ff;
+  text-shadow: 0 0 7px rgba(85, 200, 255, 0.55);
+}
 .item-effect-list li:hover > .tile-text-tooltip,
 .item-effect-list li:focus > .tile-text-tooltip {
   display: block;
+}
+.item-skill-tooltip {
+  display: none;
+  gap: 5px;
+  width: min(340px, calc(100vw - 32px));
+}
+.item-effect-list li:hover > .item-skill-tooltip,
+.item-effect-list li:focus > .item-skill-tooltip {
+  display: grid;
+}
+.item-skill-tooltip > b {
+  color: #e8f9ff;
+  font-size: 12px;
+}
+.item-skill-tooltip > span {
+  color: #bad0d7;
 }
 .equipped-item .is-gain-preview,
 .equipment-details b.is-gain-preview {

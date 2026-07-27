@@ -16,7 +16,7 @@ import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import { enqueueWave, releaseReadySpawns, removeInactive } from "./systems/lifecycle";
 import { resolveCombat } from "./systems/combat";
-import { cancelHostileProjectiles, castForceFieldTargets, HeroCombatSystem, isSkillActive } from "./systems/HeroCombatSystem";
+import { cancelHostileProjectiles, castForceFieldTargets, HeroCombatSystem } from "./systems/HeroCombatSystem";
 import { AuraSystem } from "./systems/AuraSystem";
 import { CanvasRenderer } from "./render/CanvasRenderer";
 import { clamp, distance, type Camera, type PlayerState, type Vector2 } from "./types";
@@ -50,6 +50,7 @@ export class Game {
   private defeatCooldown = 0;
   private resizeObserver?: ResizeObserver;
   private hovered?: Creep;
+  private hoverPeeking = false;
   private inspected?: Creep;
   private waveMode: "competitive" | "solo" | "training" = "training";
   private realmMode: "training" | "waiting" | "competitive" = "training";
@@ -145,6 +146,7 @@ export class Game {
     const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
     const heroAttackActive = this.attacks.some((attack) => attack.active && attack.owner === "hero");
     const heroMoving = movementInput.x !== 0 || movementInput.y !== 0 || Math.hypot(this.hero.velocity.x, this.hero.velocity.y) > .01;
+    this.heroCombat.syncSkills(this.player.progress, this.hero);
     this.hero.attackSlow = heroAttackActive; this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed; this.hero.healthRegenMultiplier = this.heroCombat.rapidRegenMultiplier; this.hero.healthRegenFlat = this.heroCombat.rapidRegenFlat; this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training", !heroMoving && !heroAttackActive && !this.heroCombat.attacking);
     this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
     this.heroCombat.update(deltaSeconds, movementInput, this.hero, this.arena, this.player.progress, this.balance, systemRandom);
@@ -166,13 +168,14 @@ export class Game {
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds)); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     this.projectiles.push(...emittedProjectiles);
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
-    const baseStats = this.player.progress.stats; const attractionEnabled = isSkillActive(this.player.progress, "attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, ...[this.player.progress.mainHand, this.player.progress.offHand, this.player.progress.amulet, this.player.progress.charm].map((item) => (item?.attractionSpeed ?? 0) * (item ? itemRequirementMultiplier(item, baseStats) : 1))) : 0;
+    const baseStats = this.player.progress.stats; const attractionEnabled = this.hero.isSkillOperational("attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, ...[this.player.progress.mainHand, this.player.progress.offHand, this.player.progress.amulet, this.player.progress.charm].map((item) => (item?.attractionSpeed ?? 0) * (item ? itemRequirementMultiplier(item, baseStats) : 1))) : 0;
     for (const drop of this.drops) { if (drop.escaping) { drop.move(deltaSeconds); if (drop.outside(this.map.width, this.map.height) && drop.active) { drop.active = false; this.socket.send({ type: "deferDrop", dropId: drop.dropId }); } } else { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); } }
     resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.auraSystem.resolveDeaths(this.hero, this.player.progress, this.creeps, systemRandom); this.collectKills(); this.collectDrops();
     if ([...this.pendingPickupAt.values()].some((sentAt) => performance.now() - sentAt >= 3000)) this.reconcileDrops();
     this.arena.updateCombatTexts(deltaSeconds);
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops); removeInactive(this.arena.spellEffects); removeInactive(this.arena.swamps);
     if (this.inspected && !this.inspected.active) this.clearInspection();
+    if (this.hoverPeeking && (!this.hovered || !this.hovered.active)) { this.hovered = undefined; this.hud.clearInspectionPreview(); this.hoverPeeking = false; }
     this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(this.player.progress, this.hero)); if (!this.hero.active) this.handleDefeat(); this.updateCamera();
   }
 
@@ -212,9 +215,25 @@ export class Game {
   private resetArena(): void { this.arena.clear(); this.pendingPickupAt.clear(); this.heroCombat.reset(); this.auraSystem.reset(); this.hero = new Hero(this.map.center); this.hero.onCombatText = (text) => this.arena.addCombatText(text); this.hero.applyProgress(this.player!.progress); this.clearInspection(); this.socket.send({ type: "requestWave" }); }
   private syncHeroState(): void { if (!this.player) return; this.player.health = this.hero.hp; this.player.maxHealth = this.hero.maxHp; this.player.healthRegen = this.hero.healthRegen; this.player.mana = this.hero.mana; this.player.maxMana = this.hero.maxMana; this.player.stamina = this.hero.stamina; this.player.maxStamina = this.hero.maxStamina; this.player.attackProgress = this.heroCombat.attackProgress; this.player.statuses = this.hero.statuses.map(({ kind, remaining, damagePerSecond }) => ({ kind, remaining, damagePerSecond })); this.player.gold = this.player.progress.gold; }
 
-  private updateHover(event: MouseEvent): void { const world = this.eventWorld(event); this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0]; if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined; this.canvas.style.cursor = this.hovered ? "pointer" : "default"; }
-  private inspectAt(event: MouseEvent): void { this.updateHover(event); this.inspected = this.hovered; const reward = this.inspected ? Math.floor(this.inspected.build.xpReward * this.balance.rewards.xpMultiplier * (this.waveMode === "solo" ? 0.5 : this.waveMode === "training" ? 0 : 1)) : undefined; this.hud.setInspection(this.inspected?.build, reward); }
-  private clearInspection(): void { this.inspected = undefined; this.hud.setInspection(); }
+  private updateHover(event: MouseEvent): void {
+    const world = this.eventWorld(event);
+    const previous = this.hovered;
+    this.hovered = this.creeps.filter((creep) => creep.active).sort((a, b) => distance(a.position, world) - distance(b.position, world))[0];
+    if (this.hovered && distance(this.hovered.position, world) > this.hovered.radius + 8) this.hovered = undefined;
+    this.canvas.style.cursor = this.hovered ? "pointer" : "default";
+    if (this.hovered === previous) return;
+    if (this.hovered) {
+      const reward = this.creepInspectionReward(this.hovered);
+      this.hud.setInspectionPreview(this.hovered.build, reward, undefined, this.hovered.maxHp);
+      this.hoverPeeking = true;
+    } else if (this.hoverPeeking) {
+      this.hud.clearInspectionPreview();
+      this.hoverPeeking = false;
+    }
+  }
+  private inspectAt(event: MouseEvent): void { this.updateHover(event); this.inspected = this.hovered; const reward = this.inspected ? this.creepInspectionReward(this.inspected) : undefined; this.hud.setInspection(this.inspected?.build, reward, undefined, this.inspected?.maxHp); this.hoverPeeking = false; }
+  private clearInspection(): void { this.inspected = undefined; this.hoverPeeking = false; this.hud.setInspection(); }
+  private creepInspectionReward(creep: Creep): number { return Math.floor(creep.build.xpReward * this.balance.rewards.xpMultiplier * (this.waveMode === "solo" ? 0.5 : this.waveMode === "training" ? 0 : 1)); }
   private eventWorld(event: MouseEvent): Vector2 { const rect = this.canvas.getBoundingClientRect(); return { x: event.clientX - rect.left + this.camera.x, y: event.clientY - rect.top + this.camera.y }; }
   private updateCamera(): void { this.camera.x = clamp(this.hero.position.x - this.camera.width / 2, 0, Math.max(0, this.map.width - this.camera.width)); this.camera.y = clamp(this.hero.position.y - this.camera.height / 2, 0, Math.max(0, this.map.height - this.camera.height)); }
   private render(): void { this.renderer.render(this.camera, this.hero, this.arena, this.hovered, this.inspected); }
