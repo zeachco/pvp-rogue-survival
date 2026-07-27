@@ -81,6 +81,7 @@ import {
 import {
   effectiveSkillLevel,
   forceField,
+  forceFieldDamage,
   skillHealthRequirementMet
 } from "../src/game/systems/HeroCombatSystem";
 import {gameSocketUrl} from "../src/net/SocketClient";
@@ -682,21 +683,20 @@ test("grants Gold gain and rarity boost on bucklers by rarity", () => {
       .toBeGreaterThan(common.modifiers.rarityBoost);
 });
 describe("Force Field", () => {
-  test("applies inward or outward velocity and interrupts attacks", () => {
+  test("always applies outward velocity and interrupts attacks", () => {
     let interrupted = 0;
-    const pulled = {
+    const pushed = {
       position : {x : 100, y : 0},
-      velocity : {x : 0, y : 0},
+      velocity : {x : -400, y : 0},
       interruptAttack : () => interrupted += 1
     };
-    forceField(pulled, {x : 0, y : 0}, 40, "pull");
-    expect(pulled.position).toEqual({x : 100, y : 0});
-    expect(pulled.velocity).toEqual({x : -40, y : 0});
-    const pushed = {position : {x : 100, y : 0}, velocity : {x : 0, y : 0}};
-    forceField(pushed, {x : 0, y : 0}, 40, "push");
+    forceField(pushed, {x : 0, y : 0}, 40);
+    expect(pushed.position).toEqual({x : 100, y : 0});
     expect(pushed.velocity).toEqual({x : 40, y : 0});
     expect(interrupted).toBe(1);
     expect(SKILLS.gravityPull.label).toBe("Force Field");
+    expect(forceFieldDamage(1)).toBeCloseTo(0.2);
+    expect(forceFieldDamage(100)).toBeCloseTo(3.17);
   });
 });
 describe("extractable offhand and staff skills", () => {

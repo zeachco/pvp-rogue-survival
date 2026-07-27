@@ -15,6 +15,9 @@ import { starterClub } from "../common/items";
 import { weaponAttackSpeed } from "../common/combat";
 import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
+import { Creep } from "../src/game/Creep";
+import { BALANCE } from "../common/balance";
+import { castForceField, forceField } from "../src/game/systems/HeroCombatSystem";
 
 describe("arena systems", () => {
   test("restores resources and clears transient combat state for a new realm", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS); hero.hp = 1; hero.mana = 0; hero.stamina = 0; hero.velocity = { x: 9, y: 4 }; hero.blockCooldown = 1; hero.reflectiveSurgeRemaining = 2; hero.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 1 }); hero.resetForRealm(); expect(hero.hp).toBe(hero.maxHp); expect(hero.mana).toBe(hero.maxMana); expect(hero.stamina).toBe(hero.maxStamina); expect(hero.statuses).toHaveLength(0); expect(hero.velocity).toEqual({ x: 0, y: 0 }); expect(hero.blockCooldown).toBe(0); expect(hero.reflectiveSurgeRemaining).toBe(0); });
@@ -25,6 +28,16 @@ describe("arena systems", () => {
   test("moves Frozen Orb slowly and emits eight damaging radial spikes", () => { const hero = new Hero({ x: 0, y: 0 }); const orb = new Projectile(hero.position, { x: 100, y: 0 }, 5, "hero", "frostOrb", hero, { kind: "magic" }, starterClub()); orb.update(1); expect(orb.position.x).toBe(75); const spikes = orb.emitFrostSpikes(1 / 60); expect(spikes).toHaveLength(8); expect(spikes.every((spike) => spike.skill === "frostSpike" && spike.damage === 5)).toBeTrue(); });
   test("pulls ground drops toward an attracting hero at a bounded speed", () => { const drop = new ItemDrop({ id: "drop", kind: "item", item: starterClub() }, { x: 100, y: 0 }); drop.pullToward({ x: 0, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 65, y: 0 }); drop.pullToward({ x: 60, y: 0 }, 35, 1); expect(drop.position).toEqual({ x: 60, y: 0 }); });
   test("pushes equipment drops beyond the realm without moving Gold", () => { const item = new ItemDrop({ id: "item", kind: "item", item: starterClub() }, { x: 100, y: 0 }); item.applyPush({ x: 0, y: 0 }, 180); item.move(1); expect(item.position.x).toBe(280); expect(item.escaping).toBeTrue(); expect(item.outside(200, 200)).toBeTrue(); const gold = new ItemDrop({ id: "gold", kind: "gold", amount: 1 }, { x: 100, y: 0 }); gold.applyPush({ x: 0, y: 0 }, 180); expect(gold.velocity.x).toBe(0); expect(gold.escaping).toBeFalse(); });
+  test("Force Field moves an inward-rushing creep away on the next simulation frame", () => {
+    const weapon = starterClub(); const creep = new Creep({ id: "force-target", name: "Target", kind: "melee", level: 0, stats: { ...ZERO_STATS }, mainHand: weapon, carried: [], isRival: false, xpReward: 0, goldReward: 0, seed: 1 }, "neutral", "neutral", { x: 100, y: 0 }, BALANCE, new SeededRandom(1));
+    creep.velocity = { x: -400, y: 0 }; forceField(creep, { x: 0, y: 0 }, 180); const before = creep.position.x; creep.pursue({ x: 0, y: 0 }, 1 / 60, 1000, 1000);
+    expect(creep.position.x).toBeGreaterThan(before);
+  });
+  test("Force Field does not move equipment drops", () => {
+    const state = new ArenaState(); const hero = new Hero({ x: 0, y: 0 }); hero.configureStats(ZERO_STATS); const drop = new ItemDrop({ id: "force-drop", kind: "item", item: starterClub() }, { x: 100, y: 0 }); state.drops.push(drop);
+    castForceField(state, hero, 1, new SeededRandom(1));
+    expect(drop.position).toEqual({ x: 100, y: 0 }); expect(drop.velocity).toEqual({ x: 0, y: 0 }); expect(drop.escaping).toBeFalse();
+  });
   test("uses visible rarity colors for equipment and scrap drops", () => { expect(dropRarityColor("common")).toBe("#d8e5e8"); expect(dropRarityColor("uncommon")).toBe("#62e88a"); expect(dropRarityColor("rare")).toBe("#6ca8ff"); expect(dropRarityColor("epic")).toBe("#ca75ff"); });
   test("cancels an unresolved enemy telegraph when its source dies", () => {
     const source = { active: false };
