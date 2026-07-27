@@ -2,10 +2,7 @@ export interface PreviewValue<T> { currentVal: T; newVal: T | null }
 export type PreviewTone = "gain" | "cost" | "same";
 
 export function formatPreviewValue<T>(value: PreviewValue<T>, format: (entry: T) => string = String): string {
-  const current = format(value.currentVal);
-  if (value.newVal === null) return `${current} → —`;
-  const projected = format(value.newVal);
-  return projected === current ? current : `${current} → ${projected}`;
+  return value.newVal === null ? "—" : format(value.newVal);
 }
 
 export function formatProjectedValue<T>(value: PreviewValue<T>, format: (entry: T) => string = String): string {

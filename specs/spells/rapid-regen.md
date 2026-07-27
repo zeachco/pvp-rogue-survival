@@ -1,0 +1,3 @@
+# Rapid Regeneration (`rapidRegen`)
+
+**Source:** extractable from Renewal Idol relic perks. **Activation:** automatic self-buff costing 4 mana with a 20-second base cooldown; it only casts while the hero is missing health and has no active Rapid Regeneration buff. **Effect:** for `10 + 20 * (skillLevel - 1) / 98` seconds, multiply all normal and equipment-derived health regeneration by `1.2 + 3.8 * (skillLevel - 1) / 98`, then add a flat 0.1 HP/second. This is 120% regeneration plus 0.1 HP/second for 10 seconds at level 1, scaling linearly to 500% regeneration plus 0.1 HP/second for 30 seconds at level 99. The buff never restores health above maximum.

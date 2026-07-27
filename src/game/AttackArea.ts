@@ -3,6 +3,7 @@ import { distance, type Camera, type Vector2 } from "./types";
 import type { ItemInstance } from "../../common/items";
 import type { SkillId } from "../../common/items";
 import type { DamagePresentation } from "./CombatText";
+import type { ImpactForce } from "./ImpactForce";
 
 export type AttackOwner = "hero" | "creep";
 
@@ -23,7 +24,8 @@ export class AttackArea extends GameObject {
     readonly source?: { active: boolean; attackVersion?: number },
     readonly skill?: SkillId,
     readonly weapon?: ItemInstance,
-    readonly presentation: DamagePresentation = { kind: "physical" }
+    readonly presentation: DamagePresentation = { kind: "physical" },
+    readonly force?: ImpactForce
   ) { super(); this.sourceAttackVersion = source?.attackVersion; }
 
   update(deltaSeconds: number): void {

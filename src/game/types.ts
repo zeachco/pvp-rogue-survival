@@ -1,5 +1,7 @@
 export interface Vector2 { x: number; y: number }
 export interface Camera { x: number; y: number; width: number; height: number }
+export type StatusEffectKind = "bleed" | "poison" | "burn" | "stun" | "freeze" | "shock" | "curse";
+export interface StatusEffectSnapshot { kind: StatusEffectKind; remaining: number; damagePerSecond: number }
 export interface PlayerState {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export interface PlayerState {
   maxWaveReached: number;
   health: number;
   maxHealth: number;
+  healthRegen: number;
   gold: number;
   progress: PlayerProgress;
   mana: number;
@@ -16,6 +19,7 @@ export interface PlayerState {
   stamina: number;
   maxStamina: number;
   attackProgress: number;
+  statuses: StatusEffectSnapshot[];
 }
 
 export function normalize(vector: Vector2): Vector2 {

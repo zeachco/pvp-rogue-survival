@@ -3,6 +3,7 @@ import { normalize, type Camera, type Vector2 } from "./types";
 import type { Unit } from "./Unit";
 import type { DamagePresentation } from "./CombatText";
 import type { ItemInstance, SkillId } from "../../common/items";
+import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
 
 export type ProjectileSkill = SkillId | "frostSpike";
 
@@ -18,29 +19,34 @@ export class Projectile extends GameObject {
   private orbitAngularDrift = 0;
   private spikeTimer = 0;
   private readonly hitTargets = new Set<string>();
-  private boomerang = false; private returning = false; private boomerangRange = 0; private travelled = 0; private damageDealt = 0; private healingFraction = 0;
+  private boomerang = false; private returning = false; private boomerangRange = 0; private travelled = 0; private damageDealt = 0; private healingFraction = 0; private boomerangDamageSeconds = 0;
 
-  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: ProjectileSkill, readonly source?: Unit, readonly presentation: DamagePresentation = { kind: "physical" }, readonly weapon?: ItemInstance) {
+  readonly force?: ImpactForce;
+  constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: ProjectileSkill, readonly source?: Unit, readonly presentation: DamagePresentation = { kind: "physical" }, readonly weapon?: ItemInstance, force = true) {
     super(); this.position = { ...start };
     const direction = normalize({ x: target.x - start.x, y: target.y - start.y });
     const speed = skill === "vampiricBoomerang" ? 90 : skill === "frostOrb" ? 75 : skill === "frostSpike" ? 235 : 245;
     this.velocity = { x: direction.x * speed, y: direction.y * speed };
+    this.force = force ? emittedImpactForce(source, "linear", start, this.velocity) : undefined;
     if (skill === "vampiricBoomerang") this.radius = 33;
     if (skill === "frostOrb") this.lifetime = 4;
     if (skill === "frostSpike") { this.lifetime = 1.2; this.radius = 6; }
   }
 
-  static orbitingHammer(source: Unit, angle: number, damage: number, presentation: DamagePresentation, angularDrift = 0): Projectile { const projectile = new Projectile(source.position, source.position, damage, "hero", "orbitingHammers", source, presentation); projectile.orbiting = true; projectile.orbitAngle = angle; projectile.orbitAngularDrift = angularDrift; projectile.orbitAge = 0; projectile.lifetime = 2.4; projectile.position.x = source.position.x + Math.cos(angle) * 28; projectile.position.y = source.position.y + Math.sin(angle) * 28; return projectile; }
+  static orbitingHammer(source: Unit, angle: number, damage: number, presentation: DamagePresentation, angularDrift = 0, lifetime = 2.4): Projectile { const projectile = new Projectile(source.position, source.position, damage, "hero", "orbitingHammers", source, presentation, undefined, false); projectile.orbiting = true; projectile.orbitAngle = angle; projectile.orbitAngularDrift = angularDrift; projectile.orbitAge = 0; projectile.lifetime = lifetime; projectile.position.x = source.position.x + Math.cos(angle) * 28; projectile.position.y = source.position.y + Math.sin(angle) * 28; return projectile; }
   static vampiricBoomerang(source: Unit, target: Vector2, damage: number, range: number, healingFraction: number, weapon: ItemInstance): Projectile { const projectile = new Projectile(source.position, target, damage, "hero", "vampiricBoomerang", source, { kind: "physical" }, weapon); projectile.boomerang = true; projectile.boomerangRange = range; projectile.healingFraction = healingFraction; projectile.lifetime = 30; return projectile; }
   emitFrostSpikes(deltaSeconds: number): Projectile[] { if (this.skill !== "frostOrb" || !this.active) return []; this.spikeTimer -= deltaSeconds; if (this.spikeTimer > 0) return []; this.spikeTimer = 0.45; return Array.from({ length: 8 }, (_, index) => { const angle = index * Math.PI / 4; return new Projectile(this.position, { x: this.position.x + Math.cos(angle), y: this.position.y + Math.sin(angle) }, this.damage, "hero", "frostSpike", this.source, this.presentation, this.weapon); }); }
-  canHit(targetId: string): boolean { return !this.hitTargets.has(targetId); }
-  markHit(targetId: string): void { this.hitTargets.add(targetId); }
+  canHit(targetId: string): boolean { return this.boomerang || !this.hitTargets.has(targetId); }
+  markHit(targetId: string): void { if (!this.boomerang) this.hitTargets.add(targetId); }
   recordDamage(amount: number): void { if (this.boomerang) this.damageDealt += Math.max(0, amount); }
+  get overlapDamageSeconds(): number { return this.boomerangDamageSeconds; }
+  finishOverlapDamage(): void { this.boomerangDamageSeconds = 0; }
 
   update(deltaSeconds: number): void {
     if (this.orbiting && this.source?.active) { this.orbitAge += deltaSeconds; this.orbitAngle += deltaSeconds * (5.2 + this.orbitAngularDrift); const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162; this.position.x = this.source.position.x + Math.cos(this.orbitAngle) * radius; this.position.y = this.source.position.y + Math.sin(this.orbitAngle) * radius; }
     else if (this.boomerang) { const speed = 90; if (!this.returning) { const step = speed * deltaSeconds; this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; this.travelled += step; if (this.travelled >= this.boomerangRange) { this.returning = true; this.hitTargets.clear(); } } else if (this.source?.active) { const dx = this.source.position.x - this.position.x; const dy = this.source.position.y - this.position.y; const distance = Math.hypot(dx, dy); const step = speed * deltaSeconds; if (distance <= step + this.source.radius) { this.source.heal(this.damageDealt * this.healingFraction); this.active = false; } else { this.position.x += dx / distance * step; this.position.y += dy / distance * step; } } else this.active = false; }
     else { this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; }
+    if (this.boomerang && this.active) this.boomerangDamageSeconds = deltaSeconds;
     this.lifetime -= deltaSeconds;
     if (this.lifetime <= 0) this.active = false;
   }

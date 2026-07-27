@@ -1,12 +1,12 @@
 import { GameObject } from "./GameObject";
-import { clamp, type Vector2 } from "./types";
+import { clamp, type StatusEffectSnapshot, type Vector2 } from "./types";
 import { derivedStats, type Stats } from "../../common/progression";
 import { equippedPerks, itemRequirementMultiplier, RARITY_POWER, type ItemInstance, type SkillId } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
 import { bucklerBlockChance, bucklerBlockCost, manaConversionFraction, weaponAttackSpeed } from "../../common/combat";
 
-export interface StatusEffect { kind: "bleed" | "poison" | "burn" | "stun" | "freeze"; remaining: number; damagePerSecond: number; tick?: number; source?: Unit }
+export interface StatusEffect extends StatusEffectSnapshot { tick?: number; source?: Unit }
 
 export abstract class Unit extends GameObject {
   position: Vector2;
@@ -29,6 +29,8 @@ export abstract class Unit extends GameObject {
   blockCooldown = 0;
   blockCooldownMax = 0;
   reflectiveSurgeRemaining = 0;
+  healthRegenMultiplier = 1;
+  healthRegenFlat = 0;
   readonly knownSkills = new Set<SkillId>();
   readonly skillLevels = new Map<SkillId, number>();
   onCombatText?: (text: CombatText) => void;
@@ -107,14 +109,24 @@ export abstract class Unit extends GameObject {
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, false, invulnerable, { kind: status.kind === "poison" ? "poison" : status.kind === "burn" ? "fire" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
-    const equipped = [this.mainHand, this.offHand, this.amulet, this.charm].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = (item.modifiers.strengthRegenMultiplier ?? 0) * itemRequirementMultiplier(item, this.stats); return sum + (multiplier > 0 ? (0.01 + multiplier * this.stats.strength) * itemRequirementMultiplier(item, this.stats) : 0); }, 0);
-    this.hp = Math.min(this.maxHp, this.hp + (derived.hpRegen + vigorousRegen) * deltaSeconds);
+    this.hp = Math.min(this.maxHp, this.hp + this.healthRegen * deltaSeconds);
     const manaMultiplier = this.mainHand ? 1 + (this.mainHand.modifiers.manaRegenMultiplier - 1) * itemRequirementMultiplier(this.mainHand, this.stats) : 1;
     this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * manaMultiplier * deltaSeconds);
     this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
   }
 
-  addStatus(status: StatusEffect): void { if (status.kind === "freeze" && !this.frozen) this.velocity = { x: 0, y: 0 }; this.statuses.push(status); }
+  get healthRegen(): number {
+    const derived = derivedStats(this.stats); const equipped = [this.mainHand, this.offHand, this.amulet, this.charm].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = (item.modifiers.strengthRegenMultiplier ?? 0) * itemRequirementMultiplier(item, this.stats); return sum + (multiplier > 0 ? (0.01 + multiplier * this.stats.strength) * itemRequirementMultiplier(item, this.stats) : 0); }, 0);
+    return (derived.hpRegen + vigorousRegen) * this.healthRegenMultiplier + this.healthRegenFlat;
+  }
+
+  addStatus(status: StatusEffect): void {
+    if (status.kind === "freeze") this.removeOneStatus("burn");
+    if (status.kind === "burn") this.removeOneStatus("freeze");
+    if (status.kind === "freeze" && !this.frozen) this.velocity = { x: 0, y: 0 };
+    this.statuses.push(status);
+  }
+  removeOneStatus(kind: StatusEffect["kind"]): StatusEffect | undefined { const index = this.statuses.findIndex((status) => status.kind === kind); return index < 0 ? undefined : this.statuses.splice(index, 1)[0]; }
   get stunned(): boolean { return this.statuses.some((status) => status.kind === "stun"); }
   get frozen(): boolean { return this.statuses.some((status) => status.kind === "freeze"); }
   private emitCombatText(amount: number, kind: CombatText["kind"], critical: boolean): void { this.onCombatText?.({ position: { ...this.position }, amount, kind, critical, age: 0, lifetime: 0.9, drift: Math.sin(this.position.x * 0.17 + this.position.y * 0.11 + amount) * 9 }); }

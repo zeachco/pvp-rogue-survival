@@ -18,7 +18,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 - `specs/SPEC.md` is authoritative for product goals, runtime architecture, server ownership, multiplayer/economy boundaries, UX direction, WebSocket protocol, and development process.
 - `specs/MECHANICS_SPEC.md` is authoritative for arena simulation, movement, targeting, attack telegraphs, projectiles, collision resolution, damage sources, and local defeat reset.
-- `specs/PROGRESSION_SPEC.md` is authoritative for permanent XP, attributes, derived stats, item generation, equipment, skills, generated enemy builds, drops, wave composition, and rival scaling.
+- `specs/PROGRESSION_SPEC.md` is authoritative for permanent XP, attributes, derived stats, item generation, equipment, shared skill rules, generated enemy builds, drops, wave composition, and rival scaling. `specs/spells/` contains the authoritative per-spell contracts; `specs/item-effects/` contains the authoritative contracts for item-applied slow effects.
 
 ## 4. Hero and Combat Summary
 

@@ -8,11 +8,13 @@ import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
 import { creepMaxHealth } from "../../common/waves";
+import { renderStatusEffects } from "./render/statusEffects";
 
 export type CreepAttack =
   | { type: "melee"; origin: Vector2; angle: number; windup: number; source: Creep }
   | { type: "projectile"; origin: Vector2; target: Vector2; source: Creep }
-  | { type: "fireBreath"; origin: Vector2; angle: number; source: Creep };
+  | { type: "fireBreath"; origin: Vector2; angle: number; source: Creep }
+  | { type: "forceField"; source: Creep };
 
 export class Creep extends Unit {
   attackVersion = 0;
@@ -21,9 +23,9 @@ export class Creep extends Unit {
   private cooldown: number;
   private windup = 0;
   private pendingAttack = false;
-  private damageFlash = 0;
+  private damageFlash = false;
   private bonusSkillCooldown = 1.5;
-  private auraMovementMultiplier = 1; private auraAttackMultiplier = 1;
+  private auraMovementMultiplier = 1; private auraAttackMultiplier = 1; private groundMovementMultiplier = 1;
   readonly build: UnitBuild;
 
   constructor(
@@ -50,15 +52,14 @@ export class Creep extends Unit {
 
   override takeDamage(amount: number): void {
     super.takeDamage(amount);
-    this.damageFlash = 0.16;
+    this.damageFlash = true;
   }
 
   pursue(hero: Vector2, deltaSeconds: number, width: number, height: number): CreepAttack | undefined {
     this.updateResources(deltaSeconds, this.random);
-    this.damageFlash = Math.max(0, this.damageFlash - deltaSeconds);
     const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
     const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
-    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * this.auraMovementMultiplier;
+    const maxSpeed = movement.maxSpeed * (1 + this.stats.agility * 0.01) * this.movementMultiplier * this.auraMovementMultiplier * this.groundMovementMultiplier;
     const acceleration = movement.acceleration;
     const profile = attackProfile(this.build.mainHand, this.stats, this.balance); const ranged = profile.projectile;
     const heroDistance = distance(this.position, hero);
@@ -78,6 +79,7 @@ export class Creep extends Unit {
 
     const attackRange = ranged ? profile.range : this.build.mainHand ? movement.attackRange : profile.range;
     if (this.build.bonusSkills?.includes("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
+    if (this.knownSkills.has("gravityPull") && this.bonusSkillCooldown === 0 && this.mana >= 8 && heroDistance <= 600) { this.mana -= 8; this.bonusSkillCooldown = 18; return { type: "forceField", source: this }; }
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;
@@ -102,12 +104,14 @@ export class Creep extends Unit {
 
   interruptAttack(): void { this.attackVersion += 1; this.pendingAttack = false; this.windup = 0; }
   setAuraMultipliers(movement?: number, attack?: number): void { if (movement !== undefined) this.auraMovementMultiplier = movement; if (attack !== undefined) this.auraAttackMultiplier = attack; }
+  setGroundMovementMultiplier(multiplier: number): void { this.groundMovementMultiplier = multiplier; }
 
   private moveFromVelocity(direction: Vector2, acceleration: number, maxSpeed: number, deltaSeconds: number): void { if (this.frozen) this.slide(deltaSeconds); else this.steerWithFriction(direction, acceleration, maxSpeed, deltaSeconds, acceleration * 0.75); }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
-    ctx.fillStyle = this.damageFlash > 0 ? "#ffffff" : this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
+    const damageFlash = this.damageFlash; this.damageFlash = false;
+    ctx.fillStyle = damageFlash ? "#ffffff" : this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
     const sentItem = this.build.emitterId ? [this.build.mainHand, this.build.offHand, this.build.amulet, this.build.charm].find((item) => item?.id.includes("sent")) : undefined; ctx.strokeStyle = sentItem ? dropRarityColor(sentItem.rarity) : this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = sentItem ? 5 : 3; if (sentItem) { ctx.shadowColor = dropRarityColor(sentItem.rarity); ctx.shadowBlur = 10; }
     ctx.beginPath();
     if (this.kind === "melee") {
@@ -119,6 +123,7 @@ export class Creep extends Unit {
       ctx.closePath();
     } else ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
+    renderStatusEffects(ctx, this.statuses, this.radius, performance.now() / 1000);
     if (this.kind === "bubbleShooter") {
       ctx.fillStyle = "#dff8ff"; ctx.beginPath(); ctx.arc(5, -5, 5, 0, Math.PI * 2); ctx.fill();
     }

@@ -27,7 +27,7 @@ import type {
   RealmState,
   UnitBuild,
 } from "../../common/protocol";
-import type { PlayerState } from "../game/types";
+import type { PlayerState, StatusEffectSnapshot } from "../game/types";
 import { h } from "./dom";
 import { itemTile, orderInventoryTiles } from "./InventoryView";
 import {
@@ -41,16 +41,23 @@ import {
   bucklerBlockChance,
   bucklerBlockCost,
   cappedSkillLevel,
+  MAX_SKILL_LEVEL,
   cooldownScale,
   healingCooldown,
+  orbitingHammerDuration,
+  rapidRegenDuration,
+  rapidRegenMultiplier,
   skillCooldown,
   skillDamagePreview,
   skillRange,
+  skillStatBonusDescription,
+  whirlwindDuration,
+  whirlwindMovementSpeed,
   type SkillDamagePreview,
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
 import { SKILLS } from "../../common/content";
-import { effectiveSkillLevel } from "../game/systems/HeroCombatSystem";
+import { actualSkillLevel } from "../game/systems/HeroCombatSystem";
 import {
   applyPreviewClass,
   formatPreviewValue,
@@ -73,6 +80,7 @@ function formatSkillDamage(damage: SkillDamagePreview): string {
   if (damage.kind === "flat") return `${fmt(damage.value)} ${damage.detail}`;
   return `${fmt(damage.value * 100)}% ${damage.detail}`;
 }
+function formatSpellLevel(activeLevel: number, actualLevel: number): string { return activeLevel < actualLevel ? `${activeLevel}/${actualLevel}` : String(activeLevel); }
 
 export class Hud {
   private player?: PlayerState;
@@ -142,6 +150,7 @@ export class Hud {
     <section class="resource-dock" />
   ) as HTMLElement;
   private readonly healthBar = resourceBar("Health", "health");
+  private readonly statusEffects = (<div class="status-effects" aria-label="Active status effects" />) as HTMLElement;
   private readonly manaBar = resourceBar("Mana", "mana");
   private readonly staminaLine = (
     <div
@@ -304,6 +313,7 @@ export class Hud {
     this.resourceDock.append(
       (
         <div class="health-cluster">
+          {this.statusEffects}
           {this.healthBar.node}
           {this.staminaLine}
         </div>
@@ -567,9 +577,8 @@ export class Hud {
             skills.map((id) => [
               id,
               cappedSkillLevel(
-                (this.currentSpells.find((spell) => spell.id === id)?.level ??
-                  this.player!.progress.learnedSkillLevels[id] ??
-                  0) + 1,
+                (this.currentSpells.find((spell) => spell.id === id)?.actualLevel ??
+                  actualSkillLevel(this.player!.progress, id)) + 1,
               ),
             ]),
           )
@@ -588,6 +597,7 @@ export class Hud {
           id,
           label: SKILLS[id].label,
           level: 0,
+          actualLevel: 0,
           cooldown: 0,
           cooldownMax: 0,
           resource: SKILLS[id].resource,
@@ -611,16 +621,17 @@ export class Hud {
               const cooldown = (<span class="spell-cooldown" />) as HTMLElement;
               this.spellNodes.set(spell.id, cooldown);
               const projected = preview?.get(spell.id);
-              const levelValue: PreviewValue<number> = {
-                currentVal: spell.level,
-                newVal: projected === undefined ? spell.level : projected,
+              const actualLevel = projected === undefined ? spell.actualLevel : projected ?? 0;
+              const shownLevel = Math.min(actualLevel, this.player?.progress.level ?? actualLevel);
+              const levelValue: PreviewValue<string> = {
+                currentVal: formatSpellLevel(spell.level, spell.actualLevel),
+                newVal: formatSpellLevel(shownLevel, actualLevel),
               };
-              const shownLevel = Math.max(1, projected ?? spell.level);
               const changed =
-                projected !== undefined && projected !== spell.level;
+                projected !== undefined && projected !== spell.actualLevel;
               return (
                 <button
-                  class={`spell-slot spell-resource-${spell.resource}${changed ? (projected === null || projected < spell.level ? " is-level-cost-preview" : " is-level-preview") : ""}`}
+                  class={`spell-slot spell-resource-${spell.resource}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
                   type="button"
                   aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}`}
                 >
@@ -645,12 +656,13 @@ export class Hud {
     }
   }
   private renderSkillTooltip(spell: SpellSlot, level: number): HTMLElement {
-    const shownLevel = cappedSkillLevel(Math.max(1, level));
+    const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
     const skill = SKILLS[spell.id];
     return (
       <span class="spell-tooltip" role="tooltip">
         <b>{skill.label}</b>
         <span class="spell-tooltip-description">{skill.description}</span>
+        {skillStatBonusDescription(spell.id) ? <span class="spell-tooltip-description">{skillStatBonusDescription(spell.id)}</span> : null}
         <span class="spell-tooltip-comparison">
           {this.renderSkillProperties(spell, shownLevel, "Current level")}
           {this.renderSkillProperties(spell, shownLevel + 1, "Next level")}
@@ -663,7 +675,7 @@ export class Hud {
     level: number,
     heading: string,
   ): HTMLElement {
-    const shownLevel = cappedSkillLevel(Math.max(1, level));
+    const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
     const skill = SKILLS[spell.id];
     const progress = this.player?.progress;
     const stats = progress
@@ -721,6 +733,26 @@ export class Hud {
             <small>Range</small>
             <strong>{range ? `${fmt(range)}px` : "Self"}</strong>
           </span>
+          {spell.id === "whirlwind" ? <span>
+            <small>Duration</small>
+            <strong>{fmt(whirlwindDuration(shownLevel))}s</strong>
+          </span> : null}
+          {spell.id === "whirlwind" ? <span>
+            <small>Movement</small>
+            <strong>{fmt(whirlwindMovementSpeed(shownLevel))}×</strong>
+          </span> : null}
+          {spell.id === "orbitingHammers" ? <span>
+            <small>Duration</small>
+            <strong>{fmt(orbitingHammerDuration(shownLevel))}s</strong>
+          </span> : null}
+          {spell.id === "rapidRegen" ? <span>
+            <small>Duration</small>
+            <strong>{fmt(rapidRegenDuration(shownLevel))}s</strong>
+          </span> : null}
+          {spell.id === "rapidRegen" ? <span>
+            <small>Regen</small>
+            <strong>{fmt(rapidRegenMultiplier(shownLevel) * 100)}% +0.1/s</strong>
+          </span> : null}
         </span>
       </span>
     ) as HTMLElement;
@@ -766,7 +798,7 @@ export class Hud {
           : 0)
       );
     }, 0);
-    const healthRegen = derived.hpRegen + vigorousRegen;
+    const healthRegen = this.player.healthRegen || derived.hpRegen + vigorousRegen;
     const mainEffectiveness = itemRequirementMultiplier(
       p.mainHand,
       effectiveStats,
@@ -788,6 +820,11 @@ export class Hud {
       shownXp,
       shownLevel,
       this.player.name,
+      ...this.player.statuses.flatMap((status) => [
+        status.kind,
+        Math.ceil(status.remaining * 10) / 10,
+        status.damagePerSecond,
+      ]),
     ]
       .map(flatValue)
       .join("|");
@@ -799,6 +836,7 @@ export class Hud {
         this.player.maxHealth,
         healthRegen,
       );
+      this.renderStatusEffects(this.player.statuses);
       updateResourceBar(
         this.manaBar,
         this.player.mana,
@@ -829,6 +867,15 @@ export class Hud {
       "--attack-progress",
       `${(this.inspected ? 1 : this.player.attackProgress) * 100}%`,
     );
+  }
+  private renderStatusEffects(statuses: StatusEffectSnapshot[]): void {
+    this.statusEffects.replaceChildren(...statusEffectSummaries(statuses).map((status) => (
+      <span class={`status-effect status-effect-${status.kind}`} tabindex="0" aria-label={status.tooltip}>
+        <span aria-hidden="true">{status.icon}</span>
+        {status.stacks > 1 ? <b>{status.stacks}</b> : null}
+        <span class="status-effect-tooltip" role="tooltip">{status.tooltip}</span>
+      </span>
+    ) as HTMLElement));
   }
   private renderStaticHud(): void {
     if (!this.player) return;
@@ -1046,7 +1093,7 @@ export class Hud {
       ...(charm?.skills ?? []),
     ]);
     this.spellPreview = new Map(
-      [...ids].map((id) => [id, effectiveSkillLevel(projected, id) || null]),
+      [...ids].map((id) => [id, actualSkillLevel(projected, id) || null]),
     );
     this.renderSpellSlots();
   }
@@ -1918,6 +1965,42 @@ function updateResourceBar(
 }
 function resourceRatio(current: number, maximum: number): number {
   return maximum > 0 ? Math.max(0, Math.min(1, current / maximum)) : 0;
+}
+export interface StatusEffectSummary {
+  kind: StatusEffectSnapshot["kind"];
+  icon: string;
+  stacks: number;
+  remaining: number;
+  damagePerSecond: number;
+  tooltip: string;
+}
+const STATUS_EFFECT_PRESENTATION: Record<StatusEffectSnapshot["kind"], { name: string; icon: string }> = {
+  bleed: { name: "Bleed", icon: "🩸" },
+  poison: { name: "Poison", icon: "☠" },
+  burn: { name: "Burn", icon: "🔥" },
+  stun: { name: "Stun", icon: "✦" },
+  freeze: { name: "Freeze", icon: "❄" },
+  shock: { name: "Shock", icon: "✦" },
+  curse: { name: "Curse", icon: "✧" },
+};
+export function statusEffectSummaries(statuses: StatusEffectSnapshot[]): StatusEffectSummary[] {
+  const summaries = new Map<StatusEffectSnapshot["kind"], Omit<StatusEffectSummary, "tooltip">>();
+  for (const status of statuses) {
+    const presentation = STATUS_EFFECT_PRESENTATION[status.kind];
+    const summary = summaries.get(status.kind);
+    if (summary) {
+      summary.stacks += 1;
+      summary.remaining = Math.max(summary.remaining, status.remaining);
+      summary.damagePerSecond += status.damagePerSecond;
+    } else summaries.set(status.kind, { kind: status.kind, icon: presentation.icon, stacks: 1, remaining: status.remaining, damagePerSecond: status.damagePerSecond });
+  }
+  return [...summaries.values()].map((summary) => {
+    const name = STATUS_EFFECT_PRESENTATION[summary.kind].name;
+    const details = [`${fmt(Math.max(0, summary.remaining))}s remaining`];
+    if (summary.stacks > 1) details.push(`${summary.stacks} stacks`);
+    if (summary.damagePerSecond > 0) details.push(`${fmt(summary.damagePerSecond)} damage/s`);
+    return { ...summary, tooltip: `${name} — ${details.join(" · ")}` };
+  });
 }
 function flatValue(value: string | number): string {
   return typeof value === "number"

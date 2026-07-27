@@ -57,18 +57,47 @@ export function skillDamagePreview(skill: SkillId, level: number, stats: Stats):
   }
   return undefined;
 }
-export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats): number { return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
-export function skillRange(skill: SkillId, item?: ItemInstance, level = 1, spirit = 0): number { if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item?.level ?? 0); }
+export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats, level = 1): number { if (skill === "swamp") return swampCooldown(level); return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
+export function skillRange(skill: SkillId, item?: ItemInstance, level = 1, spirit = 0): number { if (skill === "swamp") return swampRadius(level); if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item?.level ?? 0); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
 export function cooldownScale(level: number, reduction: number): number { return Math.max(0.2, (1 - Math.min(.8, reduction)) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
-export const MAX_SKILL_LEVEL = 100;
+export const MAX_SKILL_LEVEL = 99;
 export function cappedSkillLevel(level: number): number { return Math.max(1, Math.min(MAX_SKILL_LEVEL, level)); }
-export function manaConversionFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.59 / 99); }
-export function vampiricBoomerangHealingFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.79 / 99); }
+export function manaConversionFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.59 / 98); }
+export function vampiricBoomerangHealingFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.79 / 98); }
 export function whirlwindRadius(level: number): number { return 90 + 1.2 * cappedSkillLevel(level); }
-export function whirlwindDuration(spirit: number): number { return 2 + Math.min(6, 0.06 * Math.max(0, spirit)); }
+export function whirlwindDuration(level: number): number { return 3 + (cappedSkillLevel(level) - 1) / 98 * 27; }
+export function orbitingHammerDuration(level: number): number { return 2.4 + (cappedSkillLevel(level) - 1) / 98 * 27.6; }
+export function whirlwindMovementSpeed(level: number): number { return .5 + (cappedSkillLevel(level) - 1) / 98; }
+export function rapidRegenDuration(level: number): number { return 10 + (cappedSkillLevel(level) - 1) / 98 * 20; }
+export function rapidRegenMultiplier(level: number): number { return 1.2 + (cappedSkillLevel(level) - 1) / 98 * 3.8; }
+export function swampRadius(level: number): number { return 200 + (cappedSkillLevel(level) - 1) * (300 / 98); }
+export function swampCooldown(level: number): number { return 100 - (cappedSkillLevel(level) - 1) * (85 / 98); }
 export function whirlwindDamage(strength: number): number { return 1 + 0.4 * Math.max(0, strength); }
-export function healingFraction(level: number): number { return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 99); }
-export function healingCooldown(level: number): number { return 15 - (cappedSkillLevel(level) - 1) * (14 / 99); }
-export function healingCast(currentHp: number, maxHp: number, level: number): { restoredHp: number; manaCost: number } { const restoredHp = Math.max(0, Math.min(maxHp - currentHp, currentHp * healingFraction(level))); return { restoredHp, manaCost: restoredHp * 2 }; }
+export function healingFraction(level: number): number { return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 98); }
+export function healingCooldown(level: number): number { return 15 - (cappedSkillLevel(level) - 1) * (14 / 98); }
+export function timeHarvestItemSkillBonus(itemLevel: number): number { return Math.floor(Math.max(0, Math.min(50, itemLevel)) * 99 / 50); }
+export function timeHarvestCooldownReduction(level: number): number { return 1 + (cappedSkillLevel(level) - 1) * (9 / 98); }
+export function healingCast(currentHp: number, maxHp: number, currentStamina: number, maxStamina: number, level: number): { restoredHp: number; manaCost: number } { const staminaFraction = maxStamina > 0 ? Math.max(0, Math.min(1, currentStamina / maxStamina)) : 0; const requestedHp = currentHp * healingFraction(level) + maxHp * (0.05 + 0.05 * staminaFraction); const restoredHp = Math.max(0, Math.min(maxHp - currentHp, requestedHp)); return { restoredHp, manaCost: restoredHp * 2 }; }
+export function skillStatBonusDescription(skill: SkillId): string | undefined {
+  const bonuses: string[] = [];
+  if (SKILLS[skill].range && skill !== "healing") bonuses.push("Spirit increases range");
+  if (SKILLS[skill].cooldown > 0 && skill !== "healing") bonuses.push("Intelligence and Agility reduce cooldown");
+  switch (skill) {
+    case "healing": bonuses.push("Stamina adds up to 5% maximum HP"); break;
+    case "whirlwind": bonuses.push("Strength increases pulse damage; skill level increases duration and movement speed"); break;
+    case "orbitingHammers": bonuses.push("Skill level increases hammer duration"); break;
+    case "rapidRegen": bonuses.push("Skill level increases regeneration multiplier and duration"); break;
+    case "fireBreath": bonuses.push("Spirit increases Burn damage"); break;
+    case "swamp": bonuses.push("Skill level increases swamp radius and reduces its cooldown"); break;
+    case "voodoo": bonuses.push("Spirit increases poison amplification"); break;
+    case "manaDrain": bonuses.push("Skill level increases mana restoration"); break;
+    case "penance": bonuses.push("Spirit and skill level increase mana restoration"); break;
+    case "timeHarvest": bonuses.push("Skill level increases cooldown removal per kill"); break;
+    case "sunburnAura": bonuses.push("Intelligence increases damage; Spirit shortens pulse interval"); break;
+    case "thunderAura": bonuses.push("Intelligence increases lightning damage; Agility increases critical chance"); break;
+    case "slowAura": case "hinderingAura": case "deathBurst": bonuses.push("Spirit increases aura radius"); break;
+  }
+  return bonuses.length ? `Stat bonuses: ${bonuses.join("; ")}.` : undefined;
+}

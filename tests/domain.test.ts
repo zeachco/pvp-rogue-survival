@@ -17,15 +17,23 @@ import {
   healingCooldown,
   healingFraction,
   manaConversionFraction,
+  orbitingHammerDuration,
+  rapidRegenDuration,
+  rapidRegenMultiplier,
   skillCooldown,
   skillDamagePreview,
   skillRange,
+  timeHarvestCooldownReduction,
+  timeHarvestItemSkillBonus,
+  swampCooldown,
+  swampRadius,
   weaponAttackSpeed,
   weaponDamage,
   weaponRange,
   weaponUsesProjectile,
   whirlwindDamage,
   whirlwindDuration,
+  whirlwindMovementSpeed,
   whirlwindRadius
 } from "../common/combat";
 import {SKILLS, WEAPONS} from "../common/content";
@@ -83,6 +91,7 @@ import {
 import {
   bloodSkillDamage,
   bloodSkillLifeCost,
+  actualSkillLevel,
   effectiveSkillLevel,
   forceField,
   forceFieldDamage,
@@ -92,6 +101,7 @@ import {gameSocketUrl} from "../src/net/SocketClient";
 import {itemRequirementRows, requirementMetStats} from "../src/ui/ItemDetails";
 import {formatPreviewValue, formatProjectedValue, previewTone} from "../src/ui/preview";
 import {extractButtonStatus} from "../src/ui/inventoryAvailability";
+import {statusEffectSummaries} from "../src/ui/Hud";
 
 function progress(): PlayerProgress {
   return {
@@ -177,6 +187,7 @@ describe("equipment requirements", () => {
       "permits under-requirement equipment and scales item output by missing stat plus one",
       () => {
         const state = progress();
+        state.level = 100;
         const sword = {
           ...generateItem(5, "rare", 71, {allowedClasses : [ "sword" ]}),
           requirements : {strength : 15},
@@ -290,6 +301,7 @@ describe("permanent inventory", () => {
       "toggles an equipped weapon to an empty main hand without creating a fallback club",
       () => {
         const state = progress();
+        state.level = 100;
         const clubTile = {
           id : "club",
           key : itemStackKey(state.mainHand),
@@ -506,6 +518,7 @@ describe("equipped skill levels", () => {
       "temporarily adds one level and requires matching gear until universally unlocked",
       () => {
         const state = progress();
+        state.level = 100;
         expect(effectiveSkillLevel(state, "bash")).toBe(1);
         state.learnedSkills.push("bash");
         state.learnedSkillLevels.bash = 3;
@@ -519,6 +532,16 @@ describe("equipped skill levels", () => {
         expect(relic.skills).toContain("gravityPull");
         expect(effectiveSkillLevel(state, "gravityPull")).toBe(1);
       });
+});
+test("caps active skill level at the hero level while retaining its actual level", () => {
+  const state = progress();
+  state.level = 4;
+  state.mainHand = { ...state.mainHand, skills: [] };
+  state.learnedSkills.push("bash");
+  state.learnedSkillLevels.bash = 15;
+  state.universalSkills.push("bash");
+  expect(actualSkillLevel(state, "bash")).toBe(15);
+  expect(effectiveSkillLevel(state, "bash")).toBe(4);
 });
 describe("amulets and charms", () => {
   test("rolls rarity-bounded accessories and equips amulets and charms independently", () => {
@@ -540,6 +563,7 @@ describe("amulets and charms", () => {
                       Number(bonus.manaCostReduction !== undefined) +
                       Number(bonus.lifeCostReduction !== undefined) +
                       Number(item.attractionSpeed > 0) +
+                      Number(item.skills.includes("timeHarvest")) +
                       Object.keys(bonus.physicalDamage ?? {}).length;
         expect(count).toBeGreaterThanOrEqual(bounds[rarity][0]);
         expect(count).toBeLessThanOrEqual(bounds[rarity][1]);
@@ -566,6 +590,7 @@ describe("amulets and charms", () => {
       "adds temporary resource skill levels and caps global cooldown reduction",
       () => {
         const state = progress();
+        state.level = 100;
         state.offHand = {
           ...generateAccessory(50, "epic", 8, "amulet"),
           requirements : {},
@@ -580,6 +605,19 @@ describe("amulets and charms", () => {
         expect(effectiveSkillLevel(state, "bash")).toBe(14);
         expect(itemCooldownReduction(state.offHand)).toBe(.8);
       });
+  test("rolls the extractable Time Harvest passive and scales its cooldown removal", () => {
+    const amulet = generateAccessory(50, "epic", 1, "amulet");
+    expect(amulet.skills).toContain("timeHarvest");
+    expect(extractableSkills(amulet)).toContain("timeHarvest");
+    expect(timeHarvestCooldownReduction(1)).toBe(1);
+    expect(timeHarvestCooldownReduction(99)).toBe(10);
+    expect(timeHarvestItemSkillBonus(0)).toBe(0);
+    expect(timeHarvestItemSkillBonus(50)).toBe(99);
+    const state = progress();
+    state.level = 100;
+    state.amulet = { ...amulet, requirements: {} };
+    expect(effectiveSkillLevel(state, "timeHarvest")).toBe(99);
+  });
 });
 test(
     "drops newest unequipped overflow stacks after a death-level capacity reduction",
@@ -720,6 +758,18 @@ describe("Force Field", () => {
     expect(forceFieldDamage(100)).toBeCloseTo(3.17);
   });
 });
+describe("hero status HUD summaries", () => {
+  test("aggregates duplicate effects into stacks with their live duration and combined DPS", () => {
+    expect(statusEffectSummaries([
+      { kind: "poison", remaining: 1.2, damagePerSecond: .4 },
+      { kind: "poison", remaining: 3, damagePerSecond: .6 },
+      { kind: "stun", remaining: .35, damagePerSecond: 0 },
+    ])).toEqual([
+      { kind: "poison", icon: "☠", stacks: 2, remaining: 3, damagePerSecond: 1, tooltip: "Poison — 3s remaining · 2 stacks · 1 damage/s" },
+      { kind: "stun", icon: "✦", stacks: 1, remaining: .35, damagePerSecond: 0, tooltip: "Stun — 0.35s remaining" },
+    ]);
+  });
+});
 describe("spell tooltip damage previews", () => {
   test("covers runtime formulas that are not spell-power multipliers", () => {
     expect(skillDamagePreview("whirlwind", 10, { ...ZERO_STATS, strength: 10 })).toEqual({ kind: "flat", value: 5, detail: "per pulse" });
@@ -825,15 +875,15 @@ describe("aura equipment", () => {
       "scales aura radius with level and Spirit plus other aura effects with level",
       () => {
         expect(auraRadius(1)).toBe(180);
-        expect(auraRadius(100)).toBe(300);
+        expect(auraRadius(99)).toBe(300);
         expect(auraRadius(1, 20)).toBe(190);
         expect(auraRadius(100, 20)).toBe(600);
         expect(auraSlowMultiplier(1)).toBeCloseTo(.8);
-        expect(auraSlowMultiplier(100)).toBeCloseTo(.5);
+        expect(auraSlowMultiplier(99)).toBeCloseTo(.5);
         expect(sunburnInterval(100)).toBe(.5);
         expect(sunburnFraction(100)).toBeCloseTo(.1);
         expect(thunderInterval(1)).toBe(10);
-        expect(thunderInterval(100)).toBe(1);
+        expect(thunderInterval(99)).toBe(1);
         expect(thunderDamage(10)).toBe(9);
         expect(thunderCritChance(.2)).toBeCloseTo(.3);
       });
@@ -858,9 +908,13 @@ test("adds extractable Whirlwind to high-rarity axes and scales its field",
            .toEqual(expect.arrayContaining([ "cleave", "whirlwind" ]));
        expect(extractableSkills(axe)).toContain("whirlwind");
        expect(whirlwindRadius(1)).toBeCloseTo(91.2);
-       expect(whirlwindRadius(100)).toBe(210);
-       expect(whirlwindDuration(0)).toBe(2);
-       expect(whirlwindDuration(100)).toBe(8);
+       expect(whirlwindRadius(99)).toBe(208.8);
+       expect(whirlwindDuration(1)).toBe(3);
+       expect(whirlwindDuration(99)).toBe(30);
+       expect(orbitingHammerDuration(1)).toBe(2.4);
+       expect(orbitingHammerDuration(99)).toBe(30);
+       expect(whirlwindMovementSpeed(1)).toBe(.5);
+       expect(whirlwindMovementSpeed(99)).toBe(1.5);
        expect(whirlwindDamage(20)).toBe(9);
      });
 describe("item sustain", () => {
@@ -956,13 +1010,19 @@ describe("XP presentation", () => {
   });
 });
 describe("HUD preview values", () => {
-  test("formats changed and removed values from currentVal and nullable newVal",
+  test("formats projected and removed values from currentVal and nullable newVal",
        () => {
          expect(formatPreviewValue({currentVal : 10, newVal : 14}))
-             .toBe("10 → 14");
+             .toBe("14");
          expect(formatPreviewValue({currentVal : 10, newVal : 10})).toBe("10");
+         expect(formatPreviewValue({currentVal : 1, newVal : 2}))
+             .toBe("2");
+         expect(formatPreviewValue({currentVal : 15, newVal : 16}))
+             .toBe("16");
+         expect(formatPreviewValue({currentVal : "5/17", newVal : "5/19"}))
+             .toBe("5/19");
          expect(formatPreviewValue({currentVal : 10, newVal : null}))
-             .toBe("10 → —");
+             .toBe("—");
          expect(formatProjectedValue({currentVal : 10, newVal : 14})).toBe("14");
          expect(previewTone({currentVal : 10, newVal : 14})).toBe("gain");
          expect(previewTone({currentVal : 10, newVal : 8})).toBe("cost");
@@ -983,14 +1043,15 @@ describe("spell range and recovery", () => {
       });
 });
 describe("Healing scaling", () => {
-  test("scales from level 1 to 100 and charges twice the restored HP", () => {
+  test("scales from level 1 to 99, adds flat plus stamina-scaled healing, and charges twice the restored HP", () => {
     expect(healingFraction(1)).toBeCloseTo(0.2);
+    expect(healingFraction(99)).toBeCloseTo(0.9);
     expect(healingFraction(100)).toBeCloseTo(0.9);
-    expect(healingFraction(101)).toBeCloseTo(0.9);
     expect(healingCooldown(1)).toBeCloseTo(15);
-    expect(healingCooldown(100)).toBeCloseTo(1);
-    expect(healingCast(40, 100, 1)).toEqual({restoredHp : 8, manaCost : 16});
-    expect(healingCast(49, 50, 100)).toEqual({restoredHp : 1, manaCost : 2});
+    expect(healingCooldown(99)).toBeCloseTo(1);
+    expect(healingCast(40, 100, 0, 10, 1)).toEqual({restoredHp : 13, manaCost : 26});
+    expect(healingCast(40, 100, 10, 10, 1)).toEqual({restoredHp : 18, manaCost : 36});
+    expect(healingCast(49, 50, 1, 1, 99)).toEqual({restoredHp : 1, manaCost : 2});
   });
 });
 test("divides spell cooldown by Intelligence plus Agility with a safe floor",
@@ -1005,14 +1066,30 @@ test("registers configurable Spirit relic perks", () => {
   expect(SKILLS.voodoo.passive).toBeTrue();
   expect(SKILLS.manaDrain.passive).toBeTrue();
   expect(SKILLS.penance.passive).toBeTrue();
+  expect(SKILLS.rapidRegen).toMatchObject({ cost: 4, cooldown: 20 });
+  expect(rapidRegenDuration(1)).toBe(10);
+  expect(rapidRegenDuration(99)).toBe(30);
+  expect(rapidRegenMultiplier(1)).toBeCloseTo(1.2);
+  expect(rapidRegenMultiplier(99)).toBe(5);
   expect(manaConversionFraction(1)).toBeCloseTo(.01);
-  expect(manaConversionFraction(100)).toBeCloseTo(.6);
+  expect(manaConversionFraction(99)).toBeCloseTo(.6);
   const perks = Array.from({length : 100},
                            (_, seed) => generateRelic(3, "rare", seed).skills);
   expect(perks.some((skills) => skills.includes("fireBreath"))).toBeTrue();
   expect(perks.some((skills) => skills.includes("voodoo"))).toBeTrue();
+  expect(perks.some((skills) => skills.includes("swamp"))).toBeTrue();
+  expect(perks.filter((skills) => skills.includes("voodoo")).every((skills) => skills.includes("swamp"))).toBeTrue();
   expect(perks.some((skills) => skills.includes("manaDrain"))).toBeTrue();
   expect(perks.some((skills) => skills.includes("penance"))).toBeTrue();
+  expect(perks.some((skills) => skills.includes("rapidRegen"))).toBeTrue();
+});
+test("scales Gooey Swamp exactly from its level-one to level-ninety-nine endpoints", () => {
+  expect(swampRadius(1)).toBe(200);
+  expect(swampRadius(99)).toBe(500);
+  expect(swampCooldown(1)).toBe(100);
+  expect(swampCooldown(99)).toBe(15);
+  expect(skillRange("swamp", starterClub(), 99, 999)).toBe(500);
+  expect(skillCooldown("swamp", starterClub(), {...ZERO_STATS, intelligence: 99, agility: 99}, 99)).toBe(15);
 });
 test("connects WebSockets to the page origin unless server overrides it",
      () => {

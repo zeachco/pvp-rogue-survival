@@ -1,0 +1,3 @@
+# Force Field (`gravityPull`)
+
+`gravityPull` is the stable serialized id; the player-facing name is Force Field. **Source:** extractable Attraction Idol skill. **Activation:** automatic 8-mana skill; 18-second base cooldown and 600px base range. **Effect:** each affected active target takes `0.2 * spellPower(level)` magic damage and has velocity replaced with a 180px/s radial launch away from the caster. It interrupts a creep target's unresolved attack but never moves drops or launched projectiles. A cast randomly removes one active status stack from its caster and applies that same stack to every target actually damaged; it transfers nothing when the caster has no status.

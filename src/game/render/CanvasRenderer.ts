@@ -13,6 +13,7 @@ export class CanvasRenderer {
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     this.map.render(this.ctx, camera);
     this.renderAuras(hero, camera);
+    for (const swamp of arena.swamps) swamp.render(this.ctx, camera);
     for (const drop of arena.drops) drop.render(this.ctx, camera);
     for (const attack of arena.attacks) attack.render(this.ctx, camera);
     for (const creep of arena.creeps) {

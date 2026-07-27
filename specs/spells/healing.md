@@ -1,0 +1,3 @@
+# Healing (`healing`)
+
+**Source:** globally bound to new heroes at level 1; Rare and Epic maces can add or upgrade it. **Activation:** automatic mana skill only below 75% HP. **Effect:** restores its level-scaled 20%–90% fraction of current HP, plus a flat 5% of maximum HP and a further 5% of maximum HP scaled by the caster's current Stamina fraction (`currentStamina / maxStamina`); restoration is capped by missing HP and costs 2 mana per HP actually restored. Its cooldown scales from 15 seconds to 1 second and is not modified by attributes, cooldown reduction, or weapon level. Its spell description explicitly identifies Stamina as the bonus-healing stat.
