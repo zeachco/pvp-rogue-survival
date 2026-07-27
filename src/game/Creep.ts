@@ -1,5 +1,5 @@
 import { type CreepKind, type PlayerId, type UnitBuild } from "../../common/protocol";
-import { statsWithItemBonuses } from "../../common/items";
+import { statsWithItemBonuses, type SkillId } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
@@ -42,7 +42,10 @@ export class Creep extends Unit {
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
     this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand, build.amulet, build.charm), build.offHand, build.mainHand, build.amulet, build.charm);
-    for (const skill of [...(build.mainHand?.skills ?? []), ...(build.offHand?.skills ?? []), ...(build.amulet?.skills ?? []), ...(build.charm?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
+    for (const skill of [...(build.mainHand?.skills ?? []), ...(build.offHand?.skills ?? []), ...(build.amulet?.skills ?? []), ...(build.charm?.skills ?? []), ...(build.bonusSkills ?? []), ...Object.keys(build.skillLevels ?? {})] as SkillId[]) {
+      this.knownSkills.add(skill);
+      const level = build.skillLevels?.[skill]; if (level !== undefined) this.skillLevels.set(skill, level);
+    }
     this.maxHp = creepMaxHealth(build.level, this.maxHp, balance); this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand?.sellValue ?? 1);
     this.scoreValue = build.isRival ? 10 : 2;
@@ -78,7 +81,7 @@ export class Creep extends Unit {
     }
 
     const attackRange = ranged ? profile.range : this.build.mainHand ? movement.attackRange : profile.range;
-    if (this.build.bonusSkills?.includes("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
+    if (this.knownSkills.has("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
     if (this.knownSkills.has("gravityPull") && this.bonusSkillCooldown === 0 && this.mana >= 8 && heroDistance <= 600) { this.mana -= 8; this.bonusSkillCooldown = 18; return { type: "forceField", source: this }; }
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;

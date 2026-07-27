@@ -1,6 +1,6 @@
 import { BALANCE, type BalanceConfig } from "../../common/balance";
 import { itemRequirementMultiplier } from "../../common/items";
-import { rollAttackStrike } from "../../common/combat";
+import { rollAttackStrike, spellPower } from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type { CreepWave, GroundDrop, ServerMessage, UnitBuild } from "../../common/protocol";
 import { SocketClient } from "../net/SocketClient";
@@ -155,8 +155,8 @@ export class Game {
       const strike = rollAttackStrike(creep.build.mainHand, creep.stats, "enemy", this.balance, systemRandom); const presentation = { kind: creep.build.mainHand?.definitionId === "staff" || creep.build.mainHand?.definitionId === "scepter" ? "magic" as const : "physical" as const, critical: strike.critical };
       if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, strike.damage, creep, undefined, creep.build.mainHand, presentation, emittedImpactForce(creep, "radial", attack.origin)));
       if (attack?.type === "projectile") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation, creep.build.mainHand));
-      if (attack?.type === "fireBreath") { this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 150, 0.62, 0.22, 0.18, strike.damage * 1.1, creep, "fireBreath", creep.build.mainHand, { kind: "fire", critical: strike.critical })); this.arena.spellEffects.push(new SpellEffect("fireBreath", attack.origin, attack.angle)); }
-      if (attack?.type === "forceField") { castForceFieldTargets(creep, [this.hero], 1, systemRandom); this.arena.spellEffects.push(new SpellEffect("gravityPull", creep.position)); }
+      if (attack?.type === "fireBreath") { this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 150, 0.62, 0.22, 0.18, strike.damage * 1.1 * spellPower(creep.skillLevels.get("fireBreath") ?? 1), creep, "fireBreath", creep.build.mainHand, { kind: "fire", critical: strike.critical })); this.arena.spellEffects.push(new SpellEffect("fireBreath", attack.origin, attack.angle)); }
+      if (attack?.type === "forceField") { castForceFieldTargets(creep, [this.hero], creep.skillLevels.get("gravityPull") ?? 1, systemRandom); this.arena.spellEffects.push(new SpellEffect("gravityPull", creep.position)); }
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
     const emittedProjectiles: Projectile[] = [];

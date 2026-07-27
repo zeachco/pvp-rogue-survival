@@ -4,7 +4,7 @@ import { itemStackKey, levelUpItem, MAX_ITEM_LEVEL, statsWithItemBonuses } from 
 import { h } from "./dom";
 import type { CurrencyPreview, HudCallbacks } from "./types";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
-import { extractableSkills, purgeYield, sellYield, upgradeCosts } from "../../common/inventory";
+import { extractionCost, extractableSkills, purgeYield, sellYield, upgradeCosts } from "../../common/inventory";
 import { extractButtonStatus } from "./inventoryAvailability";
 import { formatProjectedValue } from "./preview";
 
@@ -13,7 +13,7 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
 }
 
 export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean, action?: "card" | "upgrade") => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void, canSend = false, onHoverChange?: (tileId?: string, actionIndex?: number) => void): HTMLElement {
-  const item = tile.item; const equippedCopies = [progress.mainHand, progress.offHand, progress.amulet, progress.charm].filter((candidate) => candidate && itemStackKey(candidate) === tile.key).length; const equipped = equippedCopies > 0; const spare = tile.quantity - equippedCopies; const skills = extractableSkills(item); const extractCost = item.sellValue * 10; const extractStatus = extractButtonStatus(tile, progress);
+  const item = tile.item; const equippedCopies = [progress.mainHand, progress.offHand, progress.amulet, progress.charm].filter((candidate) => candidate && itemStackKey(candidate) === tile.key).length; const equipped = equippedCopies > 0; const spare = tile.quantity - equippedCopies; const skills = extractableSkills(item); const extractCost = extractionCost(progress, skills); const extractStatus = extractButtonStatus(tile, progress);
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id} data-stack-key={tile.key}>
@@ -41,6 +41,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   bindBulk(0, callbacks.onSell); bindBulk(1, callbacks.onPurge); bindBulk(2, callbacks.onUpgrade); bindBulk(3, callbacks.onSend); bindBulk(4, callbacks.onExtract);
   const extractButton = buttons[4] as HTMLButtonElement | undefined;
   if (extractButton && extractStatus === "needs-gold") { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
+  if (extractButton && extractStatus === "unlearned-skill") { extractButton.disabled = true; extractButton.title = `Learn ${skills.filter((skill) => !progress.learnedSkills.includes(skill)).join(", ")} before extracting`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
   const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); const level = formatProjectedValue({ currentVal: item.level, newVal: shown.level }); subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onHoverChange?.(tile.id, index); onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onHoverChange?.(tile.id); onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };

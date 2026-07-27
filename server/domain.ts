@@ -10,12 +10,13 @@ export interface Player {
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[]; deathEchoes: UnitBuild[];
 }
-export interface PlayerRepository { get(id: PlayerId): Player | undefined; getByUsername(username: string): Player | undefined; findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>; listSummaries(): Promise<HeroSummary[]>; save(player: Player): void; markDirty(playerId: PlayerId): void; values(): IterableIterator<Player>; persist(): void | Promise<void>; close?(): void | Promise<void> }
+export interface PlayerRepository { get(id: PlayerId): Player | undefined; getByUsername(username: string): Player | undefined; findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>; findBossCandidate(minimum: number, maximum: number): Player | undefined | Promise<Player | undefined>; listSummaries(): Promise<HeroSummary[]>; save(player: Player): void; markDirty(playerId: PlayerId): void; values(): IterableIterator<Player>; persist(): void | Promise<void>; close?(): void | Promise<void> }
 export class InMemoryPlayerRepository implements PlayerRepository {
   private readonly players = new Map<PlayerId, Player>();
   get(id: PlayerId): Player | undefined { return this.players.get(id); }
   getByUsername(username: string): Player | undefined { const key = username.toLowerCase(); return [...this.players.values()].find((player) => player.name.toLowerCase() === key); }
   async findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]> { return [...this.players.values()].filter((player) => player.progress.level >= minimum && player.progress.level <= maximum).map(summary); }
+  findBossCandidate(minimum: number, maximum: number): Player | undefined { return [...this.players.values()].find((player) => player.progress.level >= minimum && player.progress.level <= maximum); }
   async listSummaries(): Promise<HeroSummary[]> { return [...this.players.values()].map(summary).sort((a, b) => b.level - a.level || a.username.localeCompare(b.username)); }
   save(player: Player): void { this.players.set(player.id, player); }
   markDirty(_playerId: PlayerId): void { }

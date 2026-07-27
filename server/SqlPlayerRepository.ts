@@ -23,6 +23,10 @@ export class SqlPlayerRepository implements PlayerRepository {
   get(id: string): Player | undefined { return this.players.get(id); }
   getByUsername(username: string): Player | undefined { const key = username.toLowerCase(); return [...this.players.values()].find((player) => player.name.toLowerCase() === key); }
   async findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level), connected: this.players.get(row.id)?.connected ?? false, receivesDeathEchoes: false })); }
+  async findBossCandidate(minimum: number, maximum: number): Promise<Player | undefined> {
+    const rows = await this.sql<HeroRow[]>`SELECT id, username, level, hero FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY RANDOM() LIMIT 1`;
+    return rows[0] ? fromRow(rows[0]) : undefined;
+  }
   async listSummaries(): Promise<HeroSummary[]> { const rows = await this.sql<Array<{ id: string; username: string; level: number }>>`SELECT id, username, level FROM heroes ORDER BY level DESC, username ASC`; return rows.map((row) => ({ ...row, level: Number(row.level), connected: this.players.get(row.id)?.connected ?? false, receivesDeathEchoes: false })); }
   save(player: Player): void { this.players.set(player.id, player); this.markDirty(player.id); }
   markDirty(playerId: string): void { if (this.players.has(playerId)) this.dirtyPlayerIds.add(playerId); }

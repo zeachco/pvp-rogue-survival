@@ -1,8 +1,9 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import { collectIntoInventory, dropInventoryOverflow, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
-import { changeItemRarity, generateAccessory, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemStackKey, nextRarity, rollRarity, type ItemInstance, type WeaponClass } from "../common/items.ts";
-import { ENEMY_BONUS_SKILLS } from "../common/content.ts";
+import { changeItemRarity, generateAccessory, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemSkillLevelBonus, itemStackKey, nextRarity, rollRarity, statsWithItemBonuses, type ItemInstance, type SkillId, type WeaponClass } from "../common/items.ts";
+import { ENEMY_BONUS_SKILLS, SKILLS } from "../common/content.ts";
+import { cappedSkillLevel, timeHarvestItemSkillBonus } from "../common/combat.ts";
 import { DEFAULT_ALLOCATION, levelForXp, STAT_KEYS, validAllocation, ZERO_STATS, type Stats } from "../common/progression.ts";
 import { PROTOCOL_VERSION, type ClientMessage, type CreepWave, type GroundDrop, type HeroSummary, type PlayerId, type PublicHeroProfile, type PublicPlayer, type RealmMember, type RealmState, type ServerMessage, type UnitBuild } from "../common/protocol.ts";
 import { randomSeed, type RandomSource } from "../common/random.ts";
@@ -16,6 +17,7 @@ const MAX_QUEUE = 1000;
 export class GameService {
   private readonly createId: () => string;
   private readonly realms = new Map<string, Realm>();
+  private readonly waveDispatches = new Map<PlayerId, number>();
   private lastDispatchAt = Date.now();
   constructor(private readonly options: GameServiceOptions) { this.createId = options.createId ?? (() => crypto.randomUUID()); }
 
@@ -80,6 +82,19 @@ export class GameService {
   }
 
   private dispatchCurrentWave(player: Player, mode: "competitive" | "solo" | "training", resetHero = false): void {
+    const dispatch = (this.waveDispatches.get(player.id) ?? 0) + 1;
+    this.waveDispatches.set(player.id, dispatch);
+    const bossRoll = player.waveNumber > 0 && player.waveNumber % 10 === 0 && this.options.random.next() < 0.5;
+    if (!bossRoll) return this.dispatchWave(player, mode, resetHero);
+    const candidate = this.options.repository.findBossCandidate(Math.max(0, player.waveNumber - 9), player.waveNumber);
+    if (isPromiseLike(candidate)) {
+      void candidate.then((boss) => { if (this.waveDispatches.get(player.id) === dispatch) this.dispatchWave(player, mode, resetHero, boss); }).catch(() => { if (this.waveDispatches.get(player.id) === dispatch) this.dispatchWave(player, mode, resetHero); });
+      return;
+    }
+    this.dispatchWave(player, mode, resetHero, candidate);
+  }
+
+  private dispatchWave(player: Player, mode: "competitive" | "solo" | "training", resetHero: boolean, boss?: Player): void {
     if (mode !== "training") player.maxWaveReached = Math.max(player.maxWaveReached, player.waveNumber);
     const count = regularCount(player.waveNumber, this.options.balance); const level = regularLevel(player.waveNumber, player.progress.level, count, this.options.balance); const seed = this.seed(); const intro = isIntroWave(player.waveNumber);
     const meleeClasses: WeaponClass[] = ["club", "sword", "dagger", "mace", "axe", "hammer"];
@@ -96,6 +111,11 @@ export class GameService {
     const opponents = this.realmOpponents(player); const opponent = opponents[0]; const championLevel = rivalLevel(player.waveNumber, this.options.balance); const cloneAttackers = mode === "competitive" && player.waveNumber > 0 && player.waveNumber % 10 === 0 && opponents.length > 0 && this.options.random.next() < 0.5;
     const champions = cloneAttackers ? opponents.map((attacker) => this.realmClone(player, attacker, opponents.length)) : Array.from({ length: championCount(player.waveNumber) }, () => this.generateBuild(opponent ? `${opponent.name}'s champion` : "Wandering champion", championLevel, true, this.seed(), opponent ? scaledStats(opponent.progress.allocation, championLevel) : undefined, false, intro ? meleeClasses : undefined));
     for (const champion of champions) { player.issuedUnits.set(champion.id, { build: champion, mode }); spawns.push({ build: champion, spawnAtMs: this.options.balance.wave.prepareMs + Math.floor(7.5 * this.options.balance.wave.batchIntervalMs) }); }
+    if (boss) {
+      const build = this.playerBoss(boss);
+      player.issuedUnits.set(build.id, { build, mode });
+      spawns.push({ build, spawnAtMs: this.options.balance.wave.prepareMs });
+    }
     spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
     this.options.send(player.id, { type: "incomingWave", wave: { id: this.createId(), targetId: player.id, waveNumber: player.waveNumber, durationMs: this.options.balance.wave.intervalMs, mode, resetHero, spawns } }); this.returnDeferredItems(player);
   }
@@ -110,6 +130,16 @@ export class GameService {
   private realmClone(defender: Player, attacker: Player, attackerCount: number): UnitBuild {
     const level = realmCloneLevel(defender.progress.level, attackerCount); const seed = this.seed();
     return { id: this.createId(), name: `${attacker.name}'s clone`, kind: "rival", level, stats: scaledStats(attacker.progress.allocation, level), mainHand: structuredClone(attacker.progress.mainHand), offHand: attacker.progress.offHand ? structuredClone(attacker.progress.offHand) : undefined, amulet: attacker.progress.amulet ? structuredClone(attacker.progress.amulet) : undefined, charm: attacker.progress.charm ? structuredClone(attacker.progress.charm) : undefined, carried: [], bonusSkills: [], isRival: true, xpReward: rivalXpReward(level), goldReward: 3 + Math.floor(level / 2), seed };
+  }
+
+  private playerBoss(source: Player): UnitBuild {
+    const progress = source.progress; const level = progress.level; const seed = this.seed();
+    return {
+      id: this.createId(), name: `${source.name}'s boss`, kind: "rival", level, stats: structuredClone(progress.stats),
+      mainHand: progress.mainHand ? structuredClone(progress.mainHand) : undefined, offHand: progress.offHand ? structuredClone(progress.offHand) : undefined,
+      amulet: progress.amulet ? structuredClone(progress.amulet) : undefined, charm: progress.charm ? structuredClone(progress.charm) : undefined,
+      carried: [], bonusSkills: [], skillLevels: bossSkillLevels(progress), isRival: true, xpReward: rivalXpReward(level), goldReward: 3 + Math.floor(level / 2), seed
+    };
   }
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number, intro = false): UnitBuild {
@@ -228,4 +258,18 @@ function bestSubset(solo: Player, candidates: Player[]): Player[] { let best: Pl
 function combinations<T>(values: T[], size: number, start = 0, prefix: T[] = []): T[][] { if (prefix.length === size) return [prefix]; const result: T[][] = []; for (let i = start; i < values.length; i += 1) result.push(...combinations(values, size, i + 1, [...prefix, values[i]])); return result; }
 function randomAllocation(seed: number): Stats { const values = STAT_KEYS.map((_, index) => ((seed >>> (index * 5)) & 15) + 1); const total = values.reduce((sum, value) => sum + value, 0); return Object.fromEntries(STAT_KEYS.map((key, index) => [key, 5 * values[index] / total])) as Stats; }
 function scaledStats(allocation: Stats, level: number): Stats { return Object.fromEntries(STAT_KEYS.map((key) => [key, allocation[key] * level])) as Stats; }
+function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> { return typeof (value as Promise<T> | undefined)?.then === "function"; }
+function bossSkillLevels(progress: Player["progress"]): Partial<Record<SkillId, number>> {
+  const equipment = [progress.mainHand, progress.offHand, progress.amulet, progress.charm];
+  const equippedSkills = new Set(equipment.flatMap((item) => item?.skills ?? []));
+  const skills = new Set<SkillId>([...equippedSkills, ...progress.learnedSkills.filter((skill) => progress.universalSkills.includes(skill) || equippedSkills.has(skill))]);
+  const stats = statsWithItemBonuses(progress.stats, progress.mainHand, progress.offHand, progress.amulet, progress.charm);
+  return Object.fromEntries([...skills].map((skill) => {
+    const learned = progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0);
+    const equipped = equippedSkills.has(skill) ? 1 : 0;
+    const accessoryBonus = [progress.offHand, progress.amulet, progress.charm].reduce((sum, item) => sum + itemSkillLevelBonus(item, SKILLS[skill].resource) * (item ? itemRequirementMultiplier(item, stats) : 1), 0);
+    const timeHarvestBonus = skill === "timeHarvest" && progress.amulet?.skills.includes(skill) ? timeHarvestItemSkillBonus(progress.amulet.level) : 0;
+    return [skill, Math.min(cappedSkillLevel(learned + equipped + Math.floor(accessoryBonus) + timeHarvestBonus), progress.level)];
+  })) as Partial<Record<SkillId, number>>;
+}
 function isPlayer(player: Player | undefined): player is Player { return Boolean(player); }

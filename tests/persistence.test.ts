@@ -31,6 +31,15 @@ describe("Bun SQL player persistence", () => {
     await repository.close();
   });
 
+  test("selects one persisted boss candidate from the requested inclusive level window", async () => {
+    const repository = await SqlPlayerRepository.open(":memory:"); const game = new GameService({ repository, balance: BALANCE, random: new FixedRandom(), send: () => {} });
+    const low = game.join("TooLow"); low.progress.level = 1; const eligible = game.join("Eligible"); eligible.progress.level = 4; eligible.progress.gold = 19; const high = game.join("TooHigh"); high.progress.level = 8;
+    repository.markDirty(low.id); repository.markDirty(eligible.id); repository.markDirty(high.id); await repository.persist();
+    const candidate = await repository.findBossCandidate(3, 5);
+    expect(candidate?.name).toBe("Eligible"); expect(candidate?.progress.gold).toBe(19);
+    await repository.close();
+  });
+
   test("flushes only heroes marked dirty", async () => {
     const directory = mkdtempSync(join(tmpdir(), "multi-line-dirty-sql-")); const url = `sqlite://${join(directory, "players.sqlite")}`;
     try {

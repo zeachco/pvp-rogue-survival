@@ -25,9 +25,9 @@ export class Projectile extends GameObject {
   constructor(start: Vector2, target: Vector2, readonly damage = 1, readonly owner: "hero" | "creep" = "creep", readonly skill?: ProjectileSkill, readonly source?: Unit, readonly presentation: DamagePresentation = { kind: "physical" }, readonly weapon?: ItemInstance, force = true) {
     super(); this.position = { ...start };
     const direction = normalize({ x: target.x - start.x, y: target.y - start.y });
-    const speed = skill === "vampiricBoomerang" ? 90 : skill === "frostOrb" ? 75 : skill === "frostSpike" ? 235 : 245;
+    const speed = skill === "vampiricBoomerang" ? 180 : skill === "frostOrb" ? 75 : skill === "frostSpike" ? 235 : 245;
     this.velocity = { x: direction.x * speed, y: direction.y * speed };
-    this.force = force ? emittedImpactForce(source, "linear", start, this.velocity) : undefined;
+    this.force = force ? emittedImpactForce(source, "linear", start, this.velocity, skill === "vampiricBoomerang" ? .5 : 1) : undefined;
     if (skill === "vampiricBoomerang") this.radius = 33;
     if (skill === "frostOrb") this.lifetime = 4;
     if (skill === "frostSpike") { this.lifetime = 1.2; this.radius = 6; }
@@ -44,7 +44,7 @@ export class Projectile extends GameObject {
 
   update(deltaSeconds: number): void {
     if (this.orbiting && this.source?.active) { this.orbitAge += deltaSeconds; this.orbitAngle += deltaSeconds * (5.2 + this.orbitAngularDrift); const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162; this.position.x = this.source.position.x + Math.cos(this.orbitAngle) * radius; this.position.y = this.source.position.y + Math.sin(this.orbitAngle) * radius; }
-    else if (this.boomerang) { const speed = 90; if (!this.returning) { const step = speed * deltaSeconds; this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; this.travelled += step; if (this.travelled >= this.boomerangRange) { this.returning = true; this.hitTargets.clear(); } } else if (this.source?.active) { const dx = this.source.position.x - this.position.x; const dy = this.source.position.y - this.position.y; const distance = Math.hypot(dx, dy); const step = speed * deltaSeconds; if (distance <= step + this.source.radius) { this.source.heal(this.damageDealt * this.healingFraction); this.active = false; } else { this.position.x += dx / distance * step; this.position.y += dy / distance * step; } } else this.active = false; }
+    else if (this.boomerang) { const speed = 180; if (!this.returning) { const step = speed * deltaSeconds; this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; this.travelled += step; if (this.travelled >= this.boomerangRange) { this.returning = true; this.hitTargets.clear(); } } else if (this.source?.active) { const dx = this.source.position.x - this.position.x; const dy = this.source.position.y - this.position.y; const distance = Math.hypot(dx, dy); const step = speed * deltaSeconds; if (distance <= step + this.source.radius) { this.source.heal(this.damageDealt * this.healingFraction); this.active = false; } else { this.position.x += dx / distance * step; this.position.y += dy / distance * step; } } else this.active = false; }
     else { this.position.x += this.velocity.x * deltaSeconds; this.position.y += this.velocity.y * deltaSeconds; }
     if (this.boomerang && this.active) this.boomerangDamageSeconds = deltaSeconds;
     this.lifetime -= deltaSeconds;

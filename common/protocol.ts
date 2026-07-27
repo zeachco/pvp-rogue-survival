@@ -24,6 +24,7 @@ export interface UnitBuild {
   id: string; name: string; kind: CreepKind; level: number; stats: Stats; mainHand?: ItemInstance; offHand?: ItemInstance; amulet?: ItemInstance; charm?: ItemInstance;
   carried: ItemInstance[]; isRival: boolean; xpReward: number; goldReward: number; seed: number;
   bonusSkills?: SkillId[];
+  skillLevels?: Partial<Record<SkillId, number>>;
   emitterId?: PlayerId; emitterName?: string; backlash?: boolean;
 }
 export interface WaveSpawn { build: UnitBuild; spawnAtMs: number }

@@ -10,10 +10,10 @@ export interface ImpactForce {
   impulse: number;
 }
 
-export function emittedImpactForce(source: Unit | undefined, kind: ImpactForceKind, origin: Vector2, direction?: Vector2): ImpactForce | undefined {
+export function emittedImpactForce(source: Unit | undefined, kind: ImpactForceKind, origin: Vector2, direction?: Vector2, scale = 1): ImpactForce | undefined {
   if (!source) return undefined;
   const movementSpeed = Math.hypot(source.velocity.x, source.velocity.y);
-  return { kind, origin: { ...origin }, direction: direction && { ...direction }, impulse: 10 + source.stats.strength * 2 + movementSpeed * 0.15 };
+  return { kind, origin: { ...origin }, direction: direction && { ...direction }, impulse: (10 + source.stats.strength * 2 + movementSpeed * 0.15) * scale };
 }
 
 export function applyImpactForce(target: Unit, force: ImpactForce | undefined): void {
