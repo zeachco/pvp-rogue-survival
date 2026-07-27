@@ -82,7 +82,11 @@ export class Game {
     window.addEventListener("keyup", (event) => this.keys.delete(event.key.toLowerCase()));
     this.canvas.addEventListener("mousemove", (event) => this.updateHover(event));
     this.canvas.addEventListener("click", (event) => this.inspectAt(event));
-    this.socket.onOpen(() => { if (this.savedSession) this.join("", this.savedSession.heroId); else this.socket.send({ type: "listHeroes" }); });
+    this.socket.onOpen(() => {
+      if (this.savedSession) this.join("", this.savedSession.heroId);
+      else { this.hud.setNotice("Enter a name to join."); this.socket.send({ type: "listHeroes" }); }
+    });
+    this.socket.onClose(() => this.hud.setNotice("Server disconnected. Reconnecting..."));
     this.socket.onMessage((message) => this.handleServerMessage(message)); this.socket.connect(); requestAnimationFrame((timestamp) => this.tick(timestamp));
   }
 

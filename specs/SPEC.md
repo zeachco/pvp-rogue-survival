@@ -164,7 +164,7 @@ Bun SQL is the authoritative durable hero store. The `heroes` table has four col
 
 ## 11. Initial Scope
 
-- Join/resume flow and fixed responsive arena. While anonymous, the join panel displays connection and server notices—including username-in-use rejection messages—without requiring a successful login.
+- Join/resume flow and fixed responsive arena. While anonymous, the join panel displays connection and server notices—including username-in-use rejection messages—without requiring a successful login. When the gameplay WebSocket closes, both the join panel and in-game notification area display `Server disconnected. Reconnecting...` while the client retries; a successful anonymous reconnection restores the normal join prompt, while a saved session proceeds through the normal resume notice.
 - WASD hero with acceleration, bounded movement, camera follow, and health, as specified in `specs/MECHANICS_SPEC.md`.
 - Closest-creep auto-aim and automatic equipped-weapon attacks and skills across `specs/MECHANICS_SPEC.md` and `specs/PROGRESSION_SPEC.md`.
 - Randomized edge spawns aimed directly at the hero.

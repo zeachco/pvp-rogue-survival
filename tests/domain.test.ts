@@ -64,6 +64,7 @@ import {
   derivedStats,
   lerpXpDisplay,
   levelForXp,
+  STAT_KEYS,
   xpForNextLevel,
   ZERO_STATS
 } from "../common/progression";
@@ -79,6 +80,8 @@ import {
   rivalXpReward
 } from "../common/waves";
 import {
+  bloodSkillDamage,
+  bloodSkillLifeCost,
   effectiveSkillLevel,
   forceField,
   forceFieldDamage,
@@ -366,7 +369,7 @@ describe("permanent inventory", () => {
          expect(result.created?.level).toBe(2);
          expect(state.inventoryTiles[0].quantity).toBe(1);
          expect(state.inventoryTiles[1].quantity).toBe(1);
-         expect(state.scraps.common).toBe(6);
+         expect(state.scraps.common).toBe(10 - upgradeCosts(item).scraps);
          expect(state.gold).toBeLessThan(gold);
        });
   test(
@@ -375,7 +378,7 @@ describe("permanent inventory", () => {
         const plain = generateItem(1, "common", 41);
         const attributed = {...plain, statBonuses : {spirit : 3}};
         expect(upgradeCosts(plain))
-            .toEqual({gold : Math.ceil(plain.sellValue * 1.5), scraps : 4});
+            .toEqual({gold : Math.ceil(plain.sellValue * 1.5 * 1.1), scraps : 5});
         expect(upgradeCosts(attributed)).toEqual({
           gold : Math.ceil(plain.sellValue * 1.5 * 1.3),
           scraps : 6
@@ -675,13 +678,19 @@ describe("spell resources", () => {
     expect(generateBuckler(0, "common", 12).skills).toEqual([ "blocking" ]);
   });
 });
-test("requires at least thirty percent HP for every blood skill", () => {
+test("blood skills spend remaining HP, scale damage with the amount spent, and preserve one HP", () => {
   for (const skill of Object.values(SKILLS).filter(({resource}) =>
                                                        resource === "life")) {
-    expect(skill.minimumHealthFraction).toBe(0.3);
-    expect(skillHealthRequirementMet(skill.id, 29.999, 100)).toBeFalse();
-    expect(skillHealthRequirementMet(skill.id, 30, 100)).toBeTrue();
+    expect(skillHealthRequirementMet(skill.id, 1, 100)).toBeFalse();
+    expect(skillHealthRequirementMet(skill.id, 1.001, 100)).toBeTrue();
   }
+  expect(bloodSkillLifeCost("rent", 100)).toBe(10);
+  expect(bloodSkillLifeCost("rent", 50)).toBe(5);
+  expect(bloodSkillLifeCost("vampiricBoomerang", 50)).toBe(15);
+  expect(bloodSkillLifeCost("vampiricBoomerang", 1.1)).toBeCloseTo(0.1);
+  expect(bloodSkillLifeCost("rent", 100, 0.5)).toBe(5);
+  expect(bloodSkillDamage("rent", 1, 10, 10)).toBeGreaterThan(
+      bloodSkillDamage("rent", 1, 10, 5));
   expect(skillHealthRequirementMet("bash", 1, 100)).toBeTrue();
 });
 test("grants Gold gain and rarity boost on bucklers by rarity", () => {
@@ -854,11 +863,12 @@ describe("item sustain", () => {
   });
 });
 describe("equipment upgrade trait preservation", () => {
-  test("keeps rolled perks, attributes, skills, and requirement identities", () => {
+  test("keeps rolled traits and increases exactly one direct attribute", () => {
     const base = generateItem(1, "rare", 17, {allowedClasses : [ "hammer" ]});
     const upgraded = levelUpItem(base, 999);
     expect(upgraded.perks).toEqual(base.perks);
-    expect(upgraded.statBonuses).toEqual(base.statBonuses);
+    expect(STAT_KEYS.reduce((sum, key) => sum + (upgraded.statBonuses[key] ?? 0) - (base.statBonuses[key] ?? 0), 0)).toBe(1);
+    expect(STAT_KEYS.filter((key) => upgraded.statBonuses[key] !== base.statBonuses[key])).toHaveLength(1);
     expect(upgraded.skills).toEqual(base.skills);
     expect(Object.keys(upgraded.requirements).sort())
         .toEqual(Object.keys(base.requirements).sort());
@@ -869,9 +879,25 @@ describe("equipment upgrade trait preservation", () => {
     const base = generateAccessory(4, "rare", 27, "amulet");
     const upgraded = levelUpItem(base, 333);
     expect(upgraded.accessoryBonuses).toEqual(base.accessoryBonuses);
-    expect(upgraded.statBonuses).toEqual(base.statBonuses);
+    expect(STAT_KEYS.reduce((sum, key) => sum + (upgraded.statBonuses[key] ?? 0) - (base.statBonuses[key] ?? 0), 0)).toBe(1);
     expect(upgraded.attractionSpeed).toBe(base.attractionSpeed);
   });
+});
+test("every generated equipment type has a positive direct attribute", () => {
+  const items = [
+    generateItem(0, "common", 1),
+    generateBuckler(0, "common", 2),
+    generateRelic(0, "common", 3),
+    generateAccessory(0, "common", 4, "amulet"),
+    generateAccessory(0, "common", 5, "charm")
+  ];
+  for (const item of items)
+    expect(STAT_KEYS.some((key) => (item.statBonuses[key] ?? 0) > 0)).toBeTrue();
+});
+test("upgrading a legacy item without attributes adds one attribute point", () => {
+  const base = { ...generateItem(1, "common", 41), statBonuses: {} };
+  const upgraded = levelUpItem(base, 42);
+  expect(STAT_KEYS.reduce((sum, key) => sum + (upgraded.statBonuses[key] ?? 0), 0)).toBe(1);
 });
 describe("equipment rarity promotion", () => {
   test(

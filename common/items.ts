@@ -88,12 +88,11 @@ export function generateRelic(level: number, rarity: Rarity, seed: number): Item
 export function generateAccessory(level: number, rarity: Rarity, seed: number, kind?: "amulet" | "charm"): ItemInstance {
   level = Math.min(level, MAX_ITEM_LEVEL[rarity]); const source = new SeededRandom(seed); const itemKind = kind ?? (source.next() < 0.5 ? "amulet" : "charm");
   const [minimum, maximum] = ({ common: [1, 2], uncommon: [1, 3], rare: [2, 4], epic: [4, 6] } as const)[rarity];
-  const rollCount = minimum + Math.floor(source.next() * (maximum - minimum + 1)); const statBonuses: Partial<Record<StatKey, number>> = {}; const accessoryBonuses: AccessoryBonuses = {}; let attractionSpeed = 0;
+  const rollCount = minimum + Math.floor(source.next() * (maximum - minimum + 1)); const statKey = STAT_KEYS[Math.floor(source.next() * STAT_KEYS.length)]; const statBonuses: Partial<Record<StatKey, number>> = { [statKey]: Math.max(1, Math.ceil((1 + level * 0.12) * RARITY_POWER[rarity])) }; const accessoryBonuses: AccessoryBonuses = {}; let attractionSpeed = 0;
   if (itemKind === "amulet") {
-    const pool: Array<"stat" | "mana" | "all" | "stamina" | "pull" | "cooldown" | "manaCost" | "lifeCost"> = ["stat", "mana", "all", "stamina", "pull", "cooldown", "manaCost", "lifeCost"];
-    for (let index = 0; index < rollCount; index += 1) { const roll = pool.splice(Math.floor(source.next() * pool.length), 1)[0]; const scale = (level + 1) / 51;
-      if (roll === "stat") { const key = STAT_KEYS[Math.floor(source.next() * STAT_KEYS.length)]; statBonuses[key] = Math.max(1, Math.ceil((1 + level * 0.12) * RARITY_POWER[rarity])); }
-      else if (roll === "mana") accessoryBonuses.manaSkillLevels = 1 + Math.floor(source.next() * 5);
+    const pool: Array<"mana" | "all" | "stamina" | "pull" | "cooldown" | "manaCost" | "lifeCost"> = ["mana", "all", "stamina", "pull", "cooldown", "manaCost", "lifeCost"];
+    for (let index = 1; index < rollCount; index += 1) { const roll = pool.splice(Math.floor(source.next() * pool.length), 1)[0]; const scale = (level + 1) / 51;
+      if (roll === "mana") accessoryBonuses.manaSkillLevels = 1 + Math.floor(source.next() * 5);
       else if (roll === "all") accessoryBonuses.allSkillLevels = 1 + Math.floor(source.next() * 3);
       else if (roll === "stamina") accessoryBonuses.staminaSkillLevels = 1 + Math.floor(source.next() * 10);
       else if (roll === "pull") attractionSpeed = 35 + Math.round(level * 1.5);
@@ -103,7 +102,7 @@ export function generateAccessory(level: number, rarity: Rarity, seed: number, k
     }
   } else {
     const pool: Array<PhysicalBonusKind | "manaCost" | "lifeCost"> = ["frost", "poison", "bleed", "fire", "lightning", "manaCost", "lifeCost"];
-    const physicalDamage: Partial<Record<PhysicalBonusKind, number>> = {}; for (let index = 0; index < rollCount; index += 1) { const roll = pool.splice(Math.floor(source.next() * pool.length), 1)[0]; if (roll === "manaCost") accessoryBonuses.manaCostReduction = 0.05 + 0.85 * ((level + 1) / 51); else if (roll === "lifeCost") accessoryBonuses.lifeCostReduction = 0.05 + 0.85 * ((level + 1) / 51); else physicalDamage[roll] = 0.02 + 0.18 * ((level + 1) / 51) * (0.6 + source.next() * 0.4); } accessoryBonuses.physicalDamage = physicalDamage;
+    const physicalDamage: Partial<Record<PhysicalBonusKind, number>> = {}; for (let index = 1; index < rollCount; index += 1) { const roll = pool.splice(Math.floor(source.next() * pool.length), 1)[0]; if (roll === "manaCost") accessoryBonuses.manaCostReduction = 0.05 + 0.85 * ((level + 1) / 51); else if (roll === "lifeCost") accessoryBonuses.lifeCostReduction = 0.05 + 0.85 * ((level + 1) / 51); else physicalDamage[roll] = 0.02 + 0.18 * ((level + 1) / 51) * (0.6 + source.next() * 0.4); } accessoryBonuses.physicalDamage = physicalDamage;
   }
   return rollItemPerks({ id: `${itemKind}-${seed}-${Math.floor(source.next() * 1e8)}`, itemKind, definitionId: itemKind, name: itemKind === "amulet" ? "Runed Amulet" : "Vampiric Charm", level, rarity, seed, hands: 0, weight: 0, affixes: [], requirements: level ? { spirit: Math.max(1, Math.floor(level * 0.25 * RARITY_POWER[rarity])) } : {}, statBonuses, modifiers: baseModifiers(1, 1), skills: itemKind === "charm" ? ["vampiricBoomerang"] : [], staminaCost: 0, dropChance: Math.min(0.3, 0.04 + RARITY_POWER[rarity] * 0.06), sellValue: Math.max(1, Math.round((level + 1) * RARITY_POWER[rarity] * (3 + rollCount))), blockChance: 0, reflectionComponents: [], attractionSpeed, accessoryBonuses }, seed);
 }
@@ -184,6 +183,20 @@ function orderedStats(stats: Partial<Record<StatKey, number>>): Partial<Record<S
 function preserveRolledTraits(base: ItemInstance, next: ItemInstance): ItemInstance {
   const levelRatio = (next.level + 1) / Math.max(1, base.level + 1);
   const requirements = Object.fromEntries(Object.entries(base.requirements).map(([key, value]) => [key, Math.max(value ?? 0, Math.ceil((value ?? 0) * levelRatio))])) as Partial<Record<StatKey, number>>;
-  return { ...next, name: base.name, affixes: [...base.affixes], requirements, statBonuses: { ...base.statBonuses }, skills: [...base.skills], reflectionComponents: [...base.reflectionComponents], attractionSpeed: base.attractionSpeed, perks: { ...base.perks }, accessoryBonuses: base.accessoryBonuses ? structuredClone(base.accessoryBonuses) : undefined };
+  return { ...next, name: base.name, affixes: [...base.affixes], requirements, statBonuses: upgradedStatBonuses(base, next.seed), skills: [...base.skills], reflectionComponents: [...base.reflectionComponents], attractionSpeed: base.attractionSpeed, perks: { ...base.perks }, accessoryBonuses: base.accessoryBonuses ? structuredClone(base.accessoryBonuses) : undefined };
 }
-function rollItemPerks(item: ItemInstance, seed: number): ItemInstance { const source = new SeededRandom(seed + 7919); const count = ({ common: 1, uncommon: 2, rare: 3, epic: 4 } as const)[item.rarity]; const pool = [...ITEM_PERKS]; const perks: Partial<Record<ItemPerkId, number>> = {}; const requirements = { ...item.requirements }; const max: Record<ItemPerkId, number> = { defense: 10, physicalResist: .5, magicResist: .5, fireResist: .5, frostResist: .5, poisonResist: .5, bleedResist: .5, dodgeChance: .5 }; const attrs: Record<ItemPerkId, StatKey[]> = { defense: ["strength"], physicalResist: ["strength", "agility"], magicResist: ["intelligence"], fireResist: ["intelligence", "magic"], frostResist: ["intelligence"], poisonResist: ["spirit", "agility"], bleedResist: ["strength", "agility"], dodgeChance: ["agility"] }; for (let i=0;i<count;i+=1) { const key=pool.splice(Math.floor(source.next()*pool.length),1)[0]; const factor=((item.level + 1)/51) * (.5 + .5*source.next()); perks[key]=max[key]*factor; const need=Math.ceil(5*item.level*factor/attrs[key].length); for(const attr of attrs[key]) requirements[attr]=Math.max(requirements[attr] ?? 0, need); } return { ...item, perks, requirements }; }
+function rollItemPerks(item: ItemInstance, seed: number): ItemInstance { const source = new SeededRandom(seed + 7919); const count = ({ common: 1, uncommon: 2, rare: 3, epic: 4 } as const)[item.rarity]; const pool = [...ITEM_PERKS]; const perks: Partial<Record<ItemPerkId, number>> = {}; const requirements = { ...item.requirements }; const max: Record<ItemPerkId, number> = { defense: 10, physicalResist: .5, magicResist: .5, fireResist: .5, frostResist: .5, poisonResist: .5, bleedResist: .5, dodgeChance: .5 }; const attrs: Record<ItemPerkId, StatKey[]> = { defense: ["strength"], physicalResist: ["strength", "agility"], magicResist: ["intelligence"], fireResist: ["intelligence", "magic"], frostResist: ["intelligence"], poisonResist: ["spirit", "agility"], bleedResist: ["strength", "agility"], dodgeChance: ["agility"] }; for (let i=0;i<count;i+=1) { const key=pool.splice(Math.floor(source.next()*pool.length),1)[0]; const factor=((item.level + 1)/51) * (.5 + .5*source.next()); perks[key]=max[key]*factor; const need=Math.ceil(5*item.level*factor/attrs[key].length); for(const attr of attrs[key]) requirements[attr]=Math.max(requirements[attr] ?? 0, need); } return ensureUpgradableAttribute({ ...item, perks, requirements }, seed); }
+function ensureUpgradableAttribute(item: ItemInstance, seed: number): ItemInstance {
+  if (STAT_KEYS.some((key) => (item.statBonuses[key] ?? 0) > 0)) return item;
+  const thematic = STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0);
+  const pool = thematic.length ? thematic : STAT_KEYS;
+  const key = pool[Math.abs(Math.floor(seed)) % pool.length];
+  return { ...item, statBonuses: { ...item.statBonuses, [key]: 1 } };
+}
+function upgradedStatBonuses(item: ItemInstance, seed: number): Partial<Record<StatKey, number>> {
+  if (!STAT_KEYS.some((key) => (item.statBonuses[key] ?? 0) > 0)) return ensureUpgradableAttribute(item, seed).statBonuses;
+  const ensured = ensureUpgradableAttribute(item, seed).statBonuses;
+  const keys = STAT_KEYS.filter((key) => (ensured[key] ?? 0) > 0);
+  const key = keys[Math.abs(Math.floor(seed)) % keys.length];
+  return { ...ensured, [key]: (ensured[key] ?? 0) + 1 };
+}
