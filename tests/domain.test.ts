@@ -70,6 +70,7 @@ import {
   generateItem,
   generateRelic,
   itemCooldownReduction,
+  migrateLegacyItem,
   itemRequirementMultiplier,
   itemStackKey,
   levelUpItem,
@@ -235,7 +236,7 @@ test("resolves the configured unarmed profile from effective Strength", () => {
         damage : 9,
         attacksPerSecond : 1,
         range : 70,
-        staminaCost : 1,
+        rageCost : 0,
         projectile : false
       });
 });
@@ -344,12 +345,12 @@ test("derives health from Strength and mana from Intelligence", () => {
   const base = derivedStats(ZERO_STATS);
   expect(base.maxHp).toBe(10);
   expect(base.maxMana).toBe(5);
-  expect(base.staminaRegen).toBe(.05);
+  expect(base.rageRegen).toBe(.05);
   const advanced =
       derivedStats({...ZERO_STATS, strength : 3, magic : 99, intelligence : 2});
   expect(advanced.maxHp).toBe(13);
   expect(advanced.maxMana).toBe(9);
-  expect(derivedStats({...ZERO_STATS, spirit : 10}).staminaRegen).toBe(.3);
+  expect(derivedStats({...ZERO_STATS, spirit : 10}).rageRegen).toBe(.3);
 });
 describe("XP curve", () => {
   test("uses a quadratic cumulative curve with a 15 XP first level", () => {
@@ -415,7 +416,7 @@ describe("permanent inventory", () => {
     expect(state.offHand).toBeUndefined();
     expect(tile.quantity).toBe(1);
   });
-  test("prices percentage return above one stamina and upgrades it toward one",
+  test("prices percentage return above one rage and upgrades it toward one",
        () => {
          const base = {
            ...generateBuckler(0, "rare", 18),
@@ -656,6 +657,23 @@ test("keeps disabled rail skills visible but excludes them from activation", () 
   expect(isSkillActive(state, "healing")).toBeTrue();
 });
 describe("amulets and charms", () => {
+  test("migrates persisted Stamina item fields to Rage", () => {
+    const legacy = generateAccessory(20, "epic", 4, "amulet") as ReturnType<typeof generateAccessory> & {
+      staminaCost?: number;
+      accessoryBonuses: NonNullable<ReturnType<typeof generateAccessory>["accessoryBonuses"]> & { staminaSkillLevels?: number };
+    };
+    delete (legacy as Partial<typeof legacy>).rageCost;
+    legacy.staminaCost = 2.5;
+    legacy.accessoryBonuses = { staminaSkillLevels: 7 };
+
+    migrateLegacyItem(legacy);
+
+    expect(legacy.rageCost).toBe(2.5);
+    expect(legacy.accessoryBonuses.rageSkillLevels).toBe(7);
+    expect("staminaCost" in legacy).toBeFalse();
+    expect("staminaSkillLevels" in legacy.accessoryBonuses).toBeFalse();
+  });
+
   test("rolls rarity-bounded accessories and equips amulets and charms independently", () => {
     const bounds = {
       common : [ 1, 2 ],
@@ -669,7 +687,7 @@ describe("amulets and charms", () => {
         const bonus = item.accessoryBonuses ?? {};
         const count = Object.keys(item.statBonuses).length +
                       Number(bonus.manaSkillLevels !== undefined) +
-                      Number(bonus.staminaSkillLevels !== undefined) +
+                      Number(bonus.rageSkillLevels !== undefined) +
                       Number(bonus.allSkillLevels !== undefined) +
                       Number(bonus.globalCooldownReduction !== undefined) +
                       Number(bonus.manaCostReduction !== undefined) +
@@ -720,7 +738,7 @@ describe("amulets and charms", () => {
           requirements : {},
           accessoryBonuses : {
             manaSkillLevels : 5,
-            staminaSkillLevels : 10,
+            rageSkillLevels : 10,
             allSkillLevels : 3,
             globalCooldownReduction : .8
           }
@@ -839,9 +857,9 @@ test("extracts Blocking and adds one base block percentage point per effective l
   expect(bucklerBlockChance(buckler, ZERO_STATS, 3) - bucklerBlockChance(buckler, ZERO_STATS, 0)).toBeCloseTo(.03);
 });
 describe("spell resources", () => {
-  test("registers Rent as life and buckler blocking as stamina", () => {
+  test("registers Rent as life and buckler blocking as rage", () => {
     expect(SKILLS.rent.resource).toBe("life");
-    expect(SKILLS.blocking.resource).toBe("stamina");
+    expect(SKILLS.blocking.resource).toBe("rage");
     expect(SKILLS.blocking.passive).toBeTrue();
     expect(generateBuckler(0, "common", 12).skills).toEqual([ "blocking" ]);
   });
@@ -855,8 +873,8 @@ test("defines exact level-scaled passive upkeep tiers and applies Mana-cost redu
   expect(skillUpkeepPerSecond("blocking", 10)).toBeCloseTo(.01);
   expect(skillUpkeepPerSecond("sunburnAura", 99, .9)).toBeCloseTo(.099);
   expect(SKILLS.thorns.upkeep).toEqual({ resource: "mana", perLevelPerSecond: .005 });
-  expect(SKILLS.penance).toMatchObject({ resource: "stamina", upkeep: { resource: "stamina", perLevelPerSecond: .002 } });
-  expect(SKILLS.blocking.upkeep).toEqual({ resource: "stamina", perLevelPerSecond: .001 });
+  expect(SKILLS.penance).toMatchObject({ resource: "rage", upkeep: { resource: "rage", perLevelPerSecond: .002 } });
+  expect(SKILLS.blocking.upkeep).toEqual({ resource: "rage", perLevelPerSecond: .001 });
 });
 test("blood skills spend remaining HP, scale damage with the amount spent, and preserve one HP", () => {
   for (const skill of Object.values(SKILLS).filter(({resource}) =>
@@ -984,7 +1002,7 @@ describe("aura equipment", () => {
                            8, "rare", seed, {allowedClasses : [ "scepter" ]}));
         expect(scepters.every((item) => item.itemKind === "relic" &&
                                         item.hands === 0 && item.weight === 0 &&
-                                        item.staminaCost === 0 &&
+                                        item.rageCost === 0 &&
                                         item.modifiers.damageMultiplier === 1 &&
                                         item.statBonuses.spirit! > 0 &&
                                         item.statBonuses.intelligence! > 0 &&
@@ -1204,7 +1222,7 @@ test("scales Flurry cooldown from ten seconds at level one to one second at leve
   expect(skillCooldown("flurry", starterClub(), ZERO_STATS, 99)).toBe(1);
 });
 describe("Healing scaling", () => {
-  test("scales from level 1 to 99, adds flat plus stamina-scaled healing, and charges twice the restored HP", () => {
+  test("scales from level 1 to 99, adds flat plus rage-scaled healing, and charges twice the restored HP", () => {
     expect(healingFraction(1)).toBeCloseTo(0.2);
     expect(healingFraction(99)).toBeCloseTo(0.9);
     expect(healingFraction(100)).toBeCloseTo(0.9);

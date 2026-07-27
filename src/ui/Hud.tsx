@@ -181,11 +181,11 @@ export class Hud {
   private readonly statusEffects = (<div class="status-effects" aria-label="Active status effects" />) as HTMLElement;
   private readonly beneficialEffects = (<div class="beneficial-effects" aria-label="Active beneficial effects" />) as HTMLElement;
   private readonly manaBar = resourceBar("Mana", "mana");
-  private readonly staminaLine = (
+  private readonly rageLine = (
     <div
-      class="stamina-line"
+      class="rage-line"
       role="progressbar"
-      aria-label="Stamina"
+      aria-label="Rage"
       aria-valuemin="0"
     >
       <span />
@@ -349,7 +349,7 @@ export class Hud {
         <div class="health-cluster">
           {this.statusEffects}
           {this.healthBar.node}
-          {this.staminaLine}
+          {this.rageLine}
         </div>
       ) as HTMLElement,
       (
@@ -804,7 +804,7 @@ export class Hud {
       ).attacksPerSecond,
     );
     const costLabel = spell.id === "blocking" && progress && stats
-      ? `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Stamina / block`
+      ? `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`
       : spell.costLabel;
     if (skill.passive) {
       const upkeep = skill.upkeep && progress && stats
@@ -937,8 +937,8 @@ export class Hud {
       this.player.health,
       this.player.maxHealth,
       healthRegen,
-      this.player.stamina,
-      this.player.maxStamina,
+      this.player.rage,
+      this.player.maxRage,
       this.player.mana,
       this.player.maxMana,
       manaRegen,
@@ -972,22 +972,22 @@ export class Hud {
         this.player.maxMana,
         manaRegen,
       );
-      const stamina = resourceRatio(
-        this.player.stamina,
-        this.player.maxStamina,
+      const rage = resourceRatio(
+        this.player.rage,
+        this.player.maxRage,
       );
       setText(this.xpName, this.player.name);
       setText(this.xpLevel, String(shownLevel));
-      this.staminaLine.setAttribute(
+      this.rageLine.setAttribute(
         "aria-valuemax",
-        String(this.player.maxStamina),
+        String(this.player.maxRage),
       );
-      this.staminaLine.setAttribute(
+      this.rageLine.setAttribute(
         "aria-valuenow",
-        String(this.player.stamina),
+        String(this.player.rage),
       );
-      (this.staminaLine.firstElementChild as HTMLElement).style.width =
-        `${stamina * 100}%`;
+      (this.rageLine.firstElementChild as HTMLElement).style.width =
+        `${rage * 100}%`;
       this.xpBadge.style.setProperty("--xp-angle", `${xpRatio * 360}deg`);
       this.xpBadge.setAttribute("aria-valuemax", String(needed));
       this.xpBadge.setAttribute("aria-valuenow", String(into));
@@ -1883,7 +1883,7 @@ export function effectiveStatRows(
   return [
     ["Damage", fmt(profile.damage)],
     ["Attacks/s", fmt(profile.attacksPerSecond)],
-    ["Attack cost", `${fmt(profile.staminaCost)} stamina`],
+    ["Attack cost", `${fmt(profile.rageCost)} rage`],
     ["Attack range", `${profile.range}px`],
     [
       "Crit chance",
@@ -1921,7 +1921,7 @@ export function effectiveStatRows(
     ["Spell range/Lv", `+${fmt(0.5 * stats.spirit)}px`],
     ["Spell power/Lv", "+15%"],
     ["Max health", fmt(maxHp ?? derived.maxHp)],
-    ["Max stamina", fmt(derived.maxStamina)],
+    ["Max rage", fmt(derived.maxRage)],
     ["Max mana", fmt(derived.maxMana)],
     ["Defense", fmt(perks.defense + (buckler ? stats.strength : 0))],
     [
@@ -1937,14 +1937,14 @@ export function effectiveStatRows(
     ["Block chance", percent(bucklerBlockChance(buckler, stats, blockingLevel))],
     [
       "Block cost",
-      buckler ? `${fmt(bucklerBlockCost(buckler, stats))} stamina` : "0",
+      buckler ? `${fmt(bucklerBlockCost(buckler, stats))} rage` : "0",
     ],
     ["Health regen", `${fmt(derived.hpRegen + vigorous)}/s`],
     [
       "Mana regen",
       `${fmt(derived.manaRegen * (1 + ((main?.modifiers.manaRegenMultiplier ?? 1) - 1) * mainEffectiveness))}/s`,
     ],
-    ["Stamina regen", `${fmt(derived.staminaRegen)}/s`],
+    ["Rage regen", `${fmt(derived.rageRegen)}/s`],
     ["HP on kill", fmt(onKill.health)],
     ["Mana on kill", fmt(onKill.mana)],
     ["Life steal", percent(lifeSteal)],
@@ -2009,7 +2009,7 @@ function effectiveStatSheet(
   ]);
   const defensive = new Set([
     "Max health",
-    "Max stamina",
+    "Max rage",
     "Defense",
     "Dodge chance",
     "Physical resist",

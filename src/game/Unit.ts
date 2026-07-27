@@ -16,8 +16,8 @@ export abstract class Unit extends GameObject {
   maxHp: number;
   mana = 0;
   maxMana = 0;
-  stamina = 1;
-  maxStamina = 1;
+  rage = 1;
+  maxRage = 1;
   stats: Stats = { agility: 0, strength: 0, magic: 0, spirit: 0, intelligence: 0 };
   statuses: StatusEffect[] = [];
   enteredArena = false;
@@ -36,7 +36,7 @@ export abstract class Unit extends GameObject {
   healthRegenFlat = 0;
   readonly knownSkills = new Set<SkillId>();
   readonly skillLevels = new Map<SkillId, number>();
-  private readonly suspendedUpkeep = new Set<"mana" | "stamina">();
+  private readonly suspendedUpkeep = new Set<"mana" | "rage">();
   onCombatText?: (text: CombatText) => void;
   lastHitDodged = false;
 
@@ -61,12 +61,12 @@ export abstract class Unit extends GameObject {
     return true;
   }
 
-  spendStamina(amount: number): boolean {
+  spendRage(amount: number): boolean {
     const cost = Math.max(0, amount);
-    this.stamina = Math.max(0, Math.min(this.maxStamina, this.stamina));
-    if (this.stamina < cost) return false;
-    this.stamina = Math.max(0, this.stamina - cost);
-    if (this.stamina === 0) this.suspendedUpkeep.add("stamina");
+    this.rage = Math.max(0, Math.min(this.maxRage, this.rage));
+    if (this.rage < cost) return false;
+    this.rage = Math.max(0, this.rage - cost);
+    if (this.rage === 0) this.suspendedUpkeep.add("rage");
     return true;
   }
 
@@ -90,11 +90,11 @@ export abstract class Unit extends GameObject {
     const hpBefore = this.hp;
     const immunity = presentation.kind === "magic" || presentation.kind === "electric" ? "magic" : presentation.kind === "cold" ? "frost" : presentation.kind === "fire" ? "fire" : presentation.kind === "poison" ? "poison" : presentation.kind === "bleed" ? "bleed" : "physical"; if (immunities.has(immunity)) return 0; const resistKey = presentation.kind === "magic" || presentation.kind === "electric" ? "magicResist" : presentation.kind === "cold" ? "frostResist" : presentation.kind === "fire" ? "fireResist" : presentation.kind === "poison" ? "poisonResist" : presentation.kind === "bleed" ? "bleedResist" : "physicalResist"; let remaining = Math.max(0, incomingAmount - perks.defense) * (1 - Math.min(.5, perks[resistKey])); let blockReflection = 0; const buckler = this.offHand;
     const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
-    if (buckler?.itemKind === "buckler" && this.isSkillOperational("blocking") && this.blockCooldown === 0 && this.stamina >= blockCost) {
+    if (buckler?.itemKind === "buckler" && this.isSkillOperational("blocking") && this.blockCooldown === 0 && this.rage >= blockCost) {
       const chance = bucklerBlockChance(buckler, this.stats, this.skillLevels.get("blocking") ?? 0);
       if (random.next() < chance) {
         this.emitOutcome("block", "BLOCK");
-        this.spendStamina(blockCost);
+        this.spendRage(blockCost);
         const attackSpeed = this.mainHand ? weaponAttackSpeed(this.mainHand, this.stats) : 1; this.blockCooldownMax = buckler.reflectionComponents.includes("return") ? 1 / Math.max(0.01, attackSpeed) : 1; this.blockCooldown = this.blockCooldownMax;
         const beforeBlock = remaining; remaining = Math.max(0, incomingAmount - Math.min(incomingAmount, this.stats.strength));
         if (this.isSkillOperational("penance")) this.restoreMana(Math.max(0, beforeBlock - remaining) * Math.max(0, this.stats.spirit) * manaConversionFraction(this.skillLevels.get("penance") ?? 1));
@@ -107,8 +107,8 @@ export abstract class Unit extends GameObject {
         }
       }
     }
-    if (source && incomingAmount > 0 && this.isSkillOperational("reflectiveSurge") && this.reflectiveSurgeCooldown === 0 && this.stamina >= 3) {
-      this.spendStamina(3);
+    if (source && incomingAmount > 0 && this.isSkillOperational("reflectiveSurge") && this.reflectiveSurgeCooldown === 0 && this.rage >= 3) {
+      this.spendRage(3);
       this.reflectiveSurgeRemaining = 6;
       const derived = derivedStats(this.stats);
       const reduction = Math.min(.8, derived.cooldownReduction + itemCooldownReduction(this.offHand, this.amulet, this.charm));
@@ -137,6 +137,7 @@ export abstract class Unit extends GameObject {
 
   heal(amount: number): void { const before = this.hp; this.hp = Math.max(0, Math.min(this.maxHp, this.hp + amount)); const restored = this.hp - before; if (restored > 0) this.emitCombatText(restored, "healing", false); }
   restoreMana(amount: number): void { this.mana = Math.max(0, Math.min(this.maxMana, this.mana + Math.max(0, amount))); }
+  restoreRage(amount: number): void { this.rage = Math.max(0, Math.min(this.maxRage, this.rage + Math.max(0, amount))); }
 
   configureStats(stats: Stats, offHand?: ItemInstance, mainHand?: ItemInstance, amulet?: ItemInstance, charm?: ItemInstance): void {
     this.stats = { ...stats };
@@ -149,12 +150,12 @@ export abstract class Unit extends GameObject {
     this.maxHp = derived.maxHp;
     this.hp = derived.maxHp;
     this.maxMana = derived.maxMana; this.mana = derived.maxMana;
-    this.maxStamina = derived.maxStamina; this.stamina = derived.maxStamina;
+    this.maxRage = derived.maxRage; this.rage = derived.maxRage;
   }
 
-  updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false, regenerateStamina = true): void {
+  updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false, regenerateRage = true): void {
     if (this.mana <= 0) this.suspendedUpkeep.add("mana");
-    if (this.stamina <= 0) this.suspendedUpkeep.add("stamina");
+    if (this.rage <= 0) this.suspendedUpkeep.add("rage");
     this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
     this.reflectiveSurgeRemaining = Math.max(0, this.reflectiveSurgeRemaining - deltaSeconds);
     this.reflectiveSurgeCooldown = Math.max(0, this.reflectiveSurgeCooldown - deltaSeconds);
@@ -166,16 +167,16 @@ export abstract class Unit extends GameObject {
     this.hp = Math.max(0, Math.min(this.maxHp, this.hp + this.healthRegen * deltaSeconds));
     const manaMultiplier = this.mainHand ? 1 + (this.mainHand.modifiers.manaRegenMultiplier - 1) * itemRequirementMultiplier(this.mainHand, this.stats) : 1;
     this.mana = Math.max(0, Math.min(this.maxMana, this.mana + derived.manaRegen * manaMultiplier * deltaSeconds));
-    if (regenerateStamina) this.stamina = Math.max(0, Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds));
-    else this.stamina = Math.max(0, Math.min(this.maxStamina, this.stamina));
+    if (regenerateRage) this.rage = Math.max(0, Math.min(this.maxRage, this.rage + derived.rageRegen * deltaSeconds));
+    else this.rage = Math.max(0, Math.min(this.maxRage, this.rage));
     this.updateSkillUpkeep(deltaSeconds);
   }
 
   private updateSkillUpkeep(deltaSeconds: number): void {
     const equipped = [this.offHand, this.amulet, this.charm];
     const manaReduction = Math.min(0.9, equipped.reduce((sum, item) => sum + (item ? itemResourceCostReduction(item, "mana", this.stats) : 0), 0));
-    for (const resource of ["mana", "stamina"] as const) {
-      const current = resource === "mana" ? this.mana : this.stamina;
+    for (const resource of ["mana", "rage"] as const) {
+      const current = resource === "mana" ? this.mana : this.rage;
       const rate = [...this.knownSkills].reduce((sum, skill) => {
         const upkeep = SKILLS[skill].upkeep;
         if (upkeep?.resource !== resource) return sum;
@@ -187,10 +188,10 @@ export abstract class Unit extends GameObject {
         this.suspendedUpkeep.delete(resource);
       }
       const cost = rate * Math.max(0, deltaSeconds);
-      const paid = resource === "mana" ? this.spendMana(cost) : this.spendStamina(cost);
+      const paid = resource === "mana" ? this.spendMana(cost) : this.spendRage(cost);
       if (!paid) {
         if (resource === "mana") this.mana = 0;
-        else this.stamina = 0;
+        else this.rage = 0;
         this.suspendedUpkeep.add(resource);
       }
     }

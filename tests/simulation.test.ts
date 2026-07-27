@@ -43,16 +43,16 @@ describe("arena systems", () => {
     hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
     expect(hero.velocity.x).toBe(169.2);
   });
-  test("regenerates stamina four times slower and pauses it while the hero is active", () => {
-    const hero = new Hero({ x: 50, y: 50 }); hero.configureStats({ ...ZERO_STATS, spirit: 10 }); hero.stamina = 0;
-    hero.update(1, undefined, false, true); expect(hero.stamina).toBeCloseTo(.3);
-    hero.update(1, undefined, false, false); expect(hero.stamina).toBeCloseTo(.3);
+  test("regenerates rage four times slower and pauses it while the hero is active", () => {
+    const hero = new Hero({ x: 50, y: 50 }); hero.configureStats({ ...ZERO_STATS, spirit: 10 }); hero.rage = 0;
+    hero.update(1, undefined, false, true); expect(hero.rage).toBeCloseTo(.3);
+    hero.update(1, undefined, false, false); expect(hero.rage).toBeCloseTo(.3);
   });
   test("drains combined passive upkeep and suspends effects until Mana reaches one", () => {
     const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS);
     hero.knownSkills.add("attraction"); hero.knownSkills.add("penance");
     hero.skillLevels.set("attraction", 10); hero.skillLevels.set("penance", 10); hero.mana = 5;
-    hero.update(1); expect(hero.mana).toBeCloseTo(4.99); expect(hero.stamina).toBeCloseTo(.98);
+    hero.update(1); expect(hero.mana).toBeCloseTo(4.99); expect(hero.rage).toBeCloseTo(.98);
 
     hero.knownSkills.clear(); hero.skillLevels.clear(); hero.knownSkills.add("deathBurst"); hero.skillLevels.set("deathBurst", 99); hero.mana = 0;
     hero.update(1); expect(hero.mana).toBeCloseTo(.2); expect(hero.isSkillOperational("deathBurst")).toBeFalse();
@@ -62,9 +62,9 @@ describe("arena systems", () => {
   });
   test("clamps resources and renders bounded creep resource-bar widths", () => {
     const hero = new Hero({ x: 0, y: 0 }); hero.configureStats(ZERO_STATS);
-    hero.mana = .5; hero.stamina = .5;
+    hero.mana = .5; hero.rage = .5;
     expect(hero.spendMana(1)).toBeFalse(); expect(hero.mana).toBe(.5);
-    expect(hero.spendStamina(1)).toBeFalse(); expect(hero.stamina).toBe(.5);
+    expect(hero.spendRage(1)).toBeFalse(); expect(hero.rage).toBe(.5);
     hero.takeDamage(hero.maxHp + 100); expect(hero.hp).toBe(0);
     expect(resourceBarWidth(-1, 10)).toBe(0);
     expect(resourceBarWidth(5, 10)).toBe(16);
@@ -79,7 +79,7 @@ describe("arena systems", () => {
   test("reports spell affordability from the hero's current resources", () => {
     const hero = new Hero({ x: 50, y: 50 }); const weapon = starterClub(); hero.configureStats({ ...ZERO_STATS, intelligence: 5 }, undefined, weapon);
     const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS, intelligence: 5 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: weapon, inventoryTiles: [], learnedSkills: ["bash" as const, "gravityPull" as const, "rent" as const, "penance" as const], learnedSkillLevels: { bash: 1, gravityPull: 1, rent: 1, penance: 1 }, universalSkills: [] };
-    hero.stamina = 0; expect(skillAffordable("bash", progress, hero)).toBeFalse();
+    hero.rage = 0; expect(skillAffordable("bash", progress, hero)).toBeFalse();
     hero.mana = 7; expect(skillAffordable("gravityPull", progress, hero)).toBeFalse();
     hero.mana = 8; expect(skillAffordable("gravityPull", progress, hero)).toBeTrue();
     hero.hp = 1; expect(skillAffordable("rent", progress, hero)).toBeFalse();
@@ -152,16 +152,16 @@ describe("arena systems", () => {
     const state = new ArenaState(); state.creeps.push(target);
     const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: weapon, inventoryTiles: [], learnedSkills: ["bash" as const, "rent" as const], learnedSkillLevels: { bash: 1, rent: 1 }, universalSkills: [] };
     const combat = new HeroCombatSystem();
-    const stamina = hero.stamina;
+    const rage = hero.rage;
     combat.update(1 / 60, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
     expect(combat.attacking).toBeTrue();
     expect(combat.spellSlots(progress, hero).find((slot) => slot.id === "bash")?.castProgress).toBe(0);
-    expect(state.attacks).toHaveLength(1); expect(state.attacks[0].skill).toBeUndefined(); expect(hero.stamina).toBeLessThan(stamina);
-    const staminaAfterBasic = hero.stamina;
+    expect(state.attacks).toHaveLength(1); expect(state.attacks[0].skill).toBeUndefined(); expect(hero.rage).toBe(rage);
+    const rageAfterBasic = hero.rage;
     combat.update(.2, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
-    expect(state.attacks).toHaveLength(1); expect(hero.stamina).toBe(staminaAfterBasic);
+    expect(state.attacks).toHaveLength(1); expect(hero.rage).toBe(rageAfterBasic);
     combat.update(.2, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
-    expect(state.attacks.filter((attack) => attack.skill === "bash")).toHaveLength(1); expect(hero.stamina).toBeLessThan(staminaAfterBasic);
+    expect(state.attacks.filter((attack) => attack.skill === "bash")).toHaveLength(1); expect(hero.rage).toBeLessThan(rageAfterBasic);
     expect((combat as unknown as { attackCooldown: number }).attackCooldown).toBeLessThan(1);
     expect(combat.spellSlots(progress, hero).find((slot) => slot.id === "bash")?.castProgress).toBeUndefined();
     expect(combat.spellSlots(progress, hero).find((slot) => slot.id === "rent")?.castProgress).toBeGreaterThan(0);
@@ -170,8 +170,22 @@ describe("arena systems", () => {
     expect(state.attacks.filter((attack) => attack.skill === "rent")).toHaveLength(1);
     expect(hero.hp).toBeLessThan(hpBeforeRent);
   });
-  test("restores resources and clears transient combat state for a new realm", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS); hero.hp = 1; hero.mana = 0; hero.stamina = 0; hero.velocity = { x: 9, y: 4 }; hero.blockCooldown = 1; hero.reflectiveSurgeRemaining = 2; hero.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 1 }); hero.resetForRealm(); expect(hero.hp).toBe(hero.maxHp); expect(hero.mana).toBe(hero.maxMana); expect(hero.stamina).toBe(hero.maxStamina); expect(hero.statuses).toHaveLength(0); expect(hero.velocity).toEqual({ x: 0, y: 0 }); expect(hero.blockCooldown).toBe(0); expect(hero.reflectiveSurgeRemaining).toBe(0); });
-  test("preserves mana and stamina across active-wave progression updates", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats({ ...ZERO_STATS, intelligence: 1, strength: 2 }); hero.mana = 2; hero.stamina = 3; hero.applyProgress({ level: 2, xp: 60, stats: { ...ZERO_STATS, intelligence: 3, strength: 4 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 10, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] }, true); expect(hero.maxMana).toBe(11); expect(hero.mana).toBe(2); expect(hero.stamina).toBe(3); });
+  test("basic weapon attacks are free and restore their authored Rage on a damaging hit", () => {
+    const hero = new Hero({ x: 50, y: 50 });
+    const weapon = starterClub();
+    hero.configureStats(ZERO_STATS, undefined, weapon);
+    hero.rage = 0;
+    const target = new Creep({ id: "rage-target", name: "Target", kind: "melee", level: 0, stats: { ...ZERO_STATS }, mainHand: weapon, carried: [], isRival: false, xpReward: 0, goldReward: 0, seed: 1 }, "neutral", "neutral", { x: 80, y: 50 }, BALANCE, new SeededRandom(1));
+    const state = new ArenaState(); state.creeps.push(target);
+    const combat = new HeroCombatSystem();
+    combat.update(1 / 60, { x: 0, y: 0 }, hero, state, { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: weapon, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [] }, BALANCE, new SeededRandom(1));
+    expect(hero.rage).toBe(0);
+    for (const attack of state.attacks) attack.update(.2);
+    resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
+    expect(hero.rage).toBeCloseTo(weapon.rageCost);
+  });
+  test("restores resources and clears transient combat state for a new realm", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS); hero.hp = 1; hero.mana = 0; hero.rage = 0; hero.velocity = { x: 9, y: 4 }; hero.blockCooldown = 1; hero.reflectiveSurgeRemaining = 2; hero.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 1 }); hero.resetForRealm(); expect(hero.hp).toBe(hero.maxHp); expect(hero.mana).toBe(hero.maxMana); expect(hero.rage).toBe(hero.maxRage); expect(hero.statuses).toHaveLength(0); expect(hero.velocity).toEqual({ x: 0, y: 0 }); expect(hero.blockCooldown).toBe(0); expect(hero.reflectiveSurgeRemaining).toBe(0); });
+  test("preserves mana and rage across active-wave progression updates", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats({ ...ZERO_STATS, intelligence: 1, strength: 2 }); hero.mana = 2; hero.rage = 3; hero.applyProgress({ level: 2, xp: 60, stats: { ...ZERO_STATS, intelligence: 3, strength: 4 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 10, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] }, true); expect(hero.maxMana).toBe(11); expect(hero.mana).toBe(2); expect(hero.rage).toBe(3); });
   test("moves orbiting hammers around their moving source and expires them", () => { const hero = new Hero({ x: 50, y: 50 }); const hammer = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }); hero.position.x = 70; hammer.update(0.1); expect(Math.hypot(hammer.position.x - hero.position.x, hammer.position.y - hero.position.y)).toBeCloseTo(34.75); hammer.update(2.4); expect(hammer.active).toBeFalse(); });
   test("keeps level-scaled orbiting hammers active for their full lifetime", () => { const hero = new Hero({ x: 50, y: 50 }); const hammer = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }, 0, 30); hammer.update(29.9); expect(hammer.active).toBeTrue(); hammer.update(.11); expect(hammer.active).toBeFalse(); });
   test("keeps orbiting hammers active after hits and gives them diverging angular drift", () => { const hero = new Hero({ x: 50, y: 50 }); const slower = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }, -0.1); const faster = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" }, 0.1); slower.markHit("creep-1"); expect(slower.canHit("creep-1")).toBeFalse(); expect(slower.active).toBeTrue(); slower.update(1); faster.update(1); expect(Math.abs(slower.position.x - faster.position.x) + Math.abs(slower.position.y - faster.position.y)).toBeGreaterThan(1); });
@@ -301,24 +315,24 @@ describe("arena systems", () => {
   test("bucklers partially block with Strength and training damage stops at one", () => {
     const hero = new Hero({ x: 50, y: 50 }); const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
     hero.configureStats({ agility: 5, strength: 5, magic: 0, spirit: 0, intelligence: 0 }, buckler);
-    let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(10); expect(hero.stamina).toBe(5);
+    let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(10); expect(hero.rage).toBe(5);
     hero.damageFloorOne = true; hero.receiveDamage(100, { next: () => 1 }); expect(hero.hp).toBe(1); expect(hero.active).toBeTrue();
   });
 
-  test("allows 100% block chance and spends stamina only on successful blocks", () => {
+  test("allows 100% block chance and spends rage only on successful blocks", () => {
     const hero = new Hero({ x: 50, y: 50 }); const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
     hero.configureStats({ agility: 90, strength: 90, magic: 0, spirit: 0, intelligence: 0 }, buckler);
-    const hp = hero.hp; let rolls = [1, 0.999]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(hp); expect(hero.stamina).toBe(hero.maxStamina - 1);
-    hero.stamina = 0; hero.receiveDamage(10, { next: () => 1 }); expect(hero.hp).toBe(hp - 10); expect(hero.stamina).toBe(0);
-    hero.stamina = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.stamina).toBe(1);
+    const hp = hero.hp; let rolls = [1, 0.999]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.hp).toBe(hp); expect(hero.rage).toBe(hero.maxRage - 1);
+    hero.rage = 0; hero.receiveDamage(10, { next: () => 1 }); expect(hero.hp).toBe(hp - 10); expect(hero.rage).toBe(0);
+    hero.rage = 1; hero.receiveDamage(10, { next: () => 1 }); expect(hero.rage).toBe(1);
   });
   test("adds one block-chance percentage point per effective Blocking level", () => {
     const hero = new Hero({ x: 50, y: 50 }); const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
     hero.configureStats({ ...ZERO_STATS, strength: 1 }, buckler);
     hero.skillLevels.set("blocking", 10);
-    const stamina = hero.stamina;
+    const rage = hero.rage;
     hero.receiveDamage(5, { next: () => .15 });
-    expect(hero.stamina).toBe(stamina - 1);
+    expect(hero.rage).toBe(rage - 1);
     expect(hero.blockCooldown).toBe(1);
   });
   test("restores Penance mana from damage prevented by a successful block", () => { const hero = new Hero({ x: 0, y: 0 }); const buckler = generateBuckler(0, "common", 12); hero.configureStats({ agility: 0, strength: 100, magic: 0, spirit: 10, intelligence: 100 }, buckler, starterClub()); hero.mana = 0; hero.knownSkills.add("penance"); hero.skillLevels.set("penance", 99); let rolls = [1, 0]; hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 }); expect(hero.mana).toBeGreaterThan(59); expect(hero.mana).toBeLessThan(60); });
@@ -329,17 +343,17 @@ describe("arena systems", () => {
     const defender = new Hero({ x: 0, y: 0 }); const attacker = new Hero({ x: 10, y: 0 });
     defender.configureStats({ ...ZERO_STATS, strength: 10 });
     defender.knownSkills.add("thorns"); defender.knownSkills.add("reflectiveSurge"); defender.skillLevels.set("reflectiveSurge", 1);
-    defender.stamina = 4;
+    defender.rage = 4;
     const before = attacker.hp;
     expect(defender.reflectiveSurgeRemaining).toBe(0);
     defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, { kind: "physical", critical: false });
-    expect(defender.stamina).toBe(1);
+    expect(defender.rage).toBe(1);
     expect(defender.reflectiveSurgeRemaining).toBe(6);
     expect(defender.reflectiveSurgeCooldown).toBeGreaterThan(0);
     expect(attacker.hp).toBeCloseTo(before - .55);
     const cooldown = defender.reflectiveSurgeCooldown;
     defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, { kind: "physical", critical: false });
-    expect(defender.stamina).toBe(1);
+    expect(defender.rage).toBe(1);
     expect(defender.reflectiveSurgeCooldown).toBe(cooldown);
   });
 

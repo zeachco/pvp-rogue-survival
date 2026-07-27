@@ -9,7 +9,7 @@ export function rollWeaponDamage(item: ItemInstance, stats: Stats, owner: "hero"
   return rollWeaponStrike(item, stats, owner, balance, random).damage;
 }
 
-export interface AttackProfile { kind: "weapon" | "unarmed"; damage: number; attacksPerSecond: number; range: number; staminaCost: number; projectile: boolean; magic: boolean; weapon?: ItemInstance }
+export interface AttackProfile { kind: "weapon" | "unarmed"; damage: number; attacksPerSecond: number; range: number; rageCost: number; projectile: boolean; magic: boolean; weapon?: ItemInstance }
 
 export function skillUpkeepPerSecond(skill: SkillId, level: number, manaCostReduction = 0): number {
   const upkeep = SKILLS[skill].upkeep;
@@ -19,8 +19,8 @@ export function skillUpkeepPerSecond(skill: SkillId, level: number, manaCostRedu
 }
 
 export function attackProfile(mainHand: ItemInstance | undefined, stats: Stats, balance: BalanceConfig): AttackProfile {
-  if (!mainHand) return { kind: "unarmed", damage: balance.combat.unarmed.baseDamage + balance.combat.unarmed.strengthDamage * stats.strength, attacksPerSecond: balance.combat.unarmed.attacksPerSecond, range: balance.combat.unarmed.range, staminaCost: balance.combat.unarmed.staminaCost, projectile: false, magic: false };
-  return { kind: "weapon", damage: weaponDamage(mainHand, stats), attacksPerSecond: weaponAttackSpeed(mainHand, stats), range: weaponRange(mainHand), staminaCost: mainHand.staminaCost, projectile: weaponUsesProjectile(mainHand), magic: isMagicWeapon(mainHand), weapon: mainHand };
+  if (!mainHand) return { kind: "unarmed", damage: balance.combat.unarmed.baseDamage + balance.combat.unarmed.strengthDamage * stats.strength, attacksPerSecond: balance.combat.unarmed.attacksPerSecond, range: balance.combat.unarmed.range, rageCost: balance.combat.unarmed.rageCost, projectile: false, magic: false };
+  return { kind: "weapon", damage: weaponDamage(mainHand, stats), attacksPerSecond: weaponAttackSpeed(mainHand, stats), range: weaponRange(mainHand), rageCost: mainHand.rageCost, projectile: weaponUsesProjectile(mainHand), magic: isMagicWeapon(mainHand), weapon: mainHand };
 }
 
 export function rollAttackStrike(mainHand: ItemInstance | undefined, stats: Stats, owner: "hero" | "enemy", balance: BalanceConfig, random: RandomSource): { damage: number; critical: boolean } {
@@ -101,14 +101,14 @@ export function skillCastTime(skill: SkillId, level: number, agility: number, at
   const accelerated = base / (1 + 0.01 * (cappedLevel - 1) + 0.0005 * Math.max(0, agility) * cappedLevel);
   return Math.min(accelerated, 2 / Math.max(0.01, attacksPerSecond));
 }
-export function healingCast(currentHp: number, maxHp: number, currentStamina: number, maxStamina: number, level: number): { restoredHp: number; manaCost: number } { const staminaFraction = maxStamina > 0 ? Math.max(0, Math.min(1, currentStamina / maxStamina)) : 0; const requestedHp = currentHp * healingFraction(level) + maxHp * (0.05 + 0.05 * staminaFraction); const restoredHp = Math.max(0, Math.min(maxHp - currentHp, requestedHp)); return { restoredHp, manaCost: restoredHp * 2 }; }
+export function healingCast(currentHp: number, maxHp: number, currentRage: number, maxRage: number, level: number): { restoredHp: number; manaCost: number } { const rageFraction = maxRage > 0 ? Math.max(0, Math.min(1, currentRage / maxRage)) : 0; const requestedHp = currentHp * healingFraction(level) + maxHp * (0.05 + 0.05 * rageFraction); const restoredHp = Math.max(0, Math.min(maxHp - currentHp, requestedHp)); return { restoredHp, manaCost: restoredHp * 2 }; }
 export function skillStatBonusDescription(skill: SkillId): string | undefined {
   const bonuses: string[] = [];
   if ((SKILL_BASE_CAST_TIME[skill] ?? 0) > 0) bonuses.push("Agility and skill level reduce cast time");
   if (SKILLS[skill].range && skill !== "healing") bonuses.push("Spirit increases range");
   if (SKILLS[skill].cooldown > 0 && skill !== "healing") bonuses.push("Intelligence and Agility reduce cooldown");
   switch (skill) {
-    case "healing": bonuses.push("Stamina adds up to 5% maximum HP"); break;
+    case "healing": bonuses.push("Rage adds up to 5% maximum HP"); break;
     case "whirlwind": bonuses.push("Strength increases pulse damage; skill level increases duration and movement speed"); break;
     case "orbitingHammers": bonuses.push("Skill level increases hammer duration"); break;
     case "rapidRegen": bonuses.push("Skill level increases regeneration multiplier and duration"); break;

@@ -16,8 +16,8 @@ export interface PlayerState {
   progress: PlayerProgress;
   mana: number;
   maxMana: number;
-  stamina: number;
-  maxStamina: number;
+  rage: number;
+  maxRage: number;
   attackProgress: number;
   statuses: StatusEffectSnapshot[];
   xpSendBuffs: XpSendBuff[];

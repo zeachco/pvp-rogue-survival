@@ -136,7 +136,7 @@ export class Creep extends Unit {
     ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(-16, -24, 32, 2);
     ctx.fillStyle = "#45a9ff"; ctx.fillRect(-16, -24, resourceBarWidth(this.mana, this.maxMana), 2);
     ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(-16, -22, 32, 2);
-    ctx.fillStyle = "#ffd166"; ctx.fillRect(-16, -22, resourceBarWidth(this.stamina, this.maxStamina), 2);
+    ctx.fillStyle = "#ffd166"; ctx.fillRect(-16, -22, resourceBarWidth(this.rage, this.maxRage), 2);
     if (sentItem) {
       ctx.font = "600 12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
       ctx.fillStyle = "#eafffb"; ctx.shadowColor = "rgba(0,0,0,.95)"; ctx.shadowBlur = 4;

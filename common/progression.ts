@@ -6,16 +6,16 @@ export const DEFAULT_ALLOCATION: Stats = { agility: 1, strength: 1, magic: 1, sp
 export const ZERO_STATS: Stats = { agility: 0, strength: 0, magic: 0, spirit: 0, intelligence: 0 };
 
 export interface DerivedStats {
-  baseDamage: number; maxHp: number; maxStamina: number; maxMana: number;
+  baseDamage: number; maxHp: number; maxRage: number; maxMana: number;
   critChance: number; critMultiplier: number;
-  cooldownReduction: number; magicAmp: number; hpRegen: number; manaRegen: number; staminaRegen: number;
+  cooldownReduction: number; magicAmp: number; hpRegen: number; manaRegen: number; rageRegen: number;
 }
 
 export function derivedStats(stats: Stats): DerivedStats {
   return {
     baseDamage: 1 + stats.strength * 0.2,
     maxHp: 10 + stats.strength,
-    maxStamina: 1 + stats.strength,
+    maxRage: 1 + stats.strength,
     maxMana: 5 + stats.intelligence * 2,
     critChance: Math.min(0.75, stats.agility * 0.01),
     critMultiplier: 1.5 + stats.intelligence * 0.05,
@@ -23,7 +23,7 @@ export function derivedStats(stats: Stats): DerivedStats {
     magicAmp: 1 + stats.intelligence * 0.02,
     hpRegen: 0.005 + stats.spirit * 0.005,
     manaRegen: 0.2 + stats.spirit * 0.1,
-    staminaRegen: 0.05 + stats.spirit * 0.025
+    rageRegen: 0.05 + stats.spirit * 0.025
   };
 }
 

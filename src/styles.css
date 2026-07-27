@@ -148,7 +148,7 @@ input {
   border-color: #35d6ee;
   box-shadow: inset 0 0 10px rgba(53, 214, 238, 0.18);
 }
-.spell-slot.spell-resource-stamina {
+.spell-slot.spell-resource-rage {
   border-color: #f2ce45;
   box-shadow: inset 0 0 10px rgba(242, 206, 69, 0.16);
 }
@@ -183,7 +183,7 @@ input {
 .spell-slot.spell-resource-mana.is-ready {
   color: #8ceeff;
 }
-.spell-slot.spell-resource-stamina.is-ready {
+.spell-slot.spell-resource-rage.is-ready {
   color: #ffe88a;
 }
 .spell-slot.spell-resource-life.is-ready {
@@ -500,7 +500,7 @@ input {
 .resource-health .resource-bar-track > .resource-fill {
   background: #e83f4f;
 }
-.resource-stamina .resource-bar-track > .resource-fill {
+.resource-rage .resource-bar-track > .resource-fill {
   background: #f2ce45;
 }
 .resource-mana .resource-bar-track > .resource-fill {
@@ -1628,14 +1628,14 @@ input {
   background: linear-gradient(90deg, #087ea4, #21c4e9 60%, #79efff);
 }
 
-.stamina-line {
+.rage-line {
   height: 2px;
   margin: 3px 1px 0;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.7);
 }
 
-.stamina-line > span {
+.rage-line > span {
   display: block;
   height: 100%;
   background: #f6d849;

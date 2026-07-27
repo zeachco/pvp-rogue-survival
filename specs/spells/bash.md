@@ -1,3 +1,3 @@
 # Bash (`bash`)
 
-**Source:** club signature skill. **Activation:** automatic stamina physical attack; base cooldown 5 seconds, range 105px, and 1.5 damage multiplier. **Effect:** a full-circle hit that always stuns a hit target for 1.1 seconds. It uses the shared physical-hit, stamina-cost, pushback, dodge, mitigation, effective-level, and weapon-level rules.
+**Source:** club signature skill. **Activation:** automatic rage physical attack; base cooldown 5 seconds, range 105px, and 1.5 damage multiplier. **Effect:** a full-circle hit that always stuns a hit target for 1.1 seconds. It uses the shared physical-hit, rage-cost, pushback, dodge, mitigation, effective-level, and weapon-level rules.

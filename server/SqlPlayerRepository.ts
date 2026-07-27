@@ -1,4 +1,5 @@
 import { SQL } from "bun";
+import { itemStackKey, migrateLegacyItem } from "../common/items.ts";
 import type { PanelTriggers, PlayerProgress } from "../common/protocol.ts";
 import type { HeroSummary } from "../common/protocol.ts";
 import { cumulativeXpForLevel } from "../common/progression.ts";
@@ -74,5 +75,17 @@ function fromRow(row: HeroRow): Player | undefined {
   blob.progress.level = Number(row.level);
   blob.progress.xp = Math.max(blob.progress.xp, cumulativeXpForLevel(blob.progress.level));
   blob.progress.disabledSkills ??= [];
+  migrateLegacyEquipment(blob.progress);
   return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, maxWaveReached: Math.max(blob.waveNumber, blob.maxWaveReached ?? 0), progress: blob.progress, panelTriggers: { character: blob.panelTriggers?.character ?? false, inventory: blob.panelTriggers?.inventory ?? false, multiplayer: blob.panelTriggers?.multiplayer ?? false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [], xpSendBuffs: [] };
+}
+
+export function migrateLegacyEquipment(progress: PlayerProgress): void {
+  if (progress.mainHand) migrateLegacyItem(progress.mainHand);
+  if (progress.offHand) migrateLegacyItem(progress.offHand);
+  if (progress.amulet) migrateLegacyItem(progress.amulet);
+  if (progress.charm) migrateLegacyItem(progress.charm);
+  for (const tile of progress.inventoryTiles) {
+    migrateLegacyItem(tile.item);
+    tile.key = itemStackKey(tile.item);
+  }
 }
