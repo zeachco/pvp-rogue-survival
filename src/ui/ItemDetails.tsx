@@ -5,12 +5,14 @@ import { STAT_KEYS, type Stats } from "../../common/progression";
 import { h } from "./dom";
 import { formatProjectedValue, previewTone } from "./preview";
 
-export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineItem?: ItemInstance, baselineStats?: Stats): HTMLElement {
+export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineItem?: ItemInstance, baselineStats?: Stats, showRequirementPenalty = false): HTMLElement {
+  const displayStats = requirementDisplayStats(item, effectiveStats, showRequirementPenalty);
+  const baselineDisplayStats = baselineItem ? requirementDisplayStats(baselineItem, baselineStats ?? effectiveStats, showRequirementPenalty) : displayStats;
   const attacks = item.itemKind === "weapon";
-  const damage = attacks ? weaponDamage(item, effectiveStats) : undefined;
-  const attackSpeed = attacks ? weaponAttackSpeed(item, effectiveStats) : undefined;
-  const effectiveness = itemRequirementMultiplier(item, effectiveStats); const requirements = itemRequirementRows(item, effectiveStats, baselineItem); const effects = itemEffectSummary(item, effectiveStats);
-  const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineStats ?? effectiveStats) : effects;
+  const damage = attacks ? weaponDamage(item, displayStats) : undefined;
+  const attackSpeed = attacks ? weaponAttackSpeed(item, displayStats) : undefined;
+  const effectiveness = itemRequirementMultiplier(item, effectiveStats); const requirements = itemRequirementRows(item, effectiveStats, baselineItem); const effects = itemEffectSummary(item, displayStats);
+  const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineDisplayStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineDisplayStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineDisplayStats) : effects;
   const skills = item.skills.map(skillLabel).join(", ");
   const requirementText = requirements.map((requirement) => `${capitalize(requirement.key)} ${formatProjectedValue(requirement, fmt)}`).join(", ");
   return <div class="equipment-details">
@@ -27,9 +29,13 @@ export function requirementMetStats(item: ItemInstance, stats: Stats): Stats {
   return Object.fromEntries(STAT_KEYS.map((key) => [key, Math.max(stats[key], item.requirements[key] ?? 0)])) as Stats;
 }
 
+export function requirementDisplayStats(item: ItemInstance, stats: Stats, showRequirementPenalty: boolean): Stats {
+  return showRequirementPenalty ? stats : requirementMetStats(item, stats);
+}
+
 export function bindRequirementPreview(details: HTMLElement, item: ItemInstance, stats: Stats): void {
   const trigger = details.querySelector<HTMLElement>(".requirement-detail.is-unmet em"); if (!trigger) return;
-  const projected = itemDetails(item, requirementMetStats(item, stats), item, stats); const labels = new Map([...projected.querySelectorAll<HTMLElement>("small")].map((label) => [label.textContent, label]));
+  const projected = itemDetails(item, stats, item, stats, true); const labels = new Map([...projected.querySelectorAll<HTMLElement>("small")].map((label) => [label.textContent, label]));
   const originals = [...details.querySelectorAll<HTMLElement>("small")].filter((label) => label.textContent !== "Requirements").map((label) => { const value = label.nextElementSibling as HTMLElement | null; const next = labels.get(label.textContent)?.nextElementSibling as HTMLElement | null; return value && next ? { value, html: value.innerHTML, className: value.className, next } : undefined; }).filter(Boolean) as Array<{ value: HTMLElement; html: string; className: string; next: HTMLElement }>;
   const show = (): void => { for (const entry of originals) { entry.value.innerHTML = entry.next.innerHTML; entry.value.className = entry.next.className; } };
   const restore = (): void => { for (const entry of originals) { entry.value.innerHTML = entry.html; entry.value.className = entry.className; } };

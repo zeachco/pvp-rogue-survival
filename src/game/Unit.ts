@@ -101,7 +101,7 @@ export abstract class Unit extends GameObject {
     this.maxStamina = derived.maxStamina; this.stamina = derived.maxStamina;
   }
 
-  updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false): void {
+  updateResources(deltaSeconds: number, random?: RandomSource, invulnerable = false, regenerateStamina = true): void {
     this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
     this.reflectiveSurgeRemaining = Math.max(0, this.reflectiveSurgeRemaining - deltaSeconds);
     const derived = derivedStats(this.stats);
@@ -112,7 +112,7 @@ export abstract class Unit extends GameObject {
     this.hp = Math.min(this.maxHp, this.hp + this.healthRegen * deltaSeconds);
     const manaMultiplier = this.mainHand ? 1 + (this.mainHand.modifiers.manaRegenMultiplier - 1) * itemRequirementMultiplier(this.mainHand, this.stats) : 1;
     this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * manaMultiplier * deltaSeconds);
-    this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
+    if (regenerateStamina) this.stamina = Math.min(this.maxStamina, this.stamina + derived.staminaRegen * deltaSeconds);
   }
 
   get healthRegen(): number {

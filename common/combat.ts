@@ -81,9 +81,23 @@ export function healingFraction(level: number): number { return 0.2 + (cappedSki
 export function healingCooldown(level: number): number { return 15 - (cappedSkillLevel(level) - 1) * (14 / 98); }
 export function timeHarvestItemSkillBonus(itemLevel: number): number { return Math.floor(Math.max(0, Math.min(50, itemLevel)) * 99 / 50); }
 export function timeHarvestCooldownReduction(level: number): number { return 1 + (cappedSkillLevel(level) - 1) * (9 / 98); }
+export const SKILL_BASE_CAST_TIME: Readonly<Partial<Record<SkillId, number>>> = {
+  bash: .35, sweep: .3, flurry: .16, shockwave: .4, cleave: .38, whirlwind: .45,
+  rendingThrow: .25, vampiricBoomerang: .42, orbitingHammers: .4, arcaneBolt: .32,
+  gravityPull: .5, reflectiveSurge: .2, frostOrb: .48, fireBreath: .35, swamp: .45,
+  rent: .3,
+};
+export function skillCastTime(skill: SkillId, level: number, agility: number, attacksPerSecond: number): number {
+  const base = SKILL_BASE_CAST_TIME[skill] ?? 0;
+  if (base <= 0) return 0;
+  const cappedLevel = cappedSkillLevel(level);
+  const accelerated = base / (1 + 0.01 * (cappedLevel - 1) + 0.0005 * Math.max(0, agility) * cappedLevel);
+  return Math.min(accelerated, 2 / Math.max(0.01, attacksPerSecond));
+}
 export function healingCast(currentHp: number, maxHp: number, currentStamina: number, maxStamina: number, level: number): { restoredHp: number; manaCost: number } { const staminaFraction = maxStamina > 0 ? Math.max(0, Math.min(1, currentStamina / maxStamina)) : 0; const requestedHp = currentHp * healingFraction(level) + maxHp * (0.05 + 0.05 * staminaFraction); const restoredHp = Math.max(0, Math.min(maxHp - currentHp, requestedHp)); return { restoredHp, manaCost: restoredHp * 2 }; }
 export function skillStatBonusDescription(skill: SkillId): string | undefined {
   const bonuses: string[] = [];
+  if ((SKILL_BASE_CAST_TIME[skill] ?? 0) > 0) bonuses.push("Agility and skill level reduce cast time");
   if (SKILLS[skill].range && skill !== "healing") bonuses.push("Spirit increases range");
   if (SKILLS[skill].cooldown > 0 && skill !== "healing") bonuses.push("Intelligence and Agility reduce cooldown");
   switch (skill) {

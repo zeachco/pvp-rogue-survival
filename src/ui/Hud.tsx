@@ -47,19 +47,30 @@ import {
   MAX_SKILL_LEVEL,
   cooldownScale,
   healingCooldown,
+  manaConversionFraction,
   orbitingHammerDuration,
   rapidRegenDuration,
   rapidRegenMultiplier,
+  skillCastTime,
   skillCooldown,
   skillDamagePreview,
   skillRange,
   skillStatBonusDescription,
+  timeHarvestCooldownReduction,
   whirlwindDuration,
   whirlwindMovementSpeed,
   type SkillDamagePreview,
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
 import { SKILLS } from "../../common/content";
+import {
+  auraRadius,
+  auraSlowMultiplier,
+  sunburnFraction,
+  sunburnInterval,
+  thunderDamage,
+  thunderInterval,
+} from "../../common/auras";
 import { actualSkillLevel } from "../game/systems/HeroCombatSystem";
 import {
   applyPreviewClass,
@@ -601,6 +612,7 @@ export class Hud {
           actualLevel: 0,
           cooldown: 0,
           cooldownMax: 0,
+          affordable: true,
           resource: SKILLS[id].resource,
           costLabel: SKILLS[id].passive
             ? `0 ${capitalize(SKILLS[id].resource)}`
@@ -636,9 +648,12 @@ export class Hud {
         spell.cooldownMax > 0
           ? Math.max(0, Math.min(1, spell.cooldown / spell.cooldownMax))
           : 0;
-      this.spellNodes
-        .get(spell.id)
-        ?.style.setProperty("--cooldown-progress", String(ratio));
+      const cooldownNode = this.spellNodes.get(spell.id);
+      cooldownNode?.style.setProperty("--cooldown-progress", String(ratio));
+      const button = cooldownNode?.parentElement;
+      button?.classList.toggle("is-casting", spell.castProgress !== undefined);
+      button?.classList.toggle("is-unaffordable", spell.active && !spell.affordable);
+      button?.style.setProperty("--cast-progress", String(spell.castProgress ?? 0));
     }
   }
   private renderSpellSlot(spell: SpellSlot, preview?: Map<SkillId, number | null>): HTMLButtonElement {
@@ -655,7 +670,7 @@ export class Hud {
                 projected !== undefined && projected !== spell.actualLevel;
               const button = (
                 <button
-                  class={`spell-slot spell-resource-${spell.resource}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
+                  class={`spell-slot spell-resource-${spell.resource}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${spell.active && !spell.affordable ? " is-unaffordable" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
                   type="button"
                   aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}, ${spell.active ? "enabled" : "disabled"}`}
                   aria-pressed={String(spell.active)}
@@ -721,6 +736,30 @@ export class Hud {
         intelligence: 0,
       },
     );
+    const castTime = skillCastTime(
+      spell.id,
+      shownLevel,
+      stats?.agility ?? 0,
+      attackProfile(
+        progress?.mainHand,
+        stats ?? { strength: 0, agility: 0, magic: 0, spirit: 0, intelligence: 0 },
+        BALANCE,
+      ).attacksPerSecond,
+    );
+    if (skill.passive) {
+      return (
+        <span class="spell-tooltip-property-column">
+          <b>{heading}</b>
+          <span class="spell-tooltip-stats">
+            <span><small>Level</small><strong>{shownLevel}</strong></span>
+            <span><small>Activation</small><strong>Always active</strong></span>
+            {passiveSkillMetrics(spell.id, shownLevel, stats).map((metric) => (
+              <span><small>{metric.label}</small><strong>{metric.value}</strong></span>
+            ))}
+          </span>
+        </span>
+      ) as HTMLElement;
+    }
     return (
       <span class="spell-tooltip-property-column">
         <b>{heading}</b>
@@ -743,6 +782,10 @@ export class Hud {
             <small>Cooldown</small>
             <strong>{fmt(cooldownSeconds)}s</strong>
           </span>
+          {castTime > 0 ? <span>
+            <small>Cast time</small>
+            <strong>{fmt(castTime)}s</strong>
+          </span> : null}
           <span>
             <small>Range</small>
             <strong>{range ? `${fmt(range)}px` : "Self"}</strong>
@@ -2044,6 +2087,25 @@ const STATUS_EFFECT_PRESENTATION: Record<StatusEffectSnapshot["kind"], { name: s
   shock: { name: "Shock", icon: "✦" },
   curse: { name: "Curse", icon: "✧" },
 };
+export function passiveSkillMetrics(skill: SkillId, level: number, stats?: Stats): Array<{ label: string; value: string }> {
+  const effectiveStats = stats ?? { strength: 0, agility: 0, magic: 0, spirit: 0, intelligence: 0 };
+  const radius = (): { label: string; value: string } => ({ label: "Radius", value: `${fmt(auraRadius(level, effectiveStats.spirit))}px` });
+  switch (skill) {
+    case "attraction": return [{ label: "Pull speed", value: "35px/s" }];
+    case "manaDrain":
+    case "penance": return [{ label: "Conversion", value: `${fmt(manaConversionFraction(level) * 100)}%` }];
+    case "thorns": return [{ label: "Damage returned", value: "5%" }];
+    case "voodoo": return [{ label: "Poison damage", value: `+${fmt(Math.min(1.5, 0.03 * Math.max(0, effectiveStats.spirit)) * 100)}%` }];
+    case "slowAura": return [{ label: "Enemy movement", value: `${fmt(auraSlowMultiplier(level) * 100)}%` }, radius()];
+    case "hinderingAura": return [{ label: "Enemy attack speed", value: `${fmt(auraSlowMultiplier(level) * 100)}%` }, radius()];
+    case "deathBurst": return [{ label: "Burst damage", value: "20% enemy HP" }, { label: "Blast radius", value: `${fmt(auraRadius(level, effectiveStats.spirit) * 0.45)}px` }, radius()];
+    case "sunburnAura": return [{ label: "Damage / pulse", value: `${fmt(sunburnFraction(effectiveStats.intelligence) * 100)}% enemy HP` }, { label: "Pulse interval", value: `${fmt(sunburnInterval(effectiveStats.spirit))}s` }, radius()];
+    case "thunderAura": return [{ label: "Lightning damage", value: fmt(thunderDamage(effectiveStats.intelligence)) }, { label: "Pulse interval", value: `${fmt(thunderInterval(level))}s` }, radius()];
+    case "timeHarvest": return [{ label: "Cooldown removal", value: `${fmt(timeHarvestCooldownReduction(level))}s / kill` }];
+    default: return [];
+  }
+}
+
 export function statusEffectSummaries(statuses: StatusEffectSnapshot[]): StatusEffectSummary[] {
   const summaries = new Map<StatusEffectSnapshot["kind"], Omit<StatusEffectSummary, "tooltip">>();
   for (const status of statuses) {

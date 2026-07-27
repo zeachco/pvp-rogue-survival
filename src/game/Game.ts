@@ -142,8 +142,10 @@ export class Game {
     if (!this.player) return;
     if (this.defeatCooldown > 0) { this.defeatCooldown -= deltaSeconds; if (this.defeatCooldown <= 0) this.resetArena(); return; }
     for (const build of releaseReadySpawns(this.arena, performance.now())) this.spawnCreep(build);
-    this.hero.attackSlow = this.attacks.some((attack) => attack.active && attack.owner === "hero"); this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed; this.hero.healthRegenMultiplier = this.heroCombat.rapidRegenMultiplier; this.hero.healthRegenFlat = this.heroCombat.rapidRegenFlat; this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training");
     const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
+    const heroAttackActive = this.attacks.some((attack) => attack.active && attack.owner === "hero");
+    const heroMoving = movementInput.x !== 0 || movementInput.y !== 0 || Math.hypot(this.hero.velocity.x, this.hero.velocity.y) > .01;
+    this.hero.attackSlow = heroAttackActive; this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed; this.hero.healthRegenMultiplier = this.heroCombat.rapidRegenMultiplier; this.hero.healthRegenFlat = this.heroCombat.rapidRegenFlat; this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training", !heroMoving && !heroAttackActive && !this.heroCombat.attacking);
     this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
     this.heroCombat.update(deltaSeconds, movementInput, this.hero, this.arena, this.player.progress, this.balance, systemRandom);
     this.auraSystem.update(deltaSeconds, this.hero, this.player.progress, this.creeps, systemRandom);

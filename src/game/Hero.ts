@@ -33,7 +33,7 @@ export class Hero extends Unit {
     this.clampToBounds(width, height);
   }
 
-  update(deltaSeconds: number, random?: RandomSource, training = false): void { this.damageFloorOne = training; this.updateResources(deltaSeconds, random, training); }
+  update(deltaSeconds: number, random?: RandomSource, training = false, regenerateStamina = true): void { this.damageFloorOne = training; this.updateResources(deltaSeconds, random, training, regenerateStamina); }
 
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     const x = this.position.x - camera.x;

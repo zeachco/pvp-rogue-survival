@@ -18,7 +18,7 @@ import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
 import { Creep } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
-import { cancelHostileProjectiles, castForceField, castForceFieldTargets, forceField, HeroCombatSystem } from "../src/game/systems/HeroCombatSystem";
+import { cancelHostileProjectiles, castForceField, castForceFieldTargets, forceField, HeroCombatSystem, skillAffordable } from "../src/game/systems/HeroCombatSystem";
 import { resolveCombat } from "../src/game/systems/combat";
 import { applyImpactForce, emittedImpactForce } from "../src/game/ImpactForce";
 
@@ -43,6 +43,20 @@ describe("arena systems", () => {
     hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
     expect(hero.velocity.x).toBe(169.2);
   });
+  test("regenerates stamina four times slower and pauses it while the hero is active", () => {
+    const hero = new Hero({ x: 50, y: 50 }); hero.configureStats({ ...ZERO_STATS, spirit: 10 }); hero.stamina = 0;
+    hero.update(1, undefined, false, true); expect(hero.stamina).toBeCloseTo(.3);
+    hero.update(1, undefined, false, false); expect(hero.stamina).toBeCloseTo(.3);
+  });
+  test("reports spell affordability from the hero's current resources", () => {
+    const hero = new Hero({ x: 50, y: 50 }); const weapon = starterClub(); hero.configureStats({ ...ZERO_STATS, intelligence: 5 }, undefined, weapon);
+    const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS, intelligence: 5 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: weapon, inventoryTiles: [], learnedSkills: ["bash" as const, "gravityPull" as const, "rent" as const, "penance" as const], learnedSkillLevels: { bash: 1, gravityPull: 1, rent: 1, penance: 1 }, universalSkills: [] };
+    hero.stamina = 0; expect(skillAffordable("bash", progress, hero)).toBeFalse();
+    hero.mana = 7; expect(skillAffordable("gravityPull", progress, hero)).toBeFalse();
+    hero.mana = 8; expect(skillAffordable("gravityPull", progress, hero)).toBeTrue();
+    hero.hp = 1; expect(skillAffordable("rent", progress, hero)).toBeFalse();
+    expect(skillAffordable("penance", progress, hero)).toBeTrue();
+  });
   test("Time Harvest removes every tracked hero cooldown after a kill", () => {
     const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS); hero.blockCooldown = 4;
     const combat = new HeroCombatSystem();
@@ -52,6 +66,32 @@ describe("arena systems", () => {
     const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [] };
     expect(combat.onKill(progress, hero)).toBe(1);
     expect(internal.attackCooldown).toBe(4); expect(internal.healingCooldown).toBe(2); expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1); expect(hero.blockCooldown).toBe(3);
+  });
+  test("chains rotating skill casts while basic attacks run on their own cooldown", () => {
+    const hero = new Hero({ x: 50, y: 50 });
+    const weapon = starterClub();
+    hero.configureStats(ZERO_STATS, undefined, weapon);
+    const target = new Creep({ id: "cast-target", name: "Target", kind: "melee", level: 0, stats: { ...ZERO_STATS }, mainHand: weapon, carried: [], isRival: false, xpReward: 0, goldReward: 0, seed: 1 }, "neutral", "neutral", { x: 80, y: 50 }, BALANCE, new SeededRandom(1));
+    const state = new ArenaState(); state.creeps.push(target);
+    const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: weapon, inventoryTiles: [], learnedSkills: ["bash" as const, "rent" as const], learnedSkillLevels: { bash: 1, rent: 1 }, universalSkills: [] };
+    const combat = new HeroCombatSystem();
+    const stamina = hero.stamina;
+    combat.update(1 / 60, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
+    expect(combat.attacking).toBeTrue();
+    expect(combat.spellSlots(progress, hero).find((slot) => slot.id === "bash")?.castProgress).toBe(0);
+    expect(state.attacks).toHaveLength(1); expect(state.attacks[0].skill).toBeUndefined(); expect(hero.stamina).toBeLessThan(stamina);
+    const staminaAfterBasic = hero.stamina;
+    combat.update(.2, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
+    expect(state.attacks).toHaveLength(1); expect(hero.stamina).toBe(staminaAfterBasic);
+    combat.update(.2, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
+    expect(state.attacks.filter((attack) => attack.skill === "bash")).toHaveLength(1); expect(hero.stamina).toBeLessThan(staminaAfterBasic);
+    expect((combat as unknown as { attackCooldown: number }).attackCooldown).toBeLessThan(1);
+    expect(combat.spellSlots(progress, hero).find((slot) => slot.id === "bash")?.castProgress).toBeUndefined();
+    expect(combat.spellSlots(progress, hero).find((slot) => slot.id === "rent")?.castProgress).toBeGreaterThan(0);
+    const hpBeforeRent = hero.hp;
+    combat.update(.3, { x: 0, y: 0 }, hero, state, progress, BALANCE, new SeededRandom(1));
+    expect(state.attacks.filter((attack) => attack.skill === "rent")).toHaveLength(1);
+    expect(hero.hp).toBeLessThan(hpBeforeRent);
   });
   test("restores resources and clears transient combat state for a new realm", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats(ZERO_STATS); hero.hp = 1; hero.mana = 0; hero.stamina = 0; hero.velocity = { x: 9, y: 4 }; hero.blockCooldown = 1; hero.reflectiveSurgeRemaining = 2; hero.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 1 }); hero.resetForRealm(); expect(hero.hp).toBe(hero.maxHp); expect(hero.mana).toBe(hero.maxMana); expect(hero.stamina).toBe(hero.maxStamina); expect(hero.statuses).toHaveLength(0); expect(hero.velocity).toEqual({ x: 0, y: 0 }); expect(hero.blockCooldown).toBe(0); expect(hero.reflectiveSurgeRemaining).toBe(0); });
   test("preserves mana and stamina across active-wave progression updates", () => { const hero = new Hero({ x: 50, y: 50 }); hero.configureStats({ ...ZERO_STATS, intelligence: 1, strength: 2 }); hero.mana = 2; hero.stamina = 3; hero.applyProgress({ level: 2, xp: 60, stats: { ...ZERO_STATS, intelligence: 3, strength: 4 }, allocation: { ...DEFAULT_ALLOCATION }, gold: 10, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), inventoryTiles: [], learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] }, true); expect(hero.maxMana).toBe(11); expect(hero.mana).toBe(2); expect(hero.stamina).toBe(3); });

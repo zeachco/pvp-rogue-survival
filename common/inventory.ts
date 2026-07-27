@@ -7,7 +7,7 @@ export const sellYield = (item: ItemInstance): number => item.sellValue * 10;
 export const SCRAP_PROMOTION_COST = 100;
 export interface ScrapPromotionResult { changed: boolean; promotions: number; reason: string }
 export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number } { const attributePoints = Object.values(item.statBonuses).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0); const factor = 1 + 0.1 * attributePoints; return { gold: Math.ceil(item.sellValue * 1.5 * factor), scraps: Math.ceil(2 * (item.level + 1) * factor) }; }
-export const inventoryCapacity = (level: number): number => 8 + Math.ceil(level / 10);
+export const inventoryCapacity = (level: number): number => 10 + Math.round(level / 10);
 export const occupiedInventorySlots = (progress: PlayerProgress): number => progress.inventoryTiles.filter((tile) => tile.quantity > 0).length;
 export function removeEmptyInventoryTiles(progress: PlayerProgress): void { progress.inventoryTiles = progress.inventoryTiles.filter((tile) => tile.quantity > 0 || isEquippedTile(progress, tile)); }
 export function dropInventoryOverflow(progress: PlayerProgress): ItemInstance[] { const dropped: ItemInstance[] = []; for (let index = progress.inventoryTiles.length - 1; occupiedInventorySlots(progress) > inventoryCapacity(progress.level) && index >= 0; index -= 1) { const tile = progress.inventoryTiles[index]; if (isEquippedTile(progress, tile)) continue; for (let copy = 0; copy < tile.quantity; copy += 1) dropped.push({ ...tile.item, id: `${tile.item.id}-overflow-${copy}` }); progress.inventoryTiles.splice(index, 1); } return dropped; }

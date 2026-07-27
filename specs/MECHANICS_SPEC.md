@@ -40,6 +40,8 @@ All blood skills (skills configured to spend Life) require the caster to have at
 - The hero automatically aims at the closest living creep.
 - When no living creep is active, the visible facing direction follows the latest non-zero WASD movement input.
 - The equipped weapon attacks the closest creep automatically when cooldown, resource, target, range, and health conditions allow.
+- A rotating automatic skill first completes its shared progression-defined cast time. Its gameplay effect, resource payment, cooldown, and rotation advance occur together at completion, then the next eligible skill begins immediately without waiting for basic-attack recovery. Basic attacks use an independent timer and may resolve during skill wind-up; a completing skill pays first when both resolve in one simulation update. While winding up, its HUD slot gains a white inset/outer progress glow. Invalidating its target, range, enabled state, cooldown readiness, or affordability cancels the pending cast without payment and continues selection from the queue.
+- The local hero regenerates stamina only while idle. Any movement input, residual movement velocity, active basic-attack recovery, skill wind-up, or unresolved hero attack area pauses stamina regeneration for that simulation update. Health and mana regeneration continue normally.
 - Melee hero attacks use visible wind-up areas and damage only targets still overlapping when the area resolves.
 - Ranged hero attacks use projectiles and damage only on projectile collision. Staff attacks are magical; one-handed throwing-axe attacks and Rending Throw are physical, target only within their configured short range, and use the same single-hit projectile collision rules.
 

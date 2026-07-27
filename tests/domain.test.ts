@@ -22,6 +22,7 @@ import {
   orbitingHammerDuration,
   rapidRegenDuration,
   rapidRegenMultiplier,
+  skillCastTime,
   skillCooldown,
   skillDamagePreview,
   skillRange,
@@ -104,10 +105,10 @@ import {
   skillHealthRequirementMet
 } from "../src/game/systems/HeroCombatSystem";
 import {gameSocketUrl} from "../src/net/SocketClient";
-import {itemRequirementRows, requirementMetStats} from "../src/ui/ItemDetails";
+import {itemRequirementRows, requirementDisplayStats, requirementMetStats} from "../src/ui/ItemDetails";
 import {formatPreviewValue, formatProjectedValue, previewTone} from "../src/ui/preview";
 import {extractButtonStatus} from "../src/ui/inventoryAvailability";
-import {statusEffectSummaries, xpSendBuffSummary} from "../src/ui/Hud";
+import {passiveSkillMetrics, statusEffectSummaries, xpSendBuffSummary} from "../src/ui/Hud";
 
 function progress(): PlayerProgress {
   return {
@@ -176,6 +177,13 @@ describe("attack timing", () => {
     expect(weaponAttackSpeed(staff, {...ZERO_STATS, agility : 1_000}))
         .toBeCloseTo(10 / 16);
   });
+});
+test("accelerates skill casts with Agility and level while capping them at two attack intervals", () => {
+  const baseline = skillCastTime("gravityPull", 1, 0, 1);
+  expect(baseline).toBe(.5);
+  expect(skillCastTime("gravityPull", 50, 20, 1)).toBeLessThan(baseline);
+  expect(skillCastTime("gravityPull", 1, 0, 10)).toBe(.2);
+  expect(skillCastTime("penance", 99, 999, 10)).toBe(0);
 });
 test("resolves the configured unarmed profile from effective Strength", () => {
   expect(attackProfile(undefined, {...ZERO_STATS, strength : 8}, BALANCE))
@@ -266,15 +274,28 @@ describe("equipment requirements", () => {
                                    {...ZERO_STATS, strength : 13, agility : 9}))
             .toEqual({...ZERO_STATS, strength : 15, agility : 9});
       });
+  test("shows unpenalized stats normally and current stats during penalty hover",
+       () => {
+         const item = {
+           ...generateItem(4, "common", 73, {allowedClasses : [ "axe" ]}),
+           requirements : {strength : 15, agility : 8}
+         };
+         const stats = {...ZERO_STATS, strength : 13, agility : 9};
+         expect(requirementDisplayStats(item, stats, false))
+             .toEqual({...ZERO_STATS, strength : 15, agility : 9});
+         expect(requirementDisplayStats(item, stats, true)).toBe(stats);
+       });
 });
 test("derives health from Strength and mana from Intelligence", () => {
   const base = derivedStats(ZERO_STATS);
   expect(base.maxHp).toBe(10);
   expect(base.maxMana).toBe(5);
+  expect(base.staminaRegen).toBe(.05);
   const advanced =
       derivedStats({...ZERO_STATS, strength : 3, magic : 99, intelligence : 2});
   expect(advanced.maxHp).toBe(13);
   expect(advanced.maxMana).toBe(9);
+  expect(derivedStats({...ZERO_STATS, spirit : 10}).staminaRegen).toBe(.3);
 });
 describe("XP curve", () => {
   test("uses a quadratic cumulative curve with a 15 XP first level", () => {
@@ -365,7 +386,10 @@ describe("permanent inventory", () => {
        });
   test("removes empty stacks and releases their capacity immediately", () => {
     const state = progress();
-    expect(inventoryCapacity(0)).toBe(8);
+    expect(inventoryCapacity(0)).toBe(10);
+    expect(inventoryCapacity(4)).toBe(10);
+    expect(inventoryCapacity(5)).toBe(11);
+    expect(inventoryCapacity(15)).toBe(12);
     for (let n = 0; n < 8; n += 1)
       expect(collectIntoInventory(state, generateItem(n, "common", 100 + n),
                                   () => `tile-${++id}`, () => ++id)
@@ -671,7 +695,7 @@ test(
       expect(
           state.inventoryTiles.some((tile) => tile.key === protectedTile.key))
           .toBeTrue();
-      expect(dropped).toHaveLength(4);
+      expect(dropped).toHaveLength(2);
     });
 describe("Epic skill extraction", () => {
   test(
@@ -1120,6 +1144,14 @@ test("registers configurable Spirit relic perks", () => {
   expect(SKILLS.voodoo.passive).toBeTrue();
   expect(SKILLS.manaDrain.passive).toBeTrue();
   expect(SKILLS.penance.passive).toBeTrue();
+  expect(SKILLS.thorns.passive).toBeTrue();
+  expect(SKILLS.penance.description).toContain("blocked damage × Spirit × level conversion");
+  expect(passiveSkillMetrics("penance", 9, ZERO_STATS)).toEqual([
+    {label : "Conversion", value : "5.816%"}
+  ]);
+  expect(passiveSkillMetrics("timeHarvest", 99, ZERO_STATS)).toEqual([
+    {label : "Cooldown removal", value : "10s / kill"}
+  ]);
   expect(SKILLS.rapidRegen).toMatchObject({ cost: 4, cooldown: 20 });
   expect(rapidRegenDuration(1)).toBe(10);
   expect(rapidRegenDuration(99)).toBe(30);
