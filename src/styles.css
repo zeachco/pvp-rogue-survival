@@ -150,7 +150,7 @@ input {
   z-index: 30;
   display: grid;
   gap: 8px;
-  width: 250px;
+  width: 510px;
   padding: 12px;
   border: 1px solid #607980;
   border-radius: 5px;
@@ -162,7 +162,7 @@ input {
   visibility: hidden;
   transform: translateX(-4px);
   transition: opacity 90ms ease, transform 90ms ease, visibility 90ms;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .spell-slot:hover .spell-tooltip,
@@ -176,6 +176,33 @@ input {
   font-size: 16px;
 }
 
+.spell-tooltip-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.spell-tooltip-property-column {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #2e4248;
+  border-radius: 4px;
+  background: rgba(18, 34, 40, 0.5);
+}
+
+.spell-tooltip-property-column > b {
+  color: #9fb8bf;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.spell-tooltip-property-column:last-child > b {
+  color: #62e88a;
+}
+
 .spell-tooltip-description {
   color: #bad0d7;
   font-size: 13px;
@@ -186,8 +213,6 @@ input {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px 12px;
-  padding-top: 8px;
-  border-top: 1px solid #2e4248;
 }
 
 .spell-tooltip-stats > span {

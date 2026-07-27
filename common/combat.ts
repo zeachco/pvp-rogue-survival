@@ -1,7 +1,7 @@
 import type { BalanceConfig } from "./balance";
 import { SKILLS, WEAPONS } from "./content";
 import { AURA_SKILLS, itemRequirementMultiplier, RARITY_POWER, weaponLevelScale, weaponSkillLevelScale, type ItemInstance, type SkillId } from "./items";
-import { auraRadius } from "./auras";
+import { auraRadius, sunburnFraction, thunderDamage } from "./auras";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
@@ -41,6 +41,22 @@ export function bucklerBlockChance(item: ItemInstance | undefined, stats: Stats)
 export function bucklerBlockCost(item: ItemInstance, stats: Stats): number { if (item.itemKind !== "buckler") return 0; if (!item.reflectionComponents.includes("return")) return 1; const returnedFraction = (0.15 + 0.004 * Math.max(0, stats.agility)) * RARITY_POWER[item.rarity]; return 1 + returnedFraction / (1 + 0.1 * Math.max(0, item.level)); }
 
 export function skillDamageMultiplier(skill: SkillId): number { return SKILLS[skill].damageMultiplier; }
+export type SkillDamagePreview =
+  | { kind: "multiplier"; value: number }
+  | { kind: "flat"; value: number; detail: string }
+  | { kind: "percentage"; value: number; detail: string };
+export function skillDamagePreview(skill: SkillId, level: number, stats: Stats): SkillDamagePreview | undefined {
+  if (SKILLS[skill].damageMultiplier > 0) return { kind: "multiplier", value: SKILLS[skill].damageMultiplier * spellPower(level) };
+  switch (skill) {
+    case "whirlwind": return { kind: "flat", value: whirlwindDamage(stats.strength), detail: "per pulse" };
+    case "thorns": return { kind: "percentage", value: .05, detail: "incoming" };
+    case "reflectiveSurge": return { kind: "percentage", value: .01, detail: "incoming + 2× return" };
+    case "deathBurst": return { kind: "percentage", value: .2, detail: "target HP" };
+    case "sunburnAura": return { kind: "percentage", value: sunburnFraction(stats.intelligence), detail: "target HP / pulse" };
+    case "thunderAura": return { kind: "flat", value: thunderDamage(stats.intelligence), detail: "lightning" };
+  }
+  return undefined;
+}
 export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats): number { return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
 export function skillRange(skill: SkillId, item?: ItemInstance, level = 1, spirit = 0): number { if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item?.level ?? 0); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }

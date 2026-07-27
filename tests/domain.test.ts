@@ -18,6 +18,7 @@ import {
   healingFraction,
   manaConversionFraction,
   skillCooldown,
+  skillDamagePreview,
   skillRange,
   weaponAttackSpeed,
   weaponDamage,
@@ -717,6 +718,16 @@ describe("Force Field", () => {
     expect(SKILLS.gravityPull.label).toBe("Force Field");
     expect(forceFieldDamage(1)).toBeCloseTo(0.2);
     expect(forceFieldDamage(100)).toBeCloseTo(3.17);
+  });
+});
+describe("spell tooltip damage previews", () => {
+  test("covers runtime formulas that are not spell-power multipliers", () => {
+    expect(skillDamagePreview("whirlwind", 10, { ...ZERO_STATS, strength: 10 })).toEqual({ kind: "flat", value: 5, detail: "per pulse" });
+    expect(skillDamagePreview("thorns", 1, ZERO_STATS)).toEqual({ kind: "percentage", value: .05, detail: "incoming" });
+    expect(skillDamagePreview("deathBurst", 1, ZERO_STATS)).toEqual({ kind: "percentage", value: .2, detail: "target HP" });
+    expect(skillDamagePreview("sunburnAura", 1, { ...ZERO_STATS, intelligence: 100 })?.value).toBeCloseTo(.1);
+    expect(skillDamagePreview("thunderAura", 1, { ...ZERO_STATS, intelligence: 10 })).toEqual({ kind: "flat", value: 9, detail: "lightning" });
+    expect(skillDamagePreview("healing", 1, ZERO_STATS)).toBeUndefined();
   });
 });
 describe("extractable offhand and staff skills", () => {
