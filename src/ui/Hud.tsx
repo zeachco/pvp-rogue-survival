@@ -156,6 +156,7 @@ export class Hud {
   ) as HTMLElement;
   private readonly healthBar = resourceBar("Health", "health");
   private readonly statusEffects = (<div class="status-effects" aria-label="Active status effects" />) as HTMLElement;
+  private readonly beneficialEffects = (<div class="beneficial-effects" aria-label="Active beneficial effects" />) as HTMLElement;
   private readonly manaBar = resourceBar("Mana", "mana");
   private readonly staminaLine = (
     <div
@@ -333,7 +334,7 @@ export class Hud {
           {this.xpBadge}
         </div>
       ) as HTMLElement,
-      (<div class="mana-cluster">{this.manaBar.node}</div>) as HTMLElement,
+      (<div class="mana-cluster">{this.beneficialEffects}{this.manaBar.node}</div>) as HTMLElement,
     );
     const dismissMultiplayer = (
       <button type="button">Got it</button>
@@ -608,11 +609,11 @@ export class Hud {
           bar: this.player?.progress.learnedSkills.includes(id) ? "learned" as const : "geared" as const,
         },
     );
-    const visible = spells.filter((spell) => spell.active);
+    const visible = spells;
     const structure = visible
       .map(
-        ({ id, label, level, resource, bar }) =>
-          `${bar}:${id}:${label}:${level}:${resource}:${preview?.get(id) ?? ""}`,
+        ({ id, label, level, resource, bar, active }) =>
+          `${bar}:${id}:${label}:${level}:${resource}:${active}:${preview?.get(id) ?? ""}`,
       )
       .join("|");
     if (structure !== this.spellStructureSignature) {
@@ -654,9 +655,10 @@ export class Hud {
                 projected !== undefined && projected !== spell.actualLevel;
               const button = (
                 <button
-                  class={`spell-slot spell-resource-${spell.resource}${spell.cooldown <= 0 ? " is-ready" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
+                  class={`spell-slot spell-resource-${spell.resource}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
                   type="button"
-                  aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}`}
+                  aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}, ${spell.active ? "enabled" : "disabled"}`}
+                  aria-pressed={String(spell.active)}
                 >
                   {cooldown}
                   <strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
@@ -664,15 +666,8 @@ export class Hud {
                   {this.renderSkillTooltip(spell, shownLevel)}
                 </button>
               ) as HTMLButtonElement;
-              button.onclick = () => this.moveSpellToListEnd(spell.id);
+              button.onclick = () => this.callbacks.onToggleSkill(spell.id);
               return button;
-  }
-  private moveSpellToListEnd(skill: SkillId): void {
-    const order = this.currentSpells.map(({ id }) => id);
-    const index = order.indexOf(skill);
-    if (index < 0) return;
-    order.push(...order.splice(index, 1));
-    this.callbacks.onReorderSkills(order);
   }
   private renderSkillTooltip(spell: SpellSlot, level: number): HTMLElement {
     const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
@@ -844,6 +839,9 @@ export class Hud {
         Math.ceil(status.remaining * 10) / 10,
         status.damagePerSecond,
       ]),
+      this.player.xpSendBuffs.map((buff) => buff.expiresAt).join(","),
+      this.player.xpSendBuffs.map((buff) => buff.multiplier).join(","),
+      xpSendBuffSummary(this.player.xpSendBuffs)?.remaining ?? 0,
     ]
       .map(flatValue)
       .join("|");
@@ -856,6 +854,7 @@ export class Hud {
         healthRegen,
       );
       this.renderStatusEffects(this.player.statuses);
+      this.renderBeneficialEffects(this.player.xpSendBuffs);
       updateResourceBar(
         this.manaBar,
         this.player.mana,
@@ -895,6 +894,16 @@ export class Hud {
         <span class="status-effect-tooltip" role="tooltip">{status.tooltip}</span>
       </span>
     ) as HTMLElement));
+  }
+  private renderBeneficialEffects(buffs: PlayerState["xpSendBuffs"]): void {
+    const buff = xpSendBuffSummary(buffs);
+    this.beneficialEffects.replaceChildren(...(buff ? [
+      <span class="beneficial-effect" tabindex="0" aria-label={buff.tooltip}>
+        <span aria-hidden="true">✦</span>
+        <b>{buff.label}</b>
+        <span class="beneficial-effect-tooltip" role="tooltip">{buff.tooltip}</span>
+      </span>,
+    ] : []));
   }
   private renderStaticHud(): void {
     if (!this.player) return;
@@ -2017,6 +2026,14 @@ export interface StatusEffectSummary {
   remaining: number;
   damagePerSecond: number;
   tooltip: string;
+}
+export interface XpSendBuffSummary { multiplier: number; remaining: number; label: string; tooltip: string }
+export function xpSendBuffSummary(buffs: PlayerState["xpSendBuffs"], now = Date.now()): XpSendBuffSummary | undefined {
+  const buff = buffs.find((entry) => entry.expiresAt > now);
+  if (!buff) return undefined;
+  const remaining = Math.ceil((buff.expiresAt - now) / 1000);
+  const percent = Math.round(buff.multiplier * 100);
+  return { multiplier: buff.multiplier, remaining, label: `${percent}% XP · ${remaining}s`, tooltip: `XP Send bonus — ${percent}% XP for ${remaining}s remaining` };
 }
 const STATUS_EFFECT_PRESENTATION: Record<StatusEffectSnapshot["kind"], { name: string; icon: string }> = {
   bleed: { name: "Bleed", icon: "🩸" },

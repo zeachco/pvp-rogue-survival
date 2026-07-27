@@ -167,6 +167,16 @@ input {
     inset 0 0 12px rgba(174, 240, 246, 0.18),
     0 0 11px 2px currentColor;
 }
+.spell-slot.is-disabled,
+.spell-slot.is-disabled.is-ready {
+  color: #777d80;
+  background: #242729;
+  border-color: #54595c;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.45);
+}
+.spell-slot.is-disabled .spell-cooldown {
+  opacity: .35;
+}
 .spell-slot.spell-resource-mana.is-ready {
   color: #8ceeff;
 }
@@ -1432,6 +1442,63 @@ input {
   display: none;
   min-height: 0;
   margin-bottom: 0;
+}
+
+.beneficial-effects {
+  display: flex;
+  min-height: 24px;
+  justify-content: flex-start;
+  margin-bottom: 4px;
+}
+.beneficial-effects:empty {
+  display: none;
+  min-height: 0;
+  margin-bottom: 0;
+}
+.beneficial-effect {
+  position: relative;
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid #73e8ff;
+  border-radius: 11px;
+  color: #c9f9ff;
+  background: rgba(5, 38, 48, 0.9);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45), 0 0 8px rgba(77, 224, 255, 0.3);
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: auto;
+}
+.beneficial-effect:focus {
+  outline: 2px solid #8ad8ff;
+  outline-offset: 2px;
+}
+.beneficial-effect > b {
+  font-weight: 700;
+}
+.beneficial-effect-tooltip {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  bottom: calc(100% + 6px);
+  display: none;
+  width: max-content;
+  max-width: 260px;
+  padding: 5px 7px;
+  border: 1px solid #56717a;
+  border-radius: 3px;
+  color: #dbeef2;
+  background: #09151b;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: normal;
+  pointer-events: none;
+}
+.beneficial-effect:hover .beneficial-effect-tooltip,
+.beneficial-effect:focus .beneficial-effect-tooltip {
+  display: block;
 }
 
 .status-effect {

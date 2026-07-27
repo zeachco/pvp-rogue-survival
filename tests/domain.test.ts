@@ -100,13 +100,14 @@ import {
   forceField,
   forceFieldFalloff,
   forceFieldDamage,
+  isSkillActive,
   skillHealthRequirementMet
 } from "../src/game/systems/HeroCombatSystem";
 import {gameSocketUrl} from "../src/net/SocketClient";
 import {itemRequirementRows, requirementMetStats} from "../src/ui/ItemDetails";
 import {formatPreviewValue, formatProjectedValue, previewTone} from "../src/ui/preview";
 import {extractButtonStatus} from "../src/ui/inventoryAvailability";
-import {statusEffectSummaries} from "../src/ui/Hud";
+import {statusEffectSummaries, xpSendBuffSummary} from "../src/ui/Hud";
 
 function progress(): PlayerProgress {
   return {
@@ -562,12 +563,19 @@ test("activates every learned or currently geared skill without a level-based ra
   state.universalSkills.push("bash", "sweep");
   state.learnedSkills.push("bash", "sweep");
   state.learnedSkillLevels.bash = 1; state.learnedSkillLevels.sweep = 1;
-  state.skillOrder = ["sweep", "healing", "bash"];
   expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
   state.level = 6;
   expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
   state.level = 0;
   expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
+});
+test("keeps disabled rail skills visible but excludes them from activation", () => {
+  const state = progress();
+  state.disabledSkills = ["healing"];
+  expect(activeSkillIds(state)).not.toContain("healing");
+  expect(isSkillActive(state, "healing")).toBeFalse();
+  state.disabledSkills = [];
+  expect(isSkillActive(state, "healing")).toBeTrue();
 });
 describe("amulets and charms", () => {
   test("rolls rarity-bounded accessories and equips amulets and charms independently", () => {
@@ -802,6 +810,10 @@ describe("hero status HUD summaries", () => {
       { kind: "poison", icon: "☠", stacks: 2, remaining: 3, damagePerSecond: 1, tooltip: "Poison — 3s remaining · 2 stacks · 1 damage/s" },
       { kind: "stun", icon: "✦", stacks: 1, remaining: .35, damagePerSecond: 0, tooltip: "Stun — 0.35s remaining" },
     ]);
+  });
+  test("shows only the current queued XP-send bonus with its live remaining time", () => {
+    expect(xpSendBuffSummary([{ multiplier: 2, expiresAt: 21_000 }, { multiplier: 3, expiresAt: 31_000 }], 1_500)).toEqual({ multiplier: 2, remaining: 20, label: "200% XP · 20s", tooltip: "XP Send bonus — 200% XP for 20s remaining" });
+    expect(xpSendBuffSummary([{ multiplier: 2, expiresAt: 21_000 }, { multiplier: 3, expiresAt: 31_000 }], 21_000)).toEqual({ multiplier: 3, remaining: 10, label: "300% XP · 10s", tooltip: "XP Send bonus — 300% XP for 10s remaining" });
   });
 });
 describe("spell tooltip damage previews", () => {

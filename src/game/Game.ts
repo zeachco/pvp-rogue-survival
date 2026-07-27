@@ -73,7 +73,7 @@ export class Game {
       onPromoteScrap: (target, bulk) => this.socket.send({ type: "promoteScrap", target, bulk }),
       onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
       onEnterRealm: () => this.enterRealm(), onKillPlayer: () => { if (window.confirm("Kill this hero? Death progression and currency penalties will apply.")) this.socket.send({ type: "suicide" }); }, onBack: () => this.clearInspection(), onLogout: () => this.socket.send({ type: "logout" }),
-      onInspectHero: (heroId) => this.socket.send({ type: "inspectHero", heroId }), onReorderSkills: (skillOrder) => this.socket.send({ type: "reorderSkills", skillOrder }), onDismissPanelTrigger: (panel) => this.socket.send({ type: "dismissPanelTrigger", panel })
+      onInspectHero: (heroId) => this.socket.send({ type: "inspectHero", heroId }), onToggleSkill: (skillId) => this.socket.send({ type: "toggleSkill", skillId }), onDismissPanelTrigger: (panel) => this.socket.send({ type: "dismissPanelTrigger", panel })
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.username); this.registerDebugGlobal();
   }
@@ -96,7 +96,7 @@ export class Game {
   private enterRealm(): void { if (this.realmMode !== "training") return; this.realmMode = "waiting"; this.socket.send({ type: "enterRealm" }); }
   private handleServerMessage(message: ServerMessage): void {
     if (message.type === "welcome") {
-      this.player = { id: message.playerId, name: message.player.name, receivesDeathEchoes: message.player.receivesDeathEchoes, score: message.player.score, waveNumber: message.player.waveNumber, maxWaveReached: message.player.maxWaveReached, health: 1, maxHealth: 1, healthRegen: 0, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, statuses: [], gold: message.progress.gold, progress: message.progress };
+      this.player = { id: message.playerId, name: message.player.name, receivesDeathEchoes: message.player.receivesDeathEchoes, score: message.player.score, waveNumber: message.player.waveNumber, maxWaveReached: message.player.maxWaveReached, health: 1, maxHealth: 1, healthRegen: 0, mana: 0, maxMana: 0, stamina: 1, maxStamina: 1, attackProgress: 1, statuses: [], xpSendBuffs: message.xpSendBuffs, gold: message.progress.gold, progress: message.progress };
       this.balance = message.config.balance; this.realmMode = message.realm.mode;
       this.hero.applyProgress(message.progress); this.syncHeroState(); this.debugName = message.player.name;
       this.savedSession = { heroId: message.playerId, username: message.player.name }; this.sessionStorage.save(this.savedSession);
@@ -107,14 +107,14 @@ export class Game {
     else if (message.type === "realmUpdated") { this.realmMode = message.realm.mode; if (this.player) { const member = [...message.realm.guards, ...message.realm.attackers].find(({ id }) => id === this.player!.id); if (member) { this.player.receivesDeathEchoes = member.receivesDeathEchoes; this.player.maxWaveReached = member.maxWaveReached; } } this.hud.setRealm(message.realm); if (this.player) this.hud.setPlayer(this.player); }
     else if (message.type === "incomingWave") this.enqueueWave(message.wave);
     else if (message.type === "creepDefeatResolved" && this.player) {
-      this.player.score = message.score; this.player.progress = message.progress; this.player.gold = message.progress.gold;
+      this.player.score = message.score; this.player.progress = message.progress; this.player.xpSendBuffs = message.xpSendBuffs; this.player.gold = message.progress.gold;
       const position = this.arena.defeatedPositions.get(message.unitId); this.arena.defeatedPositions.delete(message.unitId);
       if (message.drop && position) this.drops.push(new ItemDrop(message.drop, position));
       this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player);
       if (this.waveMode === "training") this.hud.showXpToast(message.reason); else this.hud.setNotice(message.reason);
     }
     else if (message.type === "progressionUpdated" && this.player) {
-      this.player.progress = message.progress; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero)); this.hud.setNotice(message.reason);
+      this.player.progress = message.progress; this.player.xpSendBuffs = message.xpSendBuffs; this.player.gold = message.progress.gold; this.hero.applyProgress(message.progress, true); this.syncHeroState(); this.hud.setPlayer(this.player); this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero)); this.hud.setNotice(message.reason);
     } else if (message.type === "groundDropCreated") this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
     else if (message.type === "scoreAwarded" && this.player) { this.player.score = message.score; this.hud.setPlayer(this.player); }
     else if (message.type === "waveAdjusted" && this.player) { this.player.waveNumber = message.waveNumber; this.hud.setPlayer(this.player); this.hud.setNotice(message.reason); }

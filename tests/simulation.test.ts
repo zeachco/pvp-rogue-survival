@@ -49,7 +49,7 @@ describe("arena systems", () => {
     const internal = combat as unknown as { attackCooldown: number; healingCooldown: number; skillCooldowns: Map<string, { remaining: number; maximum: number }> };
     internal.attackCooldown = 5; internal.healingCooldown = 3; internal.skillCooldowns.set("bash", { remaining: 2, maximum: 2 });
     const amulet = { ...generateAccessory(0, "epic", 1, "amulet"), requirements: {} };
-    const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [], skillOrder: ["timeHarvest", "bash"] };
+    const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [] };
     expect(combat.onKill(progress, hero)).toBe(1);
     expect(internal.attackCooldown).toBe(4); expect(internal.healingCooldown).toBe(2); expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1); expect(hero.blockCooldown).toBe(3);
   });

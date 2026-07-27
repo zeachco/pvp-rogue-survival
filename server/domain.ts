@@ -1,5 +1,5 @@
 import type { ItemInstance } from "../common/items.ts";
-import type { GroundDrop, HeroSummary, PanelTriggers, PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
+import type { GroundDrop, HeroSummary, PanelTriggers, PlayerId, PlayerProgress, UnitBuild, XpSendBuff } from "../common/protocol.ts";
 
 export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "solo" | "training" }
 export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; senderName: string; backlash: boolean }
@@ -9,6 +9,7 @@ export interface Player {
   realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[]; deathEchoes: UnitBuild[];
+  xpSendBuffs: XpSendBuff[];
 }
 export interface PlayerRepository { get(id: PlayerId): Player | undefined; getByUsername(username: string): Player | undefined; findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>; findBossCandidate(minimum: number, maximum: number): Player | undefined | Promise<Player | undefined>; listSummaries(): Promise<HeroSummary[]>; save(player: Player): void; markDirty(playerId: PlayerId): void; values(): IterableIterator<Player>; persist(): void | Promise<void>; close?(): void | Promise<void> }
 export class InMemoryPlayerRepository implements PlayerRepository {

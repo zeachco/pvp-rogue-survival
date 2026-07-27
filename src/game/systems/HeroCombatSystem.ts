@@ -30,7 +30,7 @@ export class HeroCombatSystem {
   update(deltaSeconds: number, movementInput: Vector2, hero: Hero, state: ArenaState, progress: PlayerProgress, balance: BalanceConfig, random: RandomSource): void {
     this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds); this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds); this.rapidRegenRemaining = Math.max(0, this.rapidRegenRemaining - deltaSeconds); for (const cooldown of this.skillCooldowns.values()) cooldown.remaining = Math.max(0, cooldown.remaining - deltaSeconds); if (this.whirlwindRemaining > 0) { this.whirlwindRemaining = Math.max(0, this.whirlwindRemaining - deltaSeconds); this.whirlwindPulse -= deltaSeconds; while (this.whirlwindPulse <= 0 && this.whirlwindRemaining > 0) { const force = emittedImpactForce(hero, "radial", hero.position); for (const creep of state.creeps) if (creep.active && distance(hero.position, creep.position) <= this.whirlwindRange + creep.radius) { const dealt = creep.receiveDamage(this.whirlwindHitDamage, random, hero, false, false, { kind: "physical" }); if (dealt > 0) applyImpactForce(creep, force); } this.whirlwindPulse += 0.25; } }
     const item = progress.mainHand; const effectiveStats = statsWithItemBonuses(progress.stats, item, progress.offHand, progress.amulet, progress.charm); const derived = derivedStats(effectiveStats);
-    hero.knownSkills.clear(); hero.skillLevels.clear(); for (const skill of availableSkillIds(progress)) { hero.knownSkills.add(skill); hero.skillLevels.set(skill, effectiveSkillLevel(progress, skill)); }
+    hero.knownSkills.clear(); hero.skillLevels.clear(); for (const skill of activeSkillIds(progress)) { hero.knownSkills.add(skill); hero.skillLevels.set(skill, effectiveSkillLevel(progress, skill)); }
     const healing = healingCast(hero.hp, hero.maxHp, hero.stamina, hero.maxStamina, effectiveSkillLevel(progress, "healing")); const healingManaCost = healing.manaCost * (1 - resourceReduction(progress, "mana", effectiveStats));
     if (isSkillActive(progress, "healing") && hero.hp < hero.maxHp * 0.75 && this.healingCooldown === 0 && healing.restoredHp > 0 && hero.mana >= healingManaCost) {
       const level = effectiveSkillLevel(progress, "healing"); hero.mana -= healingManaCost;
@@ -75,7 +75,7 @@ export class HeroCombatSystem {
   }
 
   spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
-    return orderedSkillIds(progress).map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: effectiveSkillLevel(progress, id), actualLevel: actualSkillLevel(progress, id), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : cooldown?.maximum ?? 0, resource: SKILLS[id].resource, costLabel: skillCostLabel(id, progress), active: true, bar: learnedSkillIds(progress).includes(id) ? "learned" as const : "geared" as const }; });
+    return orderedSkillIds(progress).map((id) => { const cooldown = this.skillCooldowns.get(id); return { id, label: skillLabel(id), level: effectiveSkillLevel(progress, id), actualLevel: actualSkillLevel(progress, id), cooldown: id === "healing" ? this.healingCooldown : id === "blocking" ? hero.blockCooldown : cooldown?.remaining ?? 0, cooldownMax: id === "healing" ? this.healingCooldownMax : id === "blocking" ? hero.blockCooldownMax : cooldown?.maximum ?? 0, resource: SKILLS[id].resource, costLabel: skillCostLabel(id, progress), active: isSkillActive(progress, id), bar: learnedSkillIds(progress).includes(id) ? "learned" as const : "geared" as const }; });
   }
 
   get attackProgress(): number { return this.attackCooldownMax > 0 ? 1 - this.attackCooldown / this.attackCooldownMax : 1; }
@@ -95,8 +95,8 @@ export class HeroCombatSystem {
   reset(): void { this.attackCooldown = 0; this.attackCooldownMax = 0; this.healingCooldown = 0; this.healingCooldownMax = 0; this.orbitCastSequence = 0; this.skillPriorityCursor = 0; this.whirlwindRemaining = 0; this.whirlwindPulse = 0; this.whirlwindSpeed = 1; this.rapidRegenRemaining = 0; this.rapidRegenMultiplierValue = 1; this.skillCooldowns.clear(); }
   private availableSkills(progress: PlayerProgress): { id: SkillId; level: number }[] {
     const skills = new Map<SkillId, number>();
-    for (const skill of orderedSkillIds(progress)) if (!SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, effectiveSkillLevel(progress, skill));
-    return orderedSkillIds(progress).filter((id) => skills.has(id)).map((id) => ({ id, level: Math.max(1, skills.get(id) ?? 0) }));
+    for (const skill of activeSkillIds(progress)) if (!SKILLS[skill].passive && skill !== "healing" && skill !== "blocking") skills.set(skill, effectiveSkillLevel(progress, skill));
+    return activeSkillIds(progress).filter((id) => skills.has(id)).map((id) => ({ id, level: Math.max(1, skills.get(id) ?? 0) }));
   }
 }
 
@@ -125,8 +125,8 @@ export function learnedSkillIds(progress: PlayerProgress): SkillId[] { return [.
 export function gearedSkillIds(progress: PlayerProgress): SkillId[] { const learned = new Set(learnedSkillIds(progress)); return [...new Set<SkillId>([...(progress.mainHand?.skills ?? []), ...accessories(progress).flatMap((item) => item?.skills ?? [])])].filter((skill) => !learned.has(skill)); }
 export function isSkillAvailable(progress: PlayerProgress, skill: SkillId): boolean { return learnedSkillIds(progress).includes(skill) || gearedSkillIds(progress).includes(skill); }
 export function availableSkillIds(progress: PlayerProgress): SkillId[] { return [...learnedSkillIds(progress), ...gearedSkillIds(progress)]; }
-export function orderedSkillIds(progress: PlayerProgress): SkillId[] { const available = availableSkillIds(progress); const ordered = (progress.skillOrder ?? []).filter((skill) => available.includes(skill)); return [...ordered, ...available.filter((skill) => !ordered.includes(skill))]; }
-export function activeSkillIds(progress: PlayerProgress): SkillId[] { return availableSkillIds(progress); }
+export function orderedSkillIds(progress: PlayerProgress): SkillId[] { return availableSkillIds(progress); }
+export function activeSkillIds(progress: PlayerProgress): SkillId[] { const disabled = new Set(progress.disabledSkills ?? []); return availableSkillIds(progress).filter((skill) => !disabled.has(skill)); }
 export function isSkillActive(progress: PlayerProgress, skill: SkillId): boolean { return activeSkillIds(progress).includes(skill); }
 export function actualSkillLevel(progress: PlayerProgress, skill: SkillId): number { if (!isSkillAvailable(progress, skill)) return 0; const learned = progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0); const equipped = progress.mainHand?.skills.includes(skill) || accessories(progress).some((item) => item?.skills.includes(skill)) ? 1 : 0; const stats = statsWithItemBonuses(progress.stats, progress.mainHand, ...accessories(progress)); const accessory = accessories(progress).reduce((sum, candidate) => sum + itemSkillLevelBonus(candidate, SKILLS[skill].resource) * (candidate ? itemRequirementMultiplier(candidate, stats) : 1), 0); const timeHarvestBonus = skill === "timeHarvest" && progress.amulet?.skills.includes(skill) ? timeHarvestItemSkillBonus(progress.amulet.level) : 0; return cappedSkillLevel(learned + equipped + Math.floor(accessory) + timeHarvestBonus); }
 export function effectiveSkillLevel(progress: PlayerProgress, skill: SkillId): number { return Math.min(actualSkillLevel(progress, skill), progress.level); }

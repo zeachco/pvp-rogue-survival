@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 33;
+export const PROTOCOL_VERSION = 34;
 export type PlayerId = string;
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
 export type PanelTriggers = Record<PanelTrigger, boolean>;
@@ -12,11 +12,12 @@ export interface InventoryTile { id: string; key: string; item: ItemInstance; qu
 export interface PlayerProgress {
   level: number; xp: number; stats: Stats; allocation: Stats; gold: number; souls: number; scraps: Record<Rarity, number>;
   mainHand?: ItemInstance; offHand?: ItemInstance; amulet?: ItemInstance; charm?: ItemInstance; inventoryTiles: InventoryTile[];
-  learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[]; skillOrder?: SkillId[];
+  learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[]; disabledSkills?: SkillId[];
 }
+export interface XpSendBuff { multiplier: number; expiresAt: number }
 export interface PublicPlayer { id: PlayerId; name: string; score: number; waveNumber: number; maxWaveReached: number; level: number; receivesDeathEchoes: boolean }
 export interface HeroSummary { id: PlayerId; username: string; level: number; connected: boolean; receivesDeathEchoes: boolean }
-export interface PublicHeroProfile { id: PlayerId; username: string; level: number; maxWaveReached: number; stats: Stats; mainHand?: ItemInstance; offHand?: ItemInstance; amulet?: ItemInstance; charm?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[]; skillOrder?: SkillId[] }
+export interface PublicHeroProfile { id: PlayerId; username: string; level: number; maxWaveReached: number; stats: Stats; mainHand?: ItemInstance; offHand?: ItemInstance; amulet?: ItemInstance; charm?: ItemInstance; learnedSkills: SkillId[]; learnedSkillLevels: Partial<Record<SkillId, number>>; universalSkills: SkillId[]; disabledSkills?: SkillId[] }
 export interface RealmMember extends PublicPlayer { down: boolean }
 export interface RealmState { mode: "training" | "waiting" | "competitive"; guards: RealmMember[]; attackers: RealmMember[]; outgoingQueued: number; incomingQueued: number; canLeave: boolean }
 export interface ServerConfig { waveIntervalMs: number; protocolVersion: number; maxRealmAttackers: number; maxQueuedItems: number; balance: BalanceConfig }
@@ -42,7 +43,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("updateAllocation"), allocation: statsSchema }), z.object({ type: z.literal("respecStats"), allocation: statsSchema }), z.object({ type: z.literal("creepDefeated"), unitId: z.string().min(1) }),
   z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), z.object({ type: z.literal("reconcileDrops"), activeDropIds: z.array(z.string()), pendingDropIds: z.array(z.string()) }), z.object({ type: z.literal("deferDrop"), dropId: z.string().min(1) }), z.object({ type: z.literal("promoteScrap"), target: z.enum(["common", "uncommon", "rare", "epic"]), bulk: z.boolean().optional() }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("upgradeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
   z.object({ type: z.literal("heroDefeated"), sourceUnitId: z.string().optional() }), z.object({ type: z.literal("suicide") }), z.object({ type: z.literal("requestWave") }), z.object({ type: z.literal("leaveRealm") }), z.object({ type: z.literal("enterRealm") }),
-  z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() }), z.object({ type: z.literal("logout") }), z.object({ type: z.literal("listHeroes") }), z.object({ type: z.literal("inspectHero"), heroId: z.string().min(1) }), z.object({ type: z.literal("dismissPanelTrigger"), panel: z.enum(["character", "inventory", "multiplayer"]) }), z.object({ type: z.literal("reorderSkills"), skillOrder: z.array(z.string()).max(99) })
+  z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() }), z.object({ type: z.literal("logout") }), z.object({ type: z.literal("listHeroes") }), z.object({ type: z.literal("inspectHero"), heroId: z.string().min(1) }), z.object({ type: z.literal("dismissPanelTrigger"), panel: z.enum(["character", "inventory", "multiplayer"]) }), z.object({ type: z.literal("toggleSkill"), skillId: z.string().min(1) })
 ]);
 const serverEnvelope = z.object({ type: z.enum(["welcome", "loggedOut", "leaderboard", "heroProfile", "realmUpdated", "incomingWave", "waveAdjusted", "creepDefeatResolved", "collectItemResult", "dropsReconciled", "progressionUpdated", "groundDropCreated", "scoreAwarded", "suicideResolved", "serverNotice"]) }).passthrough();
 export const serverMessageSchema = serverEnvelope.transform((value) => value as unknown as ServerMessage);
@@ -64,20 +65,20 @@ export type ClientMessage =
   | { type: "logout" | "listHeroes" }
   | { type: "inspectHero"; heroId: string }
   | { type: "dismissPanelTrigger"; panel: PanelTrigger }
-  | { type: "reorderSkills"; skillOrder: string[] };
+  | { type: "toggleSkill"; skillId: string };
 
 export type ServerMessage =
-  | { type: "welcome"; playerId: PlayerId; player: PublicPlayer; progress: PlayerProgress; panelTriggers: PanelTriggers; realm: RealmState; config: ServerConfig }
+  | { type: "welcome"; playerId: PlayerId; player: PublicPlayer; progress: PlayerProgress; xpSendBuffs: XpSendBuff[]; panelTriggers: PanelTriggers; realm: RealmState; config: ServerConfig }
   | { type: "loggedOut" }
   | { type: "leaderboard"; heroes: HeroSummary[] }
   | { type: "heroProfile"; hero: PublicHeroProfile }
   | { type: "realmUpdated"; realm: RealmState }
   | { type: "incomingWave"; wave: CreepWave }
   | { type: "waveAdjusted"; waveNumber: number; reason: string }
-  | { type: "creepDefeatResolved"; unitId: string; score: number; progress: PlayerProgress; drop?: GroundDrop; reason: string }
+  | { type: "creepDefeatResolved"; unitId: string; score: number; progress: PlayerProgress; xpSendBuffs: XpSendBuff[]; drop?: GroundDrop; reason: string }
   | { type: "collectItemResult"; dropId: string; collected: boolean; reason: string }
   | { type: "dropsReconciled"; drops: GroundDrop[]; removeDropIds: string[]; resolvedDropIds: string[] }
-  | { type: "progressionUpdated"; progress: PlayerProgress; reason: string }
+  | { type: "progressionUpdated"; progress: PlayerProgress; xpSendBuffs: XpSendBuff[]; reason: string }
   | { type: "groundDropCreated"; drop: GroundDrop }
   | { type: "scoreAwarded"; score: number; reason: string }
   | { type: "suicideResolved" }

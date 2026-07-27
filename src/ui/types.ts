@@ -7,7 +7,7 @@ export interface HudCallbacks {
   onPurge(tileId: string, bulk: boolean): void; onUpgrade(tileId: string, bulk: boolean): void; onSend(tileId: string, bulk: boolean): void; onExtract(tileId: string, bulk: boolean): void;
   onPromoteScrap(target: Rarity, bulk: boolean): void;
   onLeaveRealm(): void; onEnterRealm(): void; onKillPlayer(): void; onBack(): void;
-  onLogout(): void; onInspectHero(heroId: string): void; onReorderSkills(skillOrder: SkillId[]): void; onDismissPanelTrigger(panel: PanelTrigger): void;
+  onLogout(): void; onInspectHero(heroId: string): void; onToggleSkill(skillId: SkillId): void; onDismissPanelTrigger(panel: PanelTrigger): void;
 }
 export type CurrencyPreview = Partial<Record<"gold" | "souls" | Rarity, number>>;
 export interface SpellSlot { id: SkillId; label: string; level: number; actualLevel: number; cooldown: number; cooldownMax: number; resource: "mana" | "stamina" | "life"; costLabel: string; active: boolean; bar: "learned" | "geared" }
