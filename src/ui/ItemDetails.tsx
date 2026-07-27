@@ -19,6 +19,7 @@ export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineI
     {item.weight > 0 ? <span><small>Weight</small><b>{item.weight}</b></span> : null}
     {effects.length || baselineEffects.length ? <span class="equipment-detail-wide"><small>Effects</small>{effectList(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small>{tooltipText(skills)}</span> : null}
     {requirements.length ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small><span class="tile-text-anchor" tabindex="0"><b class="requirement-values">{requirements.map((requirement, index) => <span class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}>{index ? ", " : ""}{capitalize(requirement.key)} {formatProjectedValue(requirement, fmt)}</span>)}</b><span class="tile-text-tooltip" role="tooltip">{requirementText}</span></span>{effectiveness < 1 ? <em tabindex="0">{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
+    <span class="equipment-detail-wide"><small>Equip slot</small><b>{equipSlotLabel(item)}</b></span>
   </div> as HTMLElement;
 }
 
@@ -67,3 +68,4 @@ function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string[] 
 function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
 function precise(value: number): string { return Number(value.toFixed(4)).toString(); }
 function capitalize(value: string): string { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
+function equipSlotLabel(item: ItemInstance): string { return item.itemKind === "weapon" ? "Main hand" : item.itemKind === "amulet" ? "Amulet" : item.itemKind === "charm" ? "Charm" : "Offhand"; }

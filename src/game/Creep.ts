@@ -39,8 +39,8 @@ export class Creep extends Unit {
     this.build = build;
     this.cooldown = 0.5 + random.next() * 0.4;
     this.kind = build.kind;
-    this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand, build.amulet), build.offHand, build.mainHand, build.amulet);
-    for (const skill of [...(build.mainHand?.skills ?? []), ...(build.offHand?.skills ?? []), ...(build.amulet?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
+    this.configureStats(statsWithItemBonuses(build.stats, build.mainHand, build.offHand, build.amulet, build.charm), build.offHand, build.mainHand, build.amulet, build.charm);
+    for (const skill of [...(build.mainHand?.skills ?? []), ...(build.offHand?.skills ?? []), ...(build.amulet?.skills ?? []), ...(build.charm?.skills ?? []), ...(build.bonusSkills ?? [])]) this.knownSkills.add(skill);
     this.maxHp = creepMaxHealth(build.level, this.maxHp, balance); this.hp = this.maxHp;
     this.bounty = Math.max(1, build.mainHand?.sellValue ?? 1);
     this.scoreValue = build.isRival ? 10 : 2;
@@ -108,7 +108,7 @@ export class Creep extends Unit {
   render(ctx: CanvasRenderingContext2D, camera: Camera): void {
     ctx.save(); ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
     ctx.fillStyle = this.damageFlash > 0 ? "#ffffff" : this.build.isRival ? "#ffd166" : this.kind === "bubbleShooter" ? "#8c7cff" : "#ff6f7d";
-    const sentItem = this.build.emitterId ? [this.build.mainHand, this.build.offHand, this.build.amulet].find((item) => item?.id.includes("sent")) : undefined; ctx.strokeStyle = sentItem ? dropRarityColor(sentItem.rarity) : this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = sentItem ? 5 : 3; if (sentItem) { ctx.shadowColor = dropRarityColor(sentItem.rarity); ctx.shadowBlur = 10; }
+    const sentItem = this.build.emitterId ? [this.build.mainHand, this.build.offHand, this.build.amulet, this.build.charm].find((item) => item?.id.includes("sent")) : undefined; ctx.strokeStyle = sentItem ? dropRarityColor(sentItem.rarity) : this.build.isRival ? "#704d00" : "#501721"; ctx.lineWidth = sentItem ? 5 : 3; if (sentItem) { ctx.shadowColor = dropRarityColor(sentItem.rarity); ctx.shadowBlur = 10; }
     ctx.beginPath();
     if (this.kind === "melee") {
       for (let i = 0; i < 6; i += 1) {

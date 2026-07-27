@@ -32,7 +32,7 @@ export class GameService {
   logout(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; this.disconnect(playerId); player.realmOptedIn = false; player.realmId = undefined; player.issuedUnits.clear(); player.groundDrops.clear(); player.deferredItems.length = 0; player.incomingQueues.clear(); player.backlashQueue.length = 0; for (const other of this.options.repository.values()) { other.incomingQueues.delete(playerId); other.backlashQueue = other.backlashQueue.filter((entry) => entry.senderId !== playerId); } this.options.repository.markDirty(player.id); }
   findPlayer(heroId?: string, username?: string): Player | undefined { return heroId ? this.options.repository.get(heroId) : username ? this.options.repository.getByUsername(username) : undefined; }
   leaderboard(): HeroSummary[] { return [...this.options.repository.values()].map((player) => ({ id: player.id, username: player.name, level: player.progress.level, connected: player.connected, receivesDeathEchoes: false })).sort((a, b) => b.level - a.level || a.username.localeCompare(b.username)).map((hero, index) => ({ ...hero, receivesDeathEchoes: index === 0 })); }
-  publicHeroProfile(heroId: string): PublicHeroProfile | undefined { const player = this.options.repository.get(heroId); if (!player) return undefined; const p = player.progress; return { id: player.id, username: player.name, level: p.level, maxWaveReached: player.maxWaveReached, stats: p.stats, mainHand: p.mainHand, offHand: p.offHand, amulet: p.amulet, learnedSkills: p.learnedSkills, learnedSkillLevels: p.learnedSkillLevels, universalSkills: p.universalSkills }; }
+  publicHeroProfile(heroId: string): PublicHeroProfile | undefined { const player = this.options.repository.get(heroId); if (!player) return undefined; const p = player.progress; return { id: player.id, username: player.name, level: p.level, maxWaveReached: player.maxWaveReached, stats: p.stats, mainHand: p.mainHand, offHand: p.offHand, amulet: p.amulet, charm: p.charm, learnedSkills: p.learnedSkills, learnedSkillLevels: p.learnedSkillLevels, universalSkills: p.universalSkills }; }
 
   handle(playerId: PlayerId, message: Exclude<ClientMessage, { type: "join" }>): void {
     const player = this.options.repository.get(playerId); if (!player) return;
@@ -109,16 +109,17 @@ export class GameService {
 
   private realmClone(defender: Player, attacker: Player, attackerCount: number): UnitBuild {
     const level = realmCloneLevel(defender.progress.level, attackerCount); const seed = this.seed();
-    return { id: this.createId(), name: `${attacker.name}'s clone`, kind: "rival", level, stats: scaledStats(attacker.progress.allocation, level), mainHand: structuredClone(attacker.progress.mainHand), offHand: attacker.progress.offHand ? structuredClone(attacker.progress.offHand) : undefined, amulet: attacker.progress.amulet ? structuredClone(attacker.progress.amulet) : undefined, carried: [], bonusSkills: [], isRival: true, xpReward: rivalXpReward(level), goldReward: 3 + Math.floor(level / 2), seed };
+    return { id: this.createId(), name: `${attacker.name}'s clone`, kind: "rival", level, stats: scaledStats(attacker.progress.allocation, level), mainHand: structuredClone(attacker.progress.mainHand), offHand: attacker.progress.offHand ? structuredClone(attacker.progress.offHand) : undefined, amulet: attacker.progress.amulet ? structuredClone(attacker.progress.amulet) : undefined, charm: attacker.progress.charm ? structuredClone(attacker.progress.charm) : undefined, carried: [], bonusSkills: [], isRival: true, xpReward: rivalXpReward(level), goldReward: 3 + Math.floor(level / 2), seed };
   }
 
   private applyQueuedEquipment(build: UnitBuild, queued: QueuedEquipment, level: number, intro = false): UnitBuild {
-    const item = queued.item; let mainHand = build.mainHand; let offHand = build.offHand; let amulet = build.amulet;
+    const item = queued.item; let mainHand = build.mainHand; let offHand = build.offHand; let amulet = build.amulet; let charm = build.charm;
     if (intro && (item.itemKind !== "weapon" || item.definitionId === "staff" || item.definitionId === "scepter" || item.definitionId === "throwingAxe")) return { ...build, carried: [...build.carried, item], emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
-    if (item.itemKind === "amulet") amulet = item;
+    if (item.itemKind === "charm") charm = item;
+    else if (item.itemKind === "amulet") amulet = item;
     else if (item.itemKind !== "weapon") { if (!mainHand || mainHand.hands === 2) mainHand = generateItem(level, item.rarity, this.seed(), { allowedClasses: ["club", "sword", "dagger", "mace", "axe", "throwingAxe", "hammer"] as WeaponClass[] }); offHand = item; }
     else { mainHand = item; if (item.hands === 2) offHand = undefined; }
-    return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand?.definitionId === "staff" || mainHand?.definitionId === "scepter" ? "bubbleShooter" : "melee", mainHand, offHand, amulet, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
+    return { ...build, name: `${queued.senderName}'s carrier`, kind: mainHand?.definitionId === "staff" || mainHand?.definitionId === "scepter" ? "bubbleShooter" : "melee", mainHand, offHand, amulet, charm, emitterId: queued.senderId, emitterName: queued.senderName, backlash: queued.backlash };
   }
 
   private takeQueued(player: Player, limit: number, includeBacklash = true): QueuedEquipment[] {
@@ -139,8 +140,8 @@ export class GameService {
     const buckler = player.progress.offHand?.itemKind === "buckler" ? player.progress.offHand : undefined; const effectiveness = buckler ? itemRequirementMultiplier(buckler, player.progress.stats) : 1; const goldGain = (buckler?.modifiers.goldGain ?? 0) * effectiveness; const rarityBoost = (buckler?.modifiers.rarityBoost ?? 0) * effectiveness;
     const goldChance = Math.min(1, (build.isRival ? 0.5 : 0.2) * this.options.balance.rewards.goldChanceMultiplier);
     if (this.options.random.next() < goldChance) { const drop: GroundDrop = { id: this.createId(), kind: "gold", amount: Math.ceil(build.goldReward * (1 + goldGain)) }; player.groundDrops.set(drop.id, drop); return drop; }
-    const sent = build.emitterId ? (build.mainHand?.id.includes("sent") ? build.mainHand : build.offHand?.id.includes("sent") ? build.offHand : build.amulet?.id.includes("sent") ? build.amulet : undefined) : undefined;
-    for (const item of [sent, sent?.id === build.mainHand?.id ? undefined : build.mainHand, sent?.id === build.offHand?.id ? undefined : build.offHand, sent?.id === build.amulet?.id ? undefined : build.amulet, ...build.carried].filter(Boolean) as ItemInstance[]) {
+    const sent = build.emitterId ? (build.mainHand?.id.includes("sent") ? build.mainHand : build.offHand?.id.includes("sent") ? build.offHand : build.amulet?.id.includes("sent") ? build.amulet : build.charm?.id.includes("sent") ? build.charm : undefined) : undefined;
+    for (const item of [sent, sent?.id === build.mainHand?.id ? undefined : build.mainHand, sent?.id === build.offHand?.id ? undefined : build.offHand, sent?.id === build.amulet?.id ? undefined : build.amulet, sent?.id === build.charm?.id ? undefined : build.charm, ...build.carried].filter(Boolean) as ItemInstance[]) {
       const chance = Math.min(this.options.balance.rewards.maxDropChance, item.dropChance * this.options.balance.rewards.dropChanceMultiplier); if (this.options.random.next() >= chance) continue;
       const id = this.createId(); const promoted = rarityBoost > 0 && nextRarity(item.rarity) && this.options.random.next() < rarityBoost ? changeItemRarity(item, nextRarity(item.rarity)!, this.seed()) : item; if (this.options.random.next() < 0.25) { const drop: GroundDrop = { id, kind: "scrap", rarity: promoted.rarity, amount: purgeYield(promoted) }; player.groundDrops.set(id, drop); return drop; }
       const dropped = { ...promoted, id: `${promoted.id}-drop-${id}` }; const drop: GroundDrop = { id, kind: "item", item: dropped }; player.groundDrops.set(id, drop); return drop;
@@ -168,7 +169,7 @@ export class GameService {
   private queueDeathEcho(player: Player): void {
     const recipient = [...this.options.repository.values()].sort((a, b) => b.progress.level - a.progress.level || a.name.localeCompare(b.name))[0];
     if (!recipient || recipient.id === player.id) return;
-    const p = player.progress; const seed = this.seed(); const echo: UnitBuild = { id: this.createId(), name: `${player.name}'s death echo`, kind: "rival", level: p.level, stats: { ...p.stats }, mainHand: structuredClone(p.mainHand), offHand: p.offHand ? structuredClone(p.offHand) : undefined, amulet: p.amulet ? structuredClone(p.amulet) : undefined, carried: [], bonusSkills: [], isRival: true, xpReward: rivalXpReward(p.level), goldReward: 3 + Math.floor(p.level / 2), seed };
+    const p = player.progress; const seed = this.seed(); const echo: UnitBuild = { id: this.createId(), name: `${player.name}'s death echo`, kind: "rival", level: p.level, stats: { ...p.stats }, mainHand: structuredClone(p.mainHand), offHand: p.offHand ? structuredClone(p.offHand) : undefined, amulet: p.amulet ? structuredClone(p.amulet) : undefined, charm: p.charm ? structuredClone(p.charm) : undefined, carried: [], bonusSkills: [], isRival: true, xpReward: rivalXpReward(p.level), goldReward: 3 + Math.floor(p.level / 2), seed };
     recipient.deathEchoes.push(echo); this.options.repository.markDirty(recipient.id); if (recipient.connected) this.notice(recipient, `${player.name}'s death echo will enter your next wave.`);
   }
 

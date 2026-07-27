@@ -23,6 +23,7 @@ export abstract class Unit extends GameObject {
   offHand?: ItemInstance;
   mainHand?: ItemInstance;
   amulet?: ItemInstance;
+  charm?: ItemInstance;
   lastDamageSourceId?: string;
   damageFloorOne = false;
   blockCooldown = 0;
@@ -47,7 +48,7 @@ export abstract class Unit extends GameObject {
 
   receiveDamage(amount: number, random: RandomSource, source?: Unit, reflectable = true, invulnerable = false, presentation: DamagePresentation = { kind: "physical" }): number {
     this.lastHitDodged = false;
-    const perks = equippedPerks(this.stats, this.mainHand, this.offHand, this.amulet);
+    const perks = equippedPerks(this.stats, this.mainHand, this.offHand, this.amulet, this.charm);
     if (reflectable && random.next() < Math.min(0.5, Math.max(0, this.stats.agility) * 0.003 + perks.dodgeChance)) { this.lastHitDodged = true; this.emitOutcome("dodge", "DODGE"); return 0; }
     const hpBefore = this.hp;
     const resistKey = presentation.kind === "magic" || presentation.kind === "electric" ? "magicResist" : presentation.kind === "fire" ? "fireResist" : presentation.kind === "poison" ? "poisonResist" : presentation.kind === "bleed" ? "bleedResist" : "physicalResist"; let remaining = Math.max(0, amount - perks.defense) * (1 - Math.min(.5, perks[resistKey])); let blockReflection = 0; const buckler = this.offHand;
@@ -85,11 +86,12 @@ export abstract class Unit extends GameObject {
   heal(amount: number): void { const before = this.hp; this.hp = Math.min(this.maxHp, this.hp + amount); const restored = this.hp - before; if (restored > 0) this.emitCombatText(restored, "healing", false); }
   restoreMana(amount: number): void { this.mana = Math.min(this.maxMana, this.mana + Math.max(0, amount)); }
 
-  configureStats(stats: Stats, offHand?: ItemInstance, mainHand?: ItemInstance, amulet?: ItemInstance): void {
+  configureStats(stats: Stats, offHand?: ItemInstance, mainHand?: ItemInstance, amulet?: ItemInstance, charm?: ItemInstance): void {
     this.stats = { ...stats };
     this.offHand = offHand;
     this.mainHand = mainHand;
     this.amulet = amulet;
+    this.charm = charm;
     const derived = derivedStats(stats);
     this.maxHp = derived.maxHp;
     this.hp = derived.maxHp;
@@ -105,7 +107,7 @@ export abstract class Unit extends GameObject {
     for (const status of this.statuses) { status.remaining -= deltaSeconds; status.tick = (status.tick ?? 0) + deltaSeconds; if (status.tick >= 1) { periodicDamage += status.damagePerSecond; status.tick -= 1; if (random) this.receiveDamage(status.damagePerSecond, random, status.source, false, invulnerable, { kind: status.kind === "poison" ? "poison" : status.kind === "burn" ? "fire" : "bleed" }); } }
     this.statuses = this.statuses.filter((status) => status.remaining > 0);
     if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
-    const equipped = [this.mainHand, this.offHand, this.amulet].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = (item.modifiers.strengthRegenMultiplier ?? 0) * itemRequirementMultiplier(item, this.stats); return sum + (multiplier > 0 ? (0.01 + multiplier * this.stats.strength) * itemRequirementMultiplier(item, this.stats) : 0); }, 0);
+    const equipped = [this.mainHand, this.offHand, this.amulet, this.charm].filter(Boolean) as ItemInstance[]; const vigorousRegen = equipped.reduce((sum, item) => { const multiplier = (item.modifiers.strengthRegenMultiplier ?? 0) * itemRequirementMultiplier(item, this.stats); return sum + (multiplier > 0 ? (0.01 + multiplier * this.stats.strength) * itemRequirementMultiplier(item, this.stats) : 0); }, 0);
     this.hp = Math.min(this.maxHp, this.hp + (derived.hpRegen + vigorousRegen) * deltaSeconds);
     const manaMultiplier = this.mainHand ? 1 + (this.mainHand.modifiers.manaRegenMultiplier - 1) * itemRequirementMultiplier(this.mainHand, this.stats) : 1;
     this.mana = Math.min(this.maxMana, this.mana + derived.manaRegen * manaMultiplier * deltaSeconds);

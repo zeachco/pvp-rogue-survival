@@ -1,6 +1,6 @@
 :root {
   --character-panel-width: 320px;
-  --inventory-panel-width: 320px;
+  --inventory-panel-width: 640px;
   --build-panel-width: calc(var(--character-panel-width) + var(--inventory-panel-width));
   --game-header-height: 52px;
   font-family:
@@ -496,8 +496,9 @@ input {
 .character-panel > .panel-toggle { justify-self: end; }
 .inventory-content { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; gap: 8px; overflow: hidden; }
 .inventory-header { display: grid; gap: 8px; flex: none; }
-.inventory-loadout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.inventory-loadout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
 .loadout-cell { position: relative; display: grid; min-width: 0; height: 42px; align-content: center; gap: 1px; border: 1px solid currentColor; border-radius: 3px; padding: 4px 6px; background: rgba(20,39,53,.9); cursor: help; }
+.loadout-cell.is-slot-preview { z-index: 2; border-color: #fff; background: rgba(52, 92, 112, .98); box-shadow: inset 0 0 0 2px #3affd4, 0 0 14px 3px rgba(58,255,212,.72); transform: translateY(-2px) scale(1.02); }
 .loadout-cell.is-empty { color: #60747b; }
 .loadout-cell small { overflow: hidden; color: #91aab1; font-size: 8px; letter-spacing: .04em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .loadout-cell strong { overflow: hidden; color: #e4f5f8; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -535,13 +536,14 @@ input {
 .combat-stat-section > span { display: grid; min-width: 0; gap: 1px; border: 1px solid rgba(138,216,255,.16); padding: 5px 6px; background: rgba(8,14,17,.55); }
 .combat-stat-grid small { overflow: hidden; color: #79949c; font-size: 8px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .combat-stat-grid b { overflow: hidden; color: #e4f5f8; font-size: 10px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
-.backpack-scroll { display: grid; min-height: 0; max-width: 100%; gap: 7px; align-content: start; overflow-y: auto; overscroll-behavior: contain; }
+.backpack-scroll { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 0; max-width: 100%; gap: 7px; align-content: start; overflow-y: auto; overscroll-behavior: contain; }
 .item-card { --rarity-rgb: 116, 133, 138; position: relative; display: grid; min-width: 0; border: 1px solid #74858a; border-left-width: 4px; padding: 7px; background: rgba(8,14,17,.75); cursor: pointer; overflow-wrap: anywhere; }
 .backpack-scroll .item-card { grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; align-items: start; }
 .item-card-content, .item-card-controls { min-width: 0; }
 .item-card-controls { display: grid; gap: 6px; align-content: start; border-left: 1px solid rgba(138,216,255,.16); padding-left: 7px; }
 .item-card.is-equipped { outline: 1px solid rgba(var(--rarity-rgb), .9); outline-offset: 1px; background: rgba(var(--rarity-rgb), .14); box-shadow: inset 0 0 12px rgba(var(--rarity-rgb), .24), 0 0 4px 1px rgba(var(--rarity-rgb), .42); }
 .item-card:hover:not(.is-replacement-preview) { outline: 1px solid rgba(var(--rarity-rgb), .9); outline-offset: 1px; box-shadow: inset 0 0 12px rgba(var(--rarity-rgb), .24), 0 0 4px 1px rgba(var(--rarity-rgb), .42); }
+.item-card.is-loadout-source { z-index: 2; outline: 2px solid #fff; outline-offset: 2px; box-shadow: inset 0 0 0 2px #3affd4, inset 0 0 18px rgba(58,255,212,.28), 0 0 16px 4px rgba(58,255,212,.72); transform: translateY(-2px) scale(1.01); }
 .item-card.is-replacement-preview { outline: 1px solid rgba(255, 69, 88, .95); outline-offset: 1px; box-shadow: inset 0 0 13px rgba(255, 45, 68, .32), 0 0 4px 1px rgba(255, 45, 68, .55); }
 .item-card.is-empty { filter: grayscale(1); opacity: .55; }
 .equipped-item { isolation: isolate; cursor: default; overflow: visible; }
@@ -769,7 +771,7 @@ input {
   :root { --build-panel-width: 60px; }
   #game-canvas { width: calc(100vw - 60px); margin-left: 30px; }
   .character-panel { z-index: 8; width: 320px; }
-  .inventory-column { z-index: 8; width: 320px; }
+  .inventory-column { z-index: 8; width: min(640px, calc(100vw - 40px)); }
   .character-panel.is-collapsed, .inventory-column.is-collapsed { width: 30px; }
 }
 

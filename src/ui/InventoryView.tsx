@@ -12,11 +12,11 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
   void progress; return tiles.filter((tile) => tile.quantity > 0);
 }
 
-export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean, action?: "card" | "upgrade") => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void, canSend = false): HTMLElement {
-  const item = tile.item; const equippedCopies = [progress.mainHand, progress.offHand, progress.amulet].filter((candidate) => candidate && itemStackKey(candidate) === tile.key).length; const equipped = equippedCopies > 0; const spare = tile.quantity - equippedCopies; const skills = extractableSkills(item); const extractCost = item.sellValue * 10; const extractStatus = extractButtonStatus(tile, progress);
+export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean, action?: "card" | "upgrade") => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void, canSend = false, onHoverChange?: (tileId?: string, actionIndex?: number) => void): HTMLElement {
+  const item = tile.item; const equippedCopies = [progress.mainHand, progress.offHand, progress.amulet, progress.charm].filter((candidate) => candidate && itemStackKey(candidate) === tile.key).length; const equipped = equippedCopies > 0; const spare = tile.quantity - equippedCopies; const skills = extractableSkills(item); const extractCost = item.sellValue * 10; const extractStatus = extractButtonStatus(tile, progress);
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
-    <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
+    <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id} data-stack-key={tile.key}>
       <div class="item-card-content"><div class="item-title"><span class="tile-text-anchor item-name-anchor" tabindex="0"><strong>{item.name}</strong><span class="tile-text-tooltip" role="tooltip">{item.name}</span></span><b>x{tile.quantity}</b></div>
         <small class="item-subtitle">L{item.level} · {itemKindLabel(item)} · {item.rarity}</small>
         {itemDetails(item, stats)}
@@ -30,7 +30,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   bindRequirementPreview(node.querySelector<HTMLElement>(".equipment-details")!, item, stats);
   const buttons = [...node.querySelectorAll("button")]; buttons.forEach((button) => { (button as HTMLButtonElement).disabled = tile.quantity === 0; });
   node.onclick = (event) => { if (event.button === 0 && (!(event.target instanceof Element) || !event.target.closest("button"))) callbacks.onEquip(tile.id); };
-  if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => onPreview(item, equipped); node.onmouseleave = () => { onPreview(); onCurrencyPreview?.(); onSpellPreview?.(); }; }
+  if (tile.quantity > 0 && onPreview) { node.onmouseenter = () => { onHoverChange?.(tile.id); onPreview(item, equipped); }; node.onmouseleave = () => { onHoverChange?.(); onPreview(); onCurrencyPreview?.(); onSpellPreview?.(); }; }
   if (spare <= 0) for (const index of [0, 1, 3, 4]) if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
   const sendButton = buttons[3] as HTMLButtonElement | undefined;
   if (sendButton && !canSend) { sendButton.disabled = true; sendButton.title = "Waiting for realm state"; }
@@ -43,7 +43,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   if (extractButton && extractStatus === "needs-gold") { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
   const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); const level = formatProjectedValue({ currentVal: item.level, newVal: shown.level }); subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
-  const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
+  const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onHoverChange?.(tile.id, index); onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onHoverChange?.(tile.id); onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
   bindActionPreview(0, { gold: sellYield(item) }); bindActionPreview(1, { [item.rarity]: purgeYield(item) });
   const upgradePreview = buttons[2] as HTMLButtonElement | undefined; upgradePreview?.addEventListener("mouseenter", () => previewUpgradeCard(true)); upgradePreview?.addEventListener("mouseleave", () => previewUpgradeCard(false));
   bindActionPreview(2, { gold: -costs.gold, [item.rarity]: -costs.scraps }, () => { if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade"); });

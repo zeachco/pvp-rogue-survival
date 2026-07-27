@@ -334,8 +334,8 @@ describe("permanent inventory", () => {
        });
   test("removes empty stacks and releases their capacity immediately", () => {
     const state = progress();
-    expect(inventoryCapacity(0)).toBe(4);
-    for (let n = 0; n < 4; n += 1)
+    expect(inventoryCapacity(0)).toBe(8);
+    for (let n = 0; n < 8; n += 1)
       expect(collectIntoInventory(state, generateItem(n, "common", 100 + n),
                                   () => `tile-${++id}`, () => ++id)
                  .changed)
@@ -344,12 +344,12 @@ describe("permanent inventory", () => {
     purgeFromInventory(state, tile.id);
     expect(state.inventoryTiles.some((candidate) => candidate.id === tile.id))
         .toBeFalse();
-    expect(occupiedInventorySlots(state)).toBe(3);
+    expect(occupiedInventorySlots(state)).toBe(7);
     expect(collectIntoInventory(state, generateItem(9, "epic", 999),
                                 () => `tile-${++id}`, () => ++id)
                .changed)
         .toBeTrue();
-    expect(occupiedInventorySlots(state)).toBe(4);
+    expect(occupiedInventorySlots(state)).toBe(8);
   });
   test("upgrades one source copy without creating persistent automation",
        () => {
@@ -517,7 +517,7 @@ describe("equipped skill levels", () => {
       });
 });
 describe("amulets and charms", () => {
-  test("rolls rarity-bounded accessories and equips amulets independently", () => {
+  test("rolls rarity-bounded accessories and equips amulets and charms independently", () => {
     const bounds = {
       common : [ 1, 2 ],
       uncommon : [ 1, 3 ],
@@ -547,7 +547,8 @@ describe("amulets and charms", () => {
     collectIntoInventory(state, amulet, () => `tile-${++id}`, () => ++id);
     expect(equipFromInventory(state, state.inventoryTiles[0].id).changed).toBeTrue();
     expect(equipFromInventory(state, state.inventoryTiles[1].id).changed).toBeTrue();
-    expect(state.offHand?.itemKind).toBe("charm");
+    expect(state.offHand).toBeUndefined();
+    expect(state.charm?.itemKind).toBe("charm");
     expect(state.amulet?.itemKind).toBe("amulet");
     const staff = generateItem(10, "rare", 99, { allowedClasses: ["staff"] });
     collectIntoInventory(state, staff, () => `tile-${++id}`, () => ++id);
@@ -555,6 +556,7 @@ describe("amulets and charms", () => {
     expect(state.mainHand?.hands).toBe(2);
     expect(state.offHand).toBeUndefined();
     expect(state.amulet?.itemKind).toBe("amulet");
+    expect(state.charm?.itemKind).toBe("charm");
   });
   test(
       "adds temporary resource skill levels and caps global cooldown reduction",
@@ -580,12 +582,12 @@ test(
     () => {
       const state = progress();
       state.level = 100;
-      for (let seed = 1; seed <= 6; seed += 1)
+      for (let seed = 1; seed <= 11; seed += 1)
         collectIntoInventory(
             state,
             generateItem(seed, "common", seed, {allowedClasses : [ "sword" ]}),
             () => `overflow-${seed}`, () => seed);
-      const protectedTile = state.inventoryTiles[5];
+      const protectedTile = state.inventoryTiles[10];
       expect(equipFromInventory(state, protectedTile.id).changed).toBeTrue();
       state.level = 0;
       const dropped = dropInventoryOverflow(state);
@@ -593,7 +595,7 @@ test(
       expect(
           state.inventoryTiles.some((tile) => tile.key === protectedTile.key))
           .toBeTrue();
-      expect(dropped).toHaveLength(3);
+      expect(dropped).toHaveLength(4);
     });
 describe("Epic skill extraction", () => {
   test(
