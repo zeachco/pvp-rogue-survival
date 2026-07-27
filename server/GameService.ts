@@ -75,7 +75,7 @@ export class GameService {
     const inventoryTiles: Player["progress"]["inventoryTiles"] = []; for (const item of starterItems) { const key = itemStackKey(item); const existing = inventoryTiles.find((tile) => tile.key === key); if (existing) existing.quantity += 1; else inventoryTiles.push({ id: `starter-random-tile-${inventoryTiles.length}`, key, item, quantity: 1 }); }
     const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 0, maxWaveReached: 0, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [],
-      panelTriggers: { character: true, inventory: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: undefined, offHand: undefined, inventoryTiles, learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] } };
+      panelTriggers: { character: true, inventory: true, multiplayer: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: undefined, offHand: undefined, inventoryTiles, learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] } };
     this.options.repository.save(player); return player;
   }
 

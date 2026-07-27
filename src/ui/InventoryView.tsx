@@ -6,6 +6,7 @@ import type { CurrencyPreview, HudCallbacks } from "./types";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import { extractableSkills, purgeYield, sellYield, upgradeCosts } from "../../common/inventory";
 import { extractButtonStatus } from "./inventoryAvailability";
+import { formatProjectedValue } from "./preview";
 
 export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProgress): InventoryTile[] {
   void progress; return tiles.filter((tile) => tile.quantity > 0);
@@ -16,7 +17,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>
-      <div class="item-card-content"><div class="item-title"><strong>{item.name}</strong><b>x{tile.quantity}</b></div>
+      <div class="item-card-content"><div class="item-title"><span class="tile-text-anchor item-name-anchor" tabindex="0"><strong>{item.name}</strong><span class="tile-text-tooltip" role="tooltip">{item.name}</span></span><b>x{tile.quantity}</b></div>
         <small class="item-subtitle">L{item.level} · {itemKindLabel(item)} · {item.rarity}</small>
         {itemDetails(item, stats)}
       </div>
@@ -41,7 +42,7 @@ export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress:
   const extractButton = buttons[4] as HTMLButtonElement | undefined;
   if (extractButton && extractStatus === "needs-gold") { extractButton.disabled = true; extractButton.title = `Extracting costs ${extractCost} gold`; }
   const upgraded = levelUpItem(item, item.seed); const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!; let details = node.querySelector<HTMLElement>(".equipment-details")!;
-  const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); subtitle.textContent = active ? `L${item.level} → ${upgraded.level} · ${itemKindLabel(shown)} · ${shown.rarity}` : `L${item.level} · ${itemKindLabel(item)} · ${item.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
+  const previewUpgradeCard = (active: boolean): void => { const shown = active ? upgraded : item; const shownStats = statsWithItemBonuses(progress.stats, shown); const level = formatProjectedValue({ currentVal: item.level, newVal: shown.level }); subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`; subtitle.classList.toggle("is-gain-preview", active); const replacement = itemDetails(shown, shownStats, active ? item : undefined, active ? stats : undefined); details.replaceWith(replacement); details = replacement; bindRequirementPreview(details, shown, shownStats); };
   const bindActionPreview = (index: number, currency?: CurrencyPreview, enter?: () => void): void => { const button = buttons[index] as HTMLButtonElement | undefined; if (!button) return; button.addEventListener("mouseenter", () => { onPreview?.(); onCurrencyPreview?.(currency); onSpellPreview?.(); enter?.(); }); button.addEventListener("mouseleave", () => { onCurrencyPreview?.(); onSpellPreview?.(); onPreview?.(item, equipped); }); };
   bindActionPreview(0, { gold: sellYield(item) }); bindActionPreview(1, { [item.rarity]: purgeYield(item) });
   const upgradePreview = buttons[2] as HTMLButtonElement | undefined; upgradePreview?.addEventListener("mouseenter", () => previewUpgradeCard(true)); upgradePreview?.addEventListener("mouseleave", () => previewUpgradeCard(false));

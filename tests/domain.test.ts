@@ -85,7 +85,7 @@ import {
 } from "../src/game/systems/HeroCombatSystem";
 import {gameSocketUrl} from "../src/net/SocketClient";
 import {itemRequirementRows, requirementMetStats} from "../src/ui/ItemDetails";
-import {formatPreviewValue, previewTone} from "../src/ui/preview";
+import {formatPreviewValue, formatProjectedValue, previewTone} from "../src/ui/preview";
 import {extractButtonStatus} from "../src/ui/inventoryAvailability";
 
 function progress(): PlayerProgress {
@@ -842,6 +842,26 @@ describe("item sustain", () => {
     expect(upgraded.modifiers.strengthRegenMultiplier).toBe(0);
   });
 });
+describe("equipment upgrade trait preservation", () => {
+  test("keeps rolled perks, attributes, skills, and requirement identities", () => {
+    const base = generateItem(1, "rare", 17, {allowedClasses : [ "hammer" ]});
+    const upgraded = levelUpItem(base, 999);
+    expect(upgraded.perks).toEqual(base.perks);
+    expect(upgraded.statBonuses).toEqual(base.statBonuses);
+    expect(upgraded.skills).toEqual(base.skills);
+    expect(Object.keys(upgraded.requirements).sort())
+        .toEqual(Object.keys(base.requirements).sort());
+    for (const [key, value] of Object.entries(base.requirements))
+      expect(upgraded.requirements[key as keyof Stats]).toBeGreaterThanOrEqual(value!);
+  });
+  test("does not reroll accessory bonuses during an upgrade", () => {
+    const base = generateAccessory(4, "rare", 27, "amulet");
+    const upgraded = levelUpItem(base, 333);
+    expect(upgraded.accessoryBonuses).toEqual(base.accessoryBonuses);
+    expect(upgraded.statBonuses).toEqual(base.statBonuses);
+    expect(upgraded.attractionSpeed).toBe(base.attractionSpeed);
+  });
+});
 describe("equipment rarity promotion", () => {
   test(
       "caps generated levels and promotes capped equipment to level one",
@@ -895,6 +915,7 @@ describe("HUD preview values", () => {
          expect(formatPreviewValue({currentVal : 10, newVal : 10})).toBe("10");
          expect(formatPreviewValue({currentVal : 10, newVal : null}))
              .toBe("10 → —");
+         expect(formatProjectedValue({currentVal : 10, newVal : 14})).toBe("14");
          expect(previewTone({currentVal : 10, newVal : 14})).toBe("gain");
          expect(previewTone({currentVal : 10, newVal : 8})).toBe("cost");
        });

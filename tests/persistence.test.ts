@@ -18,7 +18,7 @@ describe("Bun SQL player persistence", () => {
       const player = game.join("Persistent"); player.score = 17; player.waveNumber = 2; player.maxWaveReached = 9; player.progress.xp = 250; player.progress.level = 2; player.progress.gold = 88; player.panelTriggers.character = false;
       await firstRepository.persist(); await firstRepository.close();
       const restoredRepository = await SqlPlayerRepository.open(url); const restored = restoredRepository.get(player.id);
-      expect(restored?.name).toBe("Persistent"); expect(restored?.progress.level).toBe(2); expect(restored?.score).toBe(17); expect(restored?.waveNumber).toBe(2); expect(restored?.maxWaveReached).toBe(9); expect(restored?.progress.gold).toBe(88); expect(restored?.panelTriggers).toEqual({ character: false, inventory: true });
+      expect(restored?.name).toBe("Persistent"); expect(restored?.progress.level).toBe(2); expect(restored?.score).toBe(17); expect(restored?.waveNumber).toBe(2); expect(restored?.maxWaveReached).toBe(9); expect(restored?.progress.gold).toBe(88); expect(restored?.panelTriggers).toEqual({ character: false, inventory: true, multiplayer: true });
       expect(restored?.connected).toBeFalse(); expect(restored?.groundDrops.size).toBe(0); expect(restored?.incomingQueues.size).toBe(0);
       await restoredRepository.close();
     } finally { rmSync(directory, { recursive: true, force: true }); }

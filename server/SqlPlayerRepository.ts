@@ -1,10 +1,10 @@
 import { SQL } from "bun";
-import type { PlayerProgress } from "../common/protocol.ts";
+import type { PanelTriggers, PlayerProgress } from "../common/protocol.ts";
 import type { HeroSummary } from "../common/protocol.ts";
 import { cumulativeXpForLevel } from "../common/progression.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
-interface HeroBlob { score: number; waveNumber: number; maxWaveReached?: number; progress: PlayerProgress; panelTriggers?: { character: boolean; inventory: boolean } }
+interface HeroBlob { score: number; waveNumber: number; maxWaveReached?: number; progress: PlayerProgress; panelTriggers?: Partial<PanelTriggers> }
 interface HeroRow { id: string; username: string; level: number; hero: string }
 
 export class SqlPlayerRepository implements PlayerRepository {
@@ -69,5 +69,5 @@ function fromRow(row: HeroRow): Player | undefined {
   if (!blob?.progress || !Number.isFinite(blob.score) || !Number.isFinite(blob.waveNumber)) return undefined;
   blob.progress.level = Number(row.level);
   blob.progress.xp = Math.max(blob.progress.xp, cumulativeXpForLevel(blob.progress.level));
-  return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, maxWaveReached: Math.max(blob.waveNumber, blob.maxWaveReached ?? 0), progress: blob.progress, panelTriggers: blob.panelTriggers ?? { character: false, inventory: false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [] };
+  return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, maxWaveReached: Math.max(blob.waveNumber, blob.maxWaveReached ?? 0), progress: blob.progress, panelTriggers: { character: blob.panelTriggers?.character ?? false, inventory: blob.panelTriggers?.inventory ?? false, multiplayer: blob.panelTriggers?.multiplayer ?? false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [] };
 }

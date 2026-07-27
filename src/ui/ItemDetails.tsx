@@ -3,7 +3,7 @@ import { bucklerBlockCost, skillLabel, weaponAttackSpeed, weaponDamage } from ".
 import { itemRequirementMultiplier, ITEM_PERKS, type ItemInstance } from "../../common/items";
 import { STAT_KEYS, type Stats } from "../../common/progression";
 import { h } from "./dom";
-import { formatPreviewValue, previewTone } from "./preview";
+import { formatProjectedValue, previewTone } from "./preview";
 
 export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineItem?: ItemInstance, baselineStats?: Stats): HTMLElement {
   const attacks = item.itemKind === "weapon";
@@ -11,12 +11,14 @@ export function itemDetails(item: ItemInstance, effectiveStats: Stats, baselineI
   const attackSpeed = attacks ? weaponAttackSpeed(item, effectiveStats) : undefined;
   const effectiveness = itemRequirementMultiplier(item, effectiveStats); const requirements = itemRequirementRows(item, effectiveStats, baselineItem); const effects = itemEffectSummary(item, effectiveStats);
   const baselineDamage = baselineItem?.itemKind === "weapon" ? weaponDamage(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineSpeed = baselineItem?.itemKind === "weapon" ? weaponAttackSpeed(baselineItem, baselineStats ?? effectiveStats) : undefined; const baselineEffects = baselineItem ? itemEffectSummary(baselineItem, baselineStats ?? effectiveStats) : effects;
+  const skills = item.skills.map(skillLabel).join(", ");
+  const requirementText = requirements.map((requirement) => `${capitalize(requirement.key)} ${formatProjectedValue(requirement, fmt)}`).join(", ");
   return <div class="equipment-details">
     {damage === undefined ? null : <span><small>Attack</small>{detailValue(baselineDamage ?? damage, damage, fmt)}</span>}{attackSpeed === undefined ? null : <span><small>Attack speed</small>{detailValue(baselineSpeed ?? attackSpeed, attackSpeed, (value) => `${fmt(value)}/s`)}</span>}
     {attacks ? <span><small>Stamina cost</small>{detailValue(baselineItem?.staminaCost ?? item.staminaCost, item.staminaCost, precise)}</span> : null}
     {item.weight > 0 ? <span><small>Weight</small><b>{item.weight}</b></span> : null}
-    {effects || baselineEffects ? <span class="equipment-detail-wide"><small>Effects</small>{detailText(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small><b>{item.skills.map(skillLabel).join(", ")}</b></span> : null}
-    {requirements.length ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small><b class="requirement-values">{requirements.map((requirement, index) => <span class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}>{index ? ", " : ""}{capitalize(requirement.key)} {formatPreviewValue(requirement, fmt)}</span>)}</b>{effectiveness < 1 ? <em tabindex="0">{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
+    {effects.length || baselineEffects.length ? <span class="equipment-detail-wide"><small>Effects</small>{effectList(baselineEffects, effects)}</span> : null}{item.skills.length ? <span class="equipment-detail-wide"><small>Skills</small>{tooltipText(skills)}</span> : null}
+    {requirements.length ? <span class={`equipment-detail-wide requirement-detail${effectiveness < 1 ? " is-unmet" : ""}`}><small>Requirements</small><span class="tile-text-anchor" tabindex="0"><b class="requirement-values">{requirements.map((requirement, index) => <span class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}>{index ? ", " : ""}{capitalize(requirement.key)} {formatProjectedValue(requirement, fmt)}</span>)}</b><span class="tile-text-tooltip" role="tooltip">{requirementText}</span></span>{effectiveness < 1 ? <em tabindex="0">{precise((1 - effectiveness) * 100)}% penalty to item stats</em> : null}</span> : null}
   </div> as HTMLElement;
 }
 
@@ -37,10 +39,13 @@ export function itemRequirementRows(item: ItemInstance, stats: Stats, baselineIt
   return STAT_KEYS.filter((key) => (item.requirements[key] ?? 0) > 0 || (baselineItem?.requirements[key] ?? 0) > 0).map((key) => { const newVal = item.requirements[key] ?? 0; return { key, currentVal: baselineItem?.requirements[key] ?? newVal, newVal, unmet: newVal > stats[key] }; });
 }
 
-function detailValue(currentVal: number, newVal: number, format: (value: number) => string): HTMLElement { const tone = previewTone({ currentVal, newVal }); return <b class={tone === "gain" ? "is-gain-preview" : tone === "cost" ? "is-cost-preview" : ""}>{formatPreviewValue({ currentVal, newVal }, format)}</b> as HTMLElement; }
-function detailText(currentVal: string, newVal: string): HTMLElement { return <b class={currentVal !== newVal ? "is-gain-preview" : ""}>{formatPreviewValue({ currentVal, newVal })}</b> as HTMLElement; }
+function detailValue(currentVal: number, newVal: number, format: (value: number) => string): HTMLElement { const tone = previewTone({ currentVal, newVal }); return <b class={tone === "gain" ? "is-gain-preview" : tone === "cost" ? "is-cost-preview" : ""}>{formatProjectedValue({ currentVal, newVal }, format)}</b> as HTMLElement; }
+function effectList(current: string[], projected: string[]): HTMLElement {
+  return <ul class="item-effect-list">{projected.map((text, index) => <li class={current[index] !== text ? "is-gain-preview" : ""} tabindex="0"><span>{text}</span><span class="tile-text-tooltip" role="tooltip">{text}</span></li>)}</ul> as HTMLElement;
+}
+function tooltipText(text: string, className = ""): HTMLElement { return <span class="tile-text-anchor" tabindex="0"><b class={className}>{text}</b><span class="tile-text-tooltip" role="tooltip">{text}</span></span> as HTMLElement; }
 
-function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string {
+function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string[] {
   const effects = item.affixes.map(capitalize); const effectiveness = itemRequirementMultiplier(item, effectiveStats);
   if (item.blockChance > 0) effects.push(`${precise(item.blockChance * effectiveness * 100)}% block`, `${fmt(bucklerBlockCost(item, effectiveStats))} stamina/block`);
   if (item.attractionSpeed > 0) effects.push(`Attraction ${fmt(item.attractionSpeed * effectiveness)} px/s`);
@@ -57,7 +62,7 @@ function itemEffectSummary(item: ItemInstance, effectiveStats: Stats): string {
   const accessory = item.accessoryBonuses; if ((accessory?.manaSkillLevels ?? 0) > 0) effects.push(`+${accessory!.manaSkillLevels} Mana skill levels`); if ((accessory?.staminaSkillLevels ?? 0) > 0) effects.push(`+${accessory!.staminaSkillLevels} Stamina skill levels`); if ((accessory?.allSkillLevels ?? 0) > 0) effects.push(`+${accessory!.allSkillLevels} All skill levels`); if ((accessory?.globalCooldownReduction ?? 0) > 0) effects.push(`${precise(accessory!.globalCooldownReduction! * effectiveness * 100)}% global cooldown reduction`); if ((accessory?.manaCostReduction ?? 0) > 0) effects.push(`${precise(accessory!.manaCostReduction! * effectiveness * 100)}% Mana cost reduction`); if ((accessory?.lifeCostReduction ?? 0) > 0) effects.push(`${precise(accessory!.lifeCostReduction! * effectiveness * 100)}% Life cost reduction`); for (const [kind, fraction] of Object.entries(accessory?.physicalDamage ?? {})) effects.push(`+${precise((fraction ?? 0) * effectiveness * 100)}% ${capitalize(kind)} damage on physical hits`);
   for (const key of STAT_KEYS) if ((item.statBonuses[key] ?? 0) !== 0) effects.push(`+${fmt((item.statBonuses[key] ?? 0) * effectiveness)} ${capitalize(key)}`);
   for (const key of ITEM_PERKS) if ((item.perks?.[key] ?? 0) > 0) effects.push(`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]! * effectiveness) : `${precise(item.perks![key]! * effectiveness * 100)}%`}`);
-  return effects.join(", ");
+  return effects;
 }
 function fmt(value: number): string { return Number.isInteger(value) ? String(value) : value.toFixed(1); }
 function precise(value: number): string { return Number(value.toFixed(4)).toString(); }

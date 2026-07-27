@@ -1,11 +1,11 @@
 import type { ItemInstance } from "../common/items.ts";
-import type { GroundDrop, HeroSummary, PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
+import type { GroundDrop, HeroSummary, PanelTriggers, PlayerId, PlayerProgress, UnitBuild } from "../common/protocol.ts";
 
 export interface IssuedUnit { build: UnitBuild; mode: "competitive" | "solo" | "training" }
 export interface QueuedEquipment { item: ItemInstance; senderId: PlayerId; senderName: string; backlash: boolean }
 export interface Player {
   id: PlayerId; name: string; score: number; waveNumber: number; maxWaveReached: number; progress: PlayerProgress; connected: boolean;
-  panelTriggers: { character: boolean; inventory: boolean };
+  panelTriggers: PanelTriggers;
   realmOptedIn: boolean; realmId?: string; waitingSince: number; outgoingRotation: number; queueCursor: number;
   issuedUnits: Map<string, IssuedUnit>; groundDrops: Map<string, GroundDrop>; deferredItems: ItemInstance[];
   incomingQueues: Map<PlayerId, QueuedEquipment[]>; backlashQueue: QueuedEquipment[]; deathEchoes: UnitBuild[];

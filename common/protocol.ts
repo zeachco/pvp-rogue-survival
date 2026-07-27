@@ -3,8 +3,10 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 29;
+export const PROTOCOL_VERSION = 30;
 export type PlayerId = string;
+export type PanelTrigger = "character" | "inventory" | "multiplayer";
+export type PanelTriggers = Record<PanelTrigger, boolean>;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
 export interface InventoryTile { id: string; key: string; item: ItemInstance; quantity: number }
 export interface PlayerProgress {
@@ -39,7 +41,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("updateAllocation"), allocation: statsSchema }), z.object({ type: z.literal("respecStats"), allocation: statsSchema }), z.object({ type: z.literal("creepDefeated"), unitId: z.string().min(1) }),
   z.object({ type: z.literal("collectDrop"), dropId: z.string().min(1) }), z.object({ type: z.literal("reconcileDrops"), activeDropIds: z.array(z.string()), pendingDropIds: z.array(z.string()) }), z.object({ type: z.literal("deferDrop"), dropId: z.string().min(1) }), tileCommand("equipItem"), tileCommand("sellItem"), tileCommand("purgeItem"), tileCommand("upgradeItem"), tileCommand("sendItem"), tileCommand("extractSkill"),
   z.object({ type: z.literal("heroDefeated"), sourceUnitId: z.string().optional() }), z.object({ type: z.literal("suicide") }), z.object({ type: z.literal("requestWave") }), z.object({ type: z.literal("leaveRealm") }), z.object({ type: z.literal("enterRealm") }),
-  z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() }), z.object({ type: z.literal("logout") }), z.object({ type: z.literal("listHeroes") }), z.object({ type: z.literal("inspectHero"), heroId: z.string().min(1) }), z.object({ type: z.literal("dismissPanelTrigger"), panel: z.enum(["character", "inventory"]) })
+  z.object({ type: z.literal("scoreSnapshot"), score: z.number(), health: z.number() }), z.object({ type: z.literal("logout") }), z.object({ type: z.literal("listHeroes") }), z.object({ type: z.literal("inspectHero"), heroId: z.string().min(1) }), z.object({ type: z.literal("dismissPanelTrigger"), panel: z.enum(["character", "inventory", "multiplayer"]) })
 ]);
 const serverEnvelope = z.object({ type: z.enum(["welcome", "loggedOut", "leaderboard", "heroProfile", "realmUpdated", "incomingWave", "waveAdjusted", "creepDefeatResolved", "collectItemResult", "dropsReconciled", "progressionUpdated", "groundDropCreated", "scoreAwarded", "suicideResolved", "serverNotice"]) }).passthrough();
 export const serverMessageSchema = serverEnvelope.transform((value) => value as unknown as ServerMessage);
@@ -59,10 +61,10 @@ export type ClientMessage =
   | { type: "scoreSnapshot"; score: number; health: number }
   | { type: "logout" | "listHeroes" }
   | { type: "inspectHero"; heroId: string }
-  | { type: "dismissPanelTrigger"; panel: "character" | "inventory" };
+  | { type: "dismissPanelTrigger"; panel: PanelTrigger };
 
 export type ServerMessage =
-  | { type: "welcome"; playerId: PlayerId; player: PublicPlayer; progress: PlayerProgress; panelTriggers: { character: boolean; inventory: boolean }; realm: RealmState; config: ServerConfig }
+  | { type: "welcome"; playerId: PlayerId; player: PublicPlayer; progress: PlayerProgress; panelTriggers: PanelTriggers; realm: RealmState; config: ServerConfig }
   | { type: "loggedOut" }
   | { type: "leaderboard"; heroes: HeroSummary[] }
   | { type: "heroProfile"; hero: PublicHeroProfile }

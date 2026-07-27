@@ -8,6 +8,10 @@ export function formatPreviewValue<T>(value: PreviewValue<T>, format: (entry: T)
   return projected === current ? current : `${current} → ${projected}`;
 }
 
+export function formatProjectedValue<T>(value: PreviewValue<T>, format: (entry: T) => string = String): string {
+  return format(value.newVal ?? value.currentVal);
+}
+
 export function previewTone(value: PreviewValue<number>, higherIsBetter = true): PreviewTone {
   if (value.newVal === null) return "cost";
   if (value.newVal === value.currentVal) return "same";

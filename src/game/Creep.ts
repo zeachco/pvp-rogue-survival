@@ -124,6 +124,11 @@ export class Creep extends Unit {
     }
     ctx.fillStyle = "rgba(0,0,0,.5)"; ctx.fillRect(-16, -28, 32, 4);
     ctx.fillStyle = "#f1fffa"; ctx.fillRect(-16, -28, 32 * this.hp / this.maxHp, 4);
+    if (sentItem) {
+      ctx.font = "600 12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillStyle = "#eafffb"; ctx.shadowColor = "rgba(0,0,0,.95)"; ctx.shadowBlur = 4;
+      ctx.fillText(this.emitterName, 0, -34);
+    }
     if (this.pendingAttack) {
       ctx.strokeStyle = "#ffea77"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, this.radius + 7, 0, Math.PI * 2); ctx.stroke();
     }
