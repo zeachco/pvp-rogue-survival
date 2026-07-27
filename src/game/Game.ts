@@ -16,7 +16,7 @@ import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import { enqueueWave, releaseReadySpawns, removeInactive } from "./systems/lifecycle";
 import { resolveCombat } from "./systems/combat";
-import { castForceFieldTargets, HeroCombatSystem } from "./systems/HeroCombatSystem";
+import { cancelHostileProjectiles, castForceFieldTargets, HeroCombatSystem, isSkillActive } from "./systems/HeroCombatSystem";
 import { AuraSystem } from "./systems/AuraSystem";
 import { CanvasRenderer } from "./render/CanvasRenderer";
 import { clamp, distance, type Camera, type PlayerState, type Vector2 } from "./types";
@@ -70,9 +70,10 @@ export class Game {
       onEquip: (tileId) => this.socket.send({ type: "equipItem", tileId }), onSell: (tileId, bulk) => this.socket.send({ type: "sellItem", tileId, bulk }),
       onPurge: (tileId, bulk) => this.socket.send({ type: "purgeItem", tileId, bulk }), onUpgrade: (tileId, bulk) => this.socket.send({ type: "upgradeItem", tileId, bulk }),
       onSend: (tileId, bulk) => this.socket.send({ type: "sendItem", tileId, bulk }), onExtract: (tileId, bulk) => this.socket.send({ type: "extractSkill", tileId, bulk }),
+      onPromoteScrap: (target, bulk) => this.socket.send({ type: "promoteScrap", target, bulk }),
       onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
       onEnterRealm: () => this.enterRealm(), onKillPlayer: () => { if (window.confirm("Kill this hero? Death progression and currency penalties will apply.")) this.socket.send({ type: "suicide" }); }, onBack: () => this.clearInspection(), onLogout: () => this.socket.send({ type: "logout" }),
-      onInspectHero: (heroId) => this.socket.send({ type: "inspectHero", heroId }), onToggleSpell: (skill) => { this.heroCombat.toggleSkill(skill); this.hud.setSpells(this.heroCombat.spellSlots(this.player!.progress, this.hero)); }, onDismissPanelTrigger: (panel) => this.socket.send({ type: "dismissPanelTrigger", panel })
+      onInspectHero: (heroId) => this.socket.send({ type: "inspectHero", heroId }), onReorderSkills: (skillOrder) => this.socket.send({ type: "reorderSkills", skillOrder }), onDismissPanelTrigger: (panel) => this.socket.send({ type: "dismissPanelTrigger", panel })
     });
     if (this.savedSession) this.hud.setJoinName(this.savedSession.username); this.registerDebugGlobal();
   }
@@ -145,7 +146,7 @@ export class Game {
     const movementInput = { x: Number(this.keys.has("d")) - Number(this.keys.has("a")), y: Number(this.keys.has("s")) - Number(this.keys.has("w")) };
     this.hero.move(movementInput, deltaSeconds, this.map.width, this.map.height);
     this.heroCombat.update(deltaSeconds, movementInput, this.hero, this.arena, this.player.progress, this.balance, systemRandom);
-    this.auraSystem.update(deltaSeconds, this.hero, this.player.progress, this.creeps, systemRandom, this.heroCombat.disabledSkills);
+    this.auraSystem.update(deltaSeconds, this.hero, this.player.progress, this.creeps, systemRandom);
     for (const creep of this.creeps) creep.setGroundMovementMultiplier(1);
     for (const swamp of this.arena.swamps) swamp.update(deltaSeconds, this.creeps);
     for (const creep of this.creeps) {
@@ -156,16 +157,16 @@ export class Game {
       if (attack?.type === "melee") this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 70, Math.PI, attack.windup, 0.14, strike.damage, creep, undefined, creep.build.mainHand, presentation, emittedImpactForce(creep, "radial", attack.origin)));
       if (attack?.type === "projectile") this.projectiles.push(new Projectile(attack.origin, attack.target, strike.damage, "creep", undefined, creep, presentation, creep.build.mainHand));
       if (attack?.type === "fireBreath") { this.attacks.push(new AttackArea("creep", attack.origin, attack.angle, 150, 0.62, 0.22, 0.18, strike.damage * 1.1 * spellPower(creep.skillLevels.get("fireBreath") ?? 1), creep, "fireBreath", creep.build.mainHand, { kind: "fire", critical: strike.critical })); this.arena.spellEffects.push(new SpellEffect("fireBreath", attack.origin, attack.angle)); }
-      if (attack?.type === "forceField") { castForceFieldTargets(creep, [this.hero], creep.skillLevels.get("gravityPull") ?? 1, systemRandom); this.arena.spellEffects.push(new SpellEffect("gravityPull", creep.position)); }
+      if (attack?.type === "forceField") { const level = creep.skillLevels.get("gravityPull") ?? 1; castForceFieldTargets(creep, [this.hero], level, systemRandom); cancelHostileProjectiles(this.projectiles, creep, "creep", level); this.arena.spellEffects.push(new SpellEffect("gravityPull", creep.position)); }
     }
     for (const attack of this.attacks) attack.update(deltaSeconds);
     const emittedProjectiles: Projectile[] = [];
     for (const projectile of this.projectiles) { projectile.update(deltaSeconds); emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds)); correctArenaBoundary(projectile, this.map.width, this.map.height, deltaSeconds); }
     this.projectiles.push(...emittedProjectiles);
     for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
-    const baseStats = this.player.progress.stats; const attractionEnabled = !this.heroCombat.disabledSkills.has("attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, ...[this.player.progress.mainHand, this.player.progress.offHand, this.player.progress.amulet, this.player.progress.charm].map((item) => (item?.attractionSpeed ?? 0) * (item ? itemRequirementMultiplier(item, baseStats) : 1))) : 0;
+    const baseStats = this.player.progress.stats; const attractionEnabled = isSkillActive(this.player.progress, "attraction"); const universalAttraction = this.player.progress.universalSkills.includes("attraction") ? 35 : 0; const attractionSpeed = attractionEnabled ? Math.max(universalAttraction, ...[this.player.progress.mainHand, this.player.progress.offHand, this.player.progress.amulet, this.player.progress.charm].map((item) => (item?.attractionSpeed ?? 0) * (item ? itemRequirementMultiplier(item, baseStats) : 1))) : 0;
     for (const drop of this.drops) { if (drop.escaping) { drop.move(deltaSeconds); if (drop.outside(this.map.width, this.map.height) && drop.active) { drop.active = false; this.socket.send({ type: "deferDrop", dropId: drop.dropId }); } } else { if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId)) drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds); correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds); } }
-    resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); if (!this.heroCombat.disabledSkills.has("deathBurst")) this.auraSystem.resolveDeaths(this.hero, this.player.progress, this.creeps, systemRandom); this.collectKills(); this.collectDrops();
+    resolveCombat(this.arena, this.hero, this.player.progress.mainHand, this.map.width, this.map.height, systemRandom); this.auraSystem.resolveDeaths(this.hero, this.player.progress, this.creeps, systemRandom); this.collectKills(); this.collectDrops();
     if ([...this.pendingPickupAt.values()].some((sentAt) => performance.now() - sentAt >= 3000)) this.reconcileDrops();
     this.arena.updateCombatTexts(deltaSeconds);
     removeInactive(this.attacks); removeInactive(this.projectiles); removeInactive(this.creeps); removeInactive(this.drops); removeInactive(this.arena.spellEffects); removeInactive(this.arena.swamps);

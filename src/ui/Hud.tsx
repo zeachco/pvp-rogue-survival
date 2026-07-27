@@ -5,8 +5,10 @@ import {
   itemRequirementMultiplier,
   itemResourceCostReduction,
   itemStackKey,
+  RARITIES,
   statsWithItemBonuses,
   type ItemInstance,
+  type Rarity,
   type SkillId,
 } from "../../common/items";
 import { BALANCE } from "../../common/balance";
@@ -33,6 +35,7 @@ import { itemTile, orderInventoryTiles } from "./InventoryView";
 import {
   inventoryCapacity,
   occupiedInventorySlots,
+  SCRAP_PROMOTION_COST,
 } from "../../common/inventory";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import type { CurrencyPreview, HudCallbacks, SpellSlot } from "./types";
@@ -146,6 +149,8 @@ export class Hud {
     <div class="backpack-scroll" />
   ) as HTMLElement;
   private readonly spellBar = (<section class="spell-bar" />) as HTMLElement;
+  private readonly learnedSkillsBar = (<div class="skill-bar learned-skills-bar" aria-label="Learned skills" />) as HTMLElement;
+  private readonly gearedSkillsBar = (<div class="skill-bar geared-skills-bar" aria-label="Geared skills" />) as HTMLElement;
   private readonly resourceDock = (
     <section class="resource-dock" />
   ) as HTMLElement;
@@ -224,6 +229,7 @@ export class Hud {
   private currentSpells: SpellSlot[] = [];
   private spellPreview?: Map<SkillId, number | null>;
   private inventoryHover?: { tileId: string; actionIndex?: number };
+  private activeScrapPromotion?: Exclude<Rarity, "common">;
   private readonly spellNodes = new Map<string, HTMLElement>();
   constructor(
     private readonly root: HTMLDivElement,
@@ -296,6 +302,9 @@ export class Hud {
       </aside>
     ) as HTMLElement;
     this.inventoryNode.append(this.inventoryHeader, this.backpackScroll);
+    for (const target of ["uncommon", "rare", "epic"] as const) {
+      this.bindScrapPromotion(target);
+    }
     this.characterToggle.onclick = () =>
       this.togglePanel(
         this.characterPanel,
@@ -560,15 +569,6 @@ export class Hud {
   setSpells(spells: SpellSlot[]): void {
     this.currentSpells = spells;
     this.renderSpellSlots();
-    [
-      ...this.spellBar.querySelectorAll<HTMLButtonElement>(".spell-slot"),
-    ].forEach((button, index) => {
-      const spell = spells[index];
-      if (!spell) return;
-      button.classList.toggle("is-disabled", Boolean(spell.disabled));
-      button.setAttribute("aria-pressed", String(Boolean(spell.disabled)));
-      button.onclick = () => this.callbacks.onToggleSpell(spell.id);
-    });
   }
   private previewSpellLevels(skills?: SkillId[]): void {
     this.spellPreview =
@@ -604,20 +604,43 @@ export class Hud {
           costLabel: SKILLS[id].passive
             ? `0 ${capitalize(SKILLS[id].resource)}`
             : capitalize(SKILLS[id].resource),
+          active: false,
+          bar: this.player?.progress.learnedSkills.includes(id) ? "learned" as const : "geared" as const,
         },
     );
-    const structure = spells
+    const visible = spells.filter((spell) => spell.active);
+    const structure = visible
       .map(
-        ({ id, label, level, resource }) =>
-          `${id}:${label}:${level}:${resource}:${preview?.get(id) ?? ""}`,
+        ({ id, label, level, resource, bar }) =>
+          `${bar}:${id}:${label}:${level}:${resource}:${preview?.get(id) ?? ""}`,
       )
       .join("|");
     if (structure !== this.spellStructureSignature) {
       this.spellStructureSignature = structure;
       this.spellNodes.clear();
+      this.learnedSkillsBar.replaceChildren(
+        <small class="skill-bar-label">Learned</small>,
+        ...visible.filter((spell) => spell.bar === "learned").map((spell) => this.renderSpellSlot(spell, preview)),
+      );
+      this.gearedSkillsBar.replaceChildren(
+        <small class="skill-bar-label">Geared</small>,
+        ...visible.filter((spell) => spell.bar === "geared").map((spell) => this.renderSpellSlot(spell, preview)),
+      );
       this.spellBar.replaceChildren(
-        ...(spells.length
-          ? spells.map((spell) => {
+        ...(visible.length ? [this.learnedSkillsBar, this.gearedSkillsBar] : [<small>No skills</small>]),
+      );
+    }
+    for (const spell of spells) {
+      const ratio =
+        spell.cooldownMax > 0
+          ? Math.max(0, Math.min(1, spell.cooldown / spell.cooldownMax))
+          : 0;
+      this.spellNodes
+        .get(spell.id)
+        ?.style.setProperty("--cooldown-progress", String(ratio));
+    }
+  }
+  private renderSpellSlot(spell: SpellSlot, preview?: Map<SkillId, number | null>): HTMLButtonElement {
               const cooldown = (<span class="spell-cooldown" />) as HTMLElement;
               this.spellNodes.set(spell.id, cooldown);
               const projected = preview?.get(spell.id);
@@ -629,31 +652,27 @@ export class Hud {
               };
               const changed =
                 projected !== undefined && projected !== spell.actualLevel;
-              return (
+              const button = (
                 <button
-                  class={`spell-slot spell-resource-${spell.resource}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
+                  class={`spell-slot spell-resource-${spell.resource}${spell.cooldown <= 0 ? " is-ready" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
                   type="button"
                   aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}`}
                 >
                   {cooldown}
                   <strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
-                  <small>Lv{formatPreviewValue(levelValue)}</small>
+                  <small>{formatPreviewValue(levelValue)}</small>
                   {this.renderSkillTooltip(spell, shownLevel)}
                 </button>
-              );
-            })
-          : [<small>No spells</small>]),
-      );
-    }
-    for (const spell of spells) {
-      const ratio =
-        spell.cooldownMax > 0
-          ? Math.max(0, Math.min(1, spell.cooldown / spell.cooldownMax))
-          : 0;
-      this.spellNodes
-        .get(spell.id)
-        ?.style.setProperty("height", `${ratio * 100}%`);
-    }
+              ) as HTMLButtonElement;
+              button.onclick = () => this.moveSpellToListEnd(spell.id);
+              return button;
+  }
+  private moveSpellToListEnd(skill: SkillId): void {
+    const order = this.currentSpells.map(({ id }) => id);
+    const index = order.indexOf(skill);
+    if (index < 0) return;
+    order.push(...order.splice(index, 1));
+    this.callbacks.onReorderSkills(order);
   }
   private renderSkillTooltip(spell: SpellSlot, level: number): HTMLElement {
     const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
@@ -689,8 +708,8 @@ export class Hud {
       spell.id === "healing"
         ? healingCooldown(shownLevel)
         : progress && stats
-          ? skillCooldown(spell.id, progress.mainHand, stats) *
-            cooldownScale(shownLevel, derivedStats(stats).cooldownReduction)
+          ? skillCooldown(spell.id, progress.mainHand, stats, shownLevel) *
+            (spell.id === "flurry" ? 1 : cooldownScale(shownLevel, derivedStats(stats).cooldownReduction))
           : skill.cooldown;
     const range =
       progress && stats
@@ -972,6 +991,7 @@ export class Hud {
       );
       if (cell) setText(cell, String(value));
     }
+    if (this.activeScrapPromotion) this.previewScrapPromotion(this.activeScrapPromotion);
     this.loadoutNode.replaceChildren(
       loadoutCell("Main hand", progress.mainHand),
       loadoutCell("Offhand", progress.offHand),
@@ -1227,6 +1247,30 @@ export class Hud {
       );
       applyPreviewClass(cell, previewTone(value));
     }
+  }
+  private bindScrapPromotion(target: Exclude<Rarity, "common">): void {
+    const cell = this.inventoryHeader.querySelector<HTMLElement>(`.currency-cell[data-currency="${target}"]`);
+    if (!cell) return;
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-label", `Promote scrap to ${target}`);
+    cell.title = `Click: convert ${SCRAP_PROMOTION_COST} lower-tier scrap into 1 ${target} scrap. Shift-click: convert all complete batches.`;
+    cell.classList.add("is-scrap-promotion");
+    cell.onclick = (event) => this.callbacks.onPromoteScrap(target, event.shiftKey);
+    cell.onpointerenter = () => { this.activeScrapPromotion = target; this.previewScrapPromotion(target); };
+    cell.onpointerleave = () => { this.activeScrapPromotion = undefined; this.previewCurrencies(); };
+    cell.onfocus = () => { this.activeScrapPromotion = target; this.previewScrapPromotion(target); };
+    cell.onblur = () => { this.activeScrapPromotion = undefined; this.previewCurrencies(); };
+    cell.onkeydown = (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      this.callbacks.onPromoteScrap(target, event.shiftKey);
+    };
+  }
+  private previewScrapPromotion(target: Exclude<Rarity, "common">): void {
+    if (!this.player) return;
+    const source = RARITIES[RARITIES.indexOf(target) - 1]!;
+    this.previewCurrencies({ [source]: -SCRAP_PROMOTION_COST, [target]: 1 });
   }
   private previewEffectiveStats(
     baseStats: Stats,

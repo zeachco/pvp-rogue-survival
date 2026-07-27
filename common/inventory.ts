@@ -4,6 +4,8 @@ import { MAX_SKILL_LEVEL } from "./combat";
 
 export interface InventoryResult { changed: boolean; reason: string; dropped?: ItemInstance[]; sent?: ItemInstance; created?: ItemInstance }
 export const sellYield = (item: ItemInstance): number => item.sellValue * 10;
+export const SCRAP_PROMOTION_COST = 100;
+export interface ScrapPromotionResult { changed: boolean; promotions: number; reason: string }
 export function upgradeCosts(item: ItemInstance): { gold: number; scraps: number } { const attributePoints = Object.values(item.statBonuses).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0); const factor = 1 + 0.1 * attributePoints; return { gold: Math.ceil(item.sellValue * 1.5 * factor), scraps: Math.ceil(2 * (item.level + 1) * factor) }; }
 export const inventoryCapacity = (level: number): number => 8 + Math.ceil(level / 10);
 export const occupiedInventorySlots = (progress: PlayerProgress): number => progress.inventoryTiles.filter((tile) => tile.quantity > 0).length;
@@ -82,6 +84,17 @@ export function extractFromInventory(progress: PlayerProgress, tileId: string): 
 
 export function extractableSkills(item: ItemInstance): SkillId[] { return item.skills.filter((skill) => skill !== "blocking"); }
 export function extractionCost(progress: PlayerProgress, skills: SkillId[]): number { return skills.reduce((total, skill) => total + 10 * (progress.learnedSkillLevels[skill] ?? (progress.learnedSkills.includes(skill) ? 1 : 0)), 0); }
+export function promoteScraps(scraps: Record<Rarity, number>, target: Rarity, bulk = false): ScrapPromotionResult {
+  const rarities: Rarity[] = ["common", "uncommon", "rare", "epic"];
+  const source = rarities[rarities.indexOf(target) - 1];
+  if (!source) return { changed: false, promotions: 0, reason: "Common scrap cannot be promoted." };
+  const available = Math.floor(scraps[source] / SCRAP_PROMOTION_COST);
+  const promotions = bulk ? available : Math.min(1, available);
+  if (!promotions) return { changed: false, promotions: 0, reason: `Requires ${SCRAP_PROMOTION_COST} ${source} scrap.` };
+  scraps[source] -= promotions * SCRAP_PROMOTION_COST;
+  scraps[target] += promotions;
+  return { changed: true, promotions, reason: `Promoted ${promotions * SCRAP_PROMOTION_COST} ${source} scrap into ${promotions} ${target} scrap.` };
+}
 
 function storeExisting(progress: PlayerProgress, item: ItemInstance): boolean { let tile = progress.inventoryTiles.find((candidate) => candidate.key === itemStackKey(item)); if ((!tile || tile.quantity === 0) && occupiedInventorySlots(progress) >= inventoryCapacity(progress.level)) return false; if (!tile) { tile = { id: `tile-${item.id}`, key: itemStackKey(item), item, quantity: 0 }; progress.inventoryTiles.push(tile); } tile.quantity += 1; return true; }
 function availableTile(progress: PlayerProgress, id: string): InventoryTile | undefined { const tile = findTile(progress, id); return tile && tile.quantity > equippedCopies(progress, tile) ? tile : undefined; }

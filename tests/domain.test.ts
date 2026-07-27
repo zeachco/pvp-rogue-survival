@@ -13,6 +13,8 @@ import {BALANCE} from "../common/balance";
 import {
   attackProfile,
   bucklerBlockCost,
+  forceFieldRange,
+  flurryCooldown,
   healingCast,
   healingCooldown,
   healingFraction,
@@ -92,9 +94,11 @@ import {
 import {
   bloodSkillDamage,
   bloodSkillLifeCost,
+  activeSkillIds,
   actualSkillLevel,
   effectiveSkillLevel,
   forceField,
+  forceFieldFalloff,
   forceFieldDamage,
   skillHealthRequirementMet
 } from "../src/game/systems/HeroCombatSystem";
@@ -525,7 +529,7 @@ describe("weapon skills", () => {
 });
 describe("equipped skill levels", () => {
   test(
-      "temporarily adds one level and requires matching gear until universally unlocked",
+      "temporarily adds one level while learned skills remain active without matching gear",
       () => {
         const state = progress();
         state.level = 100;
@@ -534,8 +538,6 @@ describe("equipped skill levels", () => {
         state.learnedSkillLevels.bash = 3;
         expect(effectiveSkillLevel(state, "bash")).toBe(4);
         state.mainHand = {...state.mainHand, skills : []};
-        expect(effectiveSkillLevel(state, "bash")).toBe(0);
-        state.universalSkills.push("bash");
         expect(effectiveSkillLevel(state, "bash")).toBe(3);
         const relic = generateRelic(1, "rare", 0);
         state.offHand = relic;
@@ -552,6 +554,20 @@ test("caps active skill level at the hero level while retaining its actual level
   state.universalSkills.push("bash");
   expect(actualSkillLevel(state, "bash")).toBe(15);
   expect(effectiveSkillLevel(state, "bash")).toBe(4);
+});
+test("activates every learned or currently geared skill without a level-based rail limit", () => {
+  const state = progress();
+  state.level = 5;
+  state.mainHand = { ...state.mainHand!, skills: ["bash", "sweep"] };
+  state.universalSkills.push("bash", "sweep");
+  state.learnedSkills.push("bash", "sweep");
+  state.learnedSkillLevels.bash = 1; state.learnedSkillLevels.sweep = 1;
+  state.skillOrder = ["sweep", "healing", "bash"];
+  expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
+  state.level = 6;
+  expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
+  state.level = 0;
+  expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
 });
 describe("amulets and charms", () => {
   test("rolls rarity-bounded accessories and equips amulets and charms independently", () => {
@@ -767,8 +783,13 @@ describe("Force Field", () => {
     expect(pushed.velocity).toEqual({x : 40, y : 0});
     expect(interrupted).toBe(1);
     expect(SKILLS.gravityPull.label).toBe("Force Field");
-    expect(forceFieldDamage(1)).toBeCloseTo(0.2);
-    expect(forceFieldDamage(100)).toBeCloseTo(3.17);
+    expect(forceFieldRange(1)).toBe(200);
+    expect(forceFieldRange(99)).toBe(800);
+    expect(forceFieldFalloff(99, 800)).toBe(0);
+    expect(forceFieldFalloff(99, 700)).toBeCloseTo(.125);
+    expect(forceFieldFalloff(99, 100)).toBeCloseTo(.875);
+    expect(forceFieldDamage(1)).toBeCloseTo(0.6);
+    expect(forceFieldDamage(100)).toBeCloseTo(9.51);
   });
 });
 describe("hero status HUD summaries", () => {
@@ -1057,6 +1078,11 @@ describe("spell range and recovery", () => {
         expect(derivedStats({...ZERO_STATS, spirit : 20}).hpRegen)
             .toBeCloseTo(0.105);
       });
+});
+test("scales Flurry cooldown from ten seconds at level one to one second at level ninety-nine", () => {
+  expect(flurryCooldown(1)).toBe(10);
+  expect(flurryCooldown(99)).toBe(1);
+  expect(skillCooldown("flurry", starterClub(), ZERO_STATS, 99)).toBe(1);
 });
 describe("Healing scaling", () => {
   test("scales from level 1 to 99, adds flat plus stamina-scaled healing, and charges twice the restored HP", () => {

@@ -1,6 +1,6 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
-import { collectIntoInventory, dropInventoryOverflow, emptyScraps, equipFromInventory, extractFromInventory, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
+import { collectIntoInventory, dropInventoryOverflow, emptyScraps, equipFromInventory, extractFromInventory, promoteScraps, purgeFromInventory, purgeYield, removeEmptyInventoryTiles, sellFromInventory, sendFromInventory, upgradeFromInventory, type InventoryResult } from "../common/inventory.ts";
 import { changeItemRarity, generateAccessory, generateBuckler, generateItem, generateRelic, itemRequirementMultiplier, itemSkillLevelBonus, itemStackKey, nextRarity, rollRarity, statsWithItemBonuses, type ItemInstance, type SkillId, type WeaponClass } from "../common/items.ts";
 import { ENEMY_BONUS_SKILLS, SKILLS } from "../common/content.ts";
 import { cappedSkillLevel, timeHarvestItemSkillBonus } from "../common/combat.ts";
@@ -34,7 +34,7 @@ export class GameService {
   logout(playerId: PlayerId): void { const player = this.options.repository.get(playerId); if (!player) return; this.disconnect(playerId); player.realmOptedIn = false; player.realmId = undefined; player.issuedUnits.clear(); player.groundDrops.clear(); player.deferredItems.length = 0; player.incomingQueues.clear(); player.backlashQueue.length = 0; for (const other of this.options.repository.values()) { other.incomingQueues.delete(playerId); other.backlashQueue = other.backlashQueue.filter((entry) => entry.senderId !== playerId); } this.options.repository.markDirty(player.id); }
   findPlayer(heroId?: string, username?: string): Player | undefined { return heroId ? this.options.repository.get(heroId) : username ? this.options.repository.getByUsername(username) : undefined; }
   leaderboard(): HeroSummary[] { return [...this.options.repository.values()].map((player) => ({ id: player.id, username: player.name, level: player.progress.level, connected: player.connected, receivesDeathEchoes: false })).sort((a, b) => b.level - a.level || a.username.localeCompare(b.username)).map((hero, index) => ({ ...hero, receivesDeathEchoes: index === 0 })); }
-  publicHeroProfile(heroId: string): PublicHeroProfile | undefined { const player = this.options.repository.get(heroId); if (!player) return undefined; const p = player.progress; return { id: player.id, username: player.name, level: p.level, maxWaveReached: player.maxWaveReached, stats: p.stats, mainHand: p.mainHand, offHand: p.offHand, amulet: p.amulet, charm: p.charm, learnedSkills: p.learnedSkills, learnedSkillLevels: p.learnedSkillLevels, universalSkills: p.universalSkills }; }
+  publicHeroProfile(heroId: string): PublicHeroProfile | undefined { const player = this.options.repository.get(heroId); if (!player) return undefined; const p = player.progress; return { id: player.id, username: player.name, level: p.level, maxWaveReached: player.maxWaveReached, stats: p.stats, mainHand: p.mainHand, offHand: p.offHand, amulet: p.amulet, charm: p.charm, learnedSkills: p.learnedSkills, learnedSkillLevels: p.learnedSkillLevels, universalSkills: p.universalSkills, skillOrder: p.skillOrder }; }
 
   handle(playerId: PlayerId, message: Exclude<ClientMessage, { type: "join" }>): void {
     const player = this.options.repository.get(playerId); if (!player) return;
@@ -45,6 +45,7 @@ export class GameService {
       case "collectDrop": return this.collectDrop(player, message.dropId);
       case "reconcileDrops": return this.reconcileDrops(player, message.activeDropIds, message.pendingDropIds);
       case "deferDrop": return this.deferDrop(player, message.dropId);
+      case "promoteScrap": { const result = promoteScraps(player.progress.scraps, message.target, message.bulk); return result.changed ? this.sendProgress(player, result.reason) : this.notice(player, result.reason); }
       case "heroDefeated": return this.heroDefeated(player, message.sourceUnitId);
       case "suicide": this.heroDefeated(player, undefined, true); return this.options.send(player.id, { type: "suicideResolved" });
       case "requestWave": return this.dispatchCurrentWave(player, this.waveMode(player));
@@ -54,6 +55,7 @@ export class GameService {
       case "upgradeItem": return this.applyInventoryAction(player, message.bulk, () => upgradeFromInventory(player.progress, message.tileId, () => this.createId(), () => this.seed()));
       case "extractSkill": return this.applyInventoryAction(player, message.bulk, () => extractFromInventory(player.progress, message.tileId));
       case "sendItem": return this.sendItem(player, message.tileId, message.bulk);
+      case "reorderSkills": return this.reorderSkills(player, message.skillOrder);
       case "leaveRealm": return this.leaveRealm(player);
       case "enterRealm": return this.enterRealm(player);
       case "scoreSnapshot": case "logout": case "listHeroes": case "inspectHero": return;
@@ -77,8 +79,15 @@ export class GameService {
     const inventoryTiles: Player["progress"]["inventoryTiles"] = []; for (const item of starterItems) { const key = itemStackKey(item); const existing = inventoryTiles.find((tile) => tile.key === key); if (existing) existing.quantity += 1; else inventoryTiles.push({ id: `starter-random-tile-${inventoryTiles.length}`, key, item, quantity: 1 }); }
     const player: Player = { id: this.createId(), name: trimmed, score: 0, waveNumber: 0, maxWaveReached: 0, connected: true, realmOptedIn: false, waitingSince: Date.now(), outgoingRotation: 0, queueCursor: 0,
       issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [],
-      panelTriggers: { character: true, inventory: true, multiplayer: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: undefined, offHand: undefined, inventoryTiles, learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"] } };
+      panelTriggers: { character: true, inventory: true, multiplayer: true }, progress: { level: 0, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: undefined, offHand: undefined, inventoryTiles, learnedSkills: ["healing"], learnedSkillLevels: { healing: 1 }, universalSkills: ["healing"], skillOrder: ["healing"] } };
     this.options.repository.save(player); return player;
+  }
+
+  private reorderSkills(player: Player, skillOrder: string[]): void {
+    const seen = new Set<SkillId>();
+    const valid = skillOrder.filter((skill): skill is SkillId => Object.hasOwn(SKILLS, skill)).filter((skill) => !seen.has(skill) && (seen.add(skill), true));
+    player.progress.skillOrder = valid;
+    this.sendProgress(player, "Skill priority updated.");
   }
 
   private dispatchCurrentWave(player: Player, mode: "competitive" | "solo" | "training", resetHero = false): void {

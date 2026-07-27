@@ -18,7 +18,7 @@ import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
 import { Creep } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
-import { castForceField, castForceFieldTargets, forceField, HeroCombatSystem } from "../src/game/systems/HeroCombatSystem";
+import { cancelHostileProjectiles, castForceField, castForceFieldTargets, forceField, HeroCombatSystem } from "../src/game/systems/HeroCombatSystem";
 import { resolveCombat } from "../src/game/systems/combat";
 import { applyImpactForce, emittedImpactForce } from "../src/game/ImpactForce";
 
@@ -49,7 +49,7 @@ describe("arena systems", () => {
     const internal = combat as unknown as { attackCooldown: number; healingCooldown: number; skillCooldowns: Map<string, { remaining: number; maximum: number }> };
     internal.attackCooldown = 5; internal.healingCooldown = 3; internal.skillCooldowns.set("bash", { remaining: 2, maximum: 2 });
     const amulet = { ...generateAccessory(0, "epic", 1, "amulet"), requirements: {} };
-    const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [] };
+    const progress = { level: 1, xp: 0, stats: { ...ZERO_STATS }, allocation: { ...DEFAULT_ALLOCATION }, gold: 0, souls: 0, scraps: emptyScraps(), mainHand: starterClub(), amulet, inventoryTiles: [], learnedSkills: [], learnedSkillLevels: {}, universalSkills: [], skillOrder: ["timeHarvest", "bash"] };
     expect(combat.onKill(progress, hero)).toBe(1);
     expect(internal.attackCooldown).toBe(4); expect(internal.healingCooldown).toBe(2); expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1); expect(hero.blockCooldown).toBe(3);
   });
@@ -79,6 +79,11 @@ describe("arena systems", () => {
     castForceField(state, hero, 1, new SeededRandom(1));
     expect(drop.position).toEqual({ x: 100, y: 0 }); expect(drop.velocity).toEqual({ x: 0, y: 0 }); expect(drop.escaping).toBeFalse();
   });
+  test("Force Field cancels hostile projectiles in its radius without affecting friendly projectiles", () => {
+    const hero = new Hero({ x: 0, y: 0 }); const hostile = new Projectile({ x: 100, y: 0 }, { x: 0, y: 0 }, 1, "creep"); const friendly = new Projectile({ x: 100, y: 0 }, { x: 0, y: 0 }, 1, "hero"); const distant = new Projectile({ x: 250, y: 0 }, { x: 0, y: 0 }, 1, "creep");
+    cancelHostileProjectiles([hostile, friendly, distant], hero, "hero", 1);
+    expect(hostile.active).toBeFalse(); expect(friendly.active).toBeTrue(); expect(distant.active).toBeTrue();
+  });
   test("Burn and Freeze cancel one opposing stack before applying their own", () => {
     const hero = new Hero({ x: 0, y: 0 });
     hero.addStatus({ kind: "burn", remaining: 8, damagePerSecond: 1 }); hero.addStatus({ kind: "burn", remaining: 8, damagePerSecond: 1 });
@@ -88,7 +93,7 @@ describe("arena systems", () => {
     expect(hero.statuses.map((status) => status.kind)).toEqual([ "burn", "burn" ]);
   });
   test("Force Field transfers one randomly selected status stack to each damaged target", () => {
-    const source = new Hero({ x: 0, y: 0 }); const first = new Hero({ x: 100, y: 0 }); const second = new Hero({ x: 200, y: 0 });
+    const source = new Hero({ x: 0, y: 0 }); const first = new Hero({ x: 100, y: 0 }); const second = new Hero({ x: 150, y: 0 });
     source.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 }); source.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 }); source.addStatus({ kind: "poison", remaining: 8, damagePerSecond: 1 }); source.addStatus({ kind: "bleed", remaining: 3, damagePerSecond: .25 });
     castForceFieldTargets(source, [first, second], 1, { next: () => .5 });
     expect(source.statuses.map((status) => status.kind)).toEqual([ "freeze", "freeze", "bleed" ]);

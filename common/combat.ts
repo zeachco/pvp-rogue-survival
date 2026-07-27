@@ -57,13 +57,15 @@ export function skillDamagePreview(skill: SkillId, level: number, stats: Stats):
   }
   return undefined;
 }
-export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats, level = 1): number { if (skill === "swamp") return swampCooldown(level); return SKILLS[skill].cooldown / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
-export function skillRange(skill: SkillId, item?: ItemInstance, level = 1, spirit = 0): number { if (skill === "swamp") return swampRadius(level); if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item?.level ?? 0); }
+export function skillCooldown(skill: SkillId, item?: ItemInstance, stats?: Stats, level = 1): number { if (skill === "swamp") return swampCooldown(level); const base = skill === "flurry" ? flurryCooldown(level) : SKILLS[skill].cooldown; return base / Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) / weaponSkillLevelScale(item?.level ?? 0); }
+export function skillRange(skill: SkillId, item?: ItemInstance, level = 1, spirit = 0): number { if (skill === "swamp") return swampRadius(level); if (skill === "gravityPull") return forceFieldRange(level); if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit); if (skill === "whirlwind") return whirlwindRadius(level); const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0); return (base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) * weaponSkillLevelScale(item?.level ?? 0); }
 export function skillLabel(skill: SkillId): string { return SKILLS[skill].label; }
 export function spellPower(level: number): number { return 1 + Math.max(0, level - 1) * 0.15; }
 export function cooldownScale(level: number, reduction: number): number { return Math.max(0.2, (1 - Math.min(.8, reduction)) * (1 - Math.min(0.5, Math.max(0, level - 1) * 0.04))); }
 export const MAX_SKILL_LEVEL = 99;
 export function cappedSkillLevel(level: number): number { return Math.max(1, Math.min(MAX_SKILL_LEVEL, level)); }
+export function flurryCooldown(level: number): number { return 10 - (cappedSkillLevel(level) - 1) * (9 / 98); }
+export function forceFieldRange(level: number): number { return 200 + (cappedSkillLevel(level) - 1) * (600 / 98); }
 export function manaConversionFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.59 / 98); }
 export function vampiricBoomerangHealingFraction(level: number): number { return 0.01 + (cappedSkillLevel(level) - 1) * (0.79 / 98); }
 export function whirlwindRadius(level: number): number { return 90 + 1.2 * cappedSkillLevel(level); }

@@ -3,7 +3,7 @@ import { statsWithItemBonuses, type SkillId } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
-import { attackProfile } from "../../common/combat";
+import { attackProfile, forceFieldRange } from "../../common/combat";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { distance, normalize, type Camera, type Vector2 } from "./types";
@@ -82,7 +82,7 @@ export class Creep extends Unit {
 
     const attackRange = ranged ? profile.range : this.build.mainHand ? movement.attackRange : profile.range;
     if (this.knownSkills.has("fireBreath") && this.bonusSkillCooldown === 0 && this.mana >= 4 && heroDistance <= 150) { this.mana -= 4; this.bonusSkillCooldown = 9; return { type: "fireBreath", origin: { ...this.position }, angle: Math.atan2(hero.y - this.position.y, hero.x - this.position.x), source: this }; }
-    if (this.knownSkills.has("gravityPull") && this.bonusSkillCooldown === 0 && this.mana >= 8 && heroDistance <= 600) { this.mana -= 8; this.bonusSkillCooldown = 18; return { type: "forceField", source: this }; }
+    if (this.knownSkills.has("gravityPull") && this.bonusSkillCooldown === 0 && this.mana >= 8 && heroDistance < forceFieldRange(this.skillLevels.get("gravityPull") ?? 1)) { this.mana -= 8; this.bonusSkillCooldown = 18; return { type: "forceField", source: this }; }
     if (this.cooldown === 0 && heroDistance <= attackRange) {
       const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
       this.pendingAttack = true;

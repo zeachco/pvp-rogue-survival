@@ -73,5 +73,6 @@ function fromRow(row: HeroRow): Player | undefined {
   if (!blob?.progress || !Number.isFinite(blob.score) || !Number.isFinite(blob.waveNumber)) return undefined;
   blob.progress.level = Number(row.level);
   blob.progress.xp = Math.max(blob.progress.xp, cumulativeXpForLevel(blob.progress.level));
+  blob.progress.skillOrder ??= [...blob.progress.learnedSkills];
   return { id: row.id, name: row.username, score: blob.score, waveNumber: blob.waveNumber, maxWaveReached: Math.max(blob.waveNumber, blob.maxWaveReached ?? 0), progress: blob.progress, panelTriggers: { character: blob.panelTriggers?.character ?? false, inventory: blob.panelTriggers?.inventory ?? false, multiplayer: blob.panelTriggers?.multiplayer ?? false }, connected: false, realmOptedIn: false, waitingSince: 0, outgoingRotation: 0, queueCursor: 0, issuedUnits: new Map(), groundDrops: new Map(), deferredItems: [], incomingQueues: new Map(), backlashQueue: [], deathEchoes: [] };
 }
