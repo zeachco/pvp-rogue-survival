@@ -13,7 +13,7 @@ export function orderInventoryTiles(tiles: InventoryTile[], progress: PlayerProg
 }
 
 export function itemTile(tile: InventoryTile, callbacks: HudCallbacks, progress: PlayerProgress, onPreview?: (item?: InventoryTile["item"], equipped?: boolean, action?: "card" | "upgrade") => void, onCurrencyPreview?: (preview?: CurrencyPreview) => void, onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void, canSend = false): HTMLElement {
-  const item = tile.item; const equipped = itemStackKey(progress.mainHand) === tile.key || Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key); const spare = tile.quantity - Number(equipped); const skills = extractableSkills(item); const extractCost = item.sellValue * 10; const extractStatus = extractButtonStatus(tile, progress);
+  const item = tile.item; const equippedCopies = [progress.mainHand, progress.offHand, progress.amulet].filter((candidate) => candidate && itemStackKey(candidate) === tile.key).length; const equipped = equippedCopies > 0; const spare = tile.quantity - equippedCopies; const skills = extractableSkills(item); const extractCost = item.sellValue * 10; const extractStatus = extractButtonStatus(tile, progress);
   const stats = statsWithItemBonuses(progress.stats, item);
   const node = (
     <div class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`} data-tile-id={tile.id}>

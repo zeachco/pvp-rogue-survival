@@ -517,7 +517,7 @@ describe("equipped skill levels", () => {
       });
 });
 describe("amulets and charms", () => {
-  test("roll rarity-bounded accessory attributes and equip as offhands", () => {
+  test("rolls rarity-bounded accessories and equips amulets independently", () => {
     const bounds = {
       common : [ 1, 2 ],
       uncommon : [ 1, 3 ],
@@ -541,11 +541,20 @@ describe("amulets and charms", () => {
         expect(count).toBeLessThanOrEqual(bounds[rarity][1]);
       }
     const state = progress();
+    const charm = generateAccessory(10, "rare", 3, "charm");
     const amulet = generateAccessory(10, "rare", 4, "amulet");
+    collectIntoInventory(state, charm, () => `tile-${++id}`, () => ++id);
     collectIntoInventory(state, amulet, () => `tile-${++id}`, () => ++id);
-    expect(equipFromInventory(state, state.inventoryTiles[0].id).changed)
-        .toBeTrue();
-    expect(state.offHand?.itemKind).toBe("amulet");
+    expect(equipFromInventory(state, state.inventoryTiles[0].id).changed).toBeTrue();
+    expect(equipFromInventory(state, state.inventoryTiles[1].id).changed).toBeTrue();
+    expect(state.offHand?.itemKind).toBe("charm");
+    expect(state.amulet?.itemKind).toBe("amulet");
+    const staff = generateItem(10, "rare", 99, { allowedClasses: ["staff"] });
+    collectIntoInventory(state, staff, () => `tile-${++id}`, () => ++id);
+    expect(equipFromInventory(state, state.inventoryTiles[2].id).changed).toBeTrue();
+    expect(state.mainHand?.hands).toBe(2);
+    expect(state.offHand).toBeUndefined();
+    expect(state.amulet?.itemKind).toBe("amulet");
   });
   test(
       "adds temporary resource skill levels and caps global cooldown reduction",
