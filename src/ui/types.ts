@@ -1,6 +1,6 @@
 import type { Rarity, SkillId } from "../../common/items";
 import type { Stats } from "../../common/progression";
-import type { PanelTrigger } from "../../common/protocol";
+import type { PanelTrigger, RarityAction } from "../../common/protocol";
 
 export interface HudCallbacks {
 	onJoin(name: string): void;
@@ -13,6 +13,7 @@ export interface HudCallbacks {
 	onSend(tileId: string, bulk: boolean): void;
 	onExtract(tileId: string, bulk: boolean): void;
 	onPromoteScrap(target: Rarity, bulk: boolean): void;
+	onSetRarityAction(rarity: Rarity, action: RarityAction): void;
 	onLeaveRealm(): void;
 	onEnterRealm(): void;
 	onKillPlayer(): void;

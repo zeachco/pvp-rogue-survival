@@ -6,7 +6,7 @@ import {
 	type Rarity,
 	type SkillId,
 } from "./items";
-import type { InventoryTile, PlayerProgress } from "./protocol";
+import type { InventoryTile, PlayerProgress, RarityAction } from "./protocol";
 import { MAX_SKILL_LEVEL } from "./combat";
 
 export interface InventoryResult {
@@ -88,6 +88,38 @@ export function collectIntoInventory(
 	tile.quantity += 1;
 	void nextSeed;
 	return { changed: true, reason: `Stored ${item.name}.` };
+}
+
+export function autoActionForRarity(
+	progress: PlayerProgress,
+	rarity: Rarity,
+): RarityAction {
+	return progress.rarityActions?.[rarity] ?? "keep";
+}
+
+export function applyAutoAction(
+	progress: PlayerProgress,
+	item: ItemInstance,
+): InventoryResult | "send" {
+	const action = autoActionForRarity(progress, item.rarity);
+	if (action === "keep") return { changed: false, reason: "" };
+	if (action === "auto-sell") {
+		const gold = sellYield(item);
+		progress.gold += gold;
+		return {
+			changed: true,
+			reason: `Auto-sold ${item.name} for ${gold} gold.`,
+		};
+	}
+	if (action === "auto-purge") {
+		const amount = purgeYield(item);
+		progress.scraps[item.rarity] += amount;
+		return {
+			changed: true,
+			reason: `Auto-purged ${item.name} for ${amount} ${item.rarity} scrap.`,
+		};
+	}
+	return "send";
 }
 
 export function equipFromInventory(

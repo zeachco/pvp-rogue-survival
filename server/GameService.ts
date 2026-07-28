@@ -1,6 +1,7 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import {
+	applyAutoAction,
 	collectIntoInventory,
 	dropInventoryOverflow,
 	emptyScraps,
@@ -295,6 +296,20 @@ export class GameService {
 					return this.sendItem(player, message.tileId, message.bulk);
 				case "toggleSkill":
 					return this.toggleSkill(player, message.skillId);
+				case "setRarityAction": {
+					if (!player.progress.rarityActions)
+						player.progress.rarityActions = {
+							common: "keep",
+							uncommon: "keep",
+							rare: "keep",
+							epic: "keep",
+						};
+					player.progress.rarityActions[message.rarity] = message.action;
+					return this.sendProgress(
+						player,
+						`${message.rarity} items set to ${message.action}.`,
+					);
+				}
 				case "leaveRealm":
 					return this.leaveRealm(player);
 				case "enterRealm":
@@ -932,14 +947,49 @@ export class GameService {
 			player.progress.scraps[drop.rarity] += drop.amount;
 			reason = `Collected ${drop.amount} ${drop.rarity} scrap.`;
 		} else {
-			const result = collectIntoInventory(
-				player.progress,
-				drop.item,
-				() => this.createId(),
-				() => this.seed(),
-			);
-			changed = result.changed;
-			reason = result.reason;
+			const autoAction = applyAutoAction(player.progress, drop.item);
+			if (autoAction === "send") {
+				const target = this.nextTarget(player);
+				if (target && this.queuedBy(player.id) < MAX_QUEUE) {
+					const sent = {
+						...drop.item,
+						id: `${drop.item.id}-sent`,
+					};
+					const queue = target.incomingQueues.get(player.id) ?? [];
+					queue.push({
+						item: sent,
+						senderId: player.id,
+						senderName: player.name,
+						backlash: false,
+					});
+					target.incomingQueues.set(player.id, queue);
+					this.enqueueXpSendBuff(player, sent);
+					changed = true;
+					reason = `Auto-sent ${drop.item.name} for the enemy realm.`;
+					this.broadcastRealms();
+				} else {
+					const result = collectIntoInventory(
+						player.progress,
+						drop.item,
+						() => this.createId(),
+						() => this.seed(),
+					);
+					changed = result.changed;
+					reason = result.reason;
+				}
+			} else if (autoAction.changed) {
+				changed = true;
+				reason = autoAction.reason;
+			} else {
+				const result = collectIntoInventory(
+					player.progress,
+					drop.item,
+					() => this.createId(),
+					() => this.seed(),
+				);
+				changed = result.changed;
+				reason = result.reason;
+			}
 		}
 		if (changed) player.groundDrops.delete(dropId);
 		this.options.send(player.id, {
@@ -985,6 +1035,28 @@ export class GameService {
 		const deferred = player.deferredItems.splice(0);
 		let stored = 0;
 		for (const item of deferred) {
+			const autoAction = applyAutoAction(player.progress, item);
+			if (autoAction === "send") {
+				const target = this.nextTarget(player);
+				if (target && this.queuedBy(player.id) < MAX_QUEUE) {
+					const sent = { ...item, id: `${item.id}-sent` };
+					const queue = target.incomingQueues.get(player.id) ?? [];
+					queue.push({
+						item: sent,
+						senderId: player.id,
+						senderName: player.name,
+						backlash: false,
+					});
+					target.incomingQueues.set(player.id, queue);
+					this.enqueueXpSendBuff(player, sent);
+					stored += 1;
+					this.broadcastRealms();
+					continue;
+				}
+			} else if (autoAction.changed) {
+				stored += 1;
+				continue;
+			}
 			const result = collectIntoInventory(
 				player.progress,
 				item,

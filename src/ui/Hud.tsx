@@ -29,6 +29,7 @@ import type {
 	PanelTriggers,
 	PlayerProgress,
 	PublicHeroProfile,
+	RarityAction,
 	RealmState,
 	UnitBuild,
 } from "../../common/protocol";
@@ -179,6 +180,9 @@ export class Hud {
 	) as HTMLElement;
 	private readonly backpackScroll = (
 		<div class="backpack-scroll" />
+	) as HTMLElement;
+	private readonly rarityFilterNode = (
+		<div class="rarity-filter" />
 	) as HTMLElement;
 	private readonly spellBar = (<section class="spell-bar" />) as HTMLElement;
 	private readonly learnedSkillsBar = (
@@ -343,7 +347,38 @@ export class Hud {
 				{this.inventoryNode}
 			</aside>
 		) as HTMLElement;
-		this.inventoryNode.append(this.inventoryHeader, this.backpackScroll);
+		this.inventoryNode.append(
+			this.inventoryHeader,
+			this.backpackScroll,
+			this.rarityFilterNode,
+		);
+		const rarityActions: RarityAction[] = [
+			"keep",
+			"auto-sell",
+			"auto-purge",
+			"auto-send",
+		];
+		const actionLabels: Record<RarityAction, string> = {
+			keep: "Keep",
+			"auto-sell": "Auto-sell",
+			"auto-purge": "Auto-purge",
+			"auto-send": "Auto-send",
+		};
+		for (const rarity of RARITIES) {
+			const label = (
+				<small class="rarity-filter-label">{rarity}</small>
+			) as HTMLElement;
+			const select = (
+				<select class={`rarity-filter-select rarity-${rarity}`}>
+					{rarityActions.map((a) => (
+						<option value={a}>{actionLabels[a]}</option>
+					))}
+				</select>
+			) as HTMLSelectElement;
+			select.onchange = () =>
+				callbacks.onSetRarityAction(rarity, select.value as RarityAction);
+			this.rarityFilterNode.append(label, select);
+		}
 		for (const target of ["uncommon", "rare", "epic"] as const) {
 			this.bindScrapPromotion(target);
 		}
@@ -457,6 +492,13 @@ export class Hud {
 			this.staticReceivesDeathEchoes = player.receivesDeathEchoes;
 			this.staticBestWave = player.maxWaveReached;
 			this.renderStaticHud();
+		}
+		const actions = player.progress.rarityActions;
+		for (const rarity of RARITIES) {
+			const select = this.rarityFilterNode.querySelector<HTMLSelectElement>(
+				`.rarity-filter-select.rarity-${rarity}`,
+			);
+			if (select && actions) select.value = actions[rarity] ?? "keep";
 		}
 		if (this.lastWaveNumber !== player.waveNumber) {
 			this.lastWaveNumber = player.waveNumber;

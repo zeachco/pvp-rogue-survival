@@ -127,6 +127,7 @@ Client to server:
 - `deferDrop`: `{ dropId }`; validates an owned equipment drop pushed beyond the arena and returns it to the same player next wave.
 - `equipItem`: `{ tileId }`
 - `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId, bulk? }`; `bulk: true` is authored by Shift+click and repeats the selected action server-side until it can no longer make progress.
+- `setRarityAction`: `{ rarity, action }`; changes the auto-action preference for a rarity tier. `action` is one of `"keep"`, `"auto-sell"`, `"auto-purge"`, or `"auto-send"`. The server persists the choice in `progress.rarityActions` and applies it to future item collections.
 - `toggleSkill`: `{ skillId }`; toggles one currently displayed learned or geared skill. The server persists disabled skills and rejects unknown or unavailable ids.
 - `heroDefeated`: `{ sourceUnitId? }`
 - `requestWave`: `{}`

@@ -132,6 +132,8 @@ export class Game {
 				this.socket.send({ type: "extractSkill", tileId, bulk }),
 			onPromoteScrap: (target, bulk) =>
 				this.socket.send({ type: "promoteScrap", target, bulk }),
+			onSetRarityAction: (rarity, action) =>
+				this.socket.send({ type: "setRarityAction", rarity, action }),
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
 			onEnterRealm: () => this.enterRealm(),
 			onKillPlayer: () => {

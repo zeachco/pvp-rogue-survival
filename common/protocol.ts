@@ -3,11 +3,12 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 34;
+export const PROTOCOL_VERSION = 35;
 export type PlayerId = string;
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
 export type PanelTriggers = Record<PanelTrigger, boolean>;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
+export type RarityAction = "keep" | "auto-sell" | "auto-purge" | "auto-send";
 export interface InventoryTile {
 	id: string;
 	key: string;
@@ -31,6 +32,7 @@ export interface PlayerProgress {
 	learnedSkillLevels: Partial<Record<SkillId, number>>;
 	universalSkills: SkillId[];
 	disabledSkills?: SkillId[];
+	rarityActions?: Record<Rarity, RarityAction>;
 }
 export interface XpSendBuff {
 	multiplier: number;
@@ -200,6 +202,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 		panel: z.enum(["character", "inventory", "multiplayer"]),
 	}),
 	z.object({ type: z.literal("toggleSkill"), skillId: z.string().min(1) }),
+	z.object({
+		type: z.literal("setRarityAction"),
+		rarity: z.enum(["common", "uncommon", "rare", "epic"]),
+		action: z.enum(["keep", "auto-sell", "auto-purge", "auto-send"]),
+	}),
 ]);
 const serverEnvelope = z
 	.object({
@@ -257,7 +264,12 @@ export type ClientMessage =
 	| { type: "logout" | "listHeroes" }
 	| { type: "inspectHero"; heroId: string }
 	| { type: "dismissPanelTrigger"; panel: PanelTrigger }
-	| { type: "toggleSkill"; skillId: string };
+	| { type: "toggleSkill"; skillId: string }
+	| {
+			type: "setRarityAction";
+			rarity: Rarity;
+			action: RarityAction;
+	  };
 
 export type ServerMessage =
 	| {
