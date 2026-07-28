@@ -1,8 +1,5 @@
 import * as THREE from "three";
-import {
-	CSS2DRenderer,
-	CSS2DObject,
-} from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { ArenaState } from "../ArenaState";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
@@ -35,7 +32,7 @@ export class ThreeRenderer {
 	readonly labelRenderer: CSS2DRenderer;
 	private _zoomLevel = 1;
 	private readonly tracked = new Set<THREE.Object3D>();
-	private readonly combatTextObjects = new Map<CombatText, CSS2DObject>();
+	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
 	private readonly canvas: HTMLCanvasElement;
 	private width = 1;
 	private height = 1;
@@ -102,8 +99,14 @@ export class ThreeRenderer {
 	updateCameraPosition(heroX: number, heroY: number): void {
 		const halfW = this.width / 2 / this._zoomLevel;
 		const halfH = this.height / 2 / this._zoomLevel;
-		const cx = clamp(heroX, halfW, Math.max(halfW, this.map.width - halfW));
-		const cy = clamp(heroY, halfH, Math.max(halfH, this.map.height - halfH));
+		const cx =
+			halfW >= this.map.width
+				? this.map.width / 2
+				: clamp(heroX, halfW, this.map.width - halfW);
+		const cy =
+			halfH >= this.map.height
+				? this.map.height / 2
+				: clamp(heroY, halfH, this.map.height - halfH);
 		this.camera.position.x = cx;
 		this.camera.position.y = cy;
 	}
@@ -177,45 +180,70 @@ export class ThreeRenderer {
 
 	private syncCombatText(texts: CombatText[]): void {
 		const active = new Set(texts);
-		for (const [text, obj] of this.combatTextObjects) {
+		for (const [text, sprite] of this.combatTextObjects) {
 			if (!active.has(text)) {
-				this.scene.remove(obj);
+				this.scene.remove(sprite);
+				sprite.material.map?.dispose();
+				sprite.material.dispose();
 				this.combatTextObjects.delete(text);
 			}
 		}
 		for (const text of texts) {
-			let obj = this.combatTextObjects.get(text);
-			if (!obj) {
-				const el = document.createElement("div");
-				el.style.fontFamily = "Inter, sans-serif";
-				el.style.whiteSpace = "nowrap";
-				el.style.userSelect = "none";
-				el.style.textShadow = "0 0 3px rgba(0,0,0,.8)";
-				obj = new CSS2DObject(el);
-				obj.layers.set(0);
-				this.scene.add(obj);
-				this.combatTextObjects.set(text, obj);
-			}
+			let sprite = this.combatTextObjects.get(text);
 			const progress = Math.min(1, text.age / text.lifetime);
 			const color = text.critical
 				? CRITICAL_TEXT_COLOR
 				: COMBAT_TEXT_COLORS[text.kind];
 			const weight = text.critical ? 700 : 600;
-			const size = text.critical ? 19 : 16;
+			const fontSize = text.critical ? 19 : 16;
 			const value =
 				text.label ??
 				`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`;
-			const el = obj.element;
-			el.textContent = value;
-			el.style.color = color;
-			el.style.fontSize = `${size}px`;
-			el.style.fontWeight = `${weight}`;
-			el.style.opacity = `${1 - progress}`;
-			obj.position.set(
+
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d")!;
+			const font = `${weight} ${fontSize}px Inter, sans-serif`;
+			ctx.font = font;
+			const metrics = ctx.measureText(value);
+			const textWidth = Math.ceil(metrics.width);
+			const textHeight = fontSize + 4;
+			const padding = 6;
+			const w = textWidth + padding * 2;
+			const h = textHeight + padding * 2;
+			canvas.width = w;
+			canvas.height = h;
+			ctx.font = font;
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.shadowColor = "rgba(0,0,0,.8)";
+			ctx.shadowBlur = 3;
+			ctx.fillStyle = color;
+			ctx.globalAlpha = 1 - progress;
+			ctx.fillText(value, w / 2, h / 2);
+
+			if (!sprite) {
+				const texture = new THREE.CanvasTexture(canvas);
+				const mat = new THREE.SpriteMaterial({
+					map: texture,
+					depthTest: false,
+					transparent: true,
+				});
+				sprite = new THREE.Sprite(mat);
+				sprite.layers.set(0);
+				this.scene.add(sprite);
+				this.combatTextObjects.set(text, sprite);
+			} else {
+				sprite.material.map!.image = canvas;
+				sprite.material.map!.needsUpdate = true;
+				sprite.material.opacity = 1;
+			}
+
+			sprite.position.set(
 				text.position.x + text.drift * progress,
 				text.position.y - 22 - 38 * progress,
 				Z_TEXT,
 			);
+			sprite.scale.set(w, h, 1);
 		}
 	}
 
