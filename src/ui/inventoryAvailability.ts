@@ -11,6 +11,6 @@ export function extractButtonStatus(tile: InventoryTile, progress: PlayerProgres
     + Number(Boolean(progress.amulet && itemStackKey(progress.amulet) === tile.key))
     + Number(Boolean(progress.charm && itemStackKey(progress.charm) === tile.key));
   if (tile.quantity <= equippedCopies) return "equipped-only";
-  if (skills.some((skill) => !progress.learnedSkills.includes(skill))) return "unlearned-skill";
+  if (tile.item.rarity !== "epic" && skills.some((skill) => !progress.learnedSkills.includes(skill))) return "unlearned-skill";
   return progress.gold < extractionCost(progress, skills) ? "needs-gold" : "available";
 }

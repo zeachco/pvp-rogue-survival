@@ -382,11 +382,22 @@ describe("permanent inventory", () => {
     state.mainHand = item;
     expect(extractButtonStatus(tile, state)).toBe("equipped-only");
   });
-  test("disables extraction until every carried skill is permanently learned", () => {
-    const state = progress(); const item = generateItem(1, "epic", 27, { allowedClasses: ["staff"] });
+  test("disables non-Epic extraction until every carried skill is permanently learned", () => {
+    const state = progress(); const item = generateItem(1, "rare", 27, { allowedClasses: ["staff"] });
     const tile = { id: "unlearned", key: itemStackKey(item), item, quantity: 1 }; state.inventoryTiles.push(tile); state.gold = 10_000;
     expect(extractButtonStatus(tile, state)).toBe("unlearned-skill");
     expect(extractFromInventory(state, tile.id)).toMatchObject({ changed: false, reason: expect.stringContaining("must first be learned") });
+  });
+  test("allows Epic extraction to learn and universally bind unlearned skills", () => {
+    const state = progress(); const item = generateItem(1, "epic", 27, { allowedClasses: ["staff"] });
+    const tile = { id: "epic-unlearned", key: itemStackKey(item), item, quantity: 1 }; state.inventoryTiles.push(tile); state.gold = 0;
+    expect(extractButtonStatus(tile, state)).toBe("available");
+    expect(extractFromInventory(state, tile.id)).toMatchObject({ changed: true });
+    for (const skill of item.skills) {
+      expect(state.learnedSkills).toContain(skill);
+      expect(state.universalSkills).toContain(skill);
+      expect(state.learnedSkillLevels[skill]).toBe(1);
+    }
   });
   test(
       "toggles an equipped weapon to an empty main hand without creating a fallback club",
