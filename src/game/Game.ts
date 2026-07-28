@@ -31,14 +31,8 @@ import {
 	HeroCombatSystem,
 } from "./systems/HeroCombatSystem";
 import { AuraSystem } from "./systems/AuraSystem";
-import { CanvasRenderer } from "./render/CanvasRenderer";
-import {
-	clamp,
-	distance,
-	type Camera,
-	type PlayerState,
-	type Vector2,
-} from "./types";
+import { ThreeRenderer } from "./render/ThreeRenderer";
+import { distance, type PlayerState, type Vector2 } from "./types";
 import { correctArenaBoundary } from "./bounds";
 import { emittedImpactForce } from "./ImpactForce";
 
@@ -56,18 +50,16 @@ declare global {
 }
 
 export class Game {
-	private readonly ctx: CanvasRenderingContext2D;
 	private readonly map = new GameMap();
 	private readonly socket = new SocketClient();
 	private readonly sessionStorage = new SessionStorage();
 	private readonly arena = new ArenaState();
 	private readonly hud: Hud;
-	private readonly renderer: CanvasRenderer;
+	private readonly renderer: ThreeRenderer;
 	private readonly heroCombat = new HeroCombatSystem();
 	private readonly auraSystem = new AuraSystem();
 	private readonly keys = new Set<string>();
 	private hero = new Hero(this.map.center);
-	private camera: Camera = { x: 0, y: 0, width: 1, height: 1 };
 	private player?: PlayerState;
 	private savedSession = this.sessionStorage.load();
 	private balance: BalanceConfig = BALANCE;
@@ -108,10 +100,9 @@ export class Game {
 		private readonly canvas: HTMLCanvasElement,
 		hudRoot: HTMLDivElement,
 	) {
-		const context = canvas.getContext("2d");
-		if (!context) throw new Error("Canvas 2D context unavailable");
-		this.ctx = context;
-		this.renderer = new CanvasRenderer(this.ctx, this.map);
+		this.map.buildMeshes();
+		this.renderer = new ThreeRenderer(this.canvas, this.map);
+		this.renderer.scene.add(this.map.mesh);
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
 		this.hud = new Hud(hudRoot, {
 			onJoin: (name) => this.join(name),
@@ -174,6 +165,14 @@ export class Game {
 			this.updateHover(event),
 		);
 		this.canvas.addEventListener("click", (event) => this.inspectAt(event));
+		this.canvas.addEventListener(
+			"wheel",
+			(event) => {
+				event.preventDefault();
+				this.renderer.applyZoom(event.deltaY);
+			},
+			{ passive: false },
+		);
 		this.socket.onOpen(() => {
 			if (this.savedSession) this.join("", this.savedSession.heroId);
 			else {
@@ -281,7 +280,7 @@ export class Game {
 			const position = this.arena.defeatedPositions.get(message.unitId);
 			this.arena.defeatedPositions.delete(message.unitId);
 			if (message.drop && position)
-				this.drops.push(new ItemDrop(message.drop, position));
+				this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
 			this.hero.applyProgress(message.progress, true);
 			this.syncHeroState();
 			this.hud.setPlayer(this.player);
@@ -368,7 +367,7 @@ export class Game {
 			this.spawnCreep(build);
 		const movementInput = {
 			x: Number(this.keys.has("d")) - Number(this.keys.has("a")),
-			y: Number(this.keys.has("s")) - Number(this.keys.has("w")),
+			y: Number(this.keys.has("w")) - Number(this.keys.has("s")),
 		};
 		const heroAttackActive = this.attacks.some(
 			(attack) => attack.active && attack.owner === "hero",
@@ -799,42 +798,27 @@ export class Game {
 		);
 	}
 	private eventWorld(event: MouseEvent): Vector2 {
-		const rect = this.canvas.getBoundingClientRect();
-		return {
-			x: event.clientX - rect.left + this.camera.x,
-			y: event.clientY - rect.top + this.camera.y,
-		};
+		return this.renderer.eventWorld(event);
 	}
 	private updateCamera(): void {
-		this.camera.x = clamp(
-			this.hero.position.x - this.camera.width / 2,
-			0,
-			Math.max(0, this.map.width - this.camera.width),
-		);
-		this.camera.y = clamp(
-			this.hero.position.y - this.camera.height / 2,
-			0,
-			Math.max(0, this.map.height - this.camera.height),
+		this.renderer.updateCameraPosition(
+			this.hero.position.x,
+			this.hero.position.y,
 		);
 	}
 	private render(): void {
-		this.renderer.render(
-			this.camera,
+		this.renderer.syncScene(
 			this.hero,
 			this.arena,
 			this.hovered,
 			this.inspected,
 		);
+		this.renderer.render();
 	}
 	private resize(): void {
-		const scale = devicePixelRatio || 1;
 		const width = this.canvas.clientWidth || innerWidth;
 		const height = this.canvas.clientHeight || innerHeight;
-		this.canvas.width = width * scale;
-		this.canvas.height = height * scale;
-		this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
-		this.camera.width = width;
-		this.camera.height = height;
+		this.renderer.resize(width, height);
 		this.updateCamera();
 	}
 	private registerDebugGlobal(): void {

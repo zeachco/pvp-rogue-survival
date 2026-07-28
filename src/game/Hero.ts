@@ -1,9 +1,12 @@
+import * as THREE from "three";
 import { Unit } from "./Unit";
-import { normalize, type Camera, type Vector2 } from "./types";
+import { normalize, type Vector2 } from "./types";
 import type { PlayerProgress } from "../../common/protocol";
 import { statsWithItemBonuses } from "../../common/items";
 import type { RandomSource } from "../../common/random";
-import { renderStatusEffects } from "./render/statusEffects";
+import { Z_HERO, Z_AURA } from "./render/ThreeRenderer";
+import { updateStatusEffects } from "./render/statusEffects";
+import { auraRadius } from "../../common/auras";
 
 export class Hero extends Unit {
 	readonly maxSpeed = 235;
@@ -11,10 +14,92 @@ export class Hero extends Unit {
 	facing = 0;
 	attackSlow = false;
 	movementSpeedMultiplier = 1;
+	readonly auraGroup = new THREE.Group();
+
+	private readonly bodyMesh: THREE.Mesh;
+	private readonly facingMesh: THREE.Mesh;
+	private readonly statusTint: THREE.Mesh;
+	private readonly bleedDots: THREE.Mesh[] = [];
+	private readonly stunRays: THREE.Line[] = [];
 
 	constructor(position: Vector2) {
 		super(position, 18, 100);
 		this.enteredArena = true;
+
+		const bodyGeo = new THREE.CircleGeometry(18, 32);
+		const bodyMat = new THREE.MeshBasicMaterial({ color: 0xdffeff });
+		this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+		this.bodyMesh.renderOrder = Z_HERO;
+		this.mesh.add(this.bodyMesh);
+
+		const strokeGeo = new THREE.RingGeometry(16, 20, 32);
+		const strokeMat = new THREE.MeshBasicMaterial({
+			color: 0x3affd4,
+			side: THREE.DoubleSide,
+		});
+		const stroke = new THREE.Mesh(strokeGeo, strokeMat);
+		stroke.renderOrder = Z_HERO + 0.01;
+		this.mesh.add(stroke);
+
+		const facingGeo = new THREE.BufferGeometry();
+		const facingVerts = new Float32Array([12, -6, 0, 29, 0, 0, 12, 6, 0]);
+		facingGeo.setAttribute(
+			"position",
+			new THREE.BufferAttribute(facingVerts, 3),
+		);
+		const facingMat = new THREE.MeshBasicMaterial({
+			color: 0x3affd4,
+			side: THREE.DoubleSide,
+		});
+		this.facingMesh = new THREE.Mesh(facingGeo, facingMat);
+		this.facingMesh.renderOrder = Z_HERO + 0.02;
+		this.mesh.add(this.facingMesh);
+
+		const tintGeo = new THREE.CircleGeometry(18, 24);
+		const tintMat = new THREE.MeshBasicMaterial({
+			color: 0xffffff,
+			transparent: true,
+			opacity: 0,
+			depthWrite: false,
+		});
+		this.statusTint = new THREE.Mesh(tintGeo, tintMat);
+		this.statusTint.renderOrder = Z_HERO + 0.03;
+		this.mesh.add(this.statusTint);
+
+		const bleedMat = new THREE.MeshBasicMaterial({
+			color: 0xff4858,
+			transparent: true,
+			depthWrite: false,
+		});
+		for (let i = 0; i < 4; i++) {
+			const dot = new THREE.Mesh(
+				new THREE.CircleGeometry(1.25, 8),
+				bleedMat.clone(),
+			);
+			dot.renderOrder = Z_HERO + 0.04;
+			dot.visible = false;
+			this.mesh.add(dot);
+			this.bleedDots.push(dot);
+		}
+
+		const stunMat = new THREE.LineBasicMaterial({
+			color: 0xffffff,
+			transparent: true,
+		});
+		for (let i = 0; i < 4; i++) {
+			const geo = new THREE.BufferGeometry();
+			const verts = new Float32Array([0, -25, 0, 0, -32, 0]);
+			geo.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+			const ray = new THREE.Line(geo, stunMat);
+			ray.renderOrder = Z_HERO + 0.05;
+			ray.visible = false;
+			this.mesh.add(ray);
+			this.stunRays.push(ray);
+		}
+
+		this.auraGroup.renderOrder = Z_AURA;
+
+		this.mesh.renderOrder = Z_HERO;
 	}
 
 	applyProgress(progress: PlayerProgress, preserveRatio = false): void {
@@ -89,32 +174,181 @@ export class Hero extends Unit {
 		this.updateResources(deltaSeconds, random, training, regenerateRage);
 	}
 
-	render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-		const x = this.position.x - camera.x;
-		const y = this.position.y - camera.y;
-		ctx.save();
-		ctx.translate(x, y);
-		ctx.fillStyle = "#dffeff";
-		ctx.strokeStyle = "#3affd4";
-		ctx.lineWidth = 4;
-		ctx.beginPath();
-		ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.stroke();
-		renderStatusEffects(
-			ctx,
+	override updateVisuals(time: number): void {
+		super.updateVisuals(time);
+		this.mesh.position.set(this.position.x, this.position.y, 0);
+		this.facingMesh.rotation.z = this.facing;
+
+		const tint = statusTint(this.statuses);
+		if (tint) {
+			(this.statusTint.material as THREE.MeshBasicMaterial).color.set(tint);
+			(this.statusTint.material as THREE.MeshBasicMaterial).opacity = 0.42;
+			this.statusTint.visible = true;
+		} else {
+			this.statusTint.visible = false;
+		}
+
+		updateStatusEffects(
+			this.mesh,
 			this.statuses,
 			this.radius,
-			performance.now() / 1000,
+			time,
+			this.bleedDots,
+			this.stunRays,
 		);
-		ctx.rotate(this.facing);
-		ctx.fillStyle = "#3affd4";
-		ctx.beginPath();
-		ctx.moveTo(12, -6);
-		ctx.lineTo(29, 0);
-		ctx.lineTo(12, 6);
-		ctx.closePath();
-		ctx.fill();
-		ctx.restore();
 	}
+
+	updateAuraVisuals(time: number): void {
+		while (this.auraGroup.children.length > 0) {
+			const child = this.auraGroup.children[0];
+			this.auraGroup.remove(child);
+			if (child instanceof THREE.Mesh) child.geometry.dispose();
+		}
+
+		const r = (
+			skill:
+				| "slowAura"
+				| "hinderingAura"
+				| "deathBurst"
+				| "sunburnAura"
+				| "thunderAura",
+		) => auraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit);
+
+		if (this.isSkillOperational("slowAura")) {
+			const radius = r("slowAura");
+			const fill = new THREE.Mesh(
+				new THREE.CircleGeometry(radius, 32),
+				new THREE.MeshBasicMaterial({
+					color: 0x3282ff,
+					transparent: true,
+					opacity: 0.1,
+					depthWrite: false,
+				}),
+			);
+			fill.renderOrder = Z_AURA;
+			this.auraGroup.add(fill);
+			const ring = new THREE.Mesh(
+				new THREE.RingGeometry(radius - 1.5, radius + 1.5, 32),
+				new THREE.MeshBasicMaterial({
+					color: 0x5ab4ff,
+					transparent: true,
+					opacity: 0.42,
+					side: THREE.DoubleSide,
+					depthWrite: false,
+				}),
+			);
+			ring.renderOrder = Z_AURA + 0.01;
+			this.auraGroup.add(ring);
+		}
+
+		if (this.isSkillOperational("hinderingAura")) {
+			const scale = r("hinderingAura") / 180;
+			for (let ring = 0; ring < 4; ring += 1) {
+				const ringRadius =
+					(45 + ring * 38 + Math.sin(time * 2 + ring) * 7) * scale;
+				const m = new THREE.Mesh(
+					new THREE.RingGeometry(ringRadius - 1, ringRadius + 1, 32),
+					new THREE.MeshBasicMaterial({
+						color: 0x64d2ff,
+						transparent: true,
+						opacity: 0.3,
+						side: THREE.DoubleSide,
+						depthWrite: false,
+					}),
+				);
+				m.renderOrder = Z_AURA + 0.01 + ring * 0.001;
+				this.auraGroup.add(m);
+			}
+		}
+
+		if (this.isSkillOperational("deathBurst")) {
+			const scale = r("deathBurst") / 180;
+			const pts: number[] = [];
+			for (let i = 0; i < 24; i += 1) {
+				const a = (i * Math.PI) / 12;
+				const rad = (i % 2 ? 145 : 175) * scale;
+				pts.push(Math.cos(a) * rad, Math.sin(a) * rad, 0);
+			}
+			const geo = new THREE.BufferGeometry();
+			geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+			const shape = new THREE.Mesh(
+				geo,
+				new THREE.MeshBasicMaterial({
+					color: 0x46ff7d,
+					transparent: true,
+					opacity: 0.13,
+					side: THREE.DoubleSide,
+					depthWrite: false,
+				}),
+			);
+			shape.renderOrder = Z_AURA;
+			this.auraGroup.add(shape);
+		}
+
+		if (this.isSkillOperational("sunburnAura")) {
+			const scale = r("sunburnAura") / 180;
+			for (let i = 0; i < 12; i += 1) {
+				const beam = new THREE.Mesh(
+					new THREE.PlaneGeometry(115 * scale, 18),
+					new THREE.MeshBasicMaterial({
+						color: 0xff8723,
+						transparent: true,
+						opacity: 0.11,
+						depthWrite: false,
+					}),
+				);
+				beam.position.set(
+					55 * scale * Math.cos((i * Math.PI) / 6),
+					55 * scale * Math.sin((i * Math.PI) / 6),
+					0,
+				);
+				beam.rotation.z = (i * Math.PI) / 6 + time * 0.08;
+				beam.renderOrder = Z_AURA;
+				this.auraGroup.add(beam);
+			}
+		}
+
+		if (this.isSkillOperational("thunderAura")) {
+			const radius = r("thunderAura");
+			const bg = new THREE.Mesh(
+				new THREE.PlaneGeometry(radius * 2, radius * 2),
+				new THREE.MeshBasicMaterial({
+					color: 0xffffff,
+					transparent: true,
+					opacity: 0.07,
+					depthWrite: false,
+				}),
+			);
+			bg.renderOrder = Z_AURA;
+			this.auraGroup.add(bg);
+
+			const pts: number[] = [];
+			for (let i = 0; i < 28; i += 1) {
+				const a = (i * Math.PI * 2) / 28;
+				const edge = radius - 6 + Math.sin(time * 7 + i * 2.3) * 8;
+				pts.push(Math.cos(a) * edge, Math.sin(a) * edge, 0);
+			}
+			pts.push(pts[0], pts[1], pts[2]);
+			const geo = new THREE.BufferGeometry();
+			geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+			const edge = new THREE.Line(
+				geo,
+				new THREE.LineBasicMaterial({
+					color: 0xbeebff,
+					transparent: true,
+					opacity: 0.65,
+				}),
+			);
+			edge.renderOrder = Z_AURA + 0.01;
+			this.auraGroup.add(edge);
+		}
+	}
+}
+
+function statusTint(statuses: { kind: string }[]): string | undefined {
+	if (statuses.some((s) => s.kind === "freeze")) return "#8de7ff";
+	if (statuses.some((s) => s.kind === "burn")) return "#ff783d";
+	if (statuses.some((s) => s.kind === "poison")) return "#92f58b";
+	if (statuses.some((s) => s.kind === "curse")) return "#4b225e";
+	return undefined;
 }

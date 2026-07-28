@@ -1,9 +1,12 @@
-import type { Camera } from "./types";
+import * as THREE from "three";
 
 export abstract class GameObject {
 	active = true;
+	readonly mesh = new THREE.Group();
 
 	abstract update(deltaSeconds: number): void;
 
-	abstract render(ctx: CanvasRenderingContext2D, camera: Camera): void;
+	updateVisuals(_time: number): void {
+		this.mesh.visible = this.active;
+	}
 }

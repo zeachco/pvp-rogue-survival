@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import {
 	type CreepKind,
 	type PlayerId,
@@ -10,9 +11,10 @@ import { ENEMY_ARCHETYPES } from "../../common/content";
 import { attackProfile, forceFieldRange } from "../../common/combat";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
-import { clamp, distance, normalize, type Camera, type Vector2 } from "./types";
+import { clamp, distance, normalize, type Vector2 } from "./types";
 import { creepMaxHealth } from "../../common/waves";
-import { renderStatusEffects } from "./render/statusEffects";
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
 
 export type CreepAttack =
 	| {
@@ -39,6 +41,28 @@ export class Creep extends Unit {
 	private auraAttackMultiplier = 1;
 	private groundMovementMultiplier = 1;
 	readonly build: UnitBuild;
+
+	readonly healthBarGroup: THREE.Group;
+	readonly labelObject?: THREE.Group;
+	readonly selectionRing: THREE.Mesh;
+	readonly attackWindupRing: THREE.Mesh;
+	readonly bonusSkillRing: THREE.Mesh;
+	readonly threatArrow: THREE.Mesh;
+
+	private readonly bodyMesh: THREE.Mesh;
+	private readonly strokeMesh: THREE.Mesh;
+	private readonly healthBg: THREE.Mesh;
+	private readonly healthFill: THREE.Mesh;
+	private readonly manaBg: THREE.Mesh;
+	private readonly manaFill: THREE.Mesh;
+	private readonly rageBg: THREE.Mesh;
+	private readonly rageFill: THREE.Mesh;
+	private readonly bubbleEye?: THREE.Mesh;
+	private healthBarY = -28;
+	private barWidth = 32;
+	private healthBarHeight = 4;
+	private manaBarHeight = 2;
+	private rageBarHeight = 2;
 
 	constructor(
 		build: UnitBuild,
@@ -93,6 +117,192 @@ export class Creep extends Unit {
 		this.hp = this.maxHp;
 		this.bounty = Math.max(1, build.mainHand?.sellValue ?? 1);
 		this.scoreValue = build.isRival ? 10 : 2;
+
+		const fillColor = build.isRival
+			? 0xffd166
+			: build.kind === "bubbleShooter"
+				? 0x8c7cff
+				: 0xff6f7d;
+		const strokeColorStr = build.isRival ? "#704d00" : "#501721";
+		const sentItem = [
+			build.mainHand,
+			build.offHand,
+			build.amulet,
+			build.charm,
+		].find((item) => item?.id.includes("sent"));
+
+		if (this.kind === "melee") {
+			const shape = new THREE.Shape();
+			for (let i = 0; i < 6; i += 1) {
+				const a = -Math.PI / 2 + (i * Math.PI) / 3;
+				const px = Math.cos(a) * this.radius;
+				const py = Math.sin(a) * this.radius;
+				if (i === 0) shape.moveTo(px, py);
+				else shape.lineTo(px, py);
+			}
+			shape.closePath();
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.ShapeGeometry(shape),
+				new THREE.MeshBasicMaterial({ color: fillColor }),
+			);
+			this.strokeMesh = new THREE.Mesh(
+				new THREE.ShapeGeometry(shape),
+				new THREE.MeshBasicMaterial({
+					color: sentItem ? dropRarityColor(sentItem.rarity) : strokeColorStr,
+					wireframe: true,
+				}),
+			);
+		} else {
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.CircleGeometry(this.radius, 24),
+				new THREE.MeshBasicMaterial({ color: fillColor }),
+			);
+			this.strokeMesh = new THREE.Mesh(
+				new THREE.RingGeometry(this.radius - 1.5, this.radius + 1.5, 24),
+				new THREE.MeshBasicMaterial({
+					color: sentItem ? dropRarityColor(sentItem.rarity) : strokeColorStr,
+					side: THREE.DoubleSide,
+				}),
+			);
+		}
+		this.bodyMesh.renderOrder = Z_CREEP;
+		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
+		if (sentItem) {
+			(this.bodyMesh.material as THREE.MeshBasicMaterial).transparent = true;
+		}
+		this.mesh.add(this.bodyMesh);
+		this.mesh.add(this.strokeMesh);
+
+		if (build.kind === "bubbleShooter") {
+			const eyeGeo = new THREE.CircleGeometry(5, 16);
+			const eyeMat = new THREE.MeshBasicMaterial({ color: 0xdff8ff });
+			this.bubbleEye = new THREE.Mesh(eyeGeo, eyeMat);
+			this.bubbleEye.position.set(5, -5, 0.01);
+			this.bubbleEye.renderOrder = Z_CREEP + 0.002;
+			this.mesh.add(this.bubbleEye);
+		}
+
+		this.healthBarGroup = new THREE.Group();
+		this.healthBarGroup.renderOrder = Z_CREEP_OVERLAY;
+
+		const hbY = this.healthBarY;
+		this.healthBg = new THREE.Mesh(
+			new THREE.PlaneGeometry(this.barWidth, this.healthBarHeight),
+			new THREE.MeshBasicMaterial({
+				color: 0x000000,
+				transparent: true,
+				opacity: 0.5,
+			}),
+		);
+		this.healthBg.position.set(0, hbY, 0);
+		this.healthBarGroup.add(this.healthBg);
+
+		this.healthFill = new THREE.Mesh(
+			new THREE.PlaneGeometry(this.barWidth, this.healthBarHeight),
+			new THREE.MeshBasicMaterial({ color: 0xf1fffa }),
+		);
+		this.healthFill.position.set(0, hbY, 0.01);
+		this.healthBarGroup.add(this.healthFill);
+
+		const manaY = hbY + this.healthBarHeight;
+		this.manaBg = new THREE.Mesh(
+			new THREE.PlaneGeometry(this.barWidth, this.manaBarHeight),
+			new THREE.MeshBasicMaterial({
+				color: 0x000000,
+				transparent: true,
+				opacity: 0.65,
+			}),
+		);
+		this.manaBg.position.set(0, manaY, 0);
+		this.healthBarGroup.add(this.manaBg);
+
+		this.manaFill = new THREE.Mesh(
+			new THREE.PlaneGeometry(this.barWidth, this.manaBarHeight),
+			new THREE.MeshBasicMaterial({ color: 0x45a9ff }),
+		);
+		this.manaFill.position.set(0, manaY, 0.01);
+		this.healthBarGroup.add(this.manaFill);
+
+		const rageY = manaY + this.manaBarHeight;
+		this.rageBg = new THREE.Mesh(
+			new THREE.PlaneGeometry(this.barWidth, this.rageBarHeight),
+			new THREE.MeshBasicMaterial({
+				color: 0x000000,
+				transparent: true,
+				opacity: 0.65,
+			}),
+		);
+		this.rageBg.position.set(0, rageY, 0);
+		this.healthBarGroup.add(this.rageBg);
+
+		this.rageFill = new THREE.Mesh(
+			new THREE.PlaneGeometry(this.barWidth, this.rageBarHeight),
+			new THREE.MeshBasicMaterial({ color: 0xffd166 }),
+		);
+		this.rageFill.position.set(0, rageY, 0.01);
+		this.healthBarGroup.add(this.rageFill);
+
+		if (sentItem) {
+			const labelDiv = document.createElement("div");
+			labelDiv.textContent = this.emitterName;
+			labelDiv.style.cssText =
+				"font:600 12px sans-serif;color:#eafffb;text-shadow:0 0 4px rgba(0,0,0,.95);text-align:center;pointer-events:none;white-space:nowrap;";
+			const label = new THREE.Group();
+			const labelSprite = new CSS2DObject(labelDiv);
+			labelSprite.position.set(0, -34, 0);
+			label.add(labelSprite);
+			label.renderOrder = Z_CREEP_OVERLAY + 0.01;
+			this.labelObject = label;
+		}
+
+		this.selectionRing = new THREE.Mesh(
+			new THREE.RingGeometry(this.radius + 5.5, this.radius + 8.5, 24),
+			new THREE.MeshBasicMaterial({
+				color: 0xfff08a,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			}),
+		);
+		this.selectionRing.renderOrder = Z_CREEP_OVERLAY + 0.02;
+		this.selectionRing.visible = false;
+
+		this.attackWindupRing = new THREE.Mesh(
+			new THREE.RingGeometry(this.radius + 5.5, this.radius + 8.5, 24),
+			new THREE.MeshBasicMaterial({
+				color: 0xffea77,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			}),
+		);
+		this.attackWindupRing.renderOrder = Z_CREEP_OVERLAY + 0.03;
+		this.attackWindupRing.visible = false;
+
+		this.bonusSkillRing = new THREE.Mesh(
+			new THREE.RingGeometry(this.radius + 8.5, this.radius + 11.5, 24),
+			new THREE.MeshBasicMaterial({
+				color: 0xff6534,
+				side: THREE.DoubleSide,
+				depthWrite: false,
+			}),
+		);
+		this.bonusSkillRing.renderOrder = Z_CREEP_OVERLAY + 0.04;
+		this.bonusSkillRing.visible = false;
+
+		const arrowShape = new THREE.Shape();
+		arrowShape.moveTo(12, 0);
+		arrowShape.lineTo(-8, -7);
+		arrowShape.lineTo(-8, 7);
+		arrowShape.closePath();
+		this.threatArrow = new THREE.Mesh(
+			new THREE.ShapeGeometry(arrowShape),
+			new THREE.MeshBasicMaterial({
+				color: build.isRival ? 0xffd166 : 0xff6f7d,
+			}),
+		);
+		this.threatArrow.renderOrder = Z_THREAT;
+		this.threatArrow.visible = false;
+
+		this.mesh.renderOrder = Z_CREEP;
 	}
 
 	readonly kind: CreepKind;
@@ -270,101 +480,76 @@ export class Creep extends Unit {
 			);
 	}
 
-	render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-		ctx.save();
-		ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
-		const damageFlash = this.damageFlash;
-		this.damageFlash = false;
-		ctx.fillStyle = damageFlash
-			? "#ffffff"
-			: this.build.isRival
-				? "#ffd166"
-				: this.kind === "bubbleShooter"
-					? "#8c7cff"
-					: "#ff6f7d";
-		const sentItem = this.build.emitterId
-			? [
-					this.build.mainHand,
-					this.build.offHand,
-					this.build.amulet,
-					this.build.charm,
-				].find((item) => item?.id.includes("sent"))
-			: undefined;
-		ctx.strokeStyle = sentItem
-			? dropRarityColor(sentItem.rarity)
-			: this.build.isRival
-				? "#704d00"
-				: "#501721";
-		ctx.lineWidth = sentItem ? 5 : 3;
-		if (sentItem) {
-			ctx.shadowColor = dropRarityColor(sentItem.rarity);
-			ctx.shadowBlur = 10;
-		}
-		ctx.beginPath();
-		if (this.kind === "melee") {
-			for (let i = 0; i < 6; i += 1) {
-				const a = -Math.PI / 2 + (i * Math.PI) / 3;
-				if (i === 0)
-					ctx.moveTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius);
-				else ctx.lineTo(Math.cos(a) * this.radius, Math.sin(a) * this.radius);
-			}
-			ctx.closePath();
-		} else ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.stroke();
-		renderStatusEffects(
-			ctx,
-			this.statuses,
-			this.radius,
-			performance.now() / 1000,
-		);
-		if (this.kind === "bubbleShooter") {
-			ctx.fillStyle = "#dff8ff";
-			ctx.beginPath();
-			ctx.arc(5, -5, 5, 0, Math.PI * 2);
-			ctx.fill();
-		}
-		ctx.fillStyle = "rgba(0,0,0,.5)";
-		ctx.fillRect(-16, -28, 32, 4);
-		ctx.fillStyle = "#f1fffa";
-		ctx.fillRect(-16, -28, resourceBarWidth(this.hp, this.maxHp), 4);
-		ctx.fillStyle = "rgba(0,0,0,.65)";
-		ctx.fillRect(-16, -24, 32, 2);
-		ctx.fillStyle = "#45a9ff";
-		ctx.fillRect(-16, -24, resourceBarWidth(this.mana, this.maxMana), 2);
-		ctx.fillStyle = "rgba(0,0,0,.65)";
-		ctx.fillRect(-16, -22, 32, 2);
-		ctx.fillStyle = "#ffd166";
-		ctx.fillRect(-16, -22, resourceBarWidth(this.rage, this.maxRage), 2);
-		if (sentItem) {
-			ctx.font = "600 12px sans-serif";
-			ctx.textAlign = "center";
-			ctx.textBaseline = "bottom";
-			ctx.fillStyle = "#eafffb";
-			ctx.shadowColor = "rgba(0,0,0,.95)";
-			ctx.shadowBlur = 4;
-			ctx.fillText(this.emitterName, 0, -34);
-		}
-		if (this.pendingAttack) {
-			ctx.strokeStyle = "#ffea77";
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.arc(0, 0, this.radius + 7, 0, Math.PI * 2);
-			ctx.stroke();
-		}
-		if (this.build.bonusSkills?.length) {
-			ctx.strokeStyle = "#ff6534";
-			ctx.lineWidth = 2;
-			ctx.shadowColor = "#ff3d20";
-			ctx.shadowBlur = 8;
-			ctx.beginPath();
-			ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2);
-			ctx.stroke();
-		}
-		ctx.restore();
-	}
-}
+	override updateVisuals(
+		time: number,
+		hovered?: Creep,
+		inspected?: Creep,
+	): void {
+		super.updateVisuals(time);
+		this.mesh.position.set(this.position.x, this.position.y, 0);
 
-export function resourceBarWidth(current: number, maximum: number): number {
-	return maximum > 0 ? 32 * clamp(current / maximum, 0, 1) : 0;
+		const flash = this.damageFlash;
+		this.damageFlash = false;
+		const fillColor = flash
+			? 0xffffff
+			: this.build.isRival
+				? 0xffd166
+				: this.kind === "bubbleShooter"
+					? 0x8c7cff
+					: 0xff6f7d;
+		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);
+
+		this.healthBarGroup.position.set(this.position.x, this.position.y, 0);
+
+		const hbW = this.barWidth;
+		const hpRatio = this.maxHp > 0 ? clamp(this.hp / this.maxHp, 0, 1) : 0;
+		this.healthFill.scale.x = Math.max(0.001, hpRatio);
+		this.healthFill.position.x = -hbW / 2 + (hbW * hpRatio) / 2;
+
+		const manaRatio =
+			this.maxMana > 0 ? clamp(this.mana / this.maxMana, 0, 1) : 0;
+		this.manaFill.scale.x = Math.max(0.001, manaRatio);
+		this.manaFill.position.x = -hbW / 2 + (hbW * manaRatio) / 2;
+
+		const rageRatio =
+			this.maxRage > 0 ? clamp(this.rage / this.maxRage, 0, 1) : 0;
+		this.rageFill.scale.x = Math.max(0.001, rageRatio);
+		this.rageFill.position.x = -hbW / 2 + (hbW * rageRatio) / 2;
+
+		this.attackWindupRing.visible = this.pendingAttack;
+		this.attackWindupRing.position.set(this.position.x, this.position.y, 0);
+
+		this.bonusSkillRing.visible = !!this.build.bonusSkills?.length;
+		this.bonusSkillRing.position.set(this.position.x, this.position.y, 0);
+
+		const isHighlighted = this === hovered || this === inspected;
+		this.selectionRing.visible = isHighlighted;
+		if (isHighlighted) {
+			this.selectionRing.position.set(this.position.x, this.position.y, 0);
+		}
+
+		this.updateThreatArrow();
+	}
+
+	private updateThreatArrow(): void {
+		const margin = 30;
+		const cam = { width: window.innerWidth, height: window.innerHeight };
+		const x = this.position.x;
+		const y = this.position.y;
+		if (
+			x >= margin &&
+			x <= cam.width - margin &&
+			y >= margin &&
+			y <= cam.height - margin
+		) {
+			this.threatArrow.visible = false;
+			return;
+		}
+		const ix = clamp(x, margin, cam.width - margin);
+		const iy = clamp(y, margin, cam.height - margin);
+		const angle = Math.atan2(y - iy, x - ix);
+		this.threatArrow.visible = true;
+		this.threatArrow.position.set(ix, iy, 0);
+		this.threatArrow.rotation.z = angle;
+	}
 }

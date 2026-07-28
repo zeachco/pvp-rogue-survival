@@ -1,66 +1,61 @@
+import * as THREE from "three";
 import type { StatusEffectSnapshot } from "../types";
 
-export function renderStatusEffects(
-	ctx: CanvasRenderingContext2D,
+export function createStatusTint(
+	statuses: StatusEffectSnapshot[],
+	radius: number,
+): THREE.Mesh | null {
+	const tint = statusTint(statuses);
+	if (!tint) return null;
+	const geo = new THREE.CircleGeometry(radius, 24);
+	const mat = new THREE.MeshBasicMaterial({
+		color: tint,
+		transparent: true,
+		opacity: 0.42,
+		depthWrite: false,
+	});
+	const mesh = new THREE.Mesh(geo, mat);
+	mesh.renderOrder = 1;
+	return mesh;
+}
+
+export function updateStatusEffects(
+	_statusGroup: THREE.Group,
 	statuses: StatusEffectSnapshot[],
 	radius: number,
 	time: number,
+	bleedDots: THREE.Mesh[],
+	stunRays: THREE.Line[],
 ): void {
-	const tint = statusTint(statuses);
-	if (tint) {
-		ctx.save();
-		ctx.globalAlpha = 0.42;
-		ctx.fillStyle = tint;
-		ctx.beginPath();
-		ctx.arc(0, 0, radius, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.restore();
-	}
-	if (statuses.some((status) => status.kind === "bleed")) {
-		ctx.save();
-		ctx.fillStyle = "#ff4858";
-		for (let index = 0; index < 4; index += 1) {
-			const angle = time * 3.7 + index * 2.41;
-			const distance = radius + 3 + ((time * 18 + index * 5) % 7);
-			ctx.globalAlpha = 0.4 + index * 0.12;
-			ctx.beginPath();
-			ctx.arc(
-				Math.cos(angle) * distance,
-				Math.sin(angle) * distance,
-				1.25,
-				0,
-				Math.PI * 2,
-			);
-			ctx.fill();
+	const hasBleed = statuses.some((s) => s.kind === "bleed");
+	const hasStun =
+		statuses.some((s) => s.kind === "stun") ||
+		statuses.some((s) => s.kind === "shock");
+
+	for (const dot of bleedDots) {
+		dot.visible = hasBleed;
+		if (hasBleed) {
+			const idx = bleedDots.indexOf(dot);
+			const angle = time * 3.7 + idx * 2.41;
+			const dist = radius + 3 + ((time * 18 + idx * 5) % 7);
+			dot.position.set(Math.cos(angle) * dist, Math.sin(angle) * dist, 2);
+			(dot.material as THREE.MeshBasicMaterial).opacity = 0.4 + idx * 0.12;
 		}
-		ctx.restore();
 	}
-	if (
-		statuses.some((status) => status.kind === "stun" || status.kind === "shock")
-	) {
-		ctx.save();
-		ctx.rotate(time * 4);
-		ctx.strokeStyle = "#ffffff";
-		ctx.shadowColor = "#ffffff";
-		ctx.shadowBlur = 5;
-		ctx.lineWidth = 1.5;
-		for (let arm = 0; arm < 4; arm += 1) {
-			ctx.save();
-			ctx.rotate((arm * Math.PI) / 2);
-			ctx.beginPath();
-			ctx.moveTo(0, -radius - 7);
-			ctx.lineTo(0, -radius - 14);
-			ctx.stroke();
-			ctx.restore();
+
+	for (const ray of stunRays) {
+		ray.visible = hasStun;
+		if (hasStun) {
+			const idx = stunRays.indexOf(ray);
+			ray.rotation.z = time * 4 + (idx * Math.PI) / 2;
 		}
-		ctx.restore();
 	}
 }
 
 function statusTint(statuses: StatusEffectSnapshot[]): string | undefined {
-	if (statuses.some((status) => status.kind === "freeze")) return "#8de7ff";
-	if (statuses.some((status) => status.kind === "burn")) return "#ff783d";
-	if (statuses.some((status) => status.kind === "poison")) return "#92f58b";
-	if (statuses.some((status) => status.kind === "curse")) return "#4b225e";
+	if (statuses.some((s) => s.kind === "freeze")) return "#8de7ff";
+	if (statuses.some((s) => s.kind === "burn")) return "#ff783d";
+	if (statuses.some((s) => s.kind === "poison")) return "#92f58b";
+	if (statuses.some((s) => s.kind === "curse")) return "#4b225e";
 	return undefined;
 }

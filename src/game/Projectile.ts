@@ -1,9 +1,11 @@
+import * as THREE from "three";
 import { GameObject } from "./GameObject";
-import { normalize, type Camera, type Vector2 } from "./types";
+import { normalize, type Vector2 } from "./types";
 import type { Unit } from "./Unit";
 import type { DamagePresentation } from "./CombatText";
 import type { ItemInstance, SkillId } from "../../common/items";
 import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
+import { Z_PROJECTILE } from "./render/ThreeRenderer";
 
 export type ProjectileSkill = SkillId | "frostSpike";
 
@@ -28,18 +30,31 @@ export class Projectile extends GameObject {
 	private boomerangDamageSeconds = 0;
 
 	readonly force?: ImpactForce;
+	readonly skill?: ProjectileSkill;
+	readonly owner: "hero" | "creep";
+	readonly source?: Unit;
+	readonly presentation: DamagePresentation;
+	readonly weapon?: ItemInstance;
+
+	private readonly bodyMesh: THREE.Mesh;
+
 	constructor(
 		start: Vector2,
 		target: Vector2,
 		readonly damage = 1,
-		readonly owner: "hero" | "creep" = "creep",
-		readonly skill?: ProjectileSkill,
-		readonly source?: Unit,
-		readonly presentation: DamagePresentation = { kind: "physical" },
-		readonly weapon?: ItemInstance,
+		owner: "hero" | "creep" = "creep",
+		skill?: ProjectileSkill,
+		source?: Unit,
+		presentation: DamagePresentation = { kind: "physical" },
+		weapon?: ItemInstance,
 		force = true,
 	) {
 		super();
+		this.owner = owner;
+		this.skill = skill;
+		this.source = source;
+		this.presentation = presentation;
+		this.weapon = weapon;
 		this.position = { ...start };
 		const direction = normalize({
 			x: target.x - start.x,
@@ -69,6 +84,137 @@ export class Projectile extends GameObject {
 			this.lifetime = 1.2;
 			this.radius = 6;
 		}
+
+		this.bodyMesh = this.createMesh();
+		this.bodyMesh.renderOrder = Z_PROJECTILE;
+		this.mesh.add(this.bodyMesh);
+		this.mesh.renderOrder = Z_PROJECTILE;
+	}
+
+	private createMesh(): THREE.Mesh {
+		if (this.skill === "frostOrb") {
+			const inner = new THREE.Mesh(
+				new THREE.CircleGeometry(16, 20),
+				new THREE.MeshBasicMaterial({
+					color: 0x7adcff,
+					transparent: true,
+					opacity: 0.75,
+				}),
+			);
+			inner.renderOrder = Z_PROJECTILE;
+			const ring = new THREE.Mesh(
+				new THREE.RingGeometry(14.5, 17.5, 20),
+				new THREE.MeshBasicMaterial({
+					color: 0xe5fbff,
+					side: THREE.DoubleSide,
+				}),
+			);
+			ring.renderOrder = Z_PROJECTILE + 0.001;
+			const glow = new THREE.Mesh(
+				new THREE.CircleGeometry(22, 20),
+				new THREE.MeshBasicMaterial({
+					color: 0x62cfff,
+					transparent: true,
+					opacity: 0.3,
+					depthWrite: false,
+				}),
+			);
+			glow.renderOrder = Z_PROJECTILE - 0.001;
+			const group = new THREE.Group();
+			group.add(glow, inner, ring);
+			return group as unknown as THREE.Mesh;
+		}
+
+		if (this.skill === "frostSpike") {
+			const shape = new THREE.Shape();
+			shape.moveTo(10, 0);
+			shape.lineTo(-6, -4);
+			shape.lineTo(-2, 0);
+			shape.lineTo(-6, 4);
+			shape.closePath();
+			const mesh = new THREE.Mesh(
+				new THREE.ShapeGeometry(shape),
+				new THREE.MeshBasicMaterial({
+					color: 0xbdefff,
+				}),
+			);
+			const glow = new THREE.Mesh(
+				new THREE.CircleGeometry(8, 12),
+				new THREE.MeshBasicMaterial({
+					color: 0x62cfff,
+					transparent: true,
+					opacity: 0.35,
+					depthWrite: false,
+				}),
+			);
+			glow.position.z = -0.01;
+			const group = new THREE.Group();
+			group.add(glow, mesh);
+			return group as unknown as THREE.Mesh;
+		}
+
+		if (this.skill === "vampiricBoomerang") {
+			const arc = new THREE.Mesh(
+				new THREE.RingGeometry(30, 48, 20, 1, -0.9, 1.8),
+				new THREE.MeshBasicMaterial({
+					color: 0xff3152,
+					side: THREE.DoubleSide,
+				}),
+			);
+			arc.renderOrder = Z_PROJECTILE;
+			const inner = new THREE.Mesh(
+				new THREE.RingGeometry(33, 42, 20, 1, -0.9, 1.8),
+				new THREE.MeshBasicMaterial({
+					color: 0x850d26,
+					side: THREE.DoubleSide,
+				}),
+			);
+			inner.renderOrder = Z_PROJECTILE + 0.001;
+			const group = new THREE.Group();
+			group.add(arc, inner);
+			return group as unknown as THREE.Mesh;
+		}
+
+		if (this.weapon?.definitionId === "throwingAxe") {
+			const handle = new THREE.Mesh(
+				new THREE.PlaneGeometry(18, 4),
+				new THREE.MeshBasicMaterial({ color: 0x8a552f }),
+			);
+			const bladeShape = new THREE.Shape();
+			bladeShape.moveTo(2, -3);
+			bladeShape.quadraticCurveTo(11, -12, 12, 0);
+			bladeShape.quadraticCurveTo(11, 12, 2, 3);
+			bladeShape.closePath();
+			const blade = new THREE.Mesh(
+				new THREE.ShapeGeometry(bladeShape),
+				new THREE.MeshBasicMaterial({ color: 0xb9c4ca }),
+			);
+			blade.position.x = 5;
+			const group = new THREE.Group();
+			group.add(handle, blade);
+			return group as unknown as THREE.Mesh;
+		}
+
+		const defaultMesh = new THREE.Mesh(
+			new THREE.CircleGeometry(this.radius, 16),
+			new THREE.MeshBasicMaterial({
+				color: 0x8fd5ff,
+				transparent: true,
+				opacity: 0.72,
+			}),
+		);
+		const highlight = new THREE.Mesh(
+			new THREE.CircleGeometry(3, 8),
+			new THREE.MeshBasicMaterial({
+				color: 0xffffff,
+				transparent: true,
+				opacity: 0.75,
+			}),
+		);
+		highlight.position.set(-3, -4, 0.01);
+		const group = new THREE.Group();
+		group.add(defaultMesh, highlight);
+		return group as unknown as THREE.Mesh;
 	}
 
 	static orbitingHammer(
@@ -204,98 +350,26 @@ export class Projectile extends GameObject {
 		if (this.lifetime <= 0) this.active = false;
 	}
 
-	render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-		ctx.save();
-		ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
+	override updateVisuals(time: number): void {
+		super.updateVisuals(time);
+		this.mesh.position.set(this.position.x, this.position.y, 0);
+
 		if (this.skill === "frostOrb") {
-			ctx.fillStyle = "rgba(122,220,255,.75)";
-			ctx.strokeStyle = "#e5fbff";
-			ctx.shadowColor = "#62cfff";
-			ctx.shadowBlur = 18;
-			ctx.lineWidth = 3;
-			ctx.beginPath();
-			ctx.arc(0, 0, 16, 0, Math.PI * 2);
-			ctx.fill();
-			ctx.stroke();
-			ctx.restore();
-			return;
-		}
-		if (this.skill === "frostSpike") {
-			ctx.rotate(Math.atan2(this.velocity.y, this.velocity.x));
-			ctx.fillStyle = "#bdefff";
-			ctx.shadowColor = "#62cfff";
-			ctx.shadowBlur = 10;
-			ctx.beginPath();
-			ctx.moveTo(10, 0);
-			ctx.lineTo(-6, -4);
-			ctx.lineTo(-2, 0);
-			ctx.lineTo(-6, 4);
-			ctx.closePath();
-			ctx.fill();
-			ctx.restore();
-			return;
-		}
-		if (this.skill === "orbitingHammers") {
-			ctx.rotate(this.orbitAngle + this.orbitAge * 7);
-			ctx.fillStyle = "#e9d59a";
-			ctx.strokeStyle = "#fff3bd";
-			ctx.shadowColor = "#ffd45e";
-			ctx.shadowBlur = 12;
-			ctx.lineWidth = 2;
-			ctx.fillRect(-3, -2, 6, 15);
-			ctx.strokeRect(-3, -2, 6, 15);
-			ctx.fillRect(-10, -8, 20, 9);
-			ctx.strokeRect(-10, -8, 20, 9);
-			ctx.restore();
-			return;
-		}
-		if (this.skill === "vampiricBoomerang") {
-			ctx.rotate(
-				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 10,
+			(this.mesh as THREE.Group).rotation.z = 0;
+		} else if (this.skill === "frostSpike") {
+			(this.mesh as THREE.Group).rotation.z = Math.atan2(
+				this.velocity.y,
+				this.velocity.x,
 			);
-			ctx.strokeStyle = "#ff3152";
-			ctx.shadowColor = "#ff1838";
-			ctx.shadowBlur = 24;
-			ctx.lineWidth = 18;
-			ctx.beginPath();
-			ctx.arc(0, 0, 39, -0.9, 0.9);
-			ctx.stroke();
-			ctx.strokeStyle = "#850d26";
-			ctx.lineWidth = 6;
-			ctx.stroke();
-			ctx.restore();
-			return;
+		} else if (this.skill === "orbitingHammers") {
+			(this.mesh as THREE.Group).rotation.z =
+				this.orbitAngle + this.orbitAge * 7;
+		} else if (this.skill === "vampiricBoomerang") {
+			(this.mesh as THREE.Group).rotation.z =
+				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 10;
+		} else if (this.weapon?.definitionId === "throwingAxe") {
+			(this.mesh as THREE.Group).rotation.z =
+				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 11;
 		}
-		if (this.weapon?.definitionId === "throwingAxe") {
-			ctx.rotate(
-				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 11,
-			);
-			ctx.fillStyle = "#8a552f";
-			ctx.strokeStyle = "#f0d4a4";
-			ctx.lineWidth = 2;
-			ctx.fillRect(-9, -2, 18, 4);
-			ctx.beginPath();
-			ctx.moveTo(2, -3);
-			ctx.quadraticCurveTo(11, -12, 12, 0);
-			ctx.quadraticCurveTo(11, 12, 2, 3);
-			ctx.closePath();
-			ctx.fillStyle = "#b9c4ca";
-			ctx.fill();
-			ctx.stroke();
-			ctx.restore();
-			return;
-		}
-		ctx.fillStyle = "rgba(143,213,255,.72)";
-		ctx.strokeStyle = "#d9f5ff";
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.stroke();
-		ctx.fillStyle = "rgba(255,255,255,.75)";
-		ctx.beginPath();
-		ctx.arc(-3, -4, 3, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.restore();
 	}
 }

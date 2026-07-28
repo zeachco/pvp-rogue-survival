@@ -1,19 +1,94 @@
+import * as THREE from "three";
 import type { Rarity } from "../../common/items";
 import type { GroundDrop } from "../../common/protocol";
 import { GameObject } from "./GameObject";
-import type { Camera, Vector2 } from "./types";
+import type { Vector2 } from "./types";
+import { Z_DROP } from "./render/ThreeRenderer";
 
 export class ItemDrop extends GameObject {
 	readonly radius = 14;
 	enteredArena = false;
 	readonly velocity: Vector2 = { x: 0, y: 0 };
 	escaping = false;
-	constructor(
-		readonly drop: GroundDrop,
-		readonly position: Vector2,
-	) {
+	readonly drop: GroundDrop;
+	readonly position: Vector2;
+
+	private readonly bodyMesh: THREE.Mesh;
+	private readonly glowMesh?: THREE.Mesh;
+
+	constructor(drop: GroundDrop, position: Vector2) {
 		super();
+		this.drop = drop;
+		this.position = { ...position };
+
+		if (drop.kind === "gold") {
+			const color = 0xf4cf42;
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.CircleGeometry(10, 16),
+				new THREE.MeshBasicMaterial({ color }),
+			);
+			const stroke = new THREE.Mesh(
+				new THREE.RingGeometry(9, 11, 16),
+				new THREE.MeshBasicMaterial({
+					color: 0xfff0a0,
+					side: THREE.DoubleSide,
+				}),
+			);
+			stroke.renderOrder = 0.001;
+			this.glowMesh = new THREE.Mesh(
+				new THREE.CircleGeometry(16, 16),
+				new THREE.MeshBasicMaterial({
+					color,
+					transparent: true,
+					opacity: 0.35,
+					depthWrite: false,
+				}),
+			);
+			this.glowMesh.renderOrder = -0.001;
+			this.mesh.add(this.glowMesh, this.bodyMesh, stroke);
+		} else {
+			const rarity: Rarity =
+				drop.kind === "item" ? drop.item.rarity : drop.rarity;
+			const colorHex = dropRarityColor(rarity);
+			const color = Number.parseInt(colorHex.replace("#", ""), 16);
+
+			const square = new THREE.Mesh(
+				new THREE.PlaneGeometry(18, 18),
+				new THREE.MeshBasicMaterial({
+					color,
+					transparent: drop.kind === "scrap",
+					opacity: drop.kind === "scrap" ? 0 : 1,
+				}),
+			);
+			square.rotation.z = Math.PI / 4;
+			square.renderOrder = 0;
+
+			const strokeSquare = new THREE.Mesh(
+				new THREE.EdgesGeometry(new THREE.PlaneGeometry(18, 18)),
+				new THREE.LineBasicMaterial({ color }),
+			);
+			strokeSquare.rotation.z = Math.PI / 4;
+			strokeSquare.renderOrder = 0.001;
+
+			this.glowMesh = new THREE.Mesh(
+				new THREE.CircleGeometry(18, 16),
+				new THREE.MeshBasicMaterial({
+					color,
+					transparent: true,
+					opacity: 0.35,
+					depthWrite: false,
+				}),
+			);
+			this.glowMesh.renderOrder = -0.001;
+
+			this.bodyMesh = square;
+			this.mesh.add(this.glowMesh, this.bodyMesh, strokeSquare);
+		}
+
+		this.bodyMesh.renderOrder = Z_DROP;
+		this.mesh.renderOrder = Z_DROP;
 	}
+
 	get dropId(): string {
 		return this.drop.id;
 	}
@@ -49,38 +124,14 @@ export class ItemDrop extends GameObject {
 			this.position.y > height + margin
 		);
 	}
-	render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-		ctx.save();
-		ctx.translate(this.position.x - camera.x, this.position.y - camera.y);
-		if (this.drop.kind === "gold") {
-			const color = "#f4cf42";
-			ctx.fillStyle = color;
-			ctx.strokeStyle = "#fff0a0";
-			ctx.shadowColor = color;
-			ctx.shadowBlur = 14;
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.arc(0, 0, 10, 0, Math.PI * 2);
-			ctx.fill();
-			ctx.stroke();
-			ctx.restore();
-			return;
+
+	override updateVisuals(time: number): void {
+		super.updateVisuals(time);
+		this.mesh.position.set(this.position.x, this.position.y, 0);
+		if (this.glowMesh) {
+			const pulse = 0.3 + Math.sin(time * 3) * 0.1;
+			(this.glowMesh.material as THREE.MeshBasicMaterial).opacity = pulse;
 		}
-		const rarity =
-			this.drop.kind === "item" ? this.drop.item.rarity : this.drop.rarity;
-		const color = dropRarityColor(rarity);
-		ctx.rotate(Math.PI / 4);
-		ctx.fillStyle = color;
-		ctx.strokeStyle = color;
-		ctx.shadowColor = color;
-		ctx.shadowBlur = 14;
-		ctx.lineWidth = 3;
-		if (this.drop.kind === "scrap") ctx.strokeRect(-9, -9, 18, 18);
-		else {
-			ctx.fillRect(-9, -9, 18, 18);
-			ctx.strokeRect(-9, -9, 18, 18);
-		}
-		ctx.restore();
 	}
 }
 
