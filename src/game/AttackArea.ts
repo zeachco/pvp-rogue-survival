@@ -8,54 +8,94 @@ import type { ImpactForce } from "./ImpactForce";
 export type AttackOwner = "hero" | "creep";
 
 export class AttackArea extends GameObject {
-  private age = 0;
-  private readonly sourceAttackVersion?: number;
-  resolved = false;
+	private age = 0;
+	private readonly sourceAttackVersion?: number;
+	resolved = false;
 
-  constructor(
-    readonly owner: AttackOwner,
-    readonly origin: Vector2,
-    readonly angle: number,
-    readonly range: number,
-    readonly halfArc: number,
-    readonly windup: number,
-    readonly linger: number,
-    readonly damage: number,
-    readonly source?: { active: boolean; attackVersion?: number },
-    readonly skill?: SkillId,
-    readonly weapon?: ItemInstance,
-    readonly presentation: DamagePresentation = { kind: "physical" },
-    readonly force?: ImpactForce
-  ) { super(); this.sourceAttackVersion = source?.attackVersion; }
+	constructor(
+		readonly owner: AttackOwner,
+		readonly origin: Vector2,
+		readonly angle: number,
+		readonly range: number,
+		readonly halfArc: number,
+		readonly windup: number,
+		readonly linger: number,
+		readonly damage: number,
+		readonly source?: { active: boolean; attackVersion?: number },
+		readonly skill?: SkillId,
+		readonly weapon?: ItemInstance,
+		readonly presentation: DamagePresentation = { kind: "physical" },
+		readonly force?: ImpactForce,
+	) {
+		super();
+		this.sourceAttackVersion = source?.attackVersion;
+	}
 
-  update(deltaSeconds: number): void {
-    this.age += deltaSeconds;
-    if (this.age >= this.windup + this.linger) this.active = false;
-  }
+	update(deltaSeconds: number): void {
+		this.age += deltaSeconds;
+		if (this.age >= this.windup + this.linger) this.active = false;
+	}
 
-  shouldResolve(): boolean {
-    if (!this.resolved && this.owner === "creep" && this.source && (!this.source.active || this.source.attackVersion !== this.sourceAttackVersion)) { this.active = false; return false; }
-    return this.active && !this.resolved && this.age >= this.windup;
-  }
-  markResolved(): void { this.resolved = true; }
+	shouldResolve(): boolean {
+		if (
+			!this.resolved &&
+			this.owner === "creep" &&
+			this.source &&
+			(!this.source.active ||
+				this.source.attackVersion !== this.sourceAttackVersion)
+		) {
+			this.active = false;
+			return false;
+		}
+		return this.active && !this.resolved && this.age >= this.windup;
+	}
+	markResolved(): void {
+		this.resolved = true;
+	}
 
-  contains(position: Vector2, radius = 0): boolean {
-    const dx = position.x - this.origin.x;
-    const dy = position.y - this.origin.y;
-    if (distance(position, this.origin) > this.range + radius) return false;
-    if (this.halfArc >= Math.PI) return true;
-    const delta = Math.atan2(Math.sin(Math.atan2(dy, dx) - this.angle), Math.cos(Math.atan2(dy, dx) - this.angle));
-    return Math.abs(delta) <= this.halfArc;
-  }
+	contains(position: Vector2, radius = 0): boolean {
+		const dx = position.x - this.origin.x;
+		const dy = position.y - this.origin.y;
+		if (distance(position, this.origin) > this.range + radius) return false;
+		if (this.halfArc >= Math.PI) return true;
+		const delta = Math.atan2(
+			Math.sin(Math.atan2(dy, dx) - this.angle),
+			Math.cos(Math.atan2(dy, dx) - this.angle),
+		);
+		return Math.abs(delta) <= this.halfArc;
+	}
 
-  render(ctx: CanvasRenderingContext2D, camera: Camera): void {
-    if (this.skill === "rent") return;
-    ctx.save(); ctx.translate(this.origin.x - camera.x, this.origin.y - camera.y);
-    ctx.beginPath(); ctx.moveTo(0, 0);
-    ctx.arc(0, 0, this.range, this.angle - this.halfArc, this.angle + this.halfArc); ctx.closePath();
-    const hero = this.owner === "hero";
-    const fire = this.skill === "fireBreath"; ctx.fillStyle = fire ? (this.resolved ? "rgba(255,80,30,.38)" : "rgba(255,80,30,.12)") : this.resolved ? (hero ? "rgba(58,255,212,.32)" : "rgba(255,75,98,.38)") : (hero ? "rgba(58,255,212,.12)" : "rgba(255,75,98,.13)");
-    ctx.strokeStyle = fire ? "#ff6534" : hero ? "#3affd4" : "#ff4b62"; ctx.lineWidth = this.resolved ? 4 : 2;
-    ctx.fill(); ctx.stroke(); ctx.restore();
-  }
+	render(ctx: CanvasRenderingContext2D, camera: Camera): void {
+		if (this.skill === "rent") return;
+		ctx.save();
+		ctx.translate(this.origin.x - camera.x, this.origin.y - camera.y);
+		ctx.beginPath();
+		ctx.moveTo(0, 0);
+		ctx.arc(
+			0,
+			0,
+			this.range,
+			this.angle - this.halfArc,
+			this.angle + this.halfArc,
+		);
+		ctx.closePath();
+		const hero = this.owner === "hero";
+		const fire = this.skill === "fireBreath";
+		ctx.fillStyle = fire
+			? this.resolved
+				? "rgba(255,80,30,.38)"
+				: "rgba(255,80,30,.12)"
+			: this.resolved
+				? hero
+					? "rgba(58,255,212,.32)"
+					: "rgba(255,75,98,.38)"
+				: hero
+					? "rgba(58,255,212,.12)"
+					: "rgba(255,75,98,.13)";
+		ctx.strokeStyle = fire ? "#ff6534" : hero ? "#3affd4" : "#ff4b62";
+		ctx.lineWidth = this.resolved ? 4 : 2;
+		ctx.fill();
+		ctx.stroke();
+		ctx.restore();
+	}
 }

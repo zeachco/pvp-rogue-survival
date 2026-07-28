@@ -15,6 +15,7 @@ For every request:
 3. If it is not covered, update the relevant spec file first with the new decision.
 4. Implement the code change only after the spec reflects the intended behavior.
 5. Keep the specs synchronized when changing filenames, runtimes, protocols, mechanics, progression, game rules, or UX expectations.
+6. After modifying any TypeScript/JavaScript file, run `bunx biome format --write .` to ensure consistent formatting.
 
 Use Bun for project tooling and scripts. The client is Vite + TypeScript with canvas rendering and stable DOM HUD components. The server is TypeScript run by Bun.
 
