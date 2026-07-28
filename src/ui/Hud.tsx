@@ -8,6 +8,7 @@ import {
 	itemResourceCostReduction,
 	itemStackKey,
 	RARITIES,
+	RARITY_POWER,
 	statsWithItemBonuses,
 	type ItemInstance,
 	type Rarity,
@@ -2206,7 +2207,24 @@ export function effectiveStatRows(
 			"Attraction",
 			`${fmt(Math.max((main?.attractionSpeed ?? 0) * mainEffectiveness, (off?.attractionSpeed ?? 0) * (off ? itemRequirementMultiplier(off, stats) : 1)))}px/s`,
 		],
-		["Reflection", buckler?.reflectionComponents.join(" / ") || "None"],
+		[
+			"Reflection",
+			buckler && buckler.reflectionComponents.length
+				? (() => {
+						const power = RARITY_POWER[buckler.rarity] * bucklerEffectiveness;
+						const parts: string[] = [];
+						if (buckler.reflectionComponents.includes("flat"))
+							parts.push(fmt(1 * power));
+						if (buckler.reflectionComponents.includes("strength"))
+							parts.push(`${fmt(0.2 * stats.strength * power)} (20%×STR)`);
+						if (buckler.reflectionComponents.includes("return"))
+							parts.push(
+								`${fmt((0.15 + 0.004 * stats.agility) * power * 100)}% inc. (15%+0.4%×AGI)`,
+							);
+						return `Reflect: ${parts.join(" + ")}`;
+					})()
+				: "None",
+		],
 	];
 }
 function effectiveStatSheet(

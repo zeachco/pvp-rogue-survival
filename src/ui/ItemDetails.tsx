@@ -9,6 +9,7 @@ import { SKILLS } from "../../common/content";
 import {
 	itemRequirementMultiplier,
 	ITEM_PERKS,
+	RARITY_POWER,
 	type ItemInstance,
 	type SkillId,
 } from "../../common/items";
@@ -357,10 +358,19 @@ function itemEffectSummary(
 		effects.push(
 			`+${precise(item.modifiers.rarityBoost * effectiveness * 100)}% Rarity boost`,
 		);
-	if (item.reflectionComponents.length)
-		effects.push(
-			`Reflect: ${item.reflectionComponents.map(capitalize).join("/")}`,
-		);
+	if (item.reflectionComponents.length) {
+		const power = RARITY_POWER[item.rarity];
+		const parts: string[] = [];
+		if (item.reflectionComponents.includes("flat"))
+			parts.push(`${fmt(1 * power)}`);
+		if (item.reflectionComponents.includes("strength"))
+			parts.push(`${fmt(0.2 * effectiveStats.strength * power)} (20%×STR)`);
+		if (item.reflectionComponents.includes("return"))
+			parts.push(
+				`${precise((0.15 + 0.004 * effectiveStats.agility) * power * 100)}% of incoming (15%+0.4%×AGI)`,
+			);
+		effects.push(`Reflect on block: ${parts.join(" + ")}`);
+	}
 	const accessory = item.accessoryBonuses;
 	if ((accessory?.healthOnKill ?? 0) > 0)
 		effects.push(`${fmt(accessory!.healthOnKill! * effectiveness)} HP on kill`);
