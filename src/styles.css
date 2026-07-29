@@ -108,12 +108,16 @@ input {
 	align-items: center;
 	justify-content: flex-start;
 	padding: 6px;
-	overflow: visible;
+	overflow-x: hidden;
+	overflow-y: auto;
 	border: 1px solid rgba(138, 216, 255, 0.35);
 	border-radius: 99px 99px 8px 8px;
 	background: rgba(13, 20, 24, 0.82);
 	box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
 	backdrop-filter: blur(10px);
+	overscroll-behavior: contain;
+	scrollbar-color: rgba(138, 216, 255, 0.5) transparent;
+	scrollbar-width: thin;
 }
 
 .skill-bar small {
@@ -121,6 +125,7 @@ input {
 }
 
 .skill-bar-label {
+	flex: 0 0 auto;
 	font-size: 9px;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
@@ -129,6 +134,7 @@ input {
 .spell-slot {
 	position: relative;
 	display: grid;
+	flex: 0 0 56px;
 	width: 56px;
 	height: 56px;
 	place-items: center;
