@@ -14,6 +14,7 @@ import {
 	type SkillId,
 } from "../../common/items";
 import { STAT_KEYS, type Stats } from "../../common/progression";
+import { pixelsToMeters } from "../../common/units";
 import { h } from "./dom";
 import { formatProjectedValue, previewTone } from "./preview";
 
@@ -320,7 +321,9 @@ function itemEffectSummary(
 		);
 	if (item.attractionSpeed > 0)
 		effects.push(
-			`Attraction ${fmt(item.attractionSpeed * effectiveness)} px/s`,
+			`Attraction ${fmt(
+				pixelsToMeters(item.attractionSpeed * effectiveness),
+			)} m/s`,
 		);
 	if (item.modifiers.critChance > 0)
 		effects.push(

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { HEALING_MIN_RADIUS } from "../../common/combat";
 import type { SkillId } from "../../common/items";
 import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
@@ -34,7 +35,7 @@ export class SpellEffect extends GameObject {
 		this.lifetime =
 			lifetime ??
 			(kind === "healing"
-				? 0.9
+				? 1
 				: kind === "arcaneBolt"
 					? 0.65
 					: kind === "orbitingHammers"
@@ -105,7 +106,7 @@ export class SpellEffect extends GameObject {
 		} else if (this.kind === "whirlwind") {
 			whirlwind(this.effectGroup, progress, this.range);
 		} else {
-			healing(this.effectGroup, progress);
+			healing(this.effectGroup, progress, this.range || HEALING_MIN_RADIUS);
 		}
 	}
 }
@@ -329,26 +330,93 @@ function arcane(group: THREE.Group, progress: number): void {
 	group.add(ring);
 }
 
-function healing(group: THREE.Group, progress: number): void {
-	const dotMat = new THREE.MeshBasicMaterial({
+function healing(group: THREE.Group, progress: number, radius: number): void {
+	const auraOpacity = healingAuraOpacity(progress);
+	const light = new THREE.Mesh(
+		new THREE.CircleGeometry(radius, 48),
+		new THREE.MeshBasicMaterial({
+			color: 0x42e883,
+			transparent: true,
+			opacity: auraOpacity * 0.22,
+			blending: THREE.AdditiveBlending,
+			depthWrite: false,
+		}),
+	);
+	light.name = "healing-aura-light";
+	light.renderOrder = Z_EFFECT;
+	group.add(light);
+
+	const aura = new THREE.Mesh(
+		new THREE.RingGeometry(radius * 0.63, radius, 48),
+		new THREE.MeshBasicMaterial({
+			color: 0x72f2a7,
+			transparent: true,
+			opacity: auraOpacity,
+			blending: THREE.AdditiveBlending,
+			depthWrite: false,
+		}),
+	);
+	aura.name = "healing-aura";
+	aura.renderOrder = Z_EFFECT + 0.001;
+	group.add(aura);
+
+	if (progress < 0.25) return;
+
+	const plusProgress = (progress - 0.25) / 0.75;
+	const plusMat = new THREE.MeshBasicMaterial({
 		color: 0x72f2a7,
 		transparent: true,
-		opacity: 1 - progress * 0.4,
+		opacity: healingPlusOpacity(progress),
+		blending: THREE.AdditiveBlending,
+		side: THREE.DoubleSide,
 		depthWrite: false,
 	});
-	for (let i = 0; i < 9; i += 1) {
+	for (let i = 0; i < 6; i += 1) {
 		const angle = i * 2.399;
-		const radius = 12 + (i % 3) * 9;
-		const x = Math.cos(angle) * radius * (1 - progress * 0.35);
-		const y = Math.sin(angle) * radius - progress * (35 + i * 2);
-		const dot = new THREE.Mesh(
-			new THREE.CircleGeometry(2.5 + (i % 2), 8),
-			dotMat,
+		const plusRadius = radius * (0.28 + (i % 3) * 0.2);
+		const plus = new THREE.Mesh(
+			new THREE.ShapeGeometry(plusShape(2 + (i % 2) * 0.4, 7)),
+			plusMat,
 		);
-		dot.position.set(x, y, 0);
-		dot.renderOrder = Z_EFFECT;
-		group.add(dot);
+		plus.name = "healing-plus";
+		plus.position.set(
+			Math.cos(angle) * plusRadius,
+			Math.sin(angle) * plusRadius +
+				plusProgress * (radius * 0.22 + i * radius * 0.012),
+			0,
+		);
+		plus.renderOrder = Z_EFFECT + 0.002;
+		group.add(plus);
 	}
+}
+
+export function healingAuraOpacity(progress: number): number {
+	const bounded = Math.max(0, Math.min(1, progress));
+	return bounded <= 0.25 ? bounded / 0.25 : (1 - bounded) / 0.75;
+}
+
+export function healingPlusOpacity(progress: number): number {
+	const bounded = Math.max(0, Math.min(1, progress));
+	if (bounded < 0.25) return 0;
+	return (1 - bounded) / 0.75;
+}
+
+function plusShape(halfWidth: number, halfLength: number): THREE.Shape {
+	const shape = new THREE.Shape();
+	shape.moveTo(-halfWidth, -halfLength);
+	shape.lineTo(halfWidth, -halfLength);
+	shape.lineTo(halfWidth, -halfWidth);
+	shape.lineTo(halfLength, -halfWidth);
+	shape.lineTo(halfLength, halfWidth);
+	shape.lineTo(halfWidth, halfWidth);
+	shape.lineTo(halfWidth, halfLength);
+	shape.lineTo(-halfWidth, halfLength);
+	shape.lineTo(-halfWidth, halfWidth);
+	shape.lineTo(-halfLength, halfWidth);
+	shape.lineTo(-halfLength, -halfWidth);
+	shape.lineTo(-halfWidth, -halfWidth);
+	shape.closePath();
+	return shape;
 }
 
 function fireBreath(group: THREE.Group, progress: number): void {

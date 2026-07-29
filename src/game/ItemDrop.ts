@@ -63,7 +63,7 @@ export class ItemDrop extends GameObject {
 			square.rotation.z = Math.PI / 4;
 			square.renderOrder = 0;
 
-			const strokeSquare = new THREE.Mesh(
+			const strokeSquare = new THREE.LineSegments(
 				new THREE.EdgesGeometry(new THREE.PlaneGeometry(18, 18)),
 				new THREE.LineBasicMaterial({ color }),
 			);

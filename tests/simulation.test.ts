@@ -12,11 +12,20 @@ import { correctArenaBoundary } from "../src/game/bounds";
 import { Hero } from "../src/game/Hero";
 import { generateAccessory, generateBuckler } from "../common/items";
 import type { CombatText } from "../src/game/CombatText";
-import { SpellEffect } from "../src/game/SpellEffect";
+import {
+	healingAuraOpacity,
+	healingPlusOpacity,
+	SpellEffect,
+} from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import { dropRarityColor, ItemDrop } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
-import { healingCast, weaponAttackSpeed } from "../common/combat";
+import {
+	HEALING_MAX_RADIUS,
+	healingCast,
+	healingRadius,
+	weaponAttackSpeed,
+} from "../common/combat";
 import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
 import { Creep, resourceBarWidth } from "../src/game/Creep";
@@ -31,6 +40,10 @@ import {
 } from "../src/game/systems/HeroCombatSystem";
 import { resolveCombat } from "../src/game/systems/combat";
 import { applyImpactForce, emittedImpactForce } from "../src/game/ImpactForce";
+import {
+	ANIMATION_FRAME_STALE_MS,
+	backgroundFrameDue,
+} from "../src/game/FrameScheduler";
 
 describe("arena systems", () => {
 	test("preserves emitted linear and radial impact directions", () => {
@@ -162,6 +175,21 @@ describe("arena systems", () => {
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
 	});
+	test("runs a background frame only after animation frames become stale", () => {
+		const lastAnimationFrameAt = 1_000;
+		expect(
+			backgroundFrameDue(
+				lastAnimationFrameAt + ANIMATION_FRAME_STALE_MS - 1,
+				lastAnimationFrameAt,
+			),
+		).toBeFalse();
+		expect(
+			backgroundFrameDue(
+				lastAnimationFrameAt + ANIMATION_FRAME_STALE_MS,
+				lastAnimationFrameAt,
+			),
+		).toBeTrue();
+	});
 	test("lets an affordable healing creep restore itself and nearby allies", () => {
 		const build = {
 			id: "healer",
@@ -189,12 +217,21 @@ describe("arena systems", () => {
 			{ ...build, id: "ally", skillLevels: {} },
 			"neutral",
 			"neutral",
-			{ x: 250, y: 0 },
+			{ x: 140, y: 0 },
 			BALANCE,
 			new SeededRandom(2),
 		);
+		const distantAlly = new Creep(
+			{ ...build, id: "distant-ally", skillLevels: {} },
+			"neutral",
+			"neutral",
+			{ x: 160, y: 0 },
+			BALANCE,
+			new SeededRandom(3),
+		);
 		healer.hp = healer.maxHp / 2;
 		ally.hp = ally.maxHp / 2;
+		distantAlly.hp = distantAlly.maxHp / 2;
 		const mana = healer.mana;
 		const expectedCost = healingCast(
 			healer.hp,
@@ -204,11 +241,12 @@ describe("arena systems", () => {
 			1,
 		).manaCost;
 		const effects: SpellEffect[] = [];
-		expect(healer.castHealing([healer, ally], effects)).toBeTrue();
+		expect(healer.castHealing([healer, ally, distantAlly], effects)).toBeTrue();
 		expect(healer.mana).toBeCloseTo(mana - expectedCost);
 		expect(healer.hp).toBeGreaterThan(healer.maxHp / 2);
 		expect(ally.hp).toBeGreaterThan(ally.maxHp / 2);
-		expect(effects).toHaveLength(2);
+		expect(distantAlly.hp).toBe(distantAlly.maxHp / 2);
+		expect(effects).toHaveLength(1);
 	});
 	test("reports spell affordability from the hero's current resources", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -967,6 +1005,21 @@ describe("arena systems", () => {
 		expect(dropRarityColor("rare")).toBe("#6ca8ff");
 		expect(dropRarityColor("epic")).toBe("#ca75ff");
 	});
+	test("renders Scrap as a hollow diamond outline", () => {
+		const scrap = new ItemDrop(
+			{ id: "scrap", kind: "scrap", rarity: "rare", amount: 1 },
+			{ x: 0, y: 0 },
+		);
+		const body = scrap.mesh.children.find(
+			(child) =>
+				child.type === "Mesh" && child.geometry.type === "PlaneGeometry",
+		);
+
+		expect(body?.material.opacity).toBe(0);
+		expect(
+			scrap.mesh.children.some((child) => child.type === "LineSegments"),
+		).toBeTrue();
+	});
 	test("cancels an unresolved enemy telegraph when its source dies", () => {
 		const source = { active: false };
 		const attack = new AttackArea(
@@ -1381,5 +1434,37 @@ describe("arena systems", () => {
 		state.spellEffects.push(new SpellEffect("healing", { x: 5, y: 5 }));
 		state.clear();
 		expect(state.spellEffects).toHaveLength(0);
+	});
+	test("pulses Healing's aura and delays its fading rising plus signs", () => {
+		expect(healingAuraOpacity(0)).toBe(0);
+		expect(healingAuraOpacity(0.25)).toBe(1);
+		expect(healingAuraOpacity(1)).toBe(0);
+		expect(healingPlusOpacity(0.249)).toBe(0);
+		expect(healingPlusOpacity(0.25)).toBe(1);
+		expect(healingPlusOpacity(1)).toBe(0);
+
+		const effect = new SpellEffect(
+			"healing",
+			{ x: 5, y: 5 },
+			0,
+			healingRadius(99),
+		);
+		effect.update(0.24);
+		effect.updateVisuals(0);
+		const group = effect.mesh.children[0];
+		expect(
+			group.children.some((child) => child.name === "healing-plus"),
+		).toBeFalse();
+
+		effect.update(0.01);
+		effect.updateVisuals(0);
+		expect(
+			group.children.filter((child) => child.name === "healing-plus"),
+		).toHaveLength(6);
+		const aura = group.children.find((child) => child.name === "healing-aura");
+		expect(aura?.geometry.parameters.outerRadius).toBe(HEALING_MAX_RADIUS);
+		expect(effect.active).toBeTrue();
+		effect.update(0.75);
+		expect(effect.active).toBeFalse();
 	});
 });

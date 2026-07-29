@@ -5,8 +5,10 @@ import {
 	cappedSkillLevel,
 	cooldownScale,
 	forceFieldRange,
+	healingBaseManaCost,
 	healingCast,
 	healingCooldown,
+	healingRadius,
 	orbitingHammerDuration,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
@@ -155,7 +157,9 @@ export class HeroCombatSystem {
 			const level = effectiveSkillLevel(progress, "healing");
 			hero.spendMana(healingManaCost);
 			hero.heal(healing.restoredHp);
-			state.spellEffects.push(new SpellEffect("healing", hero.position));
+			state.spellEffects.push(
+				new SpellEffect("healing", hero.position, 0, healingRadius(level)),
+			);
 			this.healingCooldown = healingCooldown(level);
 			this.healingCooldownMax = this.healingCooldown;
 		}
@@ -863,7 +867,7 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 	if (skill === "healing") {
 		const multiplier = 1 - resourceReduction(progress, "mana", stats);
 		const baseCost =
-			(20 + 2 * effectiveSkillLevel(progress, skill)) * multiplier;
+			healingBaseManaCost(effectiveSkillLevel(progress, skill)) * multiplier;
 		return `${formatCost(baseCost)} Mana + ${formatCost(0.25 * multiplier)} Mana / HP`;
 	}
 	if (skill === "blocking")

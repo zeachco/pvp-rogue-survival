@@ -39,6 +39,10 @@ import { ThreeRenderer } from "./render/ThreeRenderer";
 import { distance, type PlayerState, type Vector2 } from "./types";
 import { correctArenaBoundary } from "./bounds";
 import { emittedImpactForce } from "./ImpactForce";
+import {
+	BACKGROUND_FRAME_INTERVAL_MS,
+	backgroundFrameDue,
+} from "./FrameScheduler";
 
 const FIXED_STEP = 1 / 60;
 
@@ -70,6 +74,7 @@ export class Game {
 	private debugName = this.savedSession?.username ?? "unjoined";
 	private readonly pendingPickupAt = new Map<string, number>();
 	private lastTimestamp = performance.now();
+	private lastAnimationFrameAt = this.lastTimestamp;
 	private accumulator = 0;
 	private defeatCooldown = 0;
 	private isChatting = false;
@@ -200,7 +205,8 @@ export class Game {
 		);
 		this.socket.onMessage((message) => this.handleServerMessage(message));
 		this.socket.connect();
-		requestAnimationFrame((timestamp) => this.tick(timestamp));
+		requestAnimationFrame((timestamp) => this.animationFrame(timestamp));
+		this.scheduleBackgroundFrameCheck();
 	}
 
 	private join(name: string, heroId?: string): void {
@@ -367,7 +373,22 @@ export class Game {
 		}
 	}
 
-	private tick(timestamp: number): void {
+	private animationFrame(timestamp: number): void {
+		this.lastAnimationFrameAt = timestamp;
+		this.advanceFrame(timestamp);
+		requestAnimationFrame((next) => this.animationFrame(next));
+	}
+
+	private scheduleBackgroundFrameCheck(): void {
+		window.setTimeout(() => {
+			const now = performance.now();
+			if (backgroundFrameDue(now, this.lastAnimationFrameAt))
+				this.advanceFrame(now);
+			this.scheduleBackgroundFrameCheck();
+		}, BACKGROUND_FRAME_INTERVAL_MS);
+	}
+
+	private advanceFrame(timestamp: number): void {
 		this.accumulator += Math.min(0.1, (timestamp - this.lastTimestamp) / 1000);
 		this.lastTimestamp = timestamp;
 		while (this.accumulator >= FIXED_STEP) {
@@ -375,7 +396,6 @@ export class Game {
 			this.accumulator -= FIXED_STEP;
 		}
 		this.render();
-		requestAnimationFrame((next) => this.tick(next));
 	}
 
 	private update(deltaSeconds: number): void {

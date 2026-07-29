@@ -8,8 +8,13 @@ import { statsWithItemBonuses, type SkillId } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
-import { attackProfile, forceFieldRange } from "../../common/combat";
-import { healingCast, healingCooldown } from "../../common/combat";
+import {
+	attackProfile,
+	forceFieldRange,
+	healingCast,
+	healingCooldown,
+	healingRadius,
+} from "../../common/combat";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { SpellEffect } from "./SpellEffect";
@@ -499,16 +504,15 @@ export class Creep extends Unit {
 		);
 		if (cast.restoredHp <= 0 || this.mana < cast.manaCost) return false;
 		this.spendMana(cast.manaCost);
+		const radius = healingRadius(level);
 		for (const ally of allies)
-			if (ally.active && distance(this.position, ally.position) <= 300) {
-				const before = ally.hp;
+			if (ally.active && distance(this.position, ally.position) <= radius) {
 				ally.heal(
 					healingCast(ally.hp, ally.maxHp, this.rage, this.maxRage, level)
 						.restoredHp,
 				);
-				if (ally.hp > before)
-					effects.push(new SpellEffect("healing", ally.position));
 			}
+		effects.push(new SpellEffect("healing", this.position, 0, radius));
 		this.healingCooldown = healingCooldown(level);
 		return true;
 	}

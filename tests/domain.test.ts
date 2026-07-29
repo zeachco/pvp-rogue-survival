@@ -12,14 +12,23 @@ import {
 } from "../common/auras";
 import { BALANCE } from "../common/balance";
 import {
+	LOGICAL_PIXELS_PER_METER,
+	metersToPixels,
+	pixelsToMeters,
+} from "../common/units";
+import {
 	attackProfile,
 	bucklerBlockChance,
 	bucklerBlockCost,
 	forceFieldRange,
 	flurryCooldown,
+	HEALING_MAX_RADIUS,
+	HEALING_MIN_RADIUS,
+	healingBaseManaCost,
 	healingCast,
 	healingCooldown,
 	healingFraction,
+	healingRadius,
 	manaConversionFraction,
 	orbitingHammerDuration,
 	rapidRegenDuration,
@@ -1512,11 +1521,18 @@ describe("HUD preview values", () => {
 	});
 });
 describe("spell range and recovery", () => {
+	test("converts simulation pixels to player-facing meters without changing distance", () => {
+		expect(LOGICAL_PIXELS_PER_METER).toBe(50);
+		expect(pixelsToMeters(150)).toBe(3);
+		expect(metersToPixels(3)).toBe(150);
+	});
 	test("scales skill range and cooldown slightly with weapon level while natural healing stays weak", () => {
 		expect(skillRange("bash", starterClub(), 4, 20)).toBe(145);
 		expect(skillRange("bash", starterClub(), 100, 100)).toBe(405);
 		const leveled = generateItem(10, "rare", 17, { allowedClasses: ["staff"] });
 		expect(skillRange("arcaneBolt", leveled, 1, 0)).toBeCloseTo(346.5);
+		expect(skillRange("healing", leveled, 1, 999)).toBe(HEALING_MIN_RADIUS);
+		expect(skillRange("healing", leveled, 99, 999)).toBe(HEALING_MAX_RADIUS);
 		expect(skillCooldown("arcaneBolt", leveled)).toBeCloseTo(5 / 1.05);
 		expect(derivedStats({ ...ZERO_STATS, spirit: 20 }).hpRegen).toBeCloseTo(
 			0.105,
@@ -1535,21 +1551,24 @@ describe("Healing scaling", () => {
 		expect(healingFraction(100)).toBeCloseTo(0.9);
 		expect(healingCooldown(1)).toBeCloseTo(15);
 		expect(healingCooldown(99)).toBeCloseTo(1);
+		expect(healingRadius(1)).toBe(150);
+		expect(healingRadius(99)).toBe(600);
+		expect(healingBaseManaCost(1)).toBe(7);
 		expect(healingCast(40, 100, 0, 10, 1)).toEqual({
 			restoredHp: 13,
-			manaCost: 25.25,
+			manaCost: 10.25,
 		});
 		expect(healingCast(40, 100, 10, 10, 1)).toEqual({
 			restoredHp: 18,
-			manaCost: 26.5,
+			manaCost: 11.5,
 		});
 		expect(healingCast(49, 50, 1, 1, 99)).toEqual({
 			restoredHp: 1,
-			manaCost: 218.25,
+			manaCost: 203.25,
 		});
 		expect(healingCast(49, 50, 1, 1, 100)).toEqual({
 			restoredHp: 1,
-			manaCost: 218.25,
+			manaCost: 203.25,
 		});
 	});
 });

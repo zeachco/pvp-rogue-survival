@@ -71,6 +71,7 @@ import {
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
 import { SKILLS } from "../../common/content";
+import { pixelsToMeters } from "../../common/units";
 import {
 	auraRadius,
 	auraSlowMultiplier,
@@ -1097,7 +1098,9 @@ export class Hud {
 					) : null}
 					<span>
 						<small>Range</small>
-						<strong>{range ? `${fmt(range)}px` : "Self"}</strong>
+						<strong>
+							{range ? `${fmt(pixelsToMeters(range))} m` : "Self"}
+						</strong>
 					</span>
 					{spell.id === "whirlwind" ? (
 						<span>
@@ -2209,7 +2212,7 @@ export function effectiveStatRows(
 		["Damage", fmt(profile.damage)],
 		["Attacks/s", fmt(profile.attacksPerSecond)],
 		["Attack cost", `${fmt(profile.rageCost)} rage`],
-		["Attack range", `${profile.range}px`],
+		["Attack range", `${fmt(pixelsToMeters(profile.range))} m`],
 		[
 			"Crit chance",
 			percent(
@@ -2243,7 +2246,7 @@ export function effectiveStatRows(
 				),
 			),
 		],
-		["Spell range/Lv", `+${fmt(0.5 * stats.spirit)}px`],
+		["Spell range/Lv", `+${fmt(pixelsToMeters(0.5 * stats.spirit))} m`],
 		["Spell power/Lv", "+15%"],
 		["Max health", fmt(maxHp ?? derived.maxHp)],
 		["Max rage", fmt(derived.maxRage)],
@@ -2339,12 +2342,14 @@ export function effectiveStatRows(
 		[
 			"Attraction",
 			`${fmt(
-				Math.max(
-					(main?.attractionSpeed ?? 0) * mainEffectiveness,
-					(off?.attractionSpeed ?? 0) *
-						(off ? itemRequirementMultiplier(off, stats) : 1),
-				) * attractionSpeedMultiplier(attractionLevel),
-			)}px/s`,
+				pixelsToMeters(
+					Math.max(
+						(main?.attractionSpeed ?? 0) * mainEffectiveness,
+						(off?.attractionSpeed ?? 0) *
+							(off ? itemRequirementMultiplier(off, stats) : 1),
+					) * attractionSpeedMultiplier(attractionLevel),
+				),
+			)} m/s`,
 		],
 		[
 			"Reflection",
@@ -2600,14 +2605,16 @@ export function passiveSkillMetrics(
 	};
 	const radius = (): { label: string; value: string } => ({
 		label: "Radius",
-		value: `${fmt(auraRadius(level, effectiveStats.spirit))}px`,
+		value: `${fmt(pixelsToMeters(auraRadius(level, effectiveStats.spirit)))} m`,
 	});
 	switch (skill) {
 		case "attraction":
 			return [
 				{
 					label: "Pull speed",
-					value: `${fmt(35 * attractionSpeedMultiplier(level))}px/s`,
+					value: `${fmt(
+						pixelsToMeters(35 * attractionSpeedMultiplier(level)),
+					)} m/s`,
 				},
 				{ label: "Magic find", value: `+${fmt(level)}%` },
 				{ label: "Gold find", value: `+${fmt(level)}%` },
@@ -2658,7 +2665,9 @@ export function passiveSkillMetrics(
 				{ label: "Burst damage", value: "20% enemy HP" },
 				{
 					label: "Blast radius",
-					value: `${fmt(auraRadius(level, effectiveStats.spirit) * 0.45)}px`,
+					value: `${fmt(
+						pixelsToMeters(auraRadius(level, effectiveStats.spirit) * 0.45),
+					)} m`,
 				},
 				radius(),
 			];

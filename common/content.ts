@@ -353,9 +353,10 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		label: "Healing",
 		damageMultiplier: 0,
 		cooldown: 15,
+		range: 150,
 		resource: "mana",
 		description:
-			"Below 75% HP, restores level-scaled current health plus 5–10% maximum health. Costs 20 + 2 mana per skill level, plus 0.25 mana per HP restored.",
+			"Below 75% HP, restores level-scaled current health plus 5–10% maximum health in a 3–12 m radius. Costs 5 + 2 mana per skill level, plus 0.25 mana per HP restored.",
 	},
 	rent: {
 		id: "rent",

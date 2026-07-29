@@ -268,6 +268,7 @@ export function skillRange(
 	level = 1,
 	spirit = 0,
 ): number {
+	if (skill === "healing") return healingRadius(level);
 	if (skill === "swamp") return swampRadius(level);
 	if (skill === "gravityPull") return forceFieldRange(level);
 	if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit);
@@ -292,8 +293,17 @@ export function cooldownScale(level: number, reduction: number): number {
 	);
 }
 export const MAX_SKILL_LEVEL = 99;
+export const HEALING_MIN_RADIUS = 150;
+export const HEALING_MAX_RADIUS = 600;
 export function cappedSkillLevel(level: number): number {
 	return Math.max(1, Math.min(MAX_SKILL_LEVEL, level));
+}
+export function healingRadius(level: number): number {
+	return (
+		HEALING_MIN_RADIUS +
+		(cappedSkillLevel(level) - 1) *
+			((HEALING_MAX_RADIUS - HEALING_MIN_RADIUS) / 98)
+	);
 }
 export function flurryCooldown(level: number): number {
 	return 10 - (cappedSkillLevel(level) - 1) * (9 / 98);
@@ -399,8 +409,11 @@ export function healingCast(
 	const requestedHp =
 		currentHp * healingFraction(level) + maxHp * (0.05 + 0.05 * rageFraction);
 	const restoredHp = Math.max(0, Math.min(maxHp - currentHp, requestedHp));
-	const manaCost = 20 + cappedSkillLevel(level) * 2 + restoredHp * 0.25;
+	const manaCost = healingBaseManaCost(level) + restoredHp * 0.25;
 	return { restoredHp, manaCost };
+}
+export function healingBaseManaCost(level: number): number {
+	return 5 + cappedSkillLevel(level) * 2;
 }
 export function skillStatBonusDescription(skill: SkillId): string | undefined {
 	const bonuses: string[] = [];
