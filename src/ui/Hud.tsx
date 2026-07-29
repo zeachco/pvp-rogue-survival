@@ -40,11 +40,14 @@ import {
 	inventoryCapacity,
 	occupiedInventorySlots,
 	SCRAP_PROMOTION_COST,
+	upgradeCosts,
 } from "../../common/inventory";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import type { CurrencyPreview, HudCallbacks, SpellSlot } from "./types";
 import {
 	attackProfile,
+	attractionFindBonus,
+	attractionSpeedMultiplier,
 	bucklerBlockChance,
 	bucklerBlockCost,
 	cappedSkillLevel,
@@ -726,7 +729,22 @@ export class Hud {
 	focusChat(): void {
 		this.chatInput.focus();
 	}
-	pushChatMessage(senderId: string, senderName: string, text: string): void {
+	pushChatMessage(
+		senderId: string,
+		senderName: string,
+		text: string,
+		kind: "chat" | "system" = "chat",
+	): void {
+		if (kind === "system") {
+			const entry = (
+				<div class="chat-entry chat-system">{text}</div>
+			) as HTMLElement;
+			this.chatLog.append(entry);
+			if (this.chatLog.children.length > 50)
+				this.chatLog.firstElementChild?.remove();
+			this.chatLog.scrollTop = this.chatLog.scrollHeight;
+			return;
+		}
 		const isTeammate =
 			this.player && this.realm
 				? this.realm.guards.some((m) => m.id === senderId) ===
@@ -1288,6 +1306,14 @@ export class Hud {
 					? 1
 					: 0))
 			: effectiveSkillLevel(p, "blocking");
+		const attractionLevel = build
+			? (build.skillLevels?.attraction ??
+				([main, off, amulet, charm].some((item) =>
+					item?.skills.includes("attraction"),
+				)
+					? 1
+					: 0))
+			: effectiveSkillLevel(p, "attraction");
 		const mainSummary = equipmentSummary(main, effectiveStats, "main");
 		this.activeMainHand = build ? mainSummary : undefined;
 		this.sheetNode.replaceChildren(
@@ -1331,6 +1357,7 @@ export class Hud {
 				undefined,
 				this.inspectedMaxHp,
 				blockingLevel,
+				attractionLevel,
 			),
 			...(build
 				? [
@@ -1407,7 +1434,9 @@ export class Hud {
 		this.previewCurrencies();
 		const canSend = Boolean(this.realm);
 		ordered.forEach((tile, index) => {
-			const signature = `${tile.key}:${tile.quantity}:${Number(equippedKeys.has(tile.key))}:${statsSignature}:${Number(canSend)}:${extractButtonStatus(tile, progress)}`;
+			const costs = upgradeCosts(tile.item);
+			const upgradeAvailability = `${Number(progress.gold >= costs.gold)}:${Number(progress.scraps[tile.item.rarity] >= costs.scraps)}`;
+			const signature = `${tile.key}:${tile.quantity}:${Number(equippedKeys.has(tile.key))}:${statsSignature}:${Number(canSend)}:${extractButtonStatus(tile, progress)}:${upgradeAvailability}`;
 			let node = existing.get(tile.id);
 			if (!node || node.dataset.renderSignature !== signature) {
 				const replacement = itemTile(
@@ -1689,6 +1718,10 @@ export class Hud {
 		if (!current) return;
 		const effective = statsWithItemBonuses(baseStats, main, off, amulet, charm);
 		const blockingLevel = effectiveSkillLevel(this.player.progress, "blocking");
+		const attractionLevel = effectiveSkillLevel(
+			this.player.progress,
+			"attraction",
+		);
 		let baseline: Array<[string, string]> | undefined;
 		if (highlight) {
 			const p = this.player.progress;
@@ -1700,6 +1733,7 @@ export class Hud {
 				statsWithItemBonuses(p.stats, p.mainHand, p.offHand, p.amulet, p.charm),
 				undefined,
 				blockingLevel,
+				attractionLevel,
 			);
 		}
 		current.replaceWith(
@@ -1712,6 +1746,7 @@ export class Hud {
 				baseline,
 				undefined,
 				blockingLevel,
+				attractionLevel,
 			),
 		);
 	}
@@ -2141,6 +2176,7 @@ export function effectiveStatRows(
 	stats: Stats,
 	maxHp?: number,
 	blockingLevel = 0,
+	attractionLevel = 0,
 ): Array<[string, string]> {
 	const derived = derivedStats(stats);
 	const items = [main, off].filter(Boolean) as ItemInstance[];
@@ -2298,9 +2334,17 @@ export function effectiveStatRows(
 			"Rarity boost",
 			percent((buckler?.modifiers.rarityBoost ?? 0) * bucklerEffectiveness),
 		],
+		["Attraction Gold find", percent(attractionFindBonus(attractionLevel))],
+		["Attraction Magic find", percent(attractionFindBonus(attractionLevel))],
 		[
 			"Attraction",
-			`${fmt(Math.max((main?.attractionSpeed ?? 0) * mainEffectiveness, (off?.attractionSpeed ?? 0) * (off ? itemRequirementMultiplier(off, stats) : 1)))}px/s`,
+			`${fmt(
+				Math.max(
+					(main?.attractionSpeed ?? 0) * mainEffectiveness,
+					(off?.attractionSpeed ?? 0) *
+						(off ? itemRequirementMultiplier(off, stats) : 1),
+				) * attractionSpeedMultiplier(attractionLevel),
+			)}px/s`,
 		],
 		[
 			"Reflection",
@@ -2331,6 +2375,7 @@ function effectiveStatSheet(
 	baseline?: Array<[string, string]>,
 	maxHp?: number,
 	blockingLevel = 0,
+	attractionLevel = 0,
 ): HTMLElement {
 	const previous = new Map(baseline);
 	const rows = effectiveStatRows(
@@ -2341,6 +2386,7 @@ function effectiveStatSheet(
 		stats,
 		maxHp,
 		blockingLevel,
+		attractionLevel,
 	);
 	const offensive = new Set([
 		"Damage",
@@ -2558,7 +2604,14 @@ export function passiveSkillMetrics(
 	});
 	switch (skill) {
 		case "attraction":
-			return [{ label: "Pull speed", value: "35px/s" }];
+			return [
+				{
+					label: "Pull speed",
+					value: `${fmt(35 * attractionSpeedMultiplier(level))}px/s`,
+				},
+				{ label: "Magic find", value: `+${fmt(level)}%` },
+				{ label: "Gold find", value: `+${fmt(level)}%` },
+			];
 		case "manaDrain":
 			return [
 				{

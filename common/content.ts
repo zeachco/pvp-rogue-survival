@@ -250,7 +250,8 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		resource: "mana",
 		passive: true,
 		upkeep: { resource: "mana", perLevelPerSecond: 0.001 },
-		description: "Passively pulls uncollected item drops toward the hero.",
+		description:
+			"Passively grants Magic and Gold find while pulling item drops faster at higher levels.",
 	},
 	manaDrain: {
 		id: "manaDrain",

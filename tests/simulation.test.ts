@@ -4,7 +4,10 @@ import { AttackArea } from "../src/game/AttackArea";
 import { ArenaState } from "../src/game/ArenaState";
 import { GameMap } from "../src/game/Map";
 import { Projectile } from "../src/game/Projectile";
-import { removeInactive } from "../src/game/systems/lifecycle";
+import {
+	releaseReadySpawns,
+	removeInactive,
+} from "../src/game/systems/lifecycle";
 import { correctArenaBoundary } from "../src/game/bounds";
 import { Hero } from "../src/game/Hero";
 import { generateAccessory, generateBuckler } from "../common/items";
@@ -137,6 +140,68 @@ describe("arena systems", () => {
 		creep.pursue({ x: 0, y: 0 }, 1, 1_000, 1_000);
 		expect(creep.mana).toBeCloseTo(0.2);
 		expect(creep.isSkillOperational("deathBurst")).toBeFalse();
+	});
+	test("releases at most one overdue spawn per fixed update", () => {
+		const state = new ArenaState();
+		const build = {
+			id: "queued",
+			name: "Queued",
+			kind: "melee" as const,
+			level: 0,
+			stats: { ...ZERO_STATS },
+			carried: [],
+			isRival: false,
+			xpReward: 0,
+			goldReward: 0,
+			seed: 1,
+		};
+		state.waveQueue.push(
+			{ build: { ...build, id: "one" }, spawnAt: 1 },
+			{ build: { ...build, id: "two" }, spawnAt: 2 },
+		);
+		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
+		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
+	});
+	test("lets a healing creep restore itself and nearby allies for two mana", () => {
+		const build = {
+			id: "healer",
+			name: "Healer",
+			kind: "melee" as const,
+			level: 1,
+			stats: { ...ZERO_STATS, strength: 20, intelligence: 10 },
+			mainHand: starterClub(),
+			carried: [],
+			isRival: false,
+			xpReward: 0,
+			goldReward: 0,
+			seed: 1,
+			skillLevels: { healing: 1 },
+		};
+		const healer = new Creep(
+			build,
+			"neutral",
+			"neutral",
+			{ x: 0, y: 0 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		const ally = new Creep(
+			{ ...build, id: "ally", skillLevels: {} },
+			"neutral",
+			"neutral",
+			{ x: 250, y: 0 },
+			BALANCE,
+			new SeededRandom(2),
+		);
+		healer.hp = healer.maxHp / 2;
+		ally.hp = ally.maxHp / 2;
+		const mana = healer.mana;
+		const effects: SpellEffect[] = [];
+		expect(healer.castHealing([healer, ally], effects)).toBeTrue();
+		expect(healer.mana).toBe(mana - 2);
+		expect(healer.hp).toBeGreaterThan(healer.maxHp / 2);
+		expect(ally.hp).toBeGreaterThan(ally.maxHp / 2);
+		expect(effects).toHaveLength(2);
 	});
 	test("reports spell affordability from the hero's current resources", () => {
 		const hero = new Hero({ x: 50, y: 50 });

@@ -327,6 +327,7 @@ export type ServerMessage =
 			senderId: PlayerId;
 			senderName: string;
 			text: string;
+			kind?: "chat" | "system";
 	  };
 
 export function parseClientMessage(value: unknown): ClientMessage | undefined {

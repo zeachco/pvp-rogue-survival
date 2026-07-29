@@ -1,6 +1,10 @@
 import { BALANCE, type BalanceConfig } from "../../common/balance";
 import { itemRequirementMultiplier } from "../../common/items";
-import { rollAttackStrike, spellPower } from "../../common/combat";
+import {
+	attractionSpeedMultiplier,
+	rollAttackStrike,
+	spellPower,
+} from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type {
 	CreepWave,
@@ -341,6 +345,7 @@ export class Game {
 				message.senderId,
 				message.senderName,
 				message.text,
+				message.kind,
 			);
 		else if (message.type === "serverNotice")
 			this.hud.setNotice(message.message);
@@ -433,6 +438,7 @@ export class Game {
 			swamp.update(deltaSeconds, this.creeps);
 		for (const creep of this.creeps) {
 			if (!creep.active) continue;
+			creep.castHealing(this.creeps, this.arena.spellEffects);
 			const attack = creep.pursue(
 				this.hero.position,
 				deltaSeconds,
@@ -539,6 +545,7 @@ export class Game {
 		for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
 		const baseStats = this.player.progress.stats;
 		const attractionEnabled = this.hero.isSkillOperational("attraction");
+		const attractionLevel = this.hero.skillLevels.get("attraction") ?? 1;
 		const universalAttraction = this.player.progress.universalSkills.includes(
 			"attraction",
 		)
@@ -557,7 +564,7 @@ export class Game {
 							(item?.attractionSpeed ?? 0) *
 							(item ? itemRequirementMultiplier(item, baseStats) : 1),
 					),
-				)
+				) * attractionSpeedMultiplier(attractionLevel)
 			: 0;
 		for (const drop of this.drops) {
 			if (drop.escaping) {

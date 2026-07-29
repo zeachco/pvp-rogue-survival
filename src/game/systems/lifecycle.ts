@@ -17,11 +17,12 @@ export function releaseReadySpawns(
 	state: ArenaState,
 	now: number,
 ): UnitBuild[] {
-	const ready = state.waveQueue
-		.filter((entry) => entry.spawnAt <= now)
-		.map((entry) => entry.build);
-	state.waveQueue = state.waveQueue.filter((entry) => entry.spawnAt > now);
-	return ready;
+	const index = state.waveQueue.findIndex((entry) => entry.spawnAt <= now);
+	if (index === -1) return [];
+
+	const build = state.waveQueue[index].build;
+	state.waveQueue.splice(index, 1);
+	return [build];
 }
 export function removeInactive<T extends { active: boolean }>(
 	items: T[],

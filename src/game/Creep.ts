@@ -9,8 +9,10 @@ import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
 import { attackProfile, forceFieldRange } from "../../common/combat";
+import { healingCast, healingCooldown } from "../../common/combat";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
+import { SpellEffect } from "./SpellEffect";
 import { clamp, distance, normalize, type Vector2 } from "./types";
 import { creepMaxHealth } from "../../common/waves";
 import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
@@ -46,6 +48,7 @@ export class Creep extends Unit {
 	private pendingAttack = false;
 	private damageFlash = false;
 	private bonusSkillCooldown = 1.5;
+	private healingCooldown = 0;
 	private auraMovementMultiplier = 1;
 	private auraAttackMultiplier = 1;
 	private groundMovementMultiplier = 1;
@@ -370,6 +373,7 @@ export class Creep extends Unit {
 			0,
 			this.bonusSkillCooldown - deltaSeconds,
 		);
+		this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds);
 
 		if (this.pendingAttack) {
 			this.windup -= deltaSeconds;
@@ -474,6 +478,40 @@ export class Creep extends Unit {
 			Math.min(height + this.radius, this.position.y),
 		);
 		return undefined;
+	}
+
+	castHealing(allies: readonly Creep[], effects: SpellEffect[]): boolean {
+		const level = this.skillLevels.get("healing") ?? 0;
+		if (
+			!this.active ||
+			!this.knownSkills.has("healing") ||
+			level <= 0 ||
+			this.hp >= this.maxHp * 0.75 ||
+			this.healingCooldown > 0 ||
+			this.mana < 2
+		)
+			return false;
+		const cast = healingCast(
+			this.hp,
+			this.maxHp,
+			this.rage,
+			this.maxRage,
+			level,
+		);
+		if (cast.restoredHp <= 0) return false;
+		this.spendMana(cast.manaCost);
+		for (const ally of allies)
+			if (ally.active && distance(this.position, ally.position) <= 300) {
+				const before = ally.hp;
+				ally.heal(
+					healingCast(ally.hp, ally.maxHp, this.rage, this.maxRage, level)
+						.restoredHp,
+				);
+				if (ally.hp > before)
+					effects.push(new SpellEffect("healing", ally.position));
+			}
+		this.healingCooldown = healingCooldown(level);
+		return true;
 	}
 
 	update(): void {}

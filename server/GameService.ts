@@ -34,6 +34,7 @@ import {
 } from "../common/items.ts";
 import { ENEMY_BONUS_SKILLS, SKILLS } from "../common/content.ts";
 import {
+	attractionFindBonus,
 	cappedSkillLevel,
 	timeHarvestItemSkillBonus,
 } from "../common/combat.ts";
@@ -514,24 +515,25 @@ export class GameService {
 		);
 		const spawns: CreepWave["spawns"] = [];
 		const queued = this.takeQueued(player, count, mode !== "training");
-		const fromSender = new Map<string, number>();
+		const fromSender = new Map<string, { id: string; count: number }>();
 		for (const entry of queued)
 			if (!entry.backlash && entry.senderId !== player.id)
-				fromSender.set(
-					entry.senderName,
-					(fromSender.get(entry.senderName) ?? 0) + 1,
-				);
-		for (const [senderName, count] of fromSender)
+				fromSender.set(entry.senderName, {
+					id: entry.senderId,
+					count: (fromSender.get(entry.senderName)?.count ?? 0) + 1,
+				});
+		for (const [senderName, sent] of fromSender)
 			this.options.send(player.id, {
 				type: "chatMessage",
-				senderId: "",
+				senderId: sent.id,
 				senderName,
-				text: `sent you ${count} challenger${count > 1 ? "s" : ""} this round`,
+				text: `sent you ${sent.count} challenger${sent.count > 1 ? "s" : ""} this round`,
 			});
 		const skilledCount = ENEMY_BONUS_SKILLS.length
 			? creepsWithSpellsCount(player.waveNumber, count)
 			: 0;
 		for (let index = 0; index < count; index += 1) {
+			const entry = queued[index];
 			const bonusSkills =
 				index < skilledCount
 					? [
@@ -545,10 +547,12 @@ export class GameService {
 			let build: UnitBuild = {
 				...template,
 				id: this.createId(),
+				stats: entry
+					? { ...template.stats }
+					: regularCreepStats(template.stats),
 				carried: [...template.carried],
 				bonusSkills,
 			};
-			const entry = queued[index];
 			if (entry) build = this.applyQueuedEquipment(build, entry, intro);
 			player.issuedUnits.set(build.id, { build, mode });
 			spawns.push({
@@ -616,6 +620,13 @@ export class GameService {
 				resetHero,
 				spawns,
 			},
+		});
+		this.options.send(player.id, {
+			type: "chatMessage",
+			senderId: "",
+			senderName: "",
+			text: `Wave ${player.waveNumber} · ${waveModeLabel(mode)}`,
+			kind: "system",
 		});
 		this.returnDeferredItems(player);
 	}
@@ -883,6 +894,9 @@ export class GameService {
 			: 1;
 		const goldGain = (buckler?.modifiers.goldGain ?? 0) * effectiveness;
 		const rarityBoost = (buckler?.modifiers.rarityBoost ?? 0) * effectiveness;
+		const attractionBonus = attractionFindBonus(
+			effectiveProgressSkillLevel(player, "attraction"),
+		);
 		const goldChance = Math.min(
 			1,
 			(build.isRival ? 0.5 : 0.2) *
@@ -892,7 +906,7 @@ export class GameService {
 			const drop: GroundDrop = {
 				id: this.createId(),
 				kind: "gold",
-				amount: Math.ceil(build.goldReward * (1 + goldGain)),
+				amount: Math.ceil(build.goldReward * (1 + goldGain + attractionBonus)),
 			};
 			player.groundDrops.set(drop.id, drop);
 			return drop;
@@ -923,9 +937,9 @@ export class GameService {
 			if (this.options.random.next() >= chance) continue;
 			const id = this.createId();
 			const promoted =
-				rarityBoost > 0 &&
+				rarityBoost + attractionBonus > 0 &&
 				nextRarity(item.rarity) &&
-				this.options.random.next() < rarityBoost
+				this.options.random.next() < Math.min(1, rarityBoost + attractionBonus)
 					? changeItemRarity(item, nextRarity(item.rarity)!, this.seed())
 					: item;
 			if (this.options.random.next() < 0.25) {
@@ -1114,6 +1128,16 @@ export class GameService {
 			source?.emitterId && !source.backlash && source.emitterId !== player.id
 				? this.options.repository.get(source.emitterId)
 				: undefined;
+		const activeRealm = player.realmId
+			? this.realms.get(player.realmId)
+			: undefined;
+		if (activeRealm)
+			this.sendRealmSystem(
+				activeRealm,
+				killer
+					? `${player.name} was defeated by a creep sent by ${killer.name}.`
+					: `${player.name} was defeated.`,
+			);
 		const lostGold = Math.floor(player.progress.gold / 2);
 		const lostSouls = Math.floor(player.progress.souls / 2);
 		player.progress.gold -= lostGold;
@@ -1312,6 +1336,11 @@ export class GameService {
 	}
 
 	private activateRealm(realm: Realm): void {
+		const participantNames = [realm.soloId, ...realm.teamIds]
+			.map((id) => this.options.repository.get(id)?.name)
+			.filter((name): name is string => Boolean(name));
+		for (const name of participantNames)
+			this.sendRealmSystem(realm, `${name} joined the realm.`);
 		for (const id of [realm.soloId, ...realm.teamIds]) {
 			const player = this.options.repository.get(id);
 			if (!player?.connected) continue;
@@ -1548,6 +1577,16 @@ export class GameService {
 			});
 		}
 	}
+	private sendRealmSystem(realm: Realm, text: string): void {
+		for (const memberId of [realm.soloId, ...realm.teamIds])
+			this.options.send(memberId, {
+				type: "chatMessage",
+				senderId: "",
+				senderName: "",
+				text,
+				kind: "system",
+			});
+	}
 	private notice(player: Player, message: string): void {
 		this.options.send(player.id, { type: "serverNotice", message });
 	}
@@ -1598,6 +1637,26 @@ function scaledStats(allocation: Stats, level: number): Stats {
 	return Object.fromEntries(
 		STAT_KEYS.map((key) => [key, allocation[key] * level]),
 	) as Stats;
+}
+function regularCreepStats(stats: Stats): Stats {
+	if (stats.spirit <= 1) return { ...stats };
+	return {
+		...stats,
+		strength: stats.strength + stats.spirit - 1,
+		spirit: 1,
+	};
+}
+function waveModeLabel(mode: "competitive" | "solo" | "training"): string {
+	return mode === "competitive"
+		? "Competitive Realm"
+		: mode === "solo"
+			? "Solo Realm"
+			: "Training Grounds";
+}
+function effectiveProgressSkillLevel(player: Player, skill: SkillId): number {
+	const progress = player.progress;
+	if (progress.disabledSkills?.includes(skill)) return 0;
+	return bossSkillLevels(progress)[skill] ?? 0;
 }
 function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
 	return typeof (value as Promise<T> | undefined)?.then === "function";

@@ -787,12 +787,12 @@ export function itemRequirementMultiplier(
 	stats: Stats,
 ): number {
 	if (!item) return 1;
-	return Object.entries(item.requirements).reduce(
-		(multiplier, [key, required]) => {
+	return Math.max(
+		0.1,
+		Object.entries(item.requirements).reduce((multiplier, [key, required]) => {
 			const delta = Math.max(0, (required ?? 0) - stats[key as StatKey]);
 			return multiplier / (delta + 1);
-		},
-		1,
+		}, 1),
 	);
 }
 export function itemStackKey(item: ItemInstance | undefined): string {
