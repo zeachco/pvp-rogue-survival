@@ -514,6 +514,20 @@ export class GameService {
 		);
 		const spawns: CreepWave["spawns"] = [];
 		const queued = this.takeQueued(player, count, mode !== "training");
+		const fromSender = new Map<string, number>();
+		for (const entry of queued)
+			if (!entry.backlash && entry.senderId !== player.id)
+				fromSender.set(
+					entry.senderName,
+					(fromSender.get(entry.senderName) ?? 0) + 1,
+				);
+		for (const [senderName, count] of fromSender)
+			this.options.send(player.id, {
+				type: "chatMessage",
+				senderId: "",
+				senderName,
+				text: `sent you ${count} challenger${count > 1 ? "s" : ""} this round`,
+			});
 		const skilledCount = ENEMY_BONUS_SKILLS.length
 			? creepsWithSpellsCount(player.waveNumber, count)
 			: 0;

@@ -13,8 +13,17 @@ import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { clamp, distance, normalize, type Vector2 } from "./types";
 import { creepMaxHealth } from "../../common/waves";
-import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
+
+export function resourceBarWidth(
+	current: number,
+	max: number,
+	barWidth = 32,
+): number {
+	if (max <= 0) return 0;
+	const ratio = Math.max(0, Math.min(1, current / max));
+	return Math.floor(barWidth * ratio);
+}
 
 export type CreepAttack =
 	| {
@@ -43,7 +52,7 @@ export class Creep extends Unit {
 	readonly build: UnitBuild;
 
 	readonly healthBarGroup: THREE.Group;
-	readonly labelObject?: THREE.Group;
+	readonly labelObject?: THREE.Sprite;
 	readonly selectionRing: THREE.Mesh;
 	readonly attackWindupRing: THREE.Mesh;
 	readonly bonusSkillRing: THREE.Mesh;
@@ -243,16 +252,35 @@ export class Creep extends Unit {
 		this.healthBarGroup.add(this.rageFill);
 
 		if (sentItem) {
-			const labelDiv = document.createElement("div");
-			labelDiv.textContent = this.emitterName;
-			labelDiv.style.cssText =
-				"font:600 12px sans-serif;color:#eafffb;text-shadow:0 0 4px rgba(0,0,0,.95);text-align:center;pointer-events:none;white-space:nowrap;";
-			const label = new THREE.Group();
-			const labelSprite = new CSS2DObject(labelDiv);
-			labelSprite.position.set(0, -34, 0);
-			label.add(labelSprite);
-			label.renderOrder = Z_CREEP_OVERLAY + 0.01;
-			this.labelObject = label;
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d")!;
+			const font = "600 12px Inter, sans-serif";
+			ctx.font = font;
+			const metrics = ctx.measureText(this.emitterName);
+			const textWidth = Math.ceil(metrics.width);
+			const textHeight = 16;
+			const padding = 8;
+			const w = textWidth + padding * 2;
+			const h = textHeight + padding * 2;
+			canvas.width = w;
+			canvas.height = h;
+			ctx.font = font;
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.shadowColor = "rgba(0,0,0,.95)";
+			ctx.shadowBlur = 4;
+			ctx.fillStyle = "#eafffb";
+			ctx.fillText(this.emitterName, w / 2, h / 2);
+			const texture = new THREE.CanvasTexture(canvas);
+			const mat = new THREE.SpriteMaterial({
+				map: texture,
+				depthTest: false,
+				transparent: true,
+			});
+			const sprite = new THREE.Sprite(mat);
+			sprite.renderOrder = Z_CREEP_OVERLAY + 0.01;
+			sprite.scale.set(w, h, 1);
+			this.labelObject = sprite;
 		}
 
 		this.selectionRing = new THREE.Mesh(
@@ -500,6 +528,13 @@ export class Creep extends Unit {
 		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);
 
 		this.healthBarGroup.position.set(this.position.x, this.position.y, 0);
+		if (this.labelObject) {
+			this.labelObject.position.set(
+				this.position.x,
+				this.position.y + this.radius + 28,
+				Z_CREEP_OVERLAY + 0.01,
+			);
+		}
 
 		const hbW = this.barWidth;
 		const hpRatio = this.maxHp > 0 ? clamp(this.hp / this.maxHp, 0, 1) : 0;

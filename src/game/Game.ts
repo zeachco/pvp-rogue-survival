@@ -102,7 +102,7 @@ export class Game {
 		hudRoot: HTMLDivElement,
 	) {
 		this.map.buildMeshes();
-		this.renderer = new ThreeRenderer(this.canvas, this.map);
+		this.renderer = new ThreeRenderer(this.canvas);
 		this.renderer.scene.add(this.map.mesh);
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
 		this.hud = new Hud(hudRoot, {
@@ -159,7 +159,8 @@ export class Game {
 		this.resizeObserver = new ResizeObserver(() => this.resize());
 		this.resizeObserver.observe(this.canvas);
 		window.addEventListener("keydown", (event) => {
-			if (event.key === "Enter" && !this.isChatting) {
+			if (this.isChatting) return;
+			if (event.key === "Enter") {
 				event.preventDefault();
 				this.hud.focusChat();
 				return;
@@ -290,7 +291,7 @@ export class Game {
 			const position = this.arena.defeatedPositions.get(message.unitId);
 			this.arena.defeatedPositions.delete(message.unitId);
 			if (message.drop && position)
-				this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
+				this.drops.push(new ItemDrop(message.drop, { ...position }));
 			this.hero.applyProgress(message.progress, true);
 			this.syncHeroState();
 			this.hud.setPlayer(this.player);

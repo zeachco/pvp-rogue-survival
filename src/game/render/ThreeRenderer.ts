@@ -1,9 +1,7 @@
 import * as THREE from "three";
-import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { ArenaState } from "../ArenaState";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
-import type { GameMap } from "../Map";
 import type { CombatText } from "../CombatText";
 import { COMBAT_TEXT_COLORS, CRITICAL_TEXT_COLOR } from "../CombatText";
 import { clamp } from "../types";
@@ -29,7 +27,6 @@ export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
 	readonly camera: THREE.OrthographicCamera;
-	readonly labelRenderer: CSS2DRenderer;
 	private _zoomLevel = 1;
 	private readonly tracked = new Set<THREE.Object3D>();
 	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
@@ -37,10 +34,7 @@ export class ThreeRenderer {
 	private width = 1;
 	private height = 1;
 
-	constructor(
-		canvas: HTMLCanvasElement,
-		private readonly map: GameMap,
-	) {
+	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
 		this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 		this.renderer.setClearColor(0x0b1116);
@@ -48,23 +42,12 @@ export class ThreeRenderer {
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1000);
 		this.camera.position.z = 100;
-		this.labelRenderer = new CSS2DRenderer();
-		this.labelRenderer.domElement.style.position = "fixed";
-		this.labelRenderer.domElement.style.pointerEvents = "none";
-		this.labelRenderer.domElement.style.zIndex = "1";
-		document.body.appendChild(this.labelRenderer.domElement);
 	}
 
 	resize(w: number, h: number): void {
 		this.width = w;
 		this.height = h;
 		this.renderer.setSize(w, h, false);
-		this.labelRenderer.setSize(w, h);
-		const rect = this.canvas.getBoundingClientRect();
-		this.labelRenderer.domElement.style.top = `${rect.top}px`;
-		this.labelRenderer.domElement.style.left = `${rect.left}px`;
-		this.labelRenderer.domElement.style.width = `${rect.width}px`;
-		this.labelRenderer.domElement.style.height = `${rect.height}px`;
 		this.updateCameraFrustum();
 	}
 
@@ -97,18 +80,8 @@ export class ThreeRenderer {
 	}
 
 	updateCameraPosition(heroX: number, heroY: number): void {
-		const halfW = this.width / 2 / this._zoomLevel;
-		const halfH = this.height / 2 / this._zoomLevel;
-		const cx =
-			halfW >= this.map.width
-				? this.map.width / 2
-				: clamp(heroX, halfW, this.map.width - halfW);
-		const cy =
-			halfH >= this.map.height
-				? this.map.height / 2
-				: clamp(heroY, halfH, this.map.height - halfH);
-		this.camera.position.x = cx;
-		this.camera.position.y = cy;
+		this.camera.position.x = heroX;
+		this.camera.position.y = heroY;
 	}
 
 	eventWorld(event: MouseEvent): { x: number; y: number } {
@@ -249,12 +222,10 @@ export class ThreeRenderer {
 
 	render(): void {
 		this.renderer.render(this.scene, this.camera);
-		this.labelRenderer.render(this.scene, this.camera);
 	}
 
 	dispose(): void {
 		this.renderer.dispose();
-		this.labelRenderer.domElement.remove();
 	}
 }
 
