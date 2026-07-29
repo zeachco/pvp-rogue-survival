@@ -860,8 +860,12 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 	);
 	if (definition.passive && definition.upkeep)
 		return `${formatCost(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`;
-	if (skill === "healing")
-		return `${formatCost(2 * (1 - resourceReduction(progress, "mana", stats)))} Mana / HP`;
+	if (skill === "healing") {
+		const multiplier = 1 - resourceReduction(progress, "mana", stats);
+		const baseCost =
+			(20 + 2 * effectiveSkillLevel(progress, skill)) * multiplier;
+		return `${formatCost(baseCost)} Mana + ${formatCost(0.25 * multiplier)} Mana / HP`;
+	}
 	if (skill === "blocking")
 		return `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.resource === "mana")

@@ -1529,7 +1529,7 @@ test("scales Flurry cooldown from ten seconds at level one to one second at leve
 	expect(skillCooldown("flurry", starterClub(), ZERO_STATS, 99)).toBe(1);
 });
 describe("Healing scaling", () => {
-	test("scales from level 1 to 99, adds flat plus rage-scaled healing, and costs two mana", () => {
+	test("scales healing and charges a level base plus mana per HP restored", () => {
 		expect(healingFraction(1)).toBeCloseTo(0.2);
 		expect(healingFraction(99)).toBeCloseTo(0.9);
 		expect(healingFraction(100)).toBeCloseTo(0.9);
@@ -1537,15 +1537,19 @@ describe("Healing scaling", () => {
 		expect(healingCooldown(99)).toBeCloseTo(1);
 		expect(healingCast(40, 100, 0, 10, 1)).toEqual({
 			restoredHp: 13,
-			manaCost: 2,
+			manaCost: 25.25,
 		});
 		expect(healingCast(40, 100, 10, 10, 1)).toEqual({
 			restoredHp: 18,
-			manaCost: 2,
+			manaCost: 26.5,
 		});
 		expect(healingCast(49, 50, 1, 1, 99)).toEqual({
 			restoredHp: 1,
-			manaCost: 2,
+			manaCost: 218.25,
+		});
+		expect(healingCast(49, 50, 1, 1, 100)).toEqual({
+			restoredHp: 1,
+			manaCost: 218.25,
 		});
 	});
 });

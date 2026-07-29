@@ -487,8 +487,7 @@ export class Creep extends Unit {
 			!this.knownSkills.has("healing") ||
 			level <= 0 ||
 			this.hp >= this.maxHp * 0.75 ||
-			this.healingCooldown > 0 ||
-			this.mana < 2
+			this.healingCooldown > 0
 		)
 			return false;
 		const cast = healingCast(
@@ -498,7 +497,7 @@ export class Creep extends Unit {
 			this.maxRage,
 			level,
 		);
-		if (cast.restoredHp <= 0) return false;
+		if (cast.restoredHp <= 0 || this.mana < cast.manaCost) return false;
 		this.spendMana(cast.manaCost);
 		for (const ally of allies)
 			if (ally.active && distance(this.position, ally.position) <= 300) {

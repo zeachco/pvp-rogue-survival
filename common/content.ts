@@ -355,7 +355,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cooldown: 15,
 		resource: "mana",
 		description:
-			"Below 75% HP, restores level-scaled current health plus 5–10% maximum health and spends 2 mana per HP restored.",
+			"Below 75% HP, restores level-scaled current health plus 5–10% maximum health. Costs 20 + 2 mana per skill level, plus 0.25 mana per HP restored.",
 	},
 	rent: {
 		id: "rent",

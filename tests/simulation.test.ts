@@ -16,7 +16,7 @@ import { SpellEffect } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import { dropRarityColor, ItemDrop } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
-import { weaponAttackSpeed } from "../common/combat";
+import { healingCast, weaponAttackSpeed } from "../common/combat";
 import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
 import { Creep, resourceBarWidth } from "../src/game/Creep";
@@ -162,7 +162,7 @@ describe("arena systems", () => {
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
 	});
-	test("lets a healing creep restore itself and nearby allies for two mana", () => {
+	test("lets an affordable healing creep restore itself and nearby allies", () => {
 		const build = {
 			id: "healer",
 			name: "Healer",
@@ -196,9 +196,16 @@ describe("arena systems", () => {
 		healer.hp = healer.maxHp / 2;
 		ally.hp = ally.maxHp / 2;
 		const mana = healer.mana;
+		const expectedCost = healingCast(
+			healer.hp,
+			healer.maxHp,
+			healer.rage,
+			healer.maxRage,
+			1,
+		).manaCost;
 		const effects: SpellEffect[] = [];
 		expect(healer.castHealing([healer, ally], effects)).toBeTrue();
-		expect(healer.mana).toBe(mana - 2);
+		expect(healer.mana).toBeCloseTo(mana - expectedCost);
 		expect(healer.hp).toBeGreaterThan(healer.maxHp / 2);
 		expect(ally.hp).toBeGreaterThan(ally.maxHp / 2);
 		expect(effects).toHaveLength(2);
