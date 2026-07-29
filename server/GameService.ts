@@ -322,6 +322,8 @@ export class GameService {
 				case "dismissPanelTrigger":
 					player.panelTriggers[message.panel] = false;
 					return;
+				case "chat":
+					return this.handleChat(player, message.text);
 			}
 		} finally {
 			this.options.repository.markDirty(player.id);
@@ -1517,6 +1519,20 @@ export class GameService {
 			xpSendBuffs: this.xpSendBuffs(player),
 			reason,
 		});
+	}
+	private handleChat(player: Player, text: string): void {
+		const realmId = player.realmId;
+		if (!realmId) return;
+		const realm = this.realms.get(realmId);
+		if (!realm) return;
+		for (const memberId of [realm.soloId, ...realm.teamIds]) {
+			this.options.send(memberId, {
+				type: "chatMessage",
+				senderId: player.id,
+				senderName: player.name,
+				text,
+			});
+		}
 	}
 	private notice(player: Player, message: string): void {
 		this.options.send(player.id, { type: "serverNotice", message });

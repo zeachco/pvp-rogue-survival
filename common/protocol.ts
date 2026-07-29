@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 35;
+export const PROTOCOL_VERSION = 36;
 export type PlayerId = string;
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
 export type PanelTriggers = Record<PanelTrigger, boolean>;
@@ -207,6 +207,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 		rarity: z.enum(["common", "uncommon", "rare", "epic"]),
 		action: z.enum(["keep", "auto-sell", "auto-purge", "auto-send"]),
 	}),
+	z.object({ type: z.literal("chat"), text: z.string().min(1).max(200) }),
 ]);
 const serverEnvelope = z
 	.object({
@@ -226,6 +227,7 @@ const serverEnvelope = z
 			"scoreAwarded",
 			"suicideResolved",
 			"serverNotice",
+			"chatMessage",
 		]),
 	})
 	.passthrough();
@@ -269,7 +271,8 @@ export type ClientMessage =
 			type: "setRarityAction";
 			rarity: Rarity;
 			action: RarityAction;
-	  };
+	  }
+	| { type: "chat"; text: string };
 
 export type ServerMessage =
 	| {
@@ -318,7 +321,13 @@ export type ServerMessage =
 	| { type: "groundDropCreated"; drop: GroundDrop }
 	| { type: "scoreAwarded"; score: number; reason: string }
 	| { type: "suicideResolved" }
-	| { type: "serverNotice"; message: string };
+	| { type: "serverNotice"; message: string }
+	| {
+			type: "chatMessage";
+			senderId: PlayerId;
+			senderName: string;
+			text: string;
+	  };
 
 export function parseClientMessage(value: unknown): ClientMessage | undefined {
 	const result = clientMessageSchema.safeParse(value);

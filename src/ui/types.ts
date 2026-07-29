@@ -22,6 +22,8 @@ export interface HudCallbacks {
 	onInspectHero(heroId: string): void;
 	onToggleSkill(skillId: SkillId): void;
 	onDismissPanelTrigger(panel: PanelTrigger): void;
+	onChat(text: string): void;
+	onChattingChange(chatting: boolean): void;
 }
 export type CurrencyPreview = Partial<
 	Record<"gold" | "souls" | Rarity, number>

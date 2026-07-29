@@ -134,6 +134,7 @@ Client to server:
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
 - `leaveRealm`: `{}`
 - `enterRealm`: `{}`
+- `chat`: `{ text }`; sends a text message to every member of the sender's realm. The server ignores the message if the sender is not currently in a realm.
 
 Server to client:
 
@@ -150,6 +151,7 @@ Server to client:
 - `waveAdjusted`: `{ waveNumber, reason }`
 - `scoreAwarded`: `{ score, reason }`
 - `serverNotice`: `{ message }`
+- `chatMessage`: `{ senderId, senderName, text }`; sent to all members of a realm when one member sends a chat. The client displays `senderName: text` with the name in green when the sender is on the same side (both guard or both attacker) and in red when they are an opponent.
 - `groundDropCreated`: `{ drop }`, where `drop` is a tagged `item`, `gold`, or `scrap` ground reward.
 
 The server records units issued in each wave and accepts a unit defeat at most once. Unit records retain sent-item emitter attribution. XP, score, gold, and drops derive from that record. Generated and equipment-swap drops remain in a server ledger and are collected or deferred by opaque id. The client reconciles its active and pending opaque drop ids after connection recovery and whenever a pickup acknowledgement times out. The server's ledger is authoritative: client-only drops are removed, server-only drops are reissued, and pending ids absent from the ledger are released because they were already collected, retired with the arena, or otherwise resolved. Reissued drops appear at the hero's current position because drop positions are client-owned simulation state. Protocol payloads are runtime-validated; malformed or out-of-state commands do not mutate player state. The durable skill toggle command is protocol version 34.

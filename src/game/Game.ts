@@ -68,6 +68,7 @@ export class Game {
 	private lastTimestamp = performance.now();
 	private accumulator = 0;
 	private defeatCooldown = 0;
+	private isChatting = false;
 	private resizeObserver?: ResizeObserver;
 	private hovered?: Creep;
 	private hoverPeeking = false;
@@ -143,6 +144,10 @@ export class Game {
 				this.socket.send({ type: "toggleSkill", skillId }),
 			onDismissPanelTrigger: (panel) =>
 				this.socket.send({ type: "dismissPanelTrigger", panel }),
+			onChat: (text) => this.socket.send({ type: "chat", text }),
+			onChattingChange: (chatting) => {
+				this.isChatting = chatting;
+			},
 		});
 		if (this.savedSession) this.hud.setJoinName(this.savedSession.username);
 		this.registerDebugGlobal();
@@ -154,6 +159,11 @@ export class Game {
 		this.resizeObserver = new ResizeObserver(() => this.resize());
 		this.resizeObserver.observe(this.canvas);
 		window.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" && !this.isChatting) {
+				event.preventDefault();
+				this.hud.focusChat();
+				return;
+			}
 			if (["w", "a", "s", "d"].includes(event.key.toLowerCase()))
 				event.preventDefault();
 			this.keys.add(event.key.toLowerCase());
@@ -325,6 +335,12 @@ export class Game {
 				message.removeDropIds,
 				message.resolvedDropIds,
 			);
+		else if (message.type === "chatMessage")
+			this.hud.pushChatMessage(
+				message.senderId,
+				message.senderName,
+				message.text,
+			);
 		else if (message.type === "serverNotice")
 			this.hud.setNotice(message.message);
 	}
@@ -365,10 +381,12 @@ export class Game {
 		}
 		for (const build of releaseReadySpawns(this.arena, performance.now()))
 			this.spawnCreep(build);
-		const movementInput = {
-			x: Number(this.keys.has("d")) - Number(this.keys.has("a")),
-			y: Number(this.keys.has("w")) - Number(this.keys.has("s")),
-		};
+		const movementInput = this.isChatting
+			? { x: 0, y: 0 }
+			: {
+					x: Number(this.keys.has("d")) - Number(this.keys.has("a")),
+					y: Number(this.keys.has("w")) - Number(this.keys.has("s")),
+				};
 		const heroAttackActive = this.attacks.some(
 			(attack) => attack.active && attack.owner === "hero",
 		);

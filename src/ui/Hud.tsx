@@ -194,6 +194,15 @@ export class Hud {
 	private readonly resourceDock = (
 		<section class="resource-dock" />
 	) as HTMLElement;
+	private readonly chatLog = (<div class="chat-log" />) as HTMLElement;
+	private readonly chatInput = (
+		<input
+			class="chat-input"
+			type="text"
+			maxlength={200}
+			placeholder="Chat..."
+		/>
+	) as HTMLInputElement;
 	private readonly healthBar = resourceBar("Health", "health");
 	private readonly statusEffects = (
 		<div class="status-effects" aria-label="Active status effects" />
@@ -396,6 +405,22 @@ export class Hud {
 				"inventory",
 				true,
 			);
+		this.chatInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" && this.chatInput.value.trim()) {
+				this.callbacks.onChat(this.chatInput.value.trim());
+				this.chatInput.value = "";
+				this.chatInput.blur();
+			} else if (event.key === "Escape") {
+				this.chatInput.blur();
+			}
+		});
+		this.chatInput.addEventListener("focus", () =>
+			this.callbacks.onChattingChange(true),
+		);
+		this.chatInput.addEventListener("blur", () => {
+			this.callbacks.onChattingChange(false);
+			this.chatInput.value = "";
+		});
 		this.resourceDock.append(
 			(
 				<div class="health-cluster">
@@ -438,6 +463,10 @@ export class Hud {
 				</div>
 				{this.centerToast}
 				{this.spellBar}
+				<section class="chat-area">
+					{this.chatLog}
+					{this.chatInput}
+				</section>
 				{this.resourceDock}
 				{this.characterPanel}
 				{this.inventoryPanel}
@@ -693,6 +722,30 @@ export class Hud {
 		this.realm = realm;
 		this.renderRealm();
 		if (modeChanged && this.player) this.renderInventory(this.player.progress);
+	}
+	focusChat(): void {
+		this.chatInput.focus();
+	}
+	pushChatMessage(senderId: string, senderName: string, text: string): void {
+		const isTeammate =
+			this.player && this.realm
+				? this.realm.guards.some((m) => m.id === senderId) ===
+					this.realm.guards.some((m) => m.id === this.player!.id)
+				: false;
+		const entry = (
+			<div class="chat-entry">
+				<span
+					class={isTeammate ? "chat-name chat-team" : "chat-name chat-opponent"}
+				>
+					{senderName}
+				</span>
+				: {text}
+			</div>
+		) as HTMLElement;
+		this.chatLog.append(entry);
+		if (this.chatLog.children.length > 50)
+			this.chatLog.firstElementChild?.remove();
+		this.chatLog.scrollTop = this.chatLog.scrollHeight;
 	}
 	setSpells(spells: SpellSlot[]): void {
 		this.currentSpells = spells;
