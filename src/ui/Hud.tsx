@@ -192,8 +192,14 @@ export class Hud {
 	private readonly learnedSkillsBar = (
 		<div class="skill-bar learned-skills-bar" aria-label="Learned skills" />
 	) as HTMLElement;
+	private readonly learnedSkillsList = (
+		<div class="skill-list" />
+	) as HTMLElement;
 	private readonly gearedSkillsBar = (
 		<div class="skill-bar geared-skills-bar" aria-label="Geared skills" />
+	) as HTMLElement;
+	private readonly gearedSkillsList = (
+		<div class="skill-list" />
 	) as HTMLElement;
 	private readonly resourceDock = (
 		<section class="resource-dock" />
@@ -823,17 +829,23 @@ export class Hud {
 		if (structure !== this.spellStructureSignature) {
 			this.spellStructureSignature = structure;
 			this.spellNodes.clear();
-			this.learnedSkillsBar.replaceChildren(
-				<small class="skill-bar-label">Learned</small>,
+			this.learnedSkillsList.replaceChildren(
 				...visible
 					.filter((spell) => spell.bar === "learned")
 					.map((spell) => this.renderSpellSlot(spell, preview)),
 			);
-			this.gearedSkillsBar.replaceChildren(
-				<small class="skill-bar-label">Geared</small>,
+			this.learnedSkillsBar.replaceChildren(
+				this.learnedSkillsList,
+				<small class="skill-bar-label">Learned</small>,
+			);
+			this.gearedSkillsList.replaceChildren(
 				...visible
 					.filter((spell) => spell.bar === "geared")
 					.map((spell) => this.renderSpellSlot(spell, preview)),
+			);
+			this.gearedSkillsBar.replaceChildren(
+				this.gearedSkillsList,
+				<small class="skill-bar-label">Geared</small>,
 			);
 			this.spellBar.replaceChildren(
 				...(visible.length
