@@ -15,6 +15,7 @@ import {
 	healingCooldown,
 	healingRadius,
 } from "../../common/combat";
+import { canvas2dContext } from "../platform/Canvas";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { SpellEffect } from "./SpellEffect";
@@ -261,7 +262,7 @@ export class Creep extends Unit {
 
 		if (sentItem) {
 			const canvas = document.createElement("canvas");
-			const ctx = canvas.getContext("2d")!;
+			const ctx = canvas2dContext(canvas);
 			const font = "600 12px Inter, sans-serif";
 			ctx.font = font;
 			const metrics = ctx.measureText(this.emitterName);

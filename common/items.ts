@@ -182,10 +182,13 @@ type LegacyItemInstance = ItemInstance & {
 
 export function migrateLegacyItem(item: ItemInstance): ItemInstance {
 	const legacy = item as LegacyItemInstance;
-	if (!Number.isFinite(item.rageCost))
-		item.rageCost = Number.isFinite(legacy.staminaCost)
-			? legacy.staminaCost!
-			: 0;
+	if (!Number.isFinite(item.rageCost)) {
+		const legacyCost = legacy.staminaCost;
+		item.rageCost =
+			typeof legacyCost === "number" && Number.isFinite(legacyCost)
+				? legacyCost
+				: 0;
+	}
 	if (item.accessoryBonuses) {
 		const bonuses = item.accessoryBonuses as NonNullable<
 			LegacyItemInstance["accessoryBonuses"]

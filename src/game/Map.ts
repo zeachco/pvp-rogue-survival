@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { canvas2dContext } from "../platform/Canvas";
 import { MAP_Z } from "./render/ThreeRenderer";
 
 export class GameMap {
@@ -61,7 +62,7 @@ export class GameMap {
 		const glowCanvas = document.createElement("canvas");
 		glowCanvas.width = 512;
 		glowCanvas.height = 512;
-		const gctx = glowCanvas.getContext("2d")!;
+		const gctx = canvas2dContext(glowCanvas);
 		const glow = gctx.createRadialGradient(256, 256, 10, 256, 256, 256);
 		glow.addColorStop(0, "rgba(40,255,205,.07)");
 		glow.addColorStop(1, "rgba(40,255,205,0)");

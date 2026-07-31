@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { canvas2dContext } from "../../platform/Canvas";
 import type { ArenaState } from "../ArenaState";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
@@ -174,7 +175,7 @@ export class ThreeRenderer {
 				`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`;
 
 			const canvas = document.createElement("canvas");
-			const ctx = canvas.getContext("2d")!;
+			const ctx = canvas2dContext(canvas);
 			const font = `${weight} ${fontSize}px Inter, sans-serif`;
 			ctx.font = font;
 			const metrics = ctx.measureText(value);

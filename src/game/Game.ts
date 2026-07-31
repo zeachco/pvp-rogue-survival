@@ -281,10 +281,11 @@ export class Game {
 		else if (message.type === "realmUpdated") {
 			this.realmMode = message.realm.mode;
 			if (this.player) {
+				const playerId = this.player.id;
 				const member = [
 					...message.realm.guards,
 					...message.realm.attackers,
-				].find(({ id }) => id === this.player!.id);
+				].find(({ id }) => id === playerId);
 				if (member) {
 					this.player.receivesDeathEchoes = member.receivesDeathEchoes;
 					this.player.maxWaveReached = member.maxWaveReached;

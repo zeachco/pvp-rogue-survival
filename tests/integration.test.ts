@@ -18,7 +18,7 @@ class FixedRandom implements RandomSource {
 }
 
 describe("server protocol integration", () => {
-	test("joins, emits protocol-v34 waves, and rejects malformed commands", () => {
+	test("joins, emits the current protocol version, and rejects malformed commands", () => {
 		const repository = new InMemoryPlayerRepository();
 		const messages: ServerMessage[] = [];
 		let id = 0;
