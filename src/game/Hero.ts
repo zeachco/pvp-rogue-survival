@@ -8,6 +8,16 @@ import { Z_HERO, Z_AURA } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
 import { auraRadius } from "../../common/auras";
 
+let heroTexture: THREE.Texture | undefined;
+
+function loadHeroTexture(): THREE.Texture | undefined {
+	if (typeof document === "undefined") return undefined;
+	if (heroTexture) return heroTexture;
+	heroTexture = new THREE.TextureLoader().load("/assets/hero.png");
+	heroTexture.colorSpace = THREE.SRGBColorSpace;
+	return heroTexture;
+}
+
 export class Hero extends Unit {
 	readonly maxSpeed = 235;
 	readonly acceleration = 920;
@@ -26,8 +36,20 @@ export class Hero extends Unit {
 		super(position, 18, 100);
 		this.enteredArena = true;
 
-		const bodyGeo = new THREE.CircleGeometry(18, 32);
-		const bodyMat = new THREE.MeshBasicMaterial({ color: 0xdffeff });
+		const texture = loadHeroTexture();
+		const bodyGeo = texture
+			? new THREE.PlaneGeometry(50, 50)
+			: new THREE.CircleGeometry(18, 32);
+		const bodyMat = new THREE.MeshBasicMaterial(
+			texture
+				? {
+						map: texture,
+						transparent: true,
+						alphaTest: 0.02,
+						depthWrite: false,
+					}
+				: { color: 0xdffeff },
+		);
 		this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
 		this.bodyMesh.renderOrder = Z_HERO;
 		this.mesh.add(this.bodyMesh);
@@ -196,6 +218,10 @@ export class Hero extends Unit {
 			this.bleedDots,
 			this.stunRays,
 		);
+	}
+
+	faceCamera(cameraQuaternion: THREE.Quaternion): void {
+		this.bodyMesh.quaternion.copy(cameraQuaternion);
 	}
 
 	updateAuraVisuals(time: number): void {

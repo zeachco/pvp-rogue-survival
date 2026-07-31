@@ -298,6 +298,7 @@ describe("realm game service", () => {
 		});
 		expect(clone.mainHand).toEqual(attacker.progress.mainHand);
 		expect(clone.carried).toEqual([]);
+		expect(clone.enemyRole).toBe("clone");
 		expect(clone.xpReward).toBe(58);
 	});
 	test("adds one eligible persisted hero as a level-capped equipped boss on divisible-by-ten waves", () => {
@@ -323,6 +324,7 @@ describe("realm game service", () => {
 			.find(({ name }) => name === "BossSource's boss");
 		expect(boss).toMatchObject({
 			kind: "rival",
+			enemyRole: "boss",
 			level: 4,
 			stats: source.progress.stats,
 			mainHand: source.progress.mainHand,
@@ -359,6 +361,7 @@ describe("realm game service", () => {
 		);
 		expect(carrier?.mode).toBe("training");
 		expect(carrier?.build.mainHand.definitionId).toBe(item.definitionId);
+		expect(carrier?.build.enemyRole).toBe("invader");
 	});
 	test("resolves competitive units once and keeps Gold drops server-owned until collection", () => {
 		const { game, messages } = harness();
@@ -823,6 +826,7 @@ describe("realm game service", () => {
 		expect(sovereign.deathEchoes).toHaveLength(1);
 		expect(sovereign.deathEchoes[0]).toMatchObject({
 			name: "Victim's death echo",
+			enemyRole: "clone",
 			level: 5,
 			stats: { agility: 7, strength: 6, magic: 5, spirit: 4, intelligence: 3 },
 		});

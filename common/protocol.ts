@@ -3,8 +3,9 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 36;
+export const PROTOCOL_VERSION = 37;
 export type PlayerId = string;
+export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
 export type PanelTriggers = Record<PanelTrigger, boolean>;
 export type CreepKind = "melee" | "bubbleShooter" | "rival";
@@ -99,6 +100,7 @@ export interface UnitBuild {
 	charm?: ItemInstance;
 	carried: ItemInstance[];
 	isRival: boolean;
+	enemyRole?: EnemyRole;
 	xpReward: number;
 	goldReward: number;
 	seed: number;

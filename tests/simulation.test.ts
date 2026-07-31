@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { SeededRandom } from "../common/random";
 import { AttackArea } from "../src/game/AttackArea";
 import { ArenaState } from "../src/game/ArenaState";
-import { GameMap } from "../src/game/Map";
+import { GameMap, perimeterPoint, wrapped } from "../src/game/Map";
 import { Projectile } from "../src/game/Projectile";
 import {
 	releaseReadySpawns,
@@ -1204,6 +1204,16 @@ describe("arena systems", () => {
 		expect(map.randomEdgeSpawn(new SeededRandom(123))).toEqual(
 			map.randomEdgeSpawn(new SeededRandom(123)),
 		);
+	});
+
+	test("loops Tron-board lights across lanes and the full perimeter", () => {
+		expect(wrapped(-1, 100)).toBe(99);
+		expect(wrapped(101, 100)).toBe(1);
+		expect(perimeterPoint(0, 100, 50)).toEqual({ x: 0, y: 0 });
+		expect(perimeterPoint(100, 100, 50)).toEqual({ x: 100, y: 0 });
+		expect(perimeterPoint(150, 100, 50)).toEqual({ x: 100, y: 50 });
+		expect(perimeterPoint(250, 100, 50)).toEqual({ x: 0, y: 50 });
+		expect(perimeterPoint(300, 100, 50)).toEqual({ x: 0, y: 0 });
 	});
 
 	test("pushes outside objects inward and locks entered objects to the arena", () => {

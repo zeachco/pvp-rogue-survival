@@ -42,7 +42,7 @@ describe("server protocol integration", () => {
 			(message) => message?.type === "incomingWave",
 		);
 		expect(welcome?.config.balance.id).toBe("normal");
-		expect(welcome?.config.protocolVersion).toBe(36);
+		expect(welcome?.config.protocolVersion).toBe(37);
 		expect(welcome?.realm.mode).toBe("training");
 		expect(wave?.wave.mode).toBe("training");
 		expect(wave?.wave.waveNumber).toBe(1);

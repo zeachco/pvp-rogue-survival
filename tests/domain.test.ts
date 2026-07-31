@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import {
+	adjustedCameraTilt,
+	cameraOffsetForTilt,
+	MAX_CAMERA_TILT_RADIANS,
+} from "../src/game/render/ThreeRenderer";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
 
 import {
@@ -156,6 +161,17 @@ function progress(): PlayerProgress {
 	};
 }
 let id = 0;
+
+describe("camera tilt", () => {
+	test("keeps wheel-driven pitch within a readable range", () => {
+		expect(adjustedCameraTilt(0, 100)).toBeGreaterThan(0);
+		expect(adjustedCameraTilt(0, -100)).toBe(0);
+		expect(adjustedCameraTilt(0, 100_000)).toBe(MAX_CAMERA_TILT_RADIANS);
+		const offset = cameraOffsetForTilt(MAX_CAMERA_TILT_RADIANS);
+		expect(offset.y).toBeLessThan(0);
+		expect(offset.z).toBeGreaterThan(0);
+	});
+});
 
 describe("viewport tooltip positioning", () => {
 	test("keeps a top skill tooltip inside the viewport", () => {

@@ -678,6 +678,7 @@ export class GameService {
 			carried,
 			bonusSkills: [],
 			isRival,
+			enemyRole: isRival ? "champion" : "creep",
 			xpReward: isRival ? rivalXpReward(level) : 10 + level,
 			goldReward: isRival
 				? 3 + Math.floor(level / 2)
@@ -712,6 +713,7 @@ export class GameService {
 			carried: [],
 			bonusSkills: [],
 			isRival: true,
+			enemyRole: "clone",
 			xpReward: rivalXpReward(level),
 			goldReward: 3 + Math.floor(level / 2),
 			seed,
@@ -738,6 +740,7 @@ export class GameService {
 			bonusSkills: [],
 			skillLevels: bossSkillLevels(progress),
 			isRival: true,
+			enemyRole: "boss",
 			xpReward: rivalXpReward(level),
 			goldReward: 3 + Math.floor(level / 2),
 			seed,
@@ -767,6 +770,7 @@ export class GameService {
 				emitterId: queued.senderId,
 				emitterName: queued.senderName,
 				backlash: queued.backlash,
+				enemyRole: "invader",
 			};
 		const level = Math.max(build.level, item.level);
 		const stats =
@@ -816,6 +820,7 @@ export class GameService {
 			emitterId: queued.senderId,
 			emitterName: queued.senderName,
 			backlash: queued.backlash,
+			enemyRole: "invader",
 		};
 	}
 
@@ -1220,6 +1225,7 @@ export class GameService {
 			carried: [],
 			bonusSkills: [],
 			isRival: true,
+			enemyRole: "clone",
 			xpReward: rivalXpReward(p.level),
 			goldReward: 3 + Math.floor(p.level / 2),
 			seed,

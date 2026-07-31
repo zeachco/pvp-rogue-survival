@@ -189,7 +189,8 @@ export class Game {
 			"wheel",
 			(event) => {
 				event.preventDefault();
-				this.renderer.applyZoom(event.deltaY);
+				if (event.shiftKey) this.renderer.applyTilt(event.deltaY);
+				else this.renderer.applyZoom(event.deltaY);
 			},
 			{ passive: false },
 		);
@@ -854,6 +855,7 @@ export class Game {
 		);
 	}
 	private render(): void {
+		this.map.updateVisuals(performance.now() / 1000);
 		this.renderer.syncScene(
 			this.hero,
 			this.arena,

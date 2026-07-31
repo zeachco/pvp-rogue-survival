@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
 	type CreepKind,
+	type EnemyRole,
 	type PlayerId,
 	type UnitBuild,
 } from "../../common/protocol";
@@ -31,6 +32,32 @@ export function resourceBarWidth(
 	if (max <= 0) return 0;
 	const ratio = Math.max(0, Math.min(1, current / max));
 	return Math.floor(barWidth * ratio);
+}
+
+const ENEMY_ASSET_PATHS: Record<EnemyRole, string> = {
+	creep: "/assets/enemies/creep.png",
+	champion: "/assets/enemies/champion.png",
+	invader: "/assets/enemies/invader.png",
+	clone: "/assets/enemies/clone.png",
+	boss: "/assets/enemies/boss.png",
+};
+const enemyTextures = new Map<EnemyRole, THREE.Texture>();
+
+function enemyRole(build: UnitBuild): EnemyRole {
+	return (
+		build.enemyRole ??
+		(build.emitterId ? "invader" : build.isRival ? "champion" : "creep")
+	);
+}
+
+function enemyTexture(role: EnemyRole): THREE.Texture | undefined {
+	if (typeof document === "undefined") return undefined;
+	const existing = enemyTextures.get(role);
+	if (existing) return existing;
+	const texture = new THREE.TextureLoader().load(ENEMY_ASSET_PATHS[role]);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	enemyTextures.set(role, texture);
+	return texture;
 }
 
 export type CreepAttack =
@@ -76,7 +103,7 @@ export class Creep extends Unit {
 	private readonly rageBg: THREE.Mesh;
 	private readonly rageFill: THREE.Mesh;
 	private readonly bubbleEye?: THREE.Mesh;
-	private healthBarY = -28;
+	private healthBarY = 28;
 	private barWidth = 32;
 	private healthBarHeight = 4;
 	private manaBarHeight = 2;
@@ -142,6 +169,7 @@ export class Creep extends Unit {
 				? 0x8c7cff
 				: 0xff6f7d;
 		const strokeColorStr = build.isRival ? "#704d00" : "#501721";
+		const texture = enemyTexture(enemyRole(build));
 		const sentItem = [
 			build.mainHand,
 			build.offHand,
@@ -149,7 +177,29 @@ export class Creep extends Unit {
 			build.charm,
 		].find((item) => item?.id.includes("sent"));
 
-		if (this.kind === "melee") {
+		if (texture) {
+			const visualScale =
+				build.enemyRole === "boss"
+					? 3.2
+					: build.isRival
+						? 2.8
+						: build.enemyRole === "invader"
+							? 2.7
+							: 2.5;
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.PlaneGeometry(
+					this.radius * visualScale,
+					this.radius * visualScale,
+				),
+				new THREE.MeshBasicMaterial({
+					map: texture,
+					transparent: true,
+					alphaTest: 0.02,
+					depthWrite: false,
+					color: 0xdddddd,
+				}),
+			);
+		} else if (this.kind === "melee") {
 			const shape = new THREE.Shape();
 			for (let i = 0; i < 6; i += 1) {
 				const a = -Math.PI / 2 + (i * Math.PI) / 3;
@@ -163,6 +213,22 @@ export class Creep extends Unit {
 				new THREE.ShapeGeometry(shape),
 				new THREE.MeshBasicMaterial({ color: fillColor }),
 			);
+		} else {
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.CircleGeometry(this.radius, 24),
+				new THREE.MeshBasicMaterial({ color: fillColor }),
+			);
+		}
+		if (this.kind === "melee") {
+			const shape = new THREE.Shape();
+			for (let i = 0; i < 6; i += 1) {
+				const a = -Math.PI / 2 + (i * Math.PI) / 3;
+				const px = Math.cos(a) * this.radius;
+				const py = Math.sin(a) * this.radius;
+				if (i === 0) shape.moveTo(px, py);
+				else shape.lineTo(px, py);
+			}
+			shape.closePath();
 			this.strokeMesh = new THREE.Mesh(
 				new THREE.ShapeGeometry(shape),
 				new THREE.MeshBasicMaterial({
@@ -171,10 +237,6 @@ export class Creep extends Unit {
 				}),
 			);
 		} else {
-			this.bodyMesh = new THREE.Mesh(
-				new THREE.CircleGeometry(this.radius, 24),
-				new THREE.MeshBasicMaterial({ color: fillColor }),
-			);
 			this.strokeMesh = new THREE.Mesh(
 				new THREE.RingGeometry(this.radius - 1.5, this.radius + 1.5, 24),
 				new THREE.MeshBasicMaterial({
@@ -185,9 +247,6 @@ export class Creep extends Unit {
 		}
 		this.bodyMesh.renderOrder = Z_CREEP;
 		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
-		if (sentItem) {
-			(this.bodyMesh.material as THREE.MeshBasicMaterial).transparent = true;
-		}
 		this.mesh.add(this.bodyMesh);
 		this.mesh.add(this.strokeMesh);
 
@@ -217,7 +276,7 @@ export class Creep extends Unit {
 
 		this.healthFill = new THREE.Mesh(
 			new THREE.PlaneGeometry(this.barWidth, this.healthBarHeight),
-			new THREE.MeshBasicMaterial({ color: 0xf1fffa }),
+			new THREE.MeshBasicMaterial({ color: 0xff3b4f }),
 		);
 		this.healthFill.position.set(0, hbY, 0.01);
 		this.healthBarGroup.add(this.healthFill);
@@ -562,18 +621,20 @@ export class Creep extends Unit {
 		this.damageFlash = false;
 		const fillColor = flash
 			? 0xffffff
-			: this.build.isRival
-				? 0xffd166
-				: this.kind === "bubbleShooter"
-					? 0x8c7cff
-					: 0xff6f7d;
+			: (this.bodyMesh.material as THREE.MeshBasicMaterial).map
+				? 0xdddddd
+				: this.build.isRival
+					? 0xffd166
+					: this.kind === "bubbleShooter"
+						? 0x8c7cff
+						: 0xff6f7d;
 		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);
 
 		this.healthBarGroup.position.set(this.position.x, this.position.y, 0);
 		if (this.labelObject) {
 			this.labelObject.position.set(
 				this.position.x,
-				this.position.y + this.radius + 28,
+				this.position.y + this.radius + 38,
 				Z_CREEP_OVERLAY + 0.01,
 			);
 		}
@@ -606,6 +667,11 @@ export class Creep extends Unit {
 		}
 
 		this.updateThreatArrow();
+	}
+
+	faceCamera(cameraQuaternion: THREE.Quaternion): void {
+		this.bodyMesh.quaternion.copy(cameraQuaternion);
+		this.healthBarGroup.quaternion.copy(cameraQuaternion);
 	}
 
 	private updateThreatArrow(): void {

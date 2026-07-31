@@ -10,7 +10,10 @@ import { clamp } from "../types";
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 3;
 const ZOOM_SPEED = 0.0012;
-const MAP_Z = -1;
+export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(55);
+const TILT_SPEED = 0.0012;
+const CAMERA_HEIGHT = 180;
+const MAP_Z = -18;
 const Z_SWAMP = 10;
 const Z_DROP = 20;
 const Z_ATTACK = 30;
@@ -24,16 +27,38 @@ const Z_TEXT = 90;
 const Z_SELECTION = 95;
 const Z_THREAT = 96;
 
+export function adjustedCameraTilt(
+	current: number,
+	wheelDelta: number,
+): number {
+	return clamp(current + wheelDelta * TILT_SPEED, 0, MAX_CAMERA_TILT_RADIANS);
+}
+
+export function cameraOffsetForTilt(tilt: number): {
+	y: number;
+	z: number;
+} {
+	return {
+		y: -Math.tan(tilt) * CAMERA_HEIGHT,
+		z: CAMERA_HEIGHT,
+	};
+}
+
 export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
 	readonly camera: THREE.OrthographicCamera;
 	private _zoomLevel = 1;
+	private _tilt = 0;
 	private readonly tracked = new Set<THREE.Object3D>();
 	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
 	private readonly canvas: HTMLCanvasElement;
 	private width = 1;
 	private height = 1;
+	private focusX = 0;
+	private focusY = 0;
+	private readonly pointerRay = new THREE.Raycaster();
+	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -42,7 +67,7 @@ export class ThreeRenderer {
 		this.renderer.setPixelRatio(devicePixelRatio);
 		this.scene = new THREE.Scene();
 		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1000);
-		this.camera.position.z = 100;
+		this.updateCameraTransform();
 	}
 
 	resize(w: number, h: number): void {
@@ -59,6 +84,11 @@ export class ThreeRenderer {
 			MAX_ZOOM,
 		);
 		this.updateCameraFrustum();
+	}
+
+	applyTilt(delta: number): void {
+		this._tilt = adjustedCameraTilt(this._tilt, delta);
+		this.updateCameraTransform();
 	}
 
 	setZoom(level: number): void {
@@ -81,20 +111,29 @@ export class ThreeRenderer {
 	}
 
 	updateCameraPosition(heroX: number, heroY: number): void {
-		this.camera.position.x = heroX;
-		this.camera.position.y = heroY;
+		this.focusX = heroX;
+		this.focusY = heroY;
+		this.updateCameraTransform();
+	}
+
+	private updateCameraTransform(): void {
+		const offset = cameraOffsetForTilt(this._tilt);
+		this.camera.position.set(this.focusX, this.focusY + offset.y, offset.z);
+		this.camera.up.set(0, 1, 0);
+		this.camera.lookAt(this.focusX, this.focusY, 0);
+		this.camera.updateMatrixWorld();
 	}
 
 	eventWorld(event: MouseEvent): { x: number; y: number } {
 		const rect = this.canvas.getBoundingClientRect();
 		const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
 		const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-		const halfW = this.width / 2 / this._zoomLevel;
-		const halfH = this.height / 2 / this._zoomLevel;
-		return {
-			x: this.camera.position.x + ndcX * halfW,
-			y: this.camera.position.y + ndcY * halfH,
-		};
+		this.pointerRay.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+		const hit = this.pointerRay.ray.intersectPlane(
+			this.arenaPlane,
+			new THREE.Vector3(),
+		);
+		return hit ? { x: hit.x, y: hit.y } : { x: this.focusX, y: this.focusY };
 	}
 
 	syncScene(
@@ -140,8 +179,11 @@ export class ThreeRenderer {
 		}
 
 		hero.updateVisuals(time);
-		for (const creep of arena.creeps)
+		hero.faceCamera(this.camera.quaternion);
+		for (const creep of arena.creeps) {
 			creep.updateVisuals(time, hovered, inspected);
+			creep.faceCamera(this.camera.quaternion);
+		}
 		for (const drop of arena.drops) drop.updateVisuals(time);
 		for (const attack of arena.attacks) attack.updateVisuals(time);
 		for (const projectile of arena.projectiles) projectile.updateVisuals(time);
