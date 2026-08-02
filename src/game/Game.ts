@@ -19,7 +19,7 @@ import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
 import { groundDropPresentationCenter, ItemDrop } from "./ItemDrop";
-import { GameMap } from "./Map";
+import { GameMap, resolveColumnCollision, touchesColumn } from "./Map";
 import { Projectile } from "./Projectile";
 import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
@@ -557,6 +557,7 @@ export class Game {
 			this.map.width,
 			this.map.height,
 		);
+		resolveColumnCollision(this.hero, this.map.columns);
 		this.heroCombat.update(
 			deltaSeconds,
 			movementInput,
@@ -586,6 +587,7 @@ export class Game {
 				this.map.width,
 				this.map.height,
 			);
+			resolveColumnCollision(creep, this.map.columns);
 			correctArenaBoundary(
 				creep,
 				this.map.width,
@@ -674,13 +676,9 @@ export class Game {
 		const emittedProjectiles: Projectile[] = [];
 		for (const projectile of this.projectiles) {
 			projectile.update(deltaSeconds);
-			emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds));
-			correctArenaBoundary(
-				projectile,
-				this.map.width,
-				this.map.height,
-				deltaSeconds,
-			);
+			if (projectile.active && touchesColumn(projectile, this.map.columns))
+				projectile.active = false;
+			else emittedProjectiles.push(...projectile.emitFrostSpikes(deltaSeconds));
 		}
 		this.projectiles.push(...emittedProjectiles);
 		for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);

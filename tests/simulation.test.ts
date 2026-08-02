@@ -3,7 +3,12 @@ import * as THREE from "three";
 import { SeededRandom } from "../common/random";
 import { AttackArea } from "../src/game/AttackArea";
 import { ArenaState } from "../src/game/ArenaState";
-import { GameMap } from "../src/game/Map";
+import {
+	GameMap,
+	generateArenaColumns,
+	resolveColumnCollision,
+	touchesColumn,
+} from "../src/game/Map";
 import {
 	ORBITING_HAMMER_MODEL,
 	orbitingHammerRotation,
@@ -1586,6 +1591,51 @@ describe("arena systems", () => {
 		projectile.update(0.1);
 		expect(projectile.active).toBeTrue();
 		expect(projectile.position.x).toBeGreaterThan(0);
+	});
+
+	test("does not destroy projectiles for leaving arena bounds", () => {
+		const state = new ArenaState();
+		const hero = new Hero({ x: 50, y: 50 });
+		const projectile = new Projectile(
+			{ x: 550, y: 50 },
+			{ x: 650, y: 50 },
+			1,
+			"hero",
+		);
+		state.projectiles.push(projectile);
+		resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
+		expect(projectile.active).toBeTrue();
+	});
+
+	test("generates reproducible safe columns that block units and projectiles", () => {
+		const first = generateArenaColumns(1600, 1000, 10, new SeededRandom(42));
+		const second = generateArenaColumns(1600, 1000, 10, new SeededRandom(42));
+		expect(first).toEqual(second);
+		expect(first).toHaveLength(10);
+		expect(
+			first.every(
+				(column) => Math.hypot(column.x - 800, column.y - 500) >= 180,
+			),
+		).toBeTrue();
+		const column = { x: 100, y: 100, radius: 30 };
+		const creepCollider = {
+			position: { x: 115, y: 100 },
+			radius: 20,
+			velocity: { x: -40, y: 10 },
+		};
+		expect(resolveColumnCollision(creepCollider, [column])).toBeTrue();
+		expect(creepCollider.position.x).toBe(150);
+		expect(creepCollider.velocity.x).toBe(0);
+		expect(creepCollider.velocity.y).toBe(10);
+		const hero = new Hero({ x: 115, y: 100 });
+		hero.velocity.x = -40;
+		hero.velocity.y = 10;
+		expect(resolveColumnCollision(hero, [column])).toBeTrue();
+		expect(hero.position.x).toBe(100 + column.radius + hero.radius);
+		expect(hero.velocity.x).toBe(0);
+		expect(hero.velocity.y).toBe(10);
+		const projectile = new Projectile({ x: 100, y: 100 }, { x: 200, y: 100 });
+		expect(touchesColumn(projectile, [column])).toBeTrue();
 	});
 
 	test("cleanup and arena reset remove transient state", () => {

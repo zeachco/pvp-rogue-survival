@@ -14,8 +14,8 @@ export function resolveCombat(
 	state: ArenaState,
 	hero: Hero,
 	equipped: ItemInstance | undefined,
-	width: number,
-	height: number,
+	_width: number,
+	_height: number,
 	random: RandomSource,
 ): void {
 	for (const attack of state.attacks) {
@@ -220,13 +220,6 @@ export function resolveCombat(
 			}
 			projectile.active = false;
 		}
-		if (
-			projectile.position.x < -40 ||
-			projectile.position.y < -40 ||
-			projectile.position.x > width + 40 ||
-			projectile.position.y > height + 40
-		)
-			projectile.active = false;
 	}
 }
 

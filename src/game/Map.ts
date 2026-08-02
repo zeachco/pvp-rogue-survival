@@ -1,13 +1,103 @@
 import * as THREE from "three";
+import { systemRandom, type RandomSource } from "../../common/random";
 import { canvas2dContext } from "../platform/Canvas";
+import type { Vector2 } from "./types";
 import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
+
+export interface ArenaColumn extends Vector2 {
+	radius: number;
+}
+
+export interface ColumnCollider {
+	position: Vector2;
+	radius: number;
+	velocity?: Vector2;
+}
+
+export function generateArenaColumns(
+	width: number,
+	height: number,
+	count: number,
+	random: RandomSource,
+): ArenaColumn[] {
+	const columns: ArenaColumn[] = [];
+	const center = { x: width / 2, y: height / 2 };
+	for (
+		let attempt = 0;
+		columns.length < count && attempt < count * 100;
+		attempt++
+	) {
+		const radius = 26 + random.next() * 14;
+		const candidate = {
+			x: 100 + random.next() * (width - 200),
+			y: 100 + random.next() * (height - 200),
+			radius,
+		};
+		if (Math.hypot(candidate.x - center.x, candidate.y - center.y) < 180)
+			continue;
+		if (
+			columns.some(
+				(column) =>
+					Math.hypot(candidate.x - column.x, candidate.y - column.y) <
+					candidate.radius + column.radius + 70,
+			)
+		)
+			continue;
+		columns.push(candidate);
+	}
+	return columns;
+}
+
+export function resolveColumnCollision(
+	object: ColumnCollider,
+	columns: readonly ArenaColumn[],
+): boolean {
+	let collided = false;
+	for (const column of columns) {
+		const dx = object.position.x - column.x;
+		const dy = object.position.y - column.y;
+		const minimumDistance = object.radius + column.radius;
+		const distance = Math.hypot(dx, dy);
+		if (distance >= minimumDistance) continue;
+		collided = true;
+		const normalX = distance > 0 ? dx / distance : 1;
+		const normalY = distance > 0 ? dy / distance : 0;
+		object.position.x = column.x + normalX * minimumDistance;
+		object.position.y = column.y + normalY * minimumDistance;
+		if (object.velocity) {
+			const inwardSpeed =
+				object.velocity.x * normalX + object.velocity.y * normalY;
+			if (inwardSpeed < 0) {
+				object.velocity.x -= normalX * inwardSpeed;
+				object.velocity.y -= normalY * inwardSpeed;
+			}
+		}
+	}
+	return collided;
+}
+
+export function touchesColumn(
+	object: Pick<ColumnCollider, "position" | "radius">,
+	columns: readonly ArenaColumn[],
+): boolean {
+	return columns.some(
+		(column) =>
+			Math.hypot(object.position.x - column.x, object.position.y - column.y) <=
+			object.radius + column.radius,
+	);
+}
 
 export class GameMap {
 	readonly width = 1600;
 	readonly height = 1000;
 	readonly gridSize = 50;
 	readonly mesh = new THREE.Group();
+	readonly columns: readonly ArenaColumn[];
 	private built = false;
+
+	constructor(random: RandomSource = systemRandom) {
+		this.columns = generateArenaColumns(this.width, this.height, 10, random);
+	}
 
 	get center(): { x: number; y: number } {
 		return { x: this.width / 2, y: this.height / 2 };
@@ -76,6 +166,7 @@ export class GameMap {
 		this.mesh.add(grid);
 
 		this.buildMajorGrid();
+		this.buildColumns();
 
 		const glowCanvas = document.createElement("canvas");
 		glowCanvas.width = 512;
@@ -131,6 +222,23 @@ export class GameMap {
 		);
 		border.renderOrder = 3;
 		this.mesh.add(border);
+	}
+
+	private buildColumns(): void {
+		for (const [index, column] of this.columns.entries()) {
+			const height = 100 + (index % 3) * 18;
+			const body = new THREE.Mesh(
+				new THREE.CylinderGeometry(column.radius, column.radius, height, 10),
+				new THREE.MeshStandardMaterial({
+					color: 0x173c45,
+					roughness: 0.55,
+					metalness: 0.35,
+				}),
+			);
+			body.rotation.x = Math.PI / 2;
+			body.position.set(column.x, column.y, height / 2);
+			this.mesh.add(body);
+		}
 	}
 
 	private buildMajorGrid(): void {
