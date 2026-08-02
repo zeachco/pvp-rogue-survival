@@ -247,6 +247,22 @@ export class Game {
 		window.addEventListener("keyup", (event) =>
 			this.keys.delete(event.key.toLowerCase()),
 		);
+		const stopMouseCameraOrbit = () => {
+			this.orbitingCamera = false;
+			if (document.pointerLockElement === this.canvas)
+				document.exitPointerLock();
+		};
+		document.addEventListener("pointerlockchange", () => {
+			if (document.pointerLockElement !== this.canvas && this.orbitingCamera)
+				this.orbitingCamera = false;
+		});
+		document.addEventListener("mousemove", (event) => {
+			if (this.orbitingCamera && document.pointerLockElement === this.canvas)
+				this.renderer.orbit(event.movementX, event.movementY);
+		});
+		document.addEventListener("mouseup", (event) => {
+			if (event.button === 2) stopMouseCameraOrbit();
+		});
 		this.canvas.addEventListener("pointerdown", (event) => {
 			if (event.pointerType === "touch") {
 				this.touchCameraPointerId = event.pointerId;
@@ -259,6 +275,10 @@ export class Game {
 			event.preventDefault();
 			this.orbitingCamera = true;
 			this.canvas.setPointerCapture(event.pointerId);
+			if (typeof this.canvas.requestPointerLock === "function")
+				void this.canvas.requestPointerLock().catch(() => {
+					// Pointer capture above remains the fallback when locking is denied.
+				});
 		});
 		this.canvas.addEventListener("pointermove", (event) => {
 			if (event.pointerId === this.touchCameraPointerId) {
@@ -271,7 +291,7 @@ export class Game {
 				this.renderer.orbit(deltaX, deltaY);
 				return;
 			}
-			if (this.orbitingCamera) {
+			if (this.orbitingCamera && document.pointerLockElement !== this.canvas) {
 				this.renderer.orbit(event.movementX, event.movementY);
 				return;
 			}
@@ -284,10 +304,10 @@ export class Game {
 		this.canvas.addEventListener("pointerup", (event) => {
 			if (event.pointerId === this.touchCameraPointerId)
 				this.touchCameraPointerId = undefined;
-			if (event.button === 2) this.orbitingCamera = false;
+			if (event.button === 2) stopMouseCameraOrbit();
 		});
 		this.canvas.addEventListener("pointercancel", () => {
-			this.orbitingCamera = false;
+			stopMouseCameraOrbit();
 			this.touchCameraPointerId = undefined;
 		});
 		this.canvas.addEventListener("click", (event) => {
@@ -331,6 +351,10 @@ export class Game {
 	}
 	private enterRealm(): void {
 		if (this.realmMode !== "training") return;
+		if (!document.fullscreenElement) {
+			const fullscreen = document.documentElement.requestFullscreen?.();
+			if (fullscreen) void fullscreen.catch(() => {});
+		}
 		this.realmMode = "waiting";
 		this.socket.send({ type: "enterRealm" });
 	}
