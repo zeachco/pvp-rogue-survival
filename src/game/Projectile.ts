@@ -35,6 +35,21 @@ export function orbitingHammerRotation(
 	};
 }
 
+const PROJECTILE_GROUND_CLEARANCE = 2;
+
+export function projectilePresentationCenter(
+	skill?: ProjectileSkill,
+	weaponDefinitionId?: string,
+): number {
+	if (skill === "frostOrb") return 22 + PROJECTILE_GROUND_CLEARANCE;
+	if (skill === "frostSpike") return 8 + PROJECTILE_GROUND_CLEARANCE;
+	if (skill === "vampiricBoomerang") return 48 + PROJECTILE_GROUND_CLEARANCE;
+	if (skill === "orbitingHammers") return 16 + PROJECTILE_GROUND_CLEARANCE;
+	if (weaponDefinitionId === "throwingAxe")
+		return 12 + PROJECTILE_GROUND_CLEARANCE;
+	return 11 + PROJECTILE_GROUND_CLEARANCE;
+}
+
 export class Projectile extends GameObject {
 	readonly position: Vector2;
 	readonly radius: number = 11;
@@ -118,6 +133,10 @@ export class Projectile extends GameObject {
 		this.bodyMesh = this.createMesh();
 		this.bodyMesh.renderOrder = Z_PROJECTILE;
 		this.billboardGroup.add(this.bodyMesh);
+		this.billboardGroup.position.z = projectilePresentationCenter(
+			skill,
+			weapon?.definitionId,
+		);
 		this.mesh.add(this.billboardGroup);
 		if (skill === "orbitingHammers" && typeof document !== "undefined")
 			void this.loadHammerModel();

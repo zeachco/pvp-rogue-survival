@@ -5,14 +5,15 @@ import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
 import { Z_DROP } from "./render/ThreeRenderer";
 
-const GOLD_PRESENTATION_HEIGHT = 20;
-const DIAMOND_PRESENTATION_HEIGHT = 18 * Math.SQRT2;
+const GROUND_PRESENTATION_CLEARANCE = 2;
+const GOLD_PRESENTATION_RADIUS = 16;
+const DIAMOND_PRESENTATION_RADIUS = 18;
 
 export function groundDropPresentationCenter(drop: GroundDrop): number {
 	return (
 		(drop.kind === "gold"
-			? GOLD_PRESENTATION_HEIGHT
-			: DIAMOND_PRESENTATION_HEIGHT) / 2
+			? GOLD_PRESENTATION_RADIUS
+			: DIAMOND_PRESENTATION_RADIUS) + GROUND_PRESENTATION_CLEARANCE
 	);
 }
 

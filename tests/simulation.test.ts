@@ -7,6 +7,7 @@ import { GameMap } from "../src/game/Map";
 import {
 	ORBITING_HAMMER_MODEL,
 	orbitingHammerRotation,
+	projectilePresentationCenter,
 	Projectile,
 } from "../src/game/Projectile";
 import {
@@ -872,6 +873,12 @@ describe("arena systems", () => {
 		expect(projectile.mesh.children[0].children[0].rotation.z).not.toBe(0);
 		expect(groundEffect.mesh.quaternion.equals(cameraRotation)).toBeFalse();
 	});
+	test("bottom-aligns every projectile silhouette above the ground", () => {
+		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);
+		expect(projectilePresentationCenter("frostOrb")).toBe(24);
+		expect(projectilePresentationCenter("vampiricBoomerang")).toBe(50);
+		expect(projectilePresentationCenter(undefined, "throwingAxe")).toBe(14);
+	});
 	test("tumbles Orbiting Hammer models around all three axes", () => {
 		const first = orbitingHammerRotation(0.25, 0.4);
 		const second = orbitingHammerRotation(0.5, 0.8);
@@ -1267,6 +1274,9 @@ describe("arena systems", () => {
 			expect(drop.mesh.position.z).toBe(
 				groundDropPresentationCenter(drop.drop),
 			);
+		expect(groundDropPresentationCenter(drops[0].drop)).toBe(18);
+		expect(groundDropPresentationCenter(drops[1].drop)).toBe(20);
+		expect(groundDropPresentationCenter(drops[2].drop)).toBe(20);
 	});
 	test("billboards complete pickup presentations toward the camera", () => {
 		const cameraRotation = new THREE.Quaternion().setFromEuler(

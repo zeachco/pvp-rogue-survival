@@ -18,6 +18,8 @@ The rendered arena floor begins at world `z = -0.1`, superseding the earlier exp
 
 Floating combat numbers spawn at the visual center of the affected unit and rise vertically from there. Ordinary damage, healing, dodge, and block text renders at 60% of the authored combat-text size; critical damage retains the full 100% size.
 
+Every camera-facing airborne projectile, including Arcane Bolt and fallback projectile art, is bottom-aligned above the gameplay plane using its complete visible bounds plus a 2-logical-pixel clearance. Gold, Scrap, and equipment pickups use the same clearance and include their outer glow in those bounds, so no visible portion intersects the rendered floor at any camera pitch.
+
 Attacking, winding up an attack, and casting do not reduce movement speed. When a unit actually loses HP from received damage, its movement speed is reduced to 48% for 0.35 seconds; repeated damaging hits refresh that duration. Dodged, blocked, fully mitigated, and self-paid spell costs do not trigger this slowdown.
 
 - The client owns local arena simulation for the active combat slice.
