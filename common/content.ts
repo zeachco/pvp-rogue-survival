@@ -140,7 +140,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 105,
 		resource: "rage",
 		description:
-			"A heavy full-circle strike that always stuns for 1.1 seconds.",
+			"A heavy full-circle strike that always stuns for 1.1 seconds, with cooldown scaling from 5s to 1s between levels 1 and 99.",
 	},
 	sweep: {
 		id: "sweep",

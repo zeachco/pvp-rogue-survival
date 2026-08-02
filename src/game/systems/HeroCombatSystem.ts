@@ -372,7 +372,7 @@ export class HeroCombatSystem {
 				: 0;
 		hero.spendRage(rageCost);
 		if (magicSkill) hero.spendMana(manaCost);
-		if (lifeCost > 0) hero.takeDamage(lifeCost);
+		if (lifeCost > 0) hero.spendLife(lifeCost);
 		const strike =
 			activeSkill?.id === "swamp"
 				? { damage: 0, critical: false }
@@ -554,6 +554,7 @@ export class HeroCombatSystem {
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 			const duration =
 				activeSkill.id === "swamp" ||
+				activeSkill.id === "bash" ||
 				activeSkill.id === "flurry" ||
 				activeSkill.id === "cleave"
 					? skillCooldown(

@@ -254,6 +254,7 @@ export function skillCooldown(
 	level = 1,
 ): number {
 	if (skill === "swamp") return swampCooldown(level);
+	if (skill === "bash") return bashCooldown(level);
 	if (skill === "cleave") return cleaveCooldown(level);
 	if (skill === "flurry") return flurryCooldown(level);
 	const base = SKILLS[skill].cooldown;
@@ -262,6 +263,10 @@ export function skillCooldown(
 		Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) /
 		weaponSkillLevelScale(item?.level ?? 0)
 	);
+}
+
+export function bashCooldown(level: number): number {
+	return 5 - (4 * (cappedSkillLevel(level) - 1)) / 98;
 }
 
 export function cleaveCooldown(level: number): number {

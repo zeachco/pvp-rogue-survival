@@ -1087,7 +1087,9 @@ export class Hud {
 				? healingCooldown(shownLevel)
 				: progress && stats
 					? skillCooldown(spell.id, progress.mainHand, stats, shownLevel) *
-						(spell.id === "flurry" || spell.id === "cleave"
+						(spell.id === "bash" ||
+						spell.id === "flurry" ||
+						spell.id === "cleave"
 							? 1
 							: cooldownScale(
 									shownLevel,

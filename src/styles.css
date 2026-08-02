@@ -37,6 +37,47 @@ input {
 	display: block;
 	width: 100vw;
 	height: 100vh;
+	touch-action: none;
+}
+
+.touch-joystick {
+	display: none;
+	position: absolute;
+	z-index: 24;
+	left: 88px;
+	bottom: 104px;
+	width: 112px;
+	height: 112px;
+	border: 2px solid rgba(58, 255, 212, 0.65);
+	border-radius: 50%;
+	background: rgba(5, 20, 24, 0.48);
+	box-shadow: inset 0 0 24px rgba(58, 255, 212, 0.12);
+	pointer-events: auto;
+	touch-action: none;
+}
+
+.touch-joystick-knob {
+	position: absolute;
+	top: 34px;
+	left: 34px;
+	width: 40px;
+	height: 40px;
+	border: 2px solid #8fffea;
+	border-radius: 50%;
+	background: rgba(23, 112, 105, 0.82);
+}
+
+.touch-ui .touch-joystick {
+	display: block;
+}
+
+@media (pointer: coarse) and (max-width: 900px) {
+	#hud {
+		width: calc(100vw / 0.72);
+		height: calc(100vh / 0.72);
+		transform: scale(0.72);
+		transform-origin: top left;
+	}
 }
 
 .item-hover-card {

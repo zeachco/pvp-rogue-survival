@@ -79,6 +79,11 @@ export class Game {
 	private defeatCooldown = 0;
 	private isChatting = false;
 	private orbitingCamera = false;
+	private touchCameraPointerId?: number;
+	private touchCameraX = 0;
+	private touchCameraY = 0;
+	private suppressNextClick = false;
+	private touchMovement: Vector2 = { x: 0, y: 0 };
 	private resizeObserver?: ResizeObserver;
 	private hovered?: Creep;
 	private hoveredDrop?: ItemDrop;
@@ -161,7 +166,50 @@ export class Game {
 			},
 		});
 		if (this.savedSession) this.hud.setJoinName(this.savedSession.username);
+		this.setupTouchControls(hudRoot);
 		this.registerDebugGlobal();
+	}
+
+	private setupTouchControls(hudRoot: HTMLDivElement): void {
+		if (!(navigator.maxTouchPoints > 0 || "ontouchstart" in window)) return;
+		document.documentElement.classList.add("touch-ui");
+		const pad = document.createElement("div");
+		pad.className = "touch-joystick";
+		pad.setAttribute("aria-label", "Movement joystick");
+		const knob = document.createElement("div");
+		knob.className = "touch-joystick-knob";
+		pad.append(knob);
+		hudRoot.append(pad);
+		let pointerId: number | undefined;
+		const update = (event: PointerEvent) => {
+			const rect = pad.getBoundingClientRect();
+			const radius = rect.width * 0.34;
+			let x = event.clientX - (rect.left + rect.width / 2);
+			let y = event.clientY - (rect.top + rect.height / 2);
+			const distance = Math.hypot(x, y);
+			if (distance > radius) {
+				x = (x / distance) * radius;
+				y = (y / distance) * radius;
+			}
+			this.touchMovement = { x: x / radius, y: -y / radius };
+			knob.style.transform = `translate(${x}px, ${y}px)`;
+		};
+		pad.addEventListener("pointerdown", (event) => {
+			pointerId = event.pointerId;
+			pad.setPointerCapture(event.pointerId);
+			update(event);
+		});
+		pad.addEventListener("pointermove", (event) => {
+			if (event.pointerId === pointerId) update(event);
+		});
+		const release = (event: PointerEvent) => {
+			if (event.pointerId !== pointerId) return;
+			pointerId = undefined;
+			this.touchMovement = { x: 0, y: 0 };
+			knob.style.transform = "translate(0, 0)";
+		};
+		pad.addEventListener("pointerup", release);
+		pad.addEventListener("pointercancel", release);
 	}
 
 	start(): void {
@@ -199,12 +247,29 @@ export class Game {
 			this.keys.delete(event.key.toLowerCase()),
 		);
 		this.canvas.addEventListener("pointerdown", (event) => {
+			if (event.pointerType === "touch") {
+				this.touchCameraPointerId = event.pointerId;
+				this.touchCameraX = event.clientX;
+				this.touchCameraY = event.clientY;
+				this.canvas.setPointerCapture(event.pointerId);
+				return;
+			}
 			if (event.button !== 2) return;
 			event.preventDefault();
 			this.orbitingCamera = true;
 			this.canvas.setPointerCapture(event.pointerId);
 		});
 		this.canvas.addEventListener("pointermove", (event) => {
+			if (event.pointerId === this.touchCameraPointerId) {
+				const deltaX = event.clientX - this.touchCameraX;
+				const deltaY = event.clientY - this.touchCameraY;
+				this.touchCameraX = event.clientX;
+				this.touchCameraY = event.clientY;
+				if (Math.abs(deltaX) + Math.abs(deltaY) > 1)
+					this.suppressNextClick = true;
+				this.renderer.orbit(deltaX, deltaY);
+				return;
+			}
 			if (this.orbitingCamera) {
 				this.renderer.orbit(event.movementX, event.movementY);
 				return;
@@ -216,15 +281,22 @@ export class Game {
 			this.hud.setGroundDropPreview();
 		});
 		this.canvas.addEventListener("pointerup", (event) => {
+			if (event.pointerId === this.touchCameraPointerId)
+				this.touchCameraPointerId = undefined;
 			if (event.button === 2) this.orbitingCamera = false;
 		});
 		this.canvas.addEventListener("pointercancel", () => {
 			this.orbitingCamera = false;
+			this.touchCameraPointerId = undefined;
 		});
 		this.canvas.addEventListener("contextmenu", (event) =>
 			event.preventDefault(),
 		);
 		this.canvas.addEventListener("click", (event) => {
+			if (this.suppressNextClick) {
+				this.suppressNextClick = false;
+				return;
+			}
 			if (event.button === 0) this.inspectAt(event);
 		});
 		this.canvas.addEventListener(
@@ -454,8 +526,14 @@ export class Game {
 		const rawMovementInput = this.isChatting
 			? { x: 0, y: 0 }
 			: {
-					x: Number(this.keys.has("d")) - Number(this.keys.has("a")),
-					y: Number(this.keys.has("w")) - Number(this.keys.has("s")),
+					x:
+						Number(this.keys.has("d")) -
+						Number(this.keys.has("a")) +
+						this.touchMovement.x,
+					y:
+						Number(this.keys.has("w")) -
+						Number(this.keys.has("s")) +
+						this.touchMovement.y,
 				};
 		const movementInput = this.renderer.movementForCamera(rawMovementInput);
 		const heroAttackActive = this.attacks.some(
@@ -466,7 +544,6 @@ export class Game {
 			movementInput.y !== 0 ||
 			Math.hypot(this.hero.velocity.x, this.hero.velocity.y) > 0.01;
 		this.heroCombat.syncSkills(this.player.progress, this.hero);
-		this.hero.attackSlow = heroAttackActive;
 		this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed;
 		this.hero.healthRegenMultiplier = this.heroCombat.rapidRegenMultiplier;
 		this.hero.healthRegenFlat = this.heroCombat.rapidRegenFlat;

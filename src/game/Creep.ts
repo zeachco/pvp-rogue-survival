@@ -440,7 +440,8 @@ export class Creep extends Unit {
 			this.movementMultiplier *
 			this.auraMovementMultiplier *
 			this.groundMovementMultiplier *
-			this.freezeMovementMultiplier;
+			this.freezeMovementMultiplier *
+			this.damageMovementMultiplier;
 		const acceleration = movement.acceleration;
 		const profile = attackProfile(
 			this.build.mainHand,
@@ -462,7 +463,7 @@ export class Creep extends Unit {
 			this.moveFromVelocity(
 				{ x: 0, y: 0 },
 				acceleration,
-				maxSpeed * 0.25,
+				maxSpeed,
 				deltaSeconds,
 			);
 			if (this.windup <= 0) {

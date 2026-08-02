@@ -4,7 +4,11 @@ import type { ArenaState } from "../ArenaState";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
 import type { CombatText } from "../CombatText";
-import { COMBAT_TEXT_COLORS, CRITICAL_TEXT_COLOR } from "../CombatText";
+import {
+	combatTextScale,
+	COMBAT_TEXT_COLORS,
+	CRITICAL_TEXT_COLOR,
+} from "../CombatText";
 import { clamp } from "../types";
 
 const MIN_ZOOM = 0.65;
@@ -274,7 +278,8 @@ export class ThreeRenderer {
 				? CRITICAL_TEXT_COLOR
 				: COMBAT_TEXT_COLORS[text.kind];
 			const weight = text.critical ? 700 : 600;
-			const fontSize = text.critical ? 19 : 16;
+			const fontSize = 19;
+			const sizeScale = combatTextScale(text.critical);
 			const value =
 				text.label ??
 				`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`;
@@ -319,10 +324,10 @@ export class ThreeRenderer {
 
 			sprite.position.set(
 				text.position.x + text.drift * progress,
-				text.position.y - 22 - 38 * progress,
-				Z_TEXT,
+				text.position.y,
+				(text.elevation ?? 0) + 38 * progress,
 			);
-			sprite.scale.set(w, h, 1);
+			sprite.scale.set(w * sizeScale, h * sizeScale, 1);
 		}
 	}
 

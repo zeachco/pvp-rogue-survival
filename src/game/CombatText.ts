@@ -15,6 +15,7 @@ export interface DamagePresentation {
 export type CombatTextKind = DamageKind | "healing" | "dodge" | "block";
 export interface CombatText {
 	position: Vector2;
+	elevation?: number;
 	amount: number;
 	kind: CombatTextKind;
 	critical: boolean;
@@ -37,3 +38,6 @@ export const COMBAT_TEXT_COLORS: Readonly<Record<CombatTextKind, string>> = {
 	block: "#ffd86b",
 };
 export const CRITICAL_TEXT_COLOR = "#fff3bd";
+export function combatTextScale(critical: boolean): number {
+	return critical ? 1 : 0.6;
+}

@@ -69,6 +69,7 @@ export abstract class Unit extends GameObject {
 	presentationAttackVersion = 0;
 	presentationAttackDuration = 0.5;
 	presentationHitVersion = 0;
+	damageSlowRemaining = 0;
 
 	protected constructor(
 		position: Vector2,
@@ -82,9 +83,21 @@ export abstract class Unit extends GameObject {
 	}
 
 	takeDamage(amount: number): void {
-		if (amount > 0) this.presentationHitVersion += 1;
+		const lostHp = Math.min(this.hp, Math.max(0, amount));
+		if (lostHp > 0) {
+			this.presentationHitVersion += 1;
+			this.damageSlowRemaining = 0.35;
+		}
 		this.hp = Math.max(0, this.hp - amount);
 		if (this.hp === 0) this.active = false;
+	}
+
+	spendLife(amount: number): void {
+		this.hp = Math.max(1, this.hp - Math.max(0, amount));
+	}
+
+	get damageMovementMultiplier(): number {
+		return this.damageSlowRemaining > 0 ? 0.48 : 1;
 	}
 
 	presentAttack(duration = 0.5): void {
@@ -360,6 +373,10 @@ export abstract class Unit extends GameObject {
 		invulnerable = false,
 		regenerateRage = true,
 	): void {
+		this.damageSlowRemaining = Math.max(
+			0,
+			this.damageSlowRemaining - deltaSeconds,
+		);
 		if (this.mana <= 0) this.suspendedUpkeep.add("mana");
 		if (this.rage <= 0) this.suspendedUpkeep.add("rage");
 		this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
@@ -557,6 +574,7 @@ export abstract class Unit extends GameObject {
 	): void {
 		this.onCombatText?.({
 			position: { ...this.position },
+			elevation: this.radius,
 			amount,
 			kind,
 			critical,
@@ -569,6 +587,7 @@ export abstract class Unit extends GameObject {
 	private emitOutcome(kind: "dodge" | "block", label: string): void {
 		this.onCombatText?.({
 			position: { ...this.position },
+			elevation: this.radius,
 			amount: 0,
 			kind,
 			label,

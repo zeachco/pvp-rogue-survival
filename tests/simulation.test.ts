@@ -16,7 +16,7 @@ import {
 import { correctArenaBoundary } from "../src/game/bounds";
 import { Hero } from "../src/game/Hero";
 import { generateAccessory, generateBuckler } from "../common/items";
-import type { CombatText } from "../src/game/CombatText";
+import { combatTextScale, type CombatText } from "../src/game/CombatText";
 import {
 	healingAuraOpacity,
 	healingPlusOpacity,
@@ -184,14 +184,23 @@ describe("arena systems", () => {
 		expect(target.velocity.y).toBeCloseTo(Math.SQRT1_2 * 30);
 	});
 
-	test("applies Whirlwind's level-scaled movement multiplier without changing ordinary attack slow", () => {
+	test("slows movement after received damage but not while attacking", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.movementSpeedMultiplier = 1.5;
 		hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
 		expect(hero.velocity.x).toBe(352.5);
-		hero.attackSlow = true;
+		hero.velocity = { x: 0, y: 0 };
+		hero.presentAttack();
+		hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
+		expect(hero.velocity.x).toBe(352.5);
+		hero.velocity = { x: 0, y: 0 };
+		hero.takeDamage(1);
 		hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
 		expect(hero.velocity.x).toBe(169.2);
+		hero.update(0.35);
+		hero.velocity = { x: 0, y: 0 };
+		hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
+		expect(hero.velocity.x).toBe(352.5);
 	});
 	test("regenerates rage four times slower and pauses it while the hero is active", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -1493,6 +1502,11 @@ describe("arena systems", () => {
 		expect(state.pendingPickups.size).toBe(0);
 		expect(state.defeatedPositions.size).toBe(0);
 		expect(state.combatTexts).toHaveLength(0);
+	});
+
+	test("sizes ordinary combat text at sixty percent and critical text fully", () => {
+		expect(combatTextScale(false)).toBe(0.6);
+		expect(combatTextScale(true)).toBe(1);
 	});
 
 	test("edge spawning is reproducible with a seeded random source", () => {

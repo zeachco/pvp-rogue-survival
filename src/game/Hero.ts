@@ -38,7 +38,6 @@ export class Hero extends Unit {
 	readonly maxSpeed = 235;
 	readonly acceleration = 920;
 	facing = 0;
-	attackSlow = false;
 	movementSpeedMultiplier = 1;
 	readonly auraGroup = new THREE.Group();
 
@@ -175,7 +174,7 @@ export class Hero extends Unit {
 		this.statuses = [];
 		this.velocity = { x: 0, y: 0 };
 		this.active = true;
-		this.attackSlow = false;
+		this.damageSlowRemaining = 0;
 		this.movementSpeedMultiplier = 1;
 		this.healthRegenMultiplier = 1;
 		this.healthRegenFlat = 0;
@@ -199,7 +198,7 @@ export class Hero extends Unit {
 			direction,
 			this.acceleration,
 			this.maxSpeed *
-				(this.attackSlow ? 0.48 : 1) *
+				this.damageMovementMultiplier *
 				this.movementSpeedMultiplier,
 			deltaSeconds,
 		);

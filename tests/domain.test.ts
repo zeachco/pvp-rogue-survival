@@ -28,6 +28,7 @@ import {
 } from "../common/units";
 import {
 	attackProfile,
+	bashCooldown,
 	bucklerBlockChance,
 	bucklerBlockCost,
 	cleaveHalfArc,
@@ -1639,6 +1640,15 @@ test("scales Flurry cooldown directly from six to three seconds", () => {
 	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
 	expect(skillCooldown("flurry", dagger, boosted, 1)).toBe(6);
 	expect(skillCooldown("flurry", dagger, boosted, 99)).toBe(3);
+});
+test("scales Bash cooldown directly from five to one second", () => {
+	expect(bashCooldown(1)).toBe(5);
+	expect(bashCooldown(50)).toBe(3);
+	expect(bashCooldown(99)).toBe(1);
+	const club = generateItem(50, "epic", 37, { allowedClasses: ["club"] });
+	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
+	expect(skillCooldown("bash", club, boosted, 1)).toBe(5);
+	expect(skillCooldown("bash", club, boosted, 99)).toBe(1);
 });
 describe("Healing scaling", () => {
 	test("scales healing and charges a level base plus mana per HP restored", () => {
