@@ -1926,13 +1926,37 @@ describe("arena systems", () => {
 
 		effect.update(0.01);
 		effect.updateVisuals(0);
+		const initialPluses = group.children.filter(
+			(child) => child.name === "healing-plus",
+		);
+		expect(initialPluses).toHaveLength(6);
 		expect(
-			group.children.filter((child) => child.name === "healing-plus"),
-		).toHaveLength(6);
+			initialPluses.every((child) => child instanceof THREE.Sprite),
+		).toBeTrue();
+		const initialPositions = initialPluses.map((child) =>
+			child.position.clone(),
+		);
 		const aura = group.children.find((child) => child.name === "healing-aura");
 		expect(aura?.geometry.parameters.outerRadius).toBe(HEALING_MAX_RADIUS);
+
+		effect.update(0.25);
+		effect.updateVisuals(0);
+		const laterPluses = group.children.filter(
+			(child) => child.name === "healing-plus",
+		);
+		for (let index = 0; index < laterPluses.length; index += 1) {
+			expect(laterPluses[index].position.x).toBeCloseTo(
+				initialPositions[index].x,
+			);
+			expect(laterPluses[index].position.y).toBeCloseTo(
+				initialPositions[index].y,
+			);
+			expect(laterPluses[index].position.z).toBeGreaterThan(
+				initialPositions[index].z,
+			);
+		}
 		expect(effect.active).toBeTrue();
-		effect.update(0.75);
+		effect.update(0.5);
 		expect(effect.active).toBeFalse();
 	});
 });

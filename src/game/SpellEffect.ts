@@ -69,6 +69,8 @@ export class SpellEffect extends GameObject {
 			if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
 				child.geometry.dispose();
 				if (child.material instanceof THREE.Material) child.material.dispose();
+			} else if (child instanceof THREE.Sprite) {
+				child.material.dispose();
 			}
 		}
 
@@ -363,31 +365,30 @@ function healing(group: THREE.Group, progress: number, radius: number): void {
 	if (progress < 0.25) return;
 
 	const plusProgress = (progress - 0.25) / 0.75;
-	const plusMat = new THREE.MeshBasicMaterial({
+	const plusMat = new THREE.SpriteMaterial({
+		map: healingPlusTexture(),
 		color: 0x72f2a7,
 		transparent: true,
 		opacity: healingPlusOpacity(progress),
 		blending: THREE.AdditiveBlending,
-		side: THREE.DoubleSide,
 		depthWrite: false,
 	});
 	for (let i = 0; i < 6; i += 1) {
 		const angle = i * 2.399;
 		const plusRadius = radius * (0.28 + (i % 3) * 0.2);
-		const plus = new THREE.Mesh(
-			new THREE.ShapeGeometry(plusShape(2 + (i % 2) * 0.4, 7)),
-			plusMat,
-		);
+		const plus = new THREE.Sprite(plusMat.clone());
+		const size = 14 + (i % 2) * 3;
 		plus.name = "healing-plus";
 		plus.position.set(
 			Math.cos(angle) * plusRadius,
-			Math.sin(angle) * plusRadius +
-				plusProgress * (radius * 0.22 + i * radius * 0.012),
-			0,
+			Math.sin(angle) * plusRadius,
+			8 + plusProgress * (radius * 0.22 + i * radius * 0.012),
 		);
+		plus.scale.set(size, size, 1);
 		plus.renderOrder = Z_EFFECT + 0.002;
 		group.add(plus);
 	}
+	plusMat.dispose();
 }
 
 export function healingAuraOpacity(progress: number): number {
@@ -401,22 +402,35 @@ export function healingPlusOpacity(progress: number): number {
 	return (1 - bounded) / 0.75;
 }
 
-function plusShape(halfWidth: number, halfLength: number): THREE.Shape {
-	const shape = new THREE.Shape();
-	shape.moveTo(-halfWidth, -halfLength);
-	shape.lineTo(halfWidth, -halfLength);
-	shape.lineTo(halfWidth, -halfWidth);
-	shape.lineTo(halfLength, -halfWidth);
-	shape.lineTo(halfLength, halfWidth);
-	shape.lineTo(halfWidth, halfWidth);
-	shape.lineTo(halfWidth, halfLength);
-	shape.lineTo(-halfWidth, halfLength);
-	shape.lineTo(-halfWidth, halfWidth);
-	shape.lineTo(-halfLength, halfWidth);
-	shape.lineTo(-halfLength, -halfWidth);
-	shape.lineTo(-halfWidth, -halfWidth);
-	shape.closePath();
-	return shape;
+let cachedHealingPlusTexture: THREE.DataTexture | undefined;
+
+function healingPlusTexture(): THREE.DataTexture {
+	if (cachedHealingPlusTexture) return cachedHealingPlusTexture;
+
+	const size = 16;
+	const pixels = new Uint8Array(size * size * 4);
+	for (let y = 0; y < size; y += 1) {
+		for (let x = 0; x < size; x += 1) {
+			const isPlus = (x >= 6 && x <= 9) || (y >= 6 && y <= 9);
+			if (!isPlus) continue;
+			const offset = (y * size + x) * 4;
+			pixels[offset] = 255;
+			pixels[offset + 1] = 255;
+			pixels[offset + 2] = 255;
+			pixels[offset + 3] = 255;
+		}
+	}
+
+	cachedHealingPlusTexture = new THREE.DataTexture(
+		pixels,
+		size,
+		size,
+		THREE.RGBAFormat,
+	);
+	cachedHealingPlusTexture.magFilter = THREE.NearestFilter;
+	cachedHealingPlusTexture.minFilter = THREE.NearestFilter;
+	cachedHealingPlusTexture.needsUpdate = true;
+	return cachedHealingPlusTexture;
 }
 
 function fireBreath(group: THREE.Group, progress: number): void {
