@@ -9,6 +9,21 @@ import { updateStatusEffects } from "./render/statusEffects";
 import { auraRadius } from "../../common/auras";
 import { AnimatedCharacter } from "./render/AnimatedCharacter";
 
+export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(300);
+
+export function turnAngleTowards(
+	current: number,
+	target: number,
+	maxDelta: number,
+): number {
+	const delta = Math.atan2(
+		Math.sin(target - current),
+		Math.cos(target - current),
+	);
+	if (Math.abs(delta) <= maxDelta) return target;
+	return current + Math.sign(delta) * maxDelta;
+}
+
 let heroTexture: THREE.Texture | undefined;
 
 function loadHeroTexture(): THREE.Texture | undefined {
@@ -188,6 +203,14 @@ export class Hero extends Unit {
 			deltaSeconds,
 		);
 		this.clampToBounds(width, height);
+	}
+
+	turnTowards(target: number, deltaSeconds: number): void {
+		this.facing = turnAngleTowards(
+			this.facing,
+			target,
+			HERO_TURN_SPEED * deltaSeconds,
+		);
 	}
 
 	update(

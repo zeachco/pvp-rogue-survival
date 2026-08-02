@@ -114,6 +114,16 @@ function formatSpellLevel(activeLevel: number, actualLevel: number): string {
 		: String(activeLevel);
 }
 
+export function panelShortcut(
+	key: string,
+	modifierPressed = false,
+): "character" | "inventory" | undefined {
+	if (modifierPressed) return undefined;
+	if (key.toLowerCase() === "c") return "character";
+	if (["i", "v"].includes(key.toLowerCase())) return "inventory";
+	return undefined;
+}
+
 export class Hud {
 	private spellTooltipOverlay?: HTMLElement;
 	private player?: PlayerState;
@@ -127,6 +137,7 @@ export class Hud {
 		bestWave?: number;
 		maxHp?: number;
 	};
+	private characterCollapsedBeforeInspection?: boolean;
 	private realm?: RealmState;
 	private readonly joinPanel: HTMLElement;
 	private readonly gameHud: HTMLElement;
@@ -160,6 +171,9 @@ export class Hud {
 	private readonly sheetNode = (<div class="sheet-content" />) as HTMLElement;
 	private readonly inventoryNode = (
 		<div class="inventory-content" />
+	) as HTMLElement;
+	private readonly itemHoverCard = (
+		<aside class="item-hover-card is-hidden" aria-hidden="true" inert="" />
 	) as HTMLElement;
 	private readonly allocationNode = (
 		<form class="allocation-panel" />
@@ -480,6 +494,7 @@ export class Hud {
 				{this.resourceDock}
 				{this.characterPanel}
 				{this.inventoryPanel}
+				{this.itemHoverCard}
 			</div>
 		) as HTMLElement;
 		root.append(this.joinPanel, this.publicSheet, this.gameHud);
@@ -685,6 +700,8 @@ export class Hud {
 		this.realm = undefined;
 		this.inspected = undefined;
 		this.committedInspection = undefined;
+		this.characterCollapsedBeforeInspection = undefined;
+		this.setGroundItemPreview();
 		this.staticProgress = undefined;
 		this.dynamicSignature = "";
 		this.updateVisibility();
@@ -695,6 +712,25 @@ export class Hud {
 		bestWave?: number,
 		maxHp?: number,
 	): void {
+		const hadInspection = Boolean(this.committedInspection?.build);
+		if (build && !hadInspection) {
+			this.characterCollapsedBeforeInspection =
+				this.characterPanel.classList.contains("is-collapsed");
+			this.setPanelCollapsed(
+				this.characterPanel,
+				this.characterToggle,
+				"character",
+				false,
+			);
+		} else if (!build && hadInspection) {
+			this.setPanelCollapsed(
+				this.characterPanel,
+				this.characterToggle,
+				"character",
+				this.characterCollapsedBeforeInspection ?? false,
+			);
+			this.characterCollapsedBeforeInspection = undefined;
+		}
 		this.committedInspection = { build, xpReward, bestWave, maxHp };
 		this.showInspection(build, xpReward, bestWave, maxHp);
 	}
@@ -735,6 +771,44 @@ export class Hud {
 	}
 	focusChat(): void {
 		this.chatInput.focus();
+	}
+	setGroundItemPreview(item?: ItemInstance): void {
+		this.itemHoverCard.replaceChildren();
+		this.itemHoverCard.classList.toggle("is-hidden", !item || !this.player);
+		if (!item || !this.player) return;
+		const card = itemTile(
+			{
+				id: `ground-${item.seed}`,
+				key: itemStackKey(item),
+				item,
+				quantity: 1,
+			},
+			this.callbacks,
+			this.player.progress,
+		);
+		card.classList.add("item-hover-card-copy");
+		card.removeAttribute("data-tile-id");
+		card.removeAttribute("data-stack-key");
+		card.querySelector(".item-card-controls")?.remove();
+		this.itemHoverCard.append(card);
+	}
+	togglePanelShortcut(kind: "character" | "inventory"): void {
+		if (!this.player) return;
+		if (kind === "character" && this.committedInspection?.build) return;
+		if (kind === "character")
+			this.togglePanel(
+				this.characterPanel,
+				this.characterToggle,
+				"character",
+				true,
+			);
+		else
+			this.togglePanel(
+				this.inventoryPanel,
+				this.inventoryToggle,
+				"inventory",
+				true,
+			);
 	}
 	pushChatMessage(
 		senderId: string,
@@ -2038,6 +2112,7 @@ export class Hud {
 		kind: "character" | "inventory",
 		manual = false,
 	): void {
+		if (kind === "character" && this.committedInspection?.build) return;
 		if (manual && this.panelTriggers[kind]) {
 			this.panelTriggers[kind] = false;
 			this.callbacks.onDismissPanelTrigger(kind);
@@ -2063,8 +2138,6 @@ export class Hud {
 			"aria-label",
 			`${collapsed ? "Expand" : "Collapse"} ${kind === "character" ? "character sheet" : "inventory"}`,
 		);
-		console.log({ collapsed });
-		debugger;
 		document.documentElement.style.setProperty(
 			kind === "character"
 				? "--character-panel-width"

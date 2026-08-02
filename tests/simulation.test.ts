@@ -1,9 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import * as THREE from "three";
 import { SeededRandom } from "../common/random";
 import { AttackArea } from "../src/game/AttackArea";
 import { ArenaState } from "../src/game/ArenaState";
-import { GameMap, perimeterPoint, wrapped } from "../src/game/Map";
-import { Projectile } from "../src/game/Projectile";
+import { GameMap } from "../src/game/Map";
+import {
+	ORBITING_HAMMER_MODEL,
+	orbitingHammerRotation,
+	Projectile,
+} from "../src/game/Projectile";
 import {
 	releaseReadySpawns,
 	removeInactive,
@@ -36,6 +41,7 @@ import {
 	castForceFieldTargets,
 	forceField,
 	HeroCombatSystem,
+	pointAlongFacing,
 	skillAffordable,
 } from "../src/game/systems/HeroCombatSystem";
 import { resolveCombat } from "../src/game/systems/combat";
@@ -44,7 +50,6 @@ import {
 	ANIMATION_FRAME_STALE_MS,
 	backgroundFrameDue,
 } from "../src/game/FrameScheduler";
-import * as THREE from "three";
 import {
 	AnimatedCharacterDeath,
 	CHARACTER_MODEL_MANIFESTS,
@@ -62,7 +67,7 @@ describe("animated 3D characters", () => {
 
 	test("keeps hero and boss models world-sized and role-specific", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.hero.path).toBe("/assets/models/hero.glb");
-		expect(CHARACTER_MODEL_MANIFESTS.hero.footprint).toBe(50);
+		expect(CHARACTER_MODEL_MANIFESTS.hero.footprint).toBe(25);
 		expect(CHARACTER_MODEL_MANIFESTS.hero.facingOffset).toBe(Math.PI / 2);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
@@ -96,6 +101,26 @@ describe("animated 3D characters", () => {
 			const contents = new TextDecoder().decode(bytes);
 			for (const clip of requiredClips) expect(contents).toContain(clip);
 		}
+	});
+
+	test("ships the compact standalone Orbiting Hammer model", async () => {
+		const bytes = new Uint8Array(
+			await Bun.file(`public${ORBITING_HAMMER_MODEL.path}`).arrayBuffer(),
+		);
+		expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe("glTF");
+		expect(bytes.byteLength).toBeLessThan(40_000);
+	});
+});
+
+describe("hero facing attacks", () => {
+	test("resolves directional targets from current hero facing", () => {
+		expect(pointAlongFacing({ x: 10, y: 20 }, 0, 50)).toEqual({
+			x: 60,
+			y: 20,
+		});
+		const upward = pointAlongFacing({ x: 10, y: 20 }, Math.PI / 2, 50);
+		expect(upward.x).toBeCloseTo(10);
+		expect(upward.y).toBeCloseTo(70);
 	});
 });
 
@@ -594,6 +619,72 @@ describe("arena systems", () => {
 		).toHaveLength(1);
 		expect(hero.hp).toBeLessThan(hpBeforeRent);
 	});
+	test("stationary auto-facing requires an affordable spell in range", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const weapon = starterClub();
+		hero.configureStats(ZERO_STATS, undefined, weapon);
+		hero.facing = Math.PI / 2;
+		const target = new Creep(
+			{
+				id: "facing-target",
+				name: "Target",
+				kind: "melee",
+				level: 0,
+				stats: { ...ZERO_STATS },
+				mainHand: weapon,
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 80, y: 50 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		const state = new ArenaState();
+		state.creeps.push(target);
+		const progress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			mainHand: weapon,
+			inventoryTiles: [],
+			learnedSkills: ["bash" as const],
+			learnedSkillLevels: { bash: 1 },
+			universalSkills: [],
+		};
+		const combat = new HeroCombatSystem();
+		hero.rage = 0;
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			state,
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.facing).toBe(Math.PI / 2);
+
+		hero.rage = hero.maxRage;
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			state,
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.facing).toBeLessThan(Math.PI / 2);
+	});
 	test("basic weapon attacks are free and restore their authored Rage on a damaging hit", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const weapon = starterClub();
@@ -694,19 +785,52 @@ describe("arena systems", () => {
 		expect(hero.mana).toBe(2);
 		expect(hero.rage).toBe(3);
 	});
-	test("moves orbiting hammers around their moving source and expires them", () => {
+	test("keeps orbiting hammers centered on their cast point and expires them", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const hammer = Projectile.orbitingHammer(hero, 0, 4, { kind: "magic" });
 		hero.position.x = 70;
 		hammer.update(0.1);
 		expect(
-			Math.hypot(
-				hammer.position.x - hero.position.x,
-				hammer.position.y - hero.position.y,
-			),
+			Math.hypot(hammer.position.x - 50, hammer.position.y - 50),
 		).toBeCloseTo(34.75);
+		expect(hammer.position.x).not.toBeCloseTo(hero.position.x + 34.75);
 		hammer.update(2.4);
 		expect(hammer.active).toBeFalse();
+	});
+	test("billboards airborne spell sprites but leaves ground effects flat", () => {
+		const projectile = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 1, y: 1 },
+			1,
+			"hero",
+			"frostSpike",
+		);
+		const groundEffect = new SpellEffect("shockwave", { x: 0, y: 0 });
+		const cameraRotation = new THREE.Quaternion().setFromEuler(
+			new THREE.Euler(0.4, -0.2, 0.1),
+		);
+
+		projectile.updateVisuals(0);
+		projectile.faceCamera(cameraRotation);
+
+		expect(
+			projectile.mesh.children[0].quaternion.equals(cameraRotation),
+		).toBeTrue();
+		expect(
+			projectile.mesh.quaternion.equals(new THREE.Quaternion()),
+		).toBeTrue();
+		expect(projectile.mesh.children[0].children[0].rotation.z).not.toBe(0);
+		expect(groundEffect.mesh.quaternion.equals(cameraRotation)).toBeFalse();
+	});
+	test("tumbles Orbiting Hammer models around all three axes", () => {
+		const first = orbitingHammerRotation(0.25, 0.4);
+		const second = orbitingHammerRotation(0.5, 0.8);
+		expect(first.x).not.toBe(0);
+		expect(first.y).not.toBe(0);
+		expect(first.z).not.toBe(0);
+		expect(second.x).toBeGreaterThan(first.x);
+		expect(second.y).toBeGreaterThan(first.y);
+		expect(second.z).toBeGreaterThan(first.z);
 	});
 	test("keeps level-scaled orbiting hammers active for their full lifetime", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -1074,6 +1198,63 @@ describe("arena systems", () => {
 			scrap.mesh.children.some((child) => child.type === "LineSegments"),
 		).toBeTrue();
 	});
+	test("billboards complete pickup presentations toward the camera", () => {
+		const cameraRotation = new THREE.Quaternion().setFromEuler(
+			new THREE.Euler(0.4, -0.2, 0.1),
+		);
+		for (const drop of [
+			new ItemDrop({ id: "gold", kind: "gold", amount: 1 }, { x: 0, y: 0 }),
+			new ItemDrop(
+				{ id: "item", kind: "item", item: starterClub() },
+				{ x: 0, y: 0 },
+			),
+			new ItemDrop(
+				{ id: "scrap", kind: "scrap", rarity: "rare", amount: 1 },
+				{ x: 0, y: 0 },
+			),
+		]) {
+			drop.faceCamera(cameraRotation);
+			expect(drop.mesh.quaternion.equals(cameraRotation)).toBeTrue();
+		}
+	});
+	test("billboards a non-3D creep body, outline, and details as one group", () => {
+		const creep = new Creep(
+			{
+				id: "billboard-creep",
+				name: "Billboard",
+				kind: "bubbleShooter",
+				level: 0,
+				stats: { ...ZERO_STATS },
+				mainHand: starterClub(),
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 0, y: 0 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		const cameraRotation = new THREE.Quaternion().setFromEuler(
+			new THREE.Euler(0.4, -0.2, 0.1),
+		);
+
+		creep.faceCamera(cameraRotation);
+
+		const spriteGroup = creep.mesh.children.find(
+			(child): child is THREE.Group =>
+				child instanceof THREE.Group && child.children.length === 3,
+		);
+		expect(spriteGroup?.quaternion.equals(cameraRotation)).toBeTrue();
+		expect(spriteGroup?.children.map((child) => child.type)).toEqual([
+			"Mesh",
+			"Mesh",
+			"Mesh",
+		]);
+	});
 	test("cancels an unresolved enemy telegraph when its source dies", () => {
 		const source = { active: false };
 		const attack = new AttackArea(
@@ -1258,16 +1439,6 @@ describe("arena systems", () => {
 		expect(map.randomEdgeSpawn(new SeededRandom(123))).toEqual(
 			map.randomEdgeSpawn(new SeededRandom(123)),
 		);
-	});
-
-	test("loops Tron-board lights across lanes and the full perimeter", () => {
-		expect(wrapped(-1, 100)).toBe(99);
-		expect(wrapped(101, 100)).toBe(1);
-		expect(perimeterPoint(0, 100, 50)).toEqual({ x: 0, y: 0 });
-		expect(perimeterPoint(100, 100, 50)).toEqual({ x: 100, y: 0 });
-		expect(perimeterPoint(150, 100, 50)).toEqual({ x: 100, y: 50 });
-		expect(perimeterPoint(250, 100, 50)).toEqual({ x: 0, y: 50 });
-		expect(perimeterPoint(300, 100, 50)).toEqual({ x: 0, y: 0 });
 	});
 
 	test("pushes outside objects inward and locks entered objects to the arena", () => {

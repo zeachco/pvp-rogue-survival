@@ -14,7 +14,7 @@ import type {
 } from "../../common/protocol";
 import { SocketClient } from "../net/SocketClient";
 import { SessionStorage } from "../platform/SessionStorage";
-import { Hud } from "../ui/Hud";
+import { Hud, panelShortcut } from "../ui/Hud";
 import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
@@ -78,8 +78,10 @@ export class Game {
 	private accumulator = 0;
 	private defeatCooldown = 0;
 	private isChatting = false;
+	private orbitingCamera = false;
 	private resizeObserver?: ResizeObserver;
 	private hovered?: Creep;
+	private hoveredItemDrop?: ItemDrop;
 	private hoverPeeking = false;
 	private inspected?: Creep;
 	private waveMode: "competitive" | "solo" | "training" = "training";
@@ -169,9 +171,24 @@ export class Game {
 		this.resizeObserver.observe(this.canvas);
 		window.addEventListener("keydown", (event) => {
 			if (this.isChatting) return;
+			const target = event.target;
+			const editable =
+				target instanceof HTMLInputElement ||
+				target instanceof HTMLTextAreaElement ||
+				(target instanceof HTMLElement && target.isContentEditable);
+			if (editable) return;
 			if (event.key === "Enter") {
 				event.preventDefault();
 				this.hud.focusChat();
+				return;
+			}
+			const shortcut = panelShortcut(
+				event.key,
+				event.ctrlKey || event.metaKey || event.altKey,
+			);
+			if (shortcut) {
+				event.preventDefault();
+				if (!event.repeat) this.hud.togglePanelShortcut(shortcut);
 				return;
 			}
 			if (["w", "a", "s", "d"].includes(event.key.toLowerCase()))
@@ -181,10 +198,35 @@ export class Game {
 		window.addEventListener("keyup", (event) =>
 			this.keys.delete(event.key.toLowerCase()),
 		);
-		this.canvas.addEventListener("mousemove", (event) =>
-			this.updateHover(event),
+		this.canvas.addEventListener("pointerdown", (event) => {
+			if (event.button !== 2) return;
+			event.preventDefault();
+			this.orbitingCamera = true;
+			this.canvas.setPointerCapture(event.pointerId);
+		});
+		this.canvas.addEventListener("pointermove", (event) => {
+			if (this.orbitingCamera) {
+				this.renderer.orbit(event.movementX);
+				return;
+			}
+			this.updateHover(event);
+		});
+		this.canvas.addEventListener("pointerleave", () => {
+			this.hoveredItemDrop = undefined;
+			this.hud.setGroundItemPreview();
+		});
+		this.canvas.addEventListener("pointerup", (event) => {
+			if (event.button === 2) this.orbitingCamera = false;
+		});
+		this.canvas.addEventListener("pointercancel", () => {
+			this.orbitingCamera = false;
+		});
+		this.canvas.addEventListener("contextmenu", (event) =>
+			event.preventDefault(),
 		);
-		this.canvas.addEventListener("click", (event) => this.inspectAt(event));
+		this.canvas.addEventListener("click", (event) => {
+			if (event.button === 0) this.inspectAt(event);
+		});
 		this.canvas.addEventListener(
 			"wheel",
 			(event) => {
@@ -409,12 +451,13 @@ export class Game {
 		}
 		for (const build of releaseReadySpawns(this.arena, performance.now()))
 			this.spawnCreep(build);
-		const movementInput = this.isChatting
+		const rawMovementInput = this.isChatting
 			? { x: 0, y: 0 }
 			: {
 					x: Number(this.keys.has("d")) - Number(this.keys.has("a")),
 					y: Number(this.keys.has("w")) - Number(this.keys.has("s")),
 				};
+		const movementInput = this.renderer.movementForCamera(rawMovementInput);
 		const heroAttackActive = this.attacks.some(
 			(attack) => attack.active && attack.owner === "hero",
 		);
@@ -637,6 +680,10 @@ export class Game {
 		removeInactive(this.arena.spellEffects);
 		removeInactive(this.arena.swamps);
 		removeInactive(this.arena.characterDeaths);
+		if (this.hoveredItemDrop && !this.hoveredItemDrop.active) {
+			this.hoveredItemDrop = undefined;
+			this.hud.setGroundItemPreview();
+		}
 		if (this.inspected && !this.inspected.active) this.clearInspection();
 		if (this.hoverPeeking && (!this.hovered || !this.hovered.active)) {
 			this.hovered = undefined;
@@ -765,6 +812,8 @@ export class Game {
 	}
 	private resetArena(): void {
 		this.arena.clear();
+		this.hoveredItemDrop = undefined;
+		this.hud.setGroundItemPreview();
 		this.pendingPickupAt.clear();
 		this.heroCombat.reset();
 		this.auraSystem.reset();
@@ -796,6 +845,24 @@ export class Game {
 
 	private updateHover(event: MouseEvent): void {
 		const world = this.eventWorld(event);
+		const previousItemDrop = this.hoveredItemDrop;
+		this.hoveredItemDrop = this.drops
+			.filter((drop) => drop.active && drop.drop.kind === "item")
+			.sort(
+				(a, b) => distance(a.position, world) - distance(b.position, world),
+			)[0];
+		if (
+			this.hoveredItemDrop &&
+			distance(this.hoveredItemDrop.position, world) >
+				this.hoveredItemDrop.radius + 8
+		)
+			this.hoveredItemDrop = undefined;
+		if (this.hoveredItemDrop !== previousItemDrop)
+			this.hud.setGroundItemPreview(
+				this.hoveredItemDrop?.drop.kind === "item"
+					? this.hoveredItemDrop.drop.item
+					: undefined,
+			);
 		const previous = this.hovered;
 		this.hovered = this.creeps
 			.filter((creep) => creep.active)
@@ -807,7 +874,8 @@ export class Game {
 			distance(this.hovered.position, world) > this.hovered.radius + 8
 		)
 			this.hovered = undefined;
-		this.canvas.style.cursor = this.hovered ? "pointer" : "default";
+		this.canvas.style.cursor =
+			this.hovered || this.hoveredItemDrop ? "pointer" : "default";
 		if (this.hovered === previous) return;
 		if (this.hovered) {
 			const reward = this.creepInspectionReward(this.hovered);
@@ -859,7 +927,6 @@ export class Game {
 		);
 	}
 	private render(): void {
-		this.map.updateVisuals(performance.now() / 1000);
 		this.renderer.syncScene(
 			this.hero,
 			this.arena,

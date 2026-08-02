@@ -37,7 +37,7 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 > = {
 	hero: {
 		path: "/assets/models/hero.glb",
-		footprint: 50,
+		footprint: 25,
 		facingOffset: Math.PI / 2,
 		baseTint: 0xc9fff2,
 		renderOrder: 50,

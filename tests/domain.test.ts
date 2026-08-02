@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
 	adjustedCameraTilt,
+	cameraRelativeMovement,
 	cameraOffsetForTilt,
 	MAX_CAMERA_TILT_RADIANS,
+	MIN_CAMERA_TILT_RADIANS,
 } from "../src/game/render/ThreeRenderer";
+import { HERO_TURN_SPEED, turnAngleTowards } from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
+import { panelShortcut } from "../src/ui/Hud";
 
 import {
 	auraRadius,
@@ -162,14 +166,39 @@ function progress(): PlayerProgress {
 }
 let id = 0;
 
-describe("camera tilt", () => {
-	test("keeps wheel-driven pitch within a readable range", () => {
-		expect(adjustedCameraTilt(0, 100)).toBeGreaterThan(0);
-		expect(adjustedCameraTilt(0, -100)).toBe(0);
+describe("third-person camera", () => {
+	test("places the chase camera behind and above the hero", () => {
+		expect(adjustedCameraTilt(0, 100)).toBe(MIN_CAMERA_TILT_RADIANS);
+		expect(adjustedCameraTilt(0, -100)).toBe(MIN_CAMERA_TILT_RADIANS);
 		expect(adjustedCameraTilt(0, 100_000)).toBe(MAX_CAMERA_TILT_RADIANS);
 		const offset = cameraOffsetForTilt(MAX_CAMERA_TILT_RADIANS);
 		expect(offset.y).toBeLessThan(0);
 		expect(offset.z).toBeGreaterThan(0);
+	});
+
+	test("rotates WASD input with the camera orbit", () => {
+		expect(cameraRelativeMovement({ x: 0, y: 1 }, 0)).toEqual({ x: 0, y: 1 });
+		const rightFacing = cameraRelativeMovement({ x: 0, y: 1 }, Math.PI / 2);
+		expect(rightFacing.x).toBeCloseTo(1);
+		expect(rightFacing.y).toBeCloseTo(0);
+		const strafe = cameraRelativeMovement({ x: 1, y: 0 }, Math.PI / 2);
+		expect(strafe.x).toBeCloseTo(0);
+		expect(strafe.y).toBeCloseTo(-1);
+	});
+});
+
+describe("hero auto-facing", () => {
+	test("turns toward a target at a bounded speed", () => {
+		expect(turnAngleTowards(0, Math.PI, HERO_TURN_SPEED / 60)).toBeCloseTo(
+			HERO_TURN_SPEED / 60,
+		);
+	});
+
+	test("uses the shortest path across the angle seam and settles exactly", () => {
+		const current = Math.PI - 0.05;
+		const target = -Math.PI + 0.05;
+		expect(turnAngleTowards(current, target, 0.02)).toBeCloseTo(current + 0.02);
+		expect(turnAngleTowards(current, target, 0.2)).toBe(target);
 	});
 });
 
@@ -1746,4 +1775,15 @@ test("uses the production WebSocket shortcut unless an explicit endpoint is prov
 			search: "?prod&ip=legacy.test",
 		} as Location),
 	).toBe("wss://legacy.test/ws");
+});
+
+test("maps unmodified character and inventory panel shortcuts", () => {
+	expect(panelShortcut("c")).toBe("character");
+	expect(panelShortcut("C")).toBe("character");
+	expect(panelShortcut("i")).toBe("inventory");
+	expect(panelShortcut("I")).toBe("inventory");
+	expect(panelShortcut("v")).toBe("inventory");
+	expect(panelShortcut("V")).toBe("inventory");
+	expect(panelShortcut("x")).toBeUndefined();
+	expect(panelShortcut("c", true)).toBeUndefined();
 });

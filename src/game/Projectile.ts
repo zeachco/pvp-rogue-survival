@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { GameObject } from "./GameObject";
 import { normalize, type Vector2 } from "./types";
 import type { Unit } from "./Unit";
@@ -8,6 +9,31 @@ import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
 import { Z_PROJECTILE } from "./render/ThreeRenderer";
 
 export type ProjectileSkill = SkillId | "frostSpike";
+
+export const ORBITING_HAMMER_MODEL = {
+	path: "/assets/models/orbiting-hammer.glb",
+	size: 34,
+	height: 18,
+} as const;
+
+const modelLoader = new GLTFLoader();
+let orbitingHammerModel: Promise<GLTF> | undefined;
+
+function loadOrbitingHammerModel(): Promise<GLTF> {
+	orbitingHammerModel ??= modelLoader.loadAsync(ORBITING_HAMMER_MODEL.path);
+	return orbitingHammerModel;
+}
+
+export function orbitingHammerRotation(
+	age: number,
+	orbitAngle: number,
+): { x: number; y: number; z: number } {
+	return {
+		x: age * 9,
+		y: orbitAngle + age * 11,
+		z: age * 7,
+	};
+}
 
 export class Projectile extends GameObject {
 	readonly position: Vector2;
@@ -19,6 +45,7 @@ export class Projectile extends GameObject {
 	private orbitAge = 0;
 	private orbiting = false;
 	private orbitAngularDrift = 0;
+	private orbitCenter?: Vector2;
 	private spikeTimer = 0;
 	private readonly hitTargets = new Set<string>();
 	private boomerang = false;
@@ -36,7 +63,10 @@ export class Projectile extends GameObject {
 	readonly presentation: DamagePresentation;
 	readonly weapon?: ItemInstance;
 
-	private readonly bodyMesh: THREE.Mesh;
+	private readonly bodyMesh: THREE.Object3D;
+	private readonly billboardGroup = new THREE.Group();
+	private readonly hammerModelRoot = new THREE.Group();
+	private hammerModelLoaded = false;
 
 	constructor(
 		start: Vector2,
@@ -87,11 +117,14 @@ export class Projectile extends GameObject {
 
 		this.bodyMesh = this.createMesh();
 		this.bodyMesh.renderOrder = Z_PROJECTILE;
-		this.mesh.add(this.bodyMesh);
+		this.billboardGroup.add(this.bodyMesh);
+		this.mesh.add(this.billboardGroup);
+		if (skill === "orbitingHammers" && typeof document !== "undefined")
+			void this.loadHammerModel();
 		this.mesh.renderOrder = Z_PROJECTILE;
 	}
 
-	private createMesh(): THREE.Mesh {
+	private createMesh(): THREE.Object3D {
 		if (this.skill === "frostOrb") {
 			const inner = new THREE.Mesh(
 				new THREE.CircleGeometry(16, 20),
@@ -195,6 +228,21 @@ export class Projectile extends GameObject {
 			return group as unknown as THREE.Mesh;
 		}
 
+		if (this.skill === "orbitingHammers") {
+			const handle = new THREE.Mesh(
+				new THREE.PlaneGeometry(5, 28),
+				new THREE.MeshBasicMaterial({ color: 0x8a552f }),
+			);
+			const head = new THREE.Mesh(
+				new THREE.PlaneGeometry(22, 10),
+				new THREE.MeshBasicMaterial({ color: 0xd8c078 }),
+			);
+			head.position.y = 11;
+			const group = new THREE.Group();
+			group.add(handle, head);
+			return group;
+		}
+
 		const defaultMesh = new THREE.Mesh(
 			new THREE.CircleGeometry(this.radius, 16),
 			new THREE.MeshBasicMaterial({
@@ -217,6 +265,36 @@ export class Projectile extends GameObject {
 		return group as unknown as THREE.Mesh;
 	}
 
+	private async loadHammerModel(): Promise<void> {
+		try {
+			const gltf = await loadOrbitingHammerModel();
+			const model = gltf.scene.clone(true);
+			model.rotation.x = Math.PI / 2;
+			model.updateMatrixWorld(true);
+			let box = new THREE.Box3().setFromObject(model);
+			const size = box.getSize(new THREE.Vector3());
+			model.scale.setScalar(
+				ORBITING_HAMMER_MODEL.size / Math.max(size.x, size.y, size.z, 0.001),
+			);
+			model.updateMatrixWorld(true);
+			box = new THREE.Box3().setFromObject(model);
+			const center = box.getCenter(new THREE.Vector3());
+			model.position.set(-center.x, -center.y, -center.z);
+			model.traverse((object) => {
+				if (!(object instanceof THREE.Mesh)) return;
+				object.renderOrder = Z_PROJECTILE;
+				object.frustumCulled = false;
+			});
+			this.hammerModelRoot.position.z = ORBITING_HAMMER_MODEL.height;
+			this.hammerModelRoot.add(model);
+			this.mesh.add(this.hammerModelRoot);
+			this.hammerModelLoaded = true;
+			this.billboardGroup.visible = false;
+		} catch {
+			this.billboardGroup.visible = true;
+		}
+	}
+
 	static orbitingHammer(
 		source: Unit,
 		angle: number,
@@ -237,6 +315,7 @@ export class Projectile extends GameObject {
 			false,
 		);
 		projectile.orbiting = true;
+		projectile.orbitCenter = { ...source.position };
 		projectile.orbitAngle = angle;
 		projectile.orbitAngularDrift = angularDrift;
 		projectile.orbitAge = 0;
@@ -308,14 +387,12 @@ export class Projectile extends GameObject {
 	}
 
 	update(deltaSeconds: number): void {
-		if (this.orbiting && this.source?.active) {
+		if (this.orbiting && this.orbitCenter) {
 			this.orbitAge += deltaSeconds;
 			this.orbitAngle += deltaSeconds * (5.2 + this.orbitAngularDrift);
 			const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162;
-			this.position.x =
-				this.source.position.x + Math.cos(this.orbitAngle) * radius;
-			this.position.y =
-				this.source.position.y + Math.sin(this.orbitAngle) * radius;
+			this.position.x = this.orbitCenter.x + Math.cos(this.orbitAngle) * radius;
+			this.position.y = this.orbitCenter.y + Math.sin(this.orbitAngle) * radius;
 		} else if (this.boomerang) {
 			const speed = 180;
 			if (!this.returning) {
@@ -355,21 +432,24 @@ export class Projectile extends GameObject {
 		this.mesh.position.set(this.position.x, this.position.y, 0);
 
 		if (this.skill === "frostOrb") {
-			(this.mesh as THREE.Group).rotation.z = 0;
+			this.bodyMesh.rotation.z = 0;
 		} else if (this.skill === "frostSpike") {
-			(this.mesh as THREE.Group).rotation.z = Math.atan2(
-				this.velocity.y,
-				this.velocity.x,
-			);
+			this.bodyMesh.rotation.z = Math.atan2(this.velocity.y, this.velocity.x);
 		} else if (this.skill === "orbitingHammers") {
-			(this.mesh as THREE.Group).rotation.z =
-				this.orbitAngle + this.orbitAge * 7;
+			this.bodyMesh.rotation.z = this.orbitAngle + this.orbitAge * 7;
+			const rotation = orbitingHammerRotation(this.orbitAge, this.orbitAngle);
+			this.hammerModelRoot.rotation.set(rotation.x, rotation.y, rotation.z);
 		} else if (this.skill === "vampiricBoomerang") {
-			(this.mesh as THREE.Group).rotation.z =
+			this.bodyMesh.rotation.z =
 				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 10;
 		} else if (this.weapon?.definitionId === "throwingAxe") {
-			(this.mesh as THREE.Group).rotation.z =
+			this.bodyMesh.rotation.z =
 				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 11;
 		}
+	}
+
+	faceCamera(cameraQuaternion: THREE.Quaternion): void {
+		if (!this.hammerModelLoaded)
+			this.billboardGroup.quaternion.copy(cameraQuaternion);
 	}
 }

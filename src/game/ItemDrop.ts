@@ -133,6 +133,10 @@ export class ItemDrop extends GameObject {
 			(this.glowMesh.material as THREE.MeshBasicMaterial).opacity = pulse;
 		}
 	}
+
+	faceCamera(cameraQuaternion: THREE.Quaternion): void {
+		this.mesh.quaternion.copy(cameraQuaternion);
+	}
 }
 
 const DROP_RARITY_COLORS: Record<Rarity, string> = {

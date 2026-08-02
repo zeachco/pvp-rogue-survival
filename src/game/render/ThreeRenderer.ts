@@ -7,12 +7,16 @@ import type { CombatText } from "../CombatText";
 import { COMBAT_TEXT_COLORS, CRITICAL_TEXT_COLOR } from "../CombatText";
 import { clamp } from "../types";
 
-const MIN_ZOOM = 0.35;
-const MAX_ZOOM = 3;
+const MIN_ZOOM = 0.65;
+const MAX_ZOOM = 1.8;
 const ZOOM_SPEED = 0.0012;
-export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(55);
+export const MIN_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(28);
+export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(58);
 const TILT_SPEED = 0.0012;
-const CAMERA_HEIGHT = 180;
+const DEFAULT_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(40);
+const CAMERA_DISTANCE = 390;
+const CAMERA_LOOK_AHEAD = 95;
+const ORBIT_SENSITIVITY = 0.005;
 const MAP_Z = -18;
 const Z_SWAMP = 10;
 const Z_DROP = 20;
@@ -31,25 +35,40 @@ export function adjustedCameraTilt(
 	current: number,
 	wheelDelta: number,
 ): number {
-	return clamp(current + wheelDelta * TILT_SPEED, 0, MAX_CAMERA_TILT_RADIANS);
+	return clamp(
+		current + wheelDelta * TILT_SPEED,
+		MIN_CAMERA_TILT_RADIANS,
+		MAX_CAMERA_TILT_RADIANS,
+	);
 }
 
 export function cameraOffsetForTilt(tilt: number): {
 	y: number;
 	z: number;
 } {
+	const distance = CAMERA_DISTANCE;
+	return { y: -Math.cos(tilt) * distance, z: Math.sin(tilt) * distance };
+}
+
+export function cameraRelativeMovement(
+	input: { x: number; y: number },
+	yaw: number,
+): { x: number; y: number } {
+	const sin = Math.sin(yaw);
+	const cos = Math.cos(yaw);
 	return {
-		y: -Math.tan(tilt) * CAMERA_HEIGHT,
-		z: CAMERA_HEIGHT,
+		x: input.x * cos + input.y * sin,
+		y: -input.x * sin + input.y * cos,
 	};
 }
 
 export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
-	readonly camera: THREE.OrthographicCamera;
+	readonly camera: THREE.PerspectiveCamera;
 	private _zoomLevel = 1;
-	private _tilt = 0;
+	private _tilt = DEFAULT_CAMERA_TILT_RADIANS;
+	private yaw = 0;
 	private readonly tracked = new Set<THREE.Object3D>();
 	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
 	private readonly canvas: HTMLCanvasElement;
@@ -70,7 +89,7 @@ export class ThreeRenderer {
 		const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
 		keyLight.position.set(-80, -120, 220);
 		this.scene.add(keyLight);
-		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1000);
+		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
 		this.updateCameraTransform();
 	}
 
@@ -104,13 +123,17 @@ export class ThreeRenderer {
 		return this._zoomLevel;
 	}
 
+	orbit(deltaX: number): void {
+		this.yaw += deltaX * ORBIT_SENSITIVITY;
+		this.updateCameraTransform();
+	}
+
+	movementForCamera(input: { x: number; y: number }): { x: number; y: number } {
+		return cameraRelativeMovement(input, this.yaw);
+	}
+
 	private updateCameraFrustum(): void {
-		const halfW = this.width / 2 / this._zoomLevel;
-		const halfH = this.height / 2 / this._zoomLevel;
-		this.camera.left = -halfW;
-		this.camera.right = halfW;
-		this.camera.top = halfH;
-		this.camera.bottom = -halfH;
+		this.camera.aspect = this.width / this.height;
 		this.camera.updateProjectionMatrix();
 	}
 
@@ -122,9 +145,22 @@ export class ThreeRenderer {
 
 	private updateCameraTransform(): void {
 		const offset = cameraOffsetForTilt(this._tilt);
-		this.camera.position.set(this.focusX, this.focusY + offset.y, offset.z);
-		this.camera.up.set(0, 1, 0);
-		this.camera.lookAt(this.focusX, this.focusY, 0);
+		const sin = Math.sin(this.yaw);
+		const cos = Math.cos(this.yaw);
+		const offsetDistance = offset.y / this._zoomLevel;
+		const forwardX = sin;
+		const forwardY = cos;
+		this.camera.position.set(
+			this.focusX + forwardX * offsetDistance,
+			this.focusY + forwardY * offsetDistance,
+			offset.z / this._zoomLevel,
+		);
+		this.camera.up.set(0, 0, 1);
+		this.camera.lookAt(
+			this.focusX + forwardX * CAMERA_LOOK_AHEAD,
+			this.focusY + forwardY * CAMERA_LOOK_AHEAD,
+			0,
+		);
 		this.camera.updateMatrixWorld();
 	}
 
@@ -189,9 +225,15 @@ export class ThreeRenderer {
 			creep.updateVisuals(time, hovered, inspected);
 			creep.faceCamera(this.camera.quaternion);
 		}
-		for (const drop of arena.drops) drop.updateVisuals(time);
+		for (const drop of arena.drops) {
+			drop.updateVisuals(time);
+			drop.faceCamera(this.camera.quaternion);
+		}
 		for (const attack of arena.attacks) attack.updateVisuals(time);
-		for (const projectile of arena.projectiles) projectile.updateVisuals(time);
+		for (const projectile of arena.projectiles) {
+			projectile.updateVisuals(time);
+			projectile.faceCamera(this.camera.quaternion);
+		}
 		for (const effect of arena.spellEffects) effect.updateVisuals(time);
 		for (const swamp of arena.swamps) swamp.updateVisuals(time);
 		for (const death of arena.characterDeaths) death.updateVisuals(time);

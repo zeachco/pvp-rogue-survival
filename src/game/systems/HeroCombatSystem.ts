@@ -84,7 +84,7 @@ export class HeroCombatSystem {
 	}
 	update(
 		deltaSeconds: number,
-		movementInput: Vector2,
+		_movementInput: Vector2,
 		hero: Hero,
 		state: ArenaState,
 		progress: PlayerProgress,
@@ -201,16 +201,16 @@ export class HeroCombatSystem {
 			});
 		}
 		const target = closestTarget(hero, state.creeps);
+		const movementSpeed = Math.hypot(hero.velocity.x, hero.velocity.y);
+		if (movementSpeed > 0.01)
+			hero.turnTowards(
+				Math.atan2(hero.velocity.y, hero.velocity.x),
+				deltaSeconds,
+			);
 		if (!target) {
 			this.casting = undefined;
-			if (movementInput.x || movementInput.y)
-				hero.facing = Math.atan2(movementInput.y, movementInput.x);
 			return;
 		}
-		hero.facing = Math.atan2(
-			target.position.y - hero.position.y,
-			target.position.x - hero.position.x,
-		);
 		const targetDistance = distance(hero.position, target.position);
 		const profile = attackProfile(item, effectiveStats, balance);
 		const orderedSkills = this.availableSkills(progress);
@@ -259,6 +259,14 @@ export class HeroCombatSystem {
 			: undefined;
 		if (this.casting && !castingCandidate) this.casting = undefined;
 		const candidate = castingCandidate ?? rotatedSkills.find(usable);
+		if (movementSpeed <= 0.01 && candidate)
+			hero.turnTowards(
+				Math.atan2(
+					target.position.y - hero.position.y,
+					target.position.x - hero.position.x,
+				),
+				deltaSeconds,
+			);
 		const manaCost = candidate
 			? skillManaCost(candidate.id) * (1 - manaReduction)
 			: 0;
@@ -391,6 +399,11 @@ export class HeroCombatSystem {
 					: ("physical" as const),
 			critical: strike.critical,
 		};
+		const facingTarget = pointAlongFacing(
+			hero.position,
+			hero.facing,
+			Math.max(1, targetDistance),
+		);
 		hero.presentAttack(0.5);
 		if (activeSkill?.id === "orbitingHammers") {
 			const sequence = this.orbitCastSequence++;
@@ -412,7 +425,7 @@ export class HeroCombatSystem {
 			state.projectiles.push(
 				Projectile.vampiricBoomerang(
 					hero,
-					target.position,
+					facingTarget,
 					damage,
 					range,
 					vampiricBoomerangHealingFraction(activeSkill.level),
@@ -423,7 +436,7 @@ export class HeroCombatSystem {
 			state.projectiles.push(
 				new Projectile(
 					hero.position,
-					target.position,
+					facingTarget,
 					damage,
 					"hero",
 					"frostOrb",
@@ -434,11 +447,7 @@ export class HeroCombatSystem {
 			);
 		else if (activeSkill?.id === "swamp")
 			state.swamps.push(
-				new GroundSwamp(
-					{ ...target.position },
-					swampRadius(activeSkill.level),
-					hero,
-				),
+				new GroundSwamp(facingTarget, swampRadius(activeSkill.level), hero),
 			);
 		else if (activeSkill?.id === "gravityPull" && item)
 			castForceField(state, hero, activeSkill.level, random);
@@ -481,7 +490,7 @@ export class HeroCombatSystem {
 			state.projectiles.push(
 				new Projectile(
 					hero.position,
-					target.position,
+					facingTarget,
 					damage,
 					"hero",
 					activeSkill?.id === "arcaneBolt" || activeSkill?.id === "rendingThrow"
@@ -748,11 +757,16 @@ export class HeroCombatSystem {
 			critical: strike.critical,
 		};
 		hero.presentAttack(Math.min(0.8, 1 / profile.attacksPerSecond));
+		const facingTarget = pointAlongFacing(
+			hero.position,
+			hero.facing,
+			Math.max(1, targetDistance),
+		);
 		if (profile.projectile)
 			state.projectiles.push(
 				new Projectile(
 					hero.position,
-					target.position,
+					facingTarget,
 					strike.damage,
 					"hero",
 					undefined,
@@ -788,6 +802,17 @@ export class HeroCombatSystem {
 		this.attackCooldown = 1 / profile.attacksPerSecond;
 		this.attackCooldownMax = this.attackCooldown;
 	}
+}
+
+export function pointAlongFacing(
+	position: Vector2,
+	facing: number,
+	distanceFromSource: number,
+): Vector2 {
+	return {
+		x: position.x + Math.cos(facing) * distanceFromSource,
+		y: position.y + Math.sin(facing) * distanceFromSource,
+	};
 }
 
 function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined {

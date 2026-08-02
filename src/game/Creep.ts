@@ -100,6 +100,7 @@ export class Creep extends Unit {
 	readonly threatArrow: THREE.Mesh;
 
 	private readonly bodyMesh: THREE.Mesh;
+	private readonly spriteGroup = new THREE.Group();
 	private readonly animatedCharacter?: AnimatedCharacter;
 	private readonly strokeMesh: THREE.Mesh;
 	private readonly healthBg: THREE.Mesh;
@@ -253,12 +254,12 @@ export class Creep extends Unit {
 		}
 		this.bodyMesh.renderOrder = Z_CREEP;
 		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
-		this.mesh.add(this.bodyMesh);
+		this.spriteGroup.add(this.bodyMesh);
 		if (enemyRole(build) === "boss") {
 			this.animatedCharacter = new AnimatedCharacter("boss", this.bodyMesh);
 			this.mesh.add(this.animatedCharacter.root);
 		}
-		this.mesh.add(this.strokeMesh);
+		this.spriteGroup.add(this.strokeMesh);
 
 		if (build.kind === "bubbleShooter") {
 			const eyeGeo = new THREE.CircleGeometry(5, 16);
@@ -266,8 +267,9 @@ export class Creep extends Unit {
 			this.bubbleEye = new THREE.Mesh(eyeGeo, eyeMat);
 			this.bubbleEye.position.set(5, -5, 0.01);
 			this.bubbleEye.renderOrder = Z_CREEP + 0.002;
-			this.mesh.add(this.bubbleEye);
+			this.spriteGroup.add(this.bubbleEye);
 		}
+		this.mesh.add(this.spriteGroup);
 
 		this.healthBarGroup = new THREE.Group();
 		this.healthBarGroup.renderOrder = Z_CREEP_OVERLAY;
@@ -699,7 +701,7 @@ export class Creep extends Unit {
 
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
 		if (!this.animatedCharacter?.modelLoaded)
-			this.bodyMesh.quaternion.copy(cameraQuaternion);
+			this.spriteGroup.quaternion.copy(cameraQuaternion);
 		this.healthBarGroup.quaternion.copy(cameraQuaternion);
 	}
 
