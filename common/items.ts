@@ -272,6 +272,7 @@ export function generateBuckler(
 	level: number,
 	rarity: Rarity,
 	seed: number,
+	allowAura = true,
 ): ItemInstance {
 	level = Math.min(level, MAX_ITEM_LEVEL[rarity]);
 	const source = new SeededRandom(seed);
@@ -285,7 +286,10 @@ export function generateBuckler(
 		);
 	const power = RARITY_POWER[rarity];
 	const holy =
-		!spiked && (rarity === "rare" || rarity === "epic") && seed % 5 === 0;
+		allowAura &&
+		!spiked &&
+		(rarity === "rare" || rarity === "epic") &&
+		seed % 5 === 0;
 	return rollItemPerks(
 		{
 			id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`,

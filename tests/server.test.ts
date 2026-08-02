@@ -267,6 +267,22 @@ describe("realm game service", () => {
 		game.handle(player.id, { type: "creepDefeated", unitId });
 		expect(player.progress.xp).toBe(18);
 	});
+	test("reserves generated Scepter auras for post-intro champions", () => {
+		const { game } = harness(new FixedRandom(0.25));
+		const player = game.join("AuraHunter");
+		player.waveNumber = 9;
+		player.progress.level = 10;
+		game.handle(player.id, { type: "enterRealm" });
+		const issued = [...player.issuedUnits.values()];
+		const champion = issued.find(({ build }) => build.enemyRole === "champion");
+		expect(champion?.build.offHand?.definitionId).toBe("scepter");
+		expect(champion?.build.offHand?.skills).toHaveLength(1);
+		expect(
+			issued
+				.filter(({ build }) => build.enemyRole === "creep")
+				.every(({ build }) => build.offHand?.definitionId !== "scepter"),
+		).toBeTrue();
+	});
 	test("replaces modulo-ten champions with an equipped attacker clone on a successful roll", () => {
 		const { game } = harness(new FixedRandom(0));
 		const defender = game.join("Defender");

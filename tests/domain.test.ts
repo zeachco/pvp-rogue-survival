@@ -1405,6 +1405,7 @@ describe("aura equipment", () => {
 					AURA_SKILLS.includes(item.skills[1]),
 			),
 		).toBeTrue();
+		expect(generateBuckler(8, "rare", 0, false).skills).toEqual(["blocking"]);
 		const equipState = progress();
 		equipState.inventoryTiles.push({
 			id: "equipped-scepter",

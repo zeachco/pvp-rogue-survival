@@ -649,10 +649,14 @@ export class GameService {
 		const offHand =
 			!allowedClasses && mainHand.hands === 1 && offHandRoll < 0.3
 				? offHandRoll < 0.1
-					? generateBuckler(level, rollRarity(seed + 19), seed + 21)
+					? generateBuckler(level, rollRarity(seed + 19), seed + 21, isRival)
 					: offHandRoll < 0.2
 						? generateRelic(level, rollRarity(seed + 19), seed + 21)
-						: generateAccessory(level, rollRarity(seed + 19), seed + 21)
+						: isRival
+							? generateItem(level, rollRarity(seed + 19), seed + 21, {
+									allowedClasses: ["scepter"],
+								})
+							: generateAccessory(level, rollRarity(seed + 19), seed + 21)
 				: undefined;
 		const carried =
 			isRival && level > 0
