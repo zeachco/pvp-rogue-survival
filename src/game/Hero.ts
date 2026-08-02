@@ -7,6 +7,7 @@ import type { RandomSource } from "../../common/random";
 import { Z_HERO, Z_AURA } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
 import { auraRadius } from "../../common/auras";
+import { AnimatedCharacter } from "./render/AnimatedCharacter";
 
 let heroTexture: THREE.Texture | undefined;
 
@@ -29,6 +30,7 @@ export class Hero extends Unit {
 	private readonly bodyMesh: THREE.Mesh;
 	private readonly facingMesh: THREE.Mesh;
 	private readonly statusTint: THREE.Mesh;
+	private readonly animatedCharacter: AnimatedCharacter;
 	private readonly bleedDots: THREE.Mesh[] = [];
 	private readonly stunRays: THREE.Line[] = [];
 
@@ -53,6 +55,8 @@ export class Hero extends Unit {
 		this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
 		this.bodyMesh.renderOrder = Z_HERO;
 		this.mesh.add(this.bodyMesh);
+		this.animatedCharacter = new AnimatedCharacter("hero", this.bodyMesh);
+		this.mesh.add(this.animatedCharacter.root);
 
 		const strokeGeo = new THREE.RingGeometry(16, 20, 32);
 		const strokeMat = new THREE.MeshBasicMaterial({
@@ -198,10 +202,21 @@ export class Hero extends Unit {
 
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
+		if (!this.active && this.hp <= 0) this.mesh.visible = true;
 		this.mesh.position.set(this.position.x, this.position.y, 0);
 		this.facingMesh.rotation.z = this.facing;
 
 		const tint = statusTint(this.statuses);
+		this.animatedCharacter.update({
+			time,
+			facing: this.facing,
+			moving: Math.hypot(this.velocity.x, this.velocity.y) > 0.01,
+			attackVersion: this.presentationAttackVersion,
+			attackDuration: this.presentationAttackDuration,
+			hitVersion: this.presentationHitVersion,
+			dead: !this.active && this.hp <= 0,
+			statusTint: tint,
+		});
 		if (tint) {
 			(this.statusTint.material as THREE.MeshBasicMaterial).color.set(tint);
 			(this.statusTint.material as THREE.MeshBasicMaterial).opacity = 0.42;
@@ -221,7 +236,8 @@ export class Hero extends Unit {
 	}
 
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
-		this.bodyMesh.quaternion.copy(cameraQuaternion);
+		if (!this.animatedCharacter.modelLoaded)
+			this.bodyMesh.quaternion.copy(cameraQuaternion);
 	}
 
 	updateAuraVisuals(time: number): void {

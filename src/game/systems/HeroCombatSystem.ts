@@ -391,6 +391,7 @@ export class HeroCombatSystem {
 					: ("physical" as const),
 			critical: strike.critical,
 		};
+		hero.presentAttack(0.5);
 		if (activeSkill?.id === "orbitingHammers") {
 			const sequence = this.orbitCastSequence++;
 			const lifetime = orbitingHammerDuration(activeSkill.level);
@@ -746,6 +747,7 @@ export class HeroCombatSystem {
 			kind: profile.magic ? ("magic" as const) : ("physical" as const),
 			critical: strike.critical,
 		};
+		hero.presentAttack(Math.min(0.8, 1 / profile.attacksPerSecond));
 		if (profile.projectile)
 			state.projectiles.push(
 				new Projectile(

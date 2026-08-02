@@ -7,6 +7,7 @@ import type { Projectile } from "./Projectile";
 import type { CombatText } from "./CombatText";
 import type { SpellEffect } from "./SpellEffect";
 import type { GroundSwamp } from "./GroundSwamp";
+import type { AnimatedCharacterDeath } from "./render/AnimatedCharacter";
 
 export interface QueuedSpawn {
 	build: UnitBuild;
@@ -29,6 +30,7 @@ export class ArenaState {
 	readonly combatTexts: CombatText[] = [];
 	readonly spellEffects: SpellEffect[] = [];
 	readonly swamps: GroundSwamp[] = [];
+	readonly characterDeaths: AnimatedCharacterDeath[] = [];
 	waveQueue: QueuedSpawn[] = [];
 
 	clear(): void {
@@ -44,6 +46,7 @@ export class ArenaState {
 		this.combatTexts.length = 0;
 		this.spellEffects.length = 0;
 		this.swamps.length = 0;
+		this.characterDeaths.length = 0;
 	}
 	addCombatText(text: CombatText): void {
 		this.combatTexts.push(text);

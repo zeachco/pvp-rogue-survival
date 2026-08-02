@@ -66,6 +66,10 @@ export class ThreeRenderer {
 		this.renderer.setClearColor(0x0b1116);
 		this.renderer.setPixelRatio(devicePixelRatio);
 		this.scene = new THREE.Scene();
+		this.scene.add(new THREE.HemisphereLight(0xbfe8ff, 0x111820, 1.8));
+		const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+		keyLight.position.set(-80, -120, 220);
+		this.scene.add(keyLight);
 		this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1000);
 		this.updateCameraTransform();
 	}
@@ -162,6 +166,7 @@ export class ThreeRenderer {
 		for (const projectile of arena.projectiles) current.add(projectile.mesh);
 		for (const effect of arena.spellEffects) current.add(effect.mesh);
 		for (const swamp of arena.swamps) current.add(swamp.mesh);
+		for (const death of arena.characterDeaths) current.add(death.mesh);
 
 		if (hero.auraGroup) current.add(hero.auraGroup);
 
@@ -189,6 +194,7 @@ export class ThreeRenderer {
 		for (const projectile of arena.projectiles) projectile.updateVisuals(time);
 		for (const effect of arena.spellEffects) effect.updateVisuals(time);
 		for (const swamp of arena.swamps) swamp.updateVisuals(time);
+		for (const death of arena.characterDeaths) death.updateVisuals(time);
 		if (hero.auraGroup) hero.updateAuraVisuals(time);
 
 		this.syncCombatText(arena.combatTexts);

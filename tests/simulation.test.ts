@@ -44,6 +44,60 @@ import {
 	ANIMATION_FRAME_STALE_MS,
 	backgroundFrameDue,
 } from "../src/game/FrameScheduler";
+import * as THREE from "three";
+import {
+	AnimatedCharacterDeath,
+	CHARACTER_MODEL_MANIFESTS,
+	matchingAnimationClip,
+} from "../src/game/render/AnimatedCharacter";
+
+describe("animated 3D characters", () => {
+	test("maps semantic animation aliases case-insensitively", () => {
+		const idle = new THREE.AnimationClip("IDLE", 1, []);
+		const walk = new THREE.AnimationClip("Walk", 1, []);
+		expect(matchingAnimationClip([idle, walk], ["idle"])).toBe(idle);
+		expect(matchingAnimationClip([idle, walk], ["Run", "walk"])).toBe(walk);
+		expect(matchingAnimationClip([idle], ["Attack"])).toBeUndefined();
+	});
+
+	test("keeps hero and boss models world-sized and role-specific", () => {
+		expect(CHARACTER_MODEL_MANIFESTS.hero.path).toBe("/assets/models/hero.glb");
+		expect(CHARACTER_MODEL_MANIFESTS.hero.footprint).toBe(50);
+		expect(CHARACTER_MODEL_MANIFESTS.hero.facingOffset).toBe(Math.PI / 2);
+		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
+		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
+		expect(CHARACTER_MODEL_MANIFESTS.boss.facingOffset).toBe(Math.PI / 2);
+	});
+
+	test("removes render-only boss defeat presentation after 1.2 seconds", () => {
+		const death = new AnimatedCharacterDeath(
+			"boss",
+			{ x: 12, y: 34 },
+			Math.PI / 3,
+		);
+		expect(death.mesh.position.toArray()).toEqual([12, 34, 0]);
+		death.update(1.19);
+		expect(death.active).toBeTrue();
+		death.update(0.01);
+		expect(death.active).toBeFalse();
+	});
+
+	test("ships compact standalone GLBs with their required clips", async () => {
+		for (const [path, requiredClips] of [
+			["public/assets/models/hero.glb", ["Idle", "Attack", "Hit"]],
+			[
+				"public/assets/models/boss.glb",
+				["Idle", "Walk", "Attack", "Hit", "TurnOff"],
+			],
+		] as const) {
+			const bytes = new Uint8Array(await Bun.file(path).arrayBuffer());
+			expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe("glTF");
+			expect(bytes.byteLength).toBeLessThan(1_000_000);
+			const contents = new TextDecoder().decode(bytes);
+			for (const clip of requiredClips) expect(contents).toContain(clip);
+		}
+	});
+});
 
 describe("arena systems", () => {
 	test("preserves emitted linear and radial impact directions", () => {

@@ -23,6 +23,10 @@ import { SpellEffect } from "./SpellEffect";
 import { clamp, distance, normalize, type Vector2 } from "./types";
 import { creepMaxHealth } from "../../common/waves";
 import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
+import {
+	AnimatedCharacter,
+	AnimatedCharacterDeath,
+} from "./render/AnimatedCharacter";
 
 export function resourceBarWidth(
 	current: number,
@@ -74,6 +78,7 @@ export type CreepAttack =
 
 export class Creep extends Unit {
 	attackVersion = 0;
+	facing = 0;
 	readonly bounty: number;
 	readonly scoreValue: number;
 	private cooldown: number;
@@ -95,6 +100,7 @@ export class Creep extends Unit {
 	readonly threatArrow: THREE.Mesh;
 
 	private readonly bodyMesh: THREE.Mesh;
+	private readonly animatedCharacter?: AnimatedCharacter;
 	private readonly strokeMesh: THREE.Mesh;
 	private readonly healthBg: THREE.Mesh;
 	private readonly healthFill: THREE.Mesh;
@@ -248,6 +254,10 @@ export class Creep extends Unit {
 		this.bodyMesh.renderOrder = Z_CREEP;
 		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
 		this.mesh.add(this.bodyMesh);
+		if (enemyRole(build) === "boss") {
+			this.animatedCharacter = new AnimatedCharacter("boss", this.bodyMesh);
+			this.mesh.add(this.animatedCharacter.root);
+		}
 		this.mesh.add(this.strokeMesh);
 
 		if (build.kind === "bubbleShooter") {
@@ -494,9 +504,14 @@ export class Creep extends Unit {
 		}
 		if (this.cooldown === 0 && heroDistance <= attackRange) {
 			const windup = (ranged ? 0.65 : 0.7) / attackSpeed;
+			this.facing = Math.atan2(
+				hero.y - this.position.y,
+				hero.x - this.position.x,
+			);
 			this.pendingAttack = true;
 			this.windup = windup;
 			this.cooldown = windup + (ranged ? 1.15 : 0.75) / attackSpeed;
+			this.presentAttack(this.cooldown);
 			return ranged
 				? undefined
 				: {
@@ -528,6 +543,8 @@ export class Creep extends Unit {
 			direction = { x: -direction.x, y: -direction.y };
 		else if (ranged && heroDistance <= preferredRange)
 			direction = { x: 0, y: 0 };
+		if (direction.x || direction.y)
+			this.facing = Math.atan2(direction.y, direction.x);
 		this.moveFromVelocity(
 			this.stunned ? { x: 0, y: 0 } : direction,
 			acceleration,
@@ -619,6 +636,17 @@ export class Creep extends Unit {
 
 		const flash = this.damageFlash;
 		this.damageFlash = false;
+		this.animatedCharacter?.update({
+			time,
+			facing: this.facing,
+			moving: Math.hypot(this.velocity.x, this.velocity.y) > 0.01,
+			attackVersion: this.presentationAttackVersion,
+			attackDuration: this.presentationAttackDuration,
+			hitVersion: this.presentationHitVersion,
+			dead: false,
+			statusTint: statusTint(this.statuses),
+			flash,
+		});
 		const fillColor = flash
 			? 0xffffff
 			: (this.bodyMesh.material as THREE.MeshBasicMaterial).map
@@ -670,8 +698,15 @@ export class Creep extends Unit {
 	}
 
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
-		this.bodyMesh.quaternion.copy(cameraQuaternion);
+		if (!this.animatedCharacter?.modelLoaded)
+			this.bodyMesh.quaternion.copy(cameraQuaternion);
 		this.healthBarGroup.quaternion.copy(cameraQuaternion);
+	}
+
+	createDeathVisual(): AnimatedCharacterDeath | undefined {
+		return this.animatedCharacter
+			? new AnimatedCharacterDeath("boss", this.position, this.facing)
+			: undefined;
 	}
 
 	private updateThreatArrow(): void {
@@ -695,4 +730,12 @@ export class Creep extends Unit {
 		this.threatArrow.position.set(ix, iy, 0);
 		this.threatArrow.rotation.z = angle;
 	}
+}
+
+function statusTint(statuses: { kind: string }[]): string | undefined {
+	if (statuses.some((status) => status.kind === "freeze")) return "#8de7ff";
+	if (statuses.some((status) => status.kind === "burn")) return "#ff783d";
+	if (statuses.some((status) => status.kind === "poison")) return "#92f58b";
+	if (statuses.some((status) => status.kind === "curse")) return "#4b225e";
+	return undefined;
 }

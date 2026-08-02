@@ -565,6 +565,7 @@ export class Game {
 		}
 		this.projectiles.push(...emittedProjectiles);
 		for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
+		for (const death of this.arena.characterDeaths) death.update(deltaSeconds);
 		const baseStats = this.player.progress.stats;
 		const attractionEnabled = this.hero.isSkillOperational("attraction");
 		const attractionLevel = this.hero.skillLevels.get("attraction") ?? 1;
@@ -635,6 +636,7 @@ export class Game {
 		removeInactive(this.drops);
 		removeInactive(this.arena.spellEffects);
 		removeInactive(this.arena.swamps);
+		removeInactive(this.arena.characterDeaths);
 		if (this.inspected && !this.inspected.active) this.clearInspection();
 		if (this.hoverPeeking && (!this.hovered || !this.hovered.active)) {
 			this.hovered = undefined;
@@ -653,6 +655,8 @@ export class Game {
 	private collectKills(): void {
 		for (const creep of this.creeps)
 			if (!creep.active) {
+				const deathVisual = creep.createDeathVisual();
+				if (deathVisual) this.arena.characterDeaths.push(deathVisual);
 				const cooldownReduction = this.heroCombat.onKill(
 					this.player!.progress,
 					this.hero,

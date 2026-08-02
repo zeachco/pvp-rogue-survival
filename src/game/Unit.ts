@@ -66,6 +66,9 @@ export abstract class Unit extends GameObject {
 	private readonly suspendedUpkeep = new Set<"mana" | "rage">();
 	onCombatText?: (text: CombatText) => void;
 	lastHitDodged = false;
+	presentationAttackVersion = 0;
+	presentationAttackDuration = 0.5;
+	presentationHitVersion = 0;
 
 	protected constructor(
 		position: Vector2,
@@ -79,8 +82,14 @@ export abstract class Unit extends GameObject {
 	}
 
 	takeDamage(amount: number): void {
+		if (amount > 0) this.presentationHitVersion += 1;
 		this.hp = Math.max(0, this.hp - amount);
 		if (this.hp === 0) this.active = false;
+	}
+
+	presentAttack(duration = 0.5): void {
+		this.presentationAttackDuration = Math.max(0.1, duration);
+		this.presentationAttackVersion += 1;
 	}
 
 	spendMana(amount: number): boolean {
