@@ -5,7 +5,16 @@ import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
 import { Z_DROP } from "./render/ThreeRenderer";
 
-export const GROUND_RESOURCE_PRESENTATION_HEIGHT = 50;
+const GOLD_PRESENTATION_HEIGHT = 20;
+const DIAMOND_PRESENTATION_HEIGHT = 18 * Math.SQRT2;
+
+export function groundDropPresentationCenter(drop: GroundDrop): number {
+	return (
+		(drop.kind === "gold"
+			? GOLD_PRESENTATION_HEIGHT
+			: DIAMOND_PRESENTATION_HEIGHT) / 2
+	);
+}
 
 export class ItemDrop extends GameObject {
 	readonly radius = 14;
@@ -132,7 +141,7 @@ export class ItemDrop extends GameObject {
 		this.mesh.position.set(
 			this.position.x,
 			this.position.y,
-			this.drop.kind === "item" ? 0 : GROUND_RESOURCE_PRESENTATION_HEIGHT,
+			groundDropPresentationCenter(this.drop),
 		);
 		if (this.glowMesh) {
 			const pulse = 0.3 + Math.sin(time * 3) * 0.1;

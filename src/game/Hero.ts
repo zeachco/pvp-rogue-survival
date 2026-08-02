@@ -68,6 +68,7 @@ export class Hero extends Unit {
 				: { color: 0xdffeff },
 		);
 		this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+		this.bodyMesh.position.z = texture ? 25 : 18;
 		this.bodyMesh.renderOrder = Z_HERO;
 		this.mesh.add(this.bodyMesh);
 		this.animatedCharacter = new AnimatedCharacter("hero", this.bodyMesh);

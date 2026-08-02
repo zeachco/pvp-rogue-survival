@@ -18,7 +18,7 @@ import { Hud, panelShortcut } from "../ui/Hud";
 import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
-import { GROUND_RESOURCE_PRESENTATION_HEIGHT, ItemDrop } from "./ItemDrop";
+import { groundDropPresentationCenter, ItemDrop } from "./ItemDrop";
 import { GameMap } from "./Map";
 import { Projectile } from "./Projectile";
 import { SpellEffect } from "./SpellEffect";
@@ -206,7 +206,7 @@ export class Game {
 		});
 		this.canvas.addEventListener("pointermove", (event) => {
 			if (this.orbitingCamera) {
-				this.renderer.orbit(event.movementX);
+				this.renderer.orbit(event.movementX, event.movementY);
 				return;
 			}
 			this.updateHover(event);
@@ -845,14 +845,13 @@ export class Game {
 
 	private updateHover(event: MouseEvent): void {
 		const world = this.eventWorld(event);
-		const resourceWorld = this.renderer.eventWorld(
-			event,
-			GROUND_RESOURCE_PRESENTATION_HEIGHT,
-		);
 		const dropDistance = (drop: ItemDrop): number =>
 			distance(
 				drop.position,
-				drop.drop.kind === "item" ? world : resourceWorld,
+				this.renderer.eventWorld(
+					event,
+					groundDropPresentationCenter(drop.drop),
+				),
 			);
 		const previousDrop = this.hoveredDrop;
 		this.hoveredDrop = this.drops

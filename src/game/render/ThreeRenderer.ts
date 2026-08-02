@@ -10,14 +10,16 @@ import { clamp } from "../types";
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 1.8;
 const ZOOM_SPEED = 0.0012;
-export const MIN_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(28);
-export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(58);
+export const MIN_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(8);
+export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(85);
 const TILT_SPEED = 0.0012;
+const ORBIT_TILT_SENSITIVITY = 0.005;
 const DEFAULT_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(40);
 const CAMERA_DISTANCE = 390;
 const CAMERA_LOOK_AHEAD = 95;
 const ORBIT_SENSITIVITY = 0.005;
-const MAP_Z = -18;
+const MAP_Z = -0.1;
+const MAP_LAYER_STEP = 0.01;
 const Z_SWAMP = 10;
 const Z_DROP = 20;
 const Z_ATTACK = 30;
@@ -37,6 +39,17 @@ export function adjustedCameraTilt(
 ): number {
 	return clamp(
 		current + wheelDelta * TILT_SPEED,
+		MIN_CAMERA_TILT_RADIANS,
+		MAX_CAMERA_TILT_RADIANS,
+	);
+}
+
+export function adjustedCameraTiltFromDrag(
+	current: number,
+	deltaY: number,
+): number {
+	return clamp(
+		current + deltaY * ORBIT_TILT_SENSITIVITY,
 		MIN_CAMERA_TILT_RADIANS,
 		MAX_CAMERA_TILT_RADIANS,
 	);
@@ -123,8 +136,9 @@ export class ThreeRenderer {
 		return this._zoomLevel;
 	}
 
-	orbit(deltaX: number): void {
+	orbit(deltaX: number, deltaY: number): void {
 		this.yaw += deltaX * ORBIT_SENSITIVITY;
+		this._tilt = adjustedCameraTiltFromDrag(this._tilt, deltaY);
 		this.updateCameraTransform();
 	}
 
@@ -329,6 +343,7 @@ function formatCombatAmount(amount: number): string {
 
 export {
 	MAP_Z,
+	MAP_LAYER_STEP,
 	Z_SWAMP,
 	Z_DROP,
 	Z_ATTACK,

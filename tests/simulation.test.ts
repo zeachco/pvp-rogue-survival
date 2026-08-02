@@ -25,7 +25,7 @@ import {
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import {
 	dropRarityColor,
-	GROUND_RESOURCE_PRESENTATION_HEIGHT,
+	groundDropPresentationCenter,
 	ItemDrop,
 } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
@@ -59,6 +59,7 @@ import {
 	CHARACTER_MODEL_MANIFESTS,
 	matchingAnimationClip,
 } from "../src/game/render/AnimatedCharacter";
+import { MAP_LAYER_STEP, MAP_Z } from "../src/game/render/ThreeRenderer";
 
 describe("animated 3D characters", () => {
 	test("maps semantic animation aliases case-insensitively", () => {
@@ -76,6 +77,42 @@ describe("animated 3D characters", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.facingOffset).toBe(Math.PI / 2);
+	});
+
+	test("centers fallback unit sprites above the zero-height floor", () => {
+		const hero = new Hero({ x: 10, y: 20 });
+		hero.updateVisuals(0);
+		const heroBody = hero.mesh.children.find(
+			(child) =>
+				child.type === "Mesh" && child.geometry.type === "CircleGeometry",
+		);
+		expect(heroBody?.position.z).toBe(18);
+
+		const creep = new Creep(
+			{
+				id: "grounded-creep",
+				name: "Grounded",
+				kind: "melee",
+				level: 1,
+				stats: { ...ZERO_STATS },
+				mainHand: starterClub(),
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 10, y: 20 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(
+			creep.mesh.children.some(
+				(child) => child.type === "Group" && child.position.z === creep.radius,
+			),
+		).toBeTrue();
 	});
 
 	test("removes render-only boss defeat presentation after 1.2 seconds", () => {
@@ -1202,7 +1239,7 @@ describe("arena systems", () => {
 			scrap.mesh.children.some((child) => child.type === "LineSegments"),
 		).toBeTrue();
 	});
-	test("lifts Gold and Scrap one meter without lifting equipment", () => {
+	test("grounds the arena and centers pickups at half their presentation height", () => {
 		const drops = [
 			new ItemDrop({ id: "gold", kind: "gold", amount: 2 }, { x: 1, y: 2 }),
 			new ItemDrop(
@@ -1215,10 +1252,12 @@ describe("arena systems", () => {
 			),
 		];
 		for (const drop of drops) drop.updateVisuals(0);
-		expect(GROUND_RESOURCE_PRESENTATION_HEIGHT).toBe(50);
-		expect(drops[0].mesh.position.z).toBe(50);
-		expect(drops[1].mesh.position.z).toBe(50);
-		expect(drops[2].mesh.position.z).toBe(0);
+		expect(MAP_Z).toBe(-0.1);
+		expect(MAP_Z + MAP_LAYER_STEP * 3).toBeLessThan(0);
+		for (const drop of drops)
+			expect(drop.mesh.position.z).toBe(
+				groundDropPresentationCenter(drop.drop),
+			);
 	});
 	test("billboards complete pickup presentations toward the camera", () => {
 		const cameraRotation = new THREE.Quaternion().setFromEuler(

@@ -115,6 +115,7 @@ export class Creep extends Unit {
 	private healthBarHeight = 4;
 	private manaBarHeight = 2;
 	private rageBarHeight = 2;
+	private readonly spriteCenterHeight: number;
 
 	constructor(
 		build: UnitBuild,
@@ -193,6 +194,7 @@ export class Creep extends Unit {
 						: build.enemyRole === "invader"
 							? 2.7
 							: 2.5;
+			this.spriteCenterHeight = (this.radius * visualScale) / 2;
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.PlaneGeometry(
 					this.radius * visualScale,
@@ -207,6 +209,7 @@ export class Creep extends Unit {
 				}),
 			);
 		} else if (this.kind === "melee") {
+			this.spriteCenterHeight = this.radius;
 			const shape = new THREE.Shape();
 			for (let i = 0; i < 6; i += 1) {
 				const a = -Math.PI / 2 + (i * Math.PI) / 3;
@@ -221,6 +224,7 @@ export class Creep extends Unit {
 				new THREE.MeshBasicMaterial({ color: fillColor }),
 			);
 		} else {
+			this.spriteCenterHeight = this.radius;
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.CircleGeometry(this.radius, 24),
 				new THREE.MeshBasicMaterial({ color: fillColor }),
@@ -260,6 +264,7 @@ export class Creep extends Unit {
 			this.mesh.add(this.animatedCharacter.root);
 		}
 		this.spriteGroup.add(this.strokeMesh);
+		this.spriteGroup.position.z = this.spriteCenterHeight;
 
 		if (build.kind === "bubbleShooter") {
 			const eyeGeo = new THREE.CircleGeometry(5, 16);

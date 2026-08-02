@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	adjustedCameraTilt,
+	adjustedCameraTiltFromDrag,
 	cameraRelativeMovement,
 	cameraOffsetForTilt,
 	MAX_CAMERA_TILT_RADIANS,
@@ -178,6 +179,18 @@ describe("third-person camera", () => {
 		const offset = cameraOffsetForTilt(MAX_CAMERA_TILT_RADIANS);
 		expect(offset.y).toBeLessThan(0);
 		expect(offset.z).toBeGreaterThan(0);
+	});
+
+	test("clamps vertical right-drag orbiting above ground and below overturn", () => {
+		expect(adjustedCameraTiltFromDrag(0, 100_000)).toBe(
+			MAX_CAMERA_TILT_RADIANS,
+		);
+		expect(adjustedCameraTiltFromDrag(0, -100_000)).toBe(
+			MIN_CAMERA_TILT_RADIANS,
+		);
+		expect(adjustedCameraTiltFromDrag(Math.PI / 4, 10)).toBeGreaterThan(
+			Math.PI / 4,
+		);
 	});
 
 	test("rotates WASD input with the camera orbit", () => {

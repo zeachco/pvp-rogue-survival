@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { canvas2dContext } from "../platform/Canvas";
-import { MAP_Z } from "./render/ThreeRenderer";
+import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
 
 export class GameMap {
 	readonly width = 1600;
@@ -47,10 +47,24 @@ export class GameMap {
 		});
 		const gridVerts: number[] = [];
 		for (let x = 0; x <= this.width; x += this.gridSize) {
-			gridVerts.push(x, 0, MAP_Z + 0.01, x, this.height, MAP_Z + 0.01);
+			gridVerts.push(
+				x,
+				0,
+				MAP_Z + MAP_LAYER_STEP,
+				x,
+				this.height,
+				MAP_Z + MAP_LAYER_STEP,
+			);
 		}
 		for (let y = 0; y <= this.height; y += this.gridSize) {
-			gridVerts.push(0, y, MAP_Z + 0.01, this.width, y, MAP_Z + 0.01);
+			gridVerts.push(
+				0,
+				y,
+				MAP_Z + MAP_LAYER_STEP,
+				this.width,
+				y,
+				MAP_Z + MAP_LAYER_STEP,
+			);
 		}
 		const gridGeo = new THREE.BufferGeometry();
 		gridGeo.setAttribute(
@@ -81,26 +95,30 @@ export class GameMap {
 				depthWrite: false,
 			}),
 		);
-		glowMesh.position.set(this.width / 2, this.height / 2, MAP_Z + 0.02);
+		glowMesh.position.set(
+			this.width / 2,
+			this.height / 2,
+			MAP_Z + MAP_LAYER_STEP * 2,
+		);
 		glowMesh.renderOrder = 2;
 		this.mesh.add(glowMesh);
 
 		const borderVerts = new Float32Array([
 			0,
 			0,
-			MAP_Z + 0.03,
+			MAP_Z + MAP_LAYER_STEP * 3,
 			this.width,
 			0,
-			MAP_Z + 0.03,
+			MAP_Z + MAP_LAYER_STEP * 3,
 			this.width,
 			this.height,
-			MAP_Z + 0.03,
+			MAP_Z + MAP_LAYER_STEP * 3,
 			0,
 			this.height,
-			MAP_Z + 0.03,
+			MAP_Z + MAP_LAYER_STEP * 3,
 			0,
 			0,
-			MAP_Z + 0.03,
+			MAP_Z + MAP_LAYER_STEP * 3,
 		]);
 		const borderGeo = new THREE.BufferGeometry();
 		borderGeo.setAttribute(
@@ -123,9 +141,23 @@ export class GameMap {
 		});
 		const vertices: number[] = [];
 		for (let x = 0; x <= this.width; x += this.gridSize * 5)
-			vertices.push(x, 0, MAP_Z + 0.018, x, this.height, MAP_Z + 0.018);
+			vertices.push(
+				x,
+				0,
+				MAP_Z + MAP_LAYER_STEP * 1.5,
+				x,
+				this.height,
+				MAP_Z + MAP_LAYER_STEP * 1.5,
+			);
 		for (let y = 0; y <= this.height; y += this.gridSize * 5)
-			vertices.push(0, y, MAP_Z + 0.018, this.width, y, MAP_Z + 0.018);
+			vertices.push(
+				0,
+				y,
+				MAP_Z + MAP_LAYER_STEP * 1.5,
+				this.width,
+				y,
+				MAP_Z + MAP_LAYER_STEP * 1.5,
+			);
 		const geometry = new THREE.BufferGeometry();
 		geometry.setAttribute(
 			"position",
