@@ -4,6 +4,7 @@ import {
 	adjustedCameraTiltFromDrag,
 	cameraRelativeMovement,
 	cameraOffsetForTilt,
+	DEFAULT_CAMERA_ZOOM,
 	MAX_CAMERA_TILT_RADIANS,
 	MIN_CAMERA_TILT_RADIANS,
 } from "../src/game/render/ThreeRenderer";
@@ -173,6 +174,9 @@ function progress(): PlayerProgress {
 let id = 0;
 
 describe("third-person camera", () => {
+	test("starts at the farthest allowed chase distance", () => {
+		expect(DEFAULT_CAMERA_ZOOM).toBe(0.65);
+	});
 	test("places the chase camera behind and above the hero", () => {
 		expect(adjustedCameraTilt(0, 100)).toBe(MIN_CAMERA_TILT_RADIANS);
 		expect(adjustedCameraTilt(0, -100)).toBe(MIN_CAMERA_TILT_RADIANS);

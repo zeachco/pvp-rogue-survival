@@ -38,7 +38,11 @@ import {
 } from "../common/combat";
 import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
 import { emptyScraps } from "../common/inventory";
-import { Creep, resourceBarWidth } from "../src/game/Creep";
+import {
+	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
+	Creep,
+	resourceBarWidth,
+} from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
 import {
 	cancelHostileProjectiles,
@@ -73,7 +77,7 @@ describe("animated 3D characters", () => {
 
 	test("keeps hero and boss models world-sized and role-specific", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.hero.path).toBe("/assets/models/hero.glb");
-		expect(CHARACTER_MODEL_MANIFESTS.hero.footprint).toBe(25);
+		expect(CHARACTER_MODEL_MANIFESTS.hero.footprint).toBe(50);
 		expect(CHARACTER_MODEL_MANIFESTS.hero.facingOffset).toBe(Math.PI / 2);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
@@ -256,6 +260,54 @@ describe("arena systems", () => {
 		expect(resourceBarWidth(5, 10)).toBe(16);
 		expect(resourceBarWidth(20, 10)).toBe(32);
 		expect(resourceBarWidth(1, 0)).toBe(0);
+	});
+	test("keeps creep resource bars slightly in front of sprite depth", () => {
+		const creep = new Creep(
+			{
+				id: "front-bars",
+				name: "Front Bars",
+				kind: "melee",
+				level: 1,
+				stats: { ...ZERO_STATS },
+				mainHand: starterClub(),
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 10, y: 20 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		creep.healthBarGroup.position.set(10, 20, 0);
+		creep.faceCamera(new THREE.Quaternion());
+		expect(creep.healthBarGroup.position.z).toBe(
+			CREEP_RESOURCE_BAR_CAMERA_OFFSET,
+		);
+		for (const bar of creep.healthBarGroup.children) {
+			if (!(bar instanceof THREE.Mesh)) continue;
+			const material = bar.material as THREE.MeshBasicMaterial;
+			expect(material.depthTest).toBeFalse();
+			expect(material.depthWrite).toBeFalse();
+		}
+		const camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
+		camera.position.set(0, 0, 300);
+		camera.lookAt(0, 0, 0);
+		camera.updateMatrixWorld();
+		creep.position.x = 10_000;
+		creep.position.y = 0;
+		creep.updateThreatArrow(camera);
+		expect(creep.threatArrow.visible).toBeTrue();
+		const arrowNdc = creep.threatArrow.position.clone().project(camera);
+		expect(Math.max(Math.abs(arrowNdc.x), Math.abs(arrowNdc.y))).toBeCloseTo(
+			0.88,
+		);
+		creep.position.x = 0;
+		creep.updateThreatArrow(camera);
+		expect(creep.threatArrow.visible).toBeFalse();
 	});
 	test("applies passive upkeep suspension to spawned enemies", () => {
 		const creep = new Creep(
@@ -854,7 +906,7 @@ describe("arena systems", () => {
 			{ x: 1, y: 1 },
 			1,
 			"hero",
-			"frostSpike",
+			"arcaneBolt",
 		);
 		const groundEffect = new SpellEffect("shockwave", { x: 0, y: 0 });
 		const cameraRotation = new THREE.Quaternion().setFromEuler(
@@ -870,8 +922,54 @@ describe("arena systems", () => {
 		expect(
 			projectile.mesh.quaternion.equals(new THREE.Quaternion()),
 		).toBeTrue();
-		expect(projectile.mesh.children[0].children[0].rotation.z).not.toBe(0);
 		expect(groundEffect.mesh.quaternion.equals(cameraRotation)).toBeFalse();
+	});
+	test("renders Frozen Orb and its directional spikes as world-oriented 3D geometry", () => {
+		const orb = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 1, y: 0 },
+			1,
+			"hero",
+			"frostOrb",
+		);
+		const spike = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 1, y: 0 },
+			1,
+			"hero",
+			"frostSpike",
+		);
+		const cameraRotation = new THREE.Quaternion().setFromEuler(
+			new THREE.Euler(0.4, -0.2, 0.1),
+		);
+		orb.updateVisuals(1);
+		spike.updateVisuals(1);
+		orb.faceCamera(cameraRotation);
+		spike.faceCamera(cameraRotation);
+		const orbMeshes: THREE.Mesh[] = [];
+		orb.mesh.traverse((object) => {
+			if (object instanceof THREE.Mesh) orbMeshes.push(object);
+		});
+		expect(orbMeshes).toHaveLength(2);
+		expect(
+			orbMeshes.every((mesh) => mesh.geometry.type === "ExtrudeGeometry"),
+		).toBeTrue();
+		expect(spike.mesh.getObjectByProperty("type", "Mesh")?.geometry.type).toBe(
+			"ConeGeometry",
+		);
+		expect(
+			spike.mesh.getObjectByProperty("type", "Mesh")?.geometry.parameters
+				.radialSegments,
+		).toBe(5);
+		expect(orb.mesh.children[0].quaternion.equals(cameraRotation)).toBeFalse();
+		expect(
+			spike.mesh.children[0].quaternion.equals(cameraRotation),
+		).toBeFalse();
+		expect(spike.mesh.children[0].children[0].rotation.z).toBeCloseTo(
+			-Math.PI / 2,
+		);
+		expect(orbMeshes[0].rotation.z).toBeCloseTo(1.4);
+		expect(orbMeshes[1].rotation.z).toBeCloseTo(-2.1);
 	});
 	test("bottom-aligns every projectile silhouette above the ground", () => {
 		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);

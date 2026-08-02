@@ -28,6 +28,8 @@ import {
 	AnimatedCharacterDeath,
 } from "./render/AnimatedCharacter";
 
+export const CREEP_RESOURCE_BAR_CAMERA_OFFSET = 2;
+
 export function resourceBarWidth(
 	current: number,
 	max: number,
@@ -335,6 +337,12 @@ export class Creep extends Unit {
 		);
 		this.rageFill.position.set(0, rageY, 0.01);
 		this.healthBarGroup.add(this.rageFill);
+		for (const bar of this.healthBarGroup.children) {
+			if (!(bar instanceof THREE.Mesh)) continue;
+			const material = bar.material as THREE.MeshBasicMaterial;
+			material.depthTest = false;
+			material.depthWrite = false;
+		}
 
 		if (sentItem) {
 			const canvas = document.createElement("canvas");
@@ -410,6 +418,8 @@ export class Creep extends Unit {
 			new THREE.ShapeGeometry(arrowShape),
 			new THREE.MeshBasicMaterial({
 				color: build.isRival ? 0xffd166 : 0xff6f7d,
+				depthTest: false,
+				depthWrite: false,
 			}),
 		);
 		this.threatArrow.renderOrder = Z_THREAT;
@@ -701,14 +711,13 @@ export class Creep extends Unit {
 		if (isHighlighted) {
 			this.selectionRing.position.set(this.position.x, this.position.y, 0);
 		}
-
-		this.updateThreatArrow();
 	}
 
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
 		if (!this.animatedCharacter?.modelLoaded)
 			this.spriteGroup.quaternion.copy(cameraQuaternion);
 		this.healthBarGroup.quaternion.copy(cameraQuaternion);
+		this.healthBarGroup.translateZ(CREEP_RESOURCE_BAR_CAMERA_OFFSET);
 	}
 
 	createDeathVisual(): AnimatedCharacterDeath | undefined {
@@ -717,26 +726,47 @@ export class Creep extends Unit {
 			: undefined;
 	}
 
-	private updateThreatArrow(): void {
-		const margin = 30;
-		const cam = { width: window.innerWidth, height: window.innerHeight };
-		const x = this.position.x;
-		const y = this.position.y;
+	updateThreatArrow(camera: THREE.PerspectiveCamera): void {
+		const world = new THREE.Vector3(
+			this.position.x,
+			this.position.y,
+			this.spriteCenterHeight,
+		);
+		const projected = world.clone().project(camera);
+		const cameraSpace = world.clone().applyMatrix4(camera.matrixWorldInverse);
+		const behind = cameraSpace.z >= 0;
+		const edge = 0.88;
 		if (
-			x >= margin &&
-			x <= cam.width - margin &&
-			y >= margin &&
-			y <= cam.height - margin
+			!behind &&
+			projected.z >= -1 &&
+			projected.z <= 1 &&
+			Math.abs(projected.x) <= edge &&
+			Math.abs(projected.y) <= edge
 		) {
 			this.threatArrow.visible = false;
 			return;
 		}
-		const ix = clamp(x, margin, cam.width - margin);
-		const iy = clamp(y, margin, cam.height - margin);
-		const angle = Math.atan2(y - iy, x - ix);
+		let directionX = Number.isFinite(projected.x) ? projected.x : 0;
+		let directionY = Number.isFinite(projected.y) ? projected.y : 1;
+		if (behind) {
+			directionX = -directionX;
+			directionY = -directionY;
+		}
+		const divisor = Math.max(
+			Math.abs(directionX) / edge,
+			Math.abs(directionY) / edge,
+			0.0001,
+		);
+		const ndcX = directionX / divisor;
+		const ndcY = directionY / divisor;
+		const worldPosition = new THREE.Vector3(ndcX, ndcY, 0.995).unproject(
+			camera,
+		);
+		const angle = Math.atan2(directionY, directionX);
 		this.threatArrow.visible = true;
-		this.threatArrow.position.set(ix, iy, 0);
-		this.threatArrow.rotation.z = angle;
+		this.threatArrow.position.copy(worldPosition);
+		this.threatArrow.quaternion.copy(camera.quaternion);
+		this.threatArrow.rotateZ(angle);
 	}
 }
 

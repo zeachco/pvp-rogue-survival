@@ -20,6 +20,14 @@ Floating combat numbers spawn at the visual center of the affected unit and rise
 
 Every camera-facing airborne projectile, including Arcane Bolt and fallback projectile art, is bottom-aligned above the gameplay plane using its complete visible bounds plus a 2-logical-pixel clearance. Gold, Scrap, and equipment pickups use the same clearance and include their outer glow in those bounds, so no visible portion intersects the rendered floor at any camera pitch.
 
+The loaded 3D hero uses the normal full 50-logical-pixel presentation footprint, matching its fallback art instead of the former half-size 25-pixel footprint. Its authored 18-logical-pixel collision radius remains unchanged.
+
+Each creep's complete Health, Mana, and Rage bar stack billboards slightly in front of that creep along the camera-facing normal and ignores scene depth occlusion, preventing sprite silhouettes from intersecting or covering the bars.
+
+The chase camera starts at its maximum allowed distance from the hero. Wheel zoom may move it closer and back out, but never farther than this initial view.
+
+Every active creep outside the perspective camera frustum shows a camera-facing directional arrow inset from the nearest viewport edge. Arrow visibility and direction derive from camera projection rather than comparing arena coordinates with browser pixels, so they remain correct across camera yaw, pitch, zoom, and viewport size.
+
 Attacking, winding up an attack, and casting do not reduce movement speed. When a unit actually loses HP from received damage, its movement speed is reduced to 48% for 0.35 seconds; repeated damaging hits refresh that duration. Dodged, blocked, fully mitigated, and self-paid spell costs do not trigger this slowdown.
 
 - The client owns local arena simulation for the active combat slice.

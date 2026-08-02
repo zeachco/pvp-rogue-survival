@@ -13,6 +13,7 @@ import { clamp } from "../types";
 
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 1.8;
+export const DEFAULT_CAMERA_ZOOM = MIN_ZOOM;
 const ZOOM_SPEED = 0.0012;
 export const MIN_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(8);
 export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(85);
@@ -83,7 +84,7 @@ export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
 	readonly camera: THREE.PerspectiveCamera;
-	private _zoomLevel = 1;
+	private _zoomLevel = DEFAULT_CAMERA_ZOOM;
 	private _tilt = DEFAULT_CAMERA_TILT_RADIANS;
 	private yaw = 0;
 	private readonly tracked = new Set<THREE.Object3D>();
@@ -243,6 +244,7 @@ export class ThreeRenderer {
 		for (const creep of arena.creeps) {
 			creep.updateVisuals(time, hovered, inspected);
 			creep.faceCamera(this.camera.quaternion);
+			creep.updateThreatArrow(this.camera);
 		}
 		for (const drop of arena.drops) {
 			drop.updateVisuals(time);

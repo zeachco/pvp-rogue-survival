@@ -50,6 +50,26 @@ export function projectilePresentationCenter(
 	return 11 + PROJECTILE_GROUND_CLEARANCE;
 }
 
+function lowPolyStarGeometry(outerRadius: number): THREE.ExtrudeGeometry {
+	const shape = new THREE.Shape();
+	for (let index = 0; index < 10; index += 1) {
+		const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+		const radius = index % 2 === 0 ? outerRadius : outerRadius * 0.42;
+		const x = Math.cos(angle) * radius;
+		const y = Math.sin(angle) * radius;
+		if (index === 0) shape.moveTo(x, y);
+		else shape.lineTo(x, y);
+	}
+	shape.closePath();
+	const geometry = new THREE.ExtrudeGeometry(shape, {
+		depth: 4,
+		steps: 1,
+		bevelEnabled: false,
+	});
+	geometry.translate(0, 0, -2);
+	return geometry;
+}
+
 export class Projectile extends GameObject {
 	readonly position: Vector2;
 	readonly radius: number = 11;
@@ -145,63 +165,38 @@ export class Projectile extends GameObject {
 
 	private createMesh(): THREE.Object3D {
 		if (this.skill === "frostOrb") {
-			const inner = new THREE.Mesh(
-				new THREE.CircleGeometry(16, 20),
-				new THREE.MeshBasicMaterial({
-					color: 0x7adcff,
-					transparent: true,
-					opacity: 0.75,
+			const outerStar = new THREE.Mesh(
+				lowPolyStarGeometry(18),
+				new THREE.MeshStandardMaterial({
+					color: 0x67c9ed,
+					roughness: 0.4,
 				}),
 			);
-			inner.renderOrder = Z_PROJECTILE;
-			const ring = new THREE.Mesh(
-				new THREE.RingGeometry(14.5, 17.5, 20),
-				new THREE.MeshBasicMaterial({
-					color: 0xe5fbff,
-					side: THREE.DoubleSide,
+			outerStar.renderOrder = Z_PROJECTILE;
+			const innerStar = new THREE.Mesh(
+				lowPolyStarGeometry(13),
+				new THREE.MeshStandardMaterial({
+					color: 0xb7efff,
+					roughness: 0.3,
 				}),
 			);
-			ring.renderOrder = Z_PROJECTILE + 0.001;
-			const glow = new THREE.Mesh(
-				new THREE.CircleGeometry(22, 20),
-				new THREE.MeshBasicMaterial({
-					color: 0x62cfff,
-					transparent: true,
-					opacity: 0.3,
-					depthWrite: false,
-				}),
-			);
-			glow.renderOrder = Z_PROJECTILE - 0.001;
+			innerStar.position.z = 2.5;
+			innerStar.renderOrder = Z_PROJECTILE + 0.001;
 			const group = new THREE.Group();
-			group.add(glow, inner, ring);
+			group.add(outerStar, innerStar);
 			return group as unknown as THREE.Mesh;
 		}
 
 		if (this.skill === "frostSpike") {
-			const shape = new THREE.Shape();
-			shape.moveTo(10, 0);
-			shape.lineTo(-6, -4);
-			shape.lineTo(-2, 0);
-			shape.lineTo(-6, 4);
-			shape.closePath();
 			const mesh = new THREE.Mesh(
-				new THREE.ShapeGeometry(shape),
-				new THREE.MeshBasicMaterial({
+				new THREE.ConeGeometry(4.5, 20, 5),
+				new THREE.MeshStandardMaterial({
 					color: 0xbdefff,
+					roughness: 0.28,
 				}),
 			);
-			const glow = new THREE.Mesh(
-				new THREE.CircleGeometry(8, 12),
-				new THREE.MeshBasicMaterial({
-					color: 0x62cfff,
-					transparent: true,
-					opacity: 0.35,
-					depthWrite: false,
-				}),
-			);
-			glow.position.z = -0.01;
 			const group = new THREE.Group();
-			group.add(glow, mesh);
+			group.add(mesh);
 			return group as unknown as THREE.Mesh;
 		}
 
@@ -451,9 +446,11 @@ export class Projectile extends GameObject {
 		this.mesh.position.set(this.position.x, this.position.y, 0);
 
 		if (this.skill === "frostOrb") {
-			this.bodyMesh.rotation.z = 0;
+			this.bodyMesh.children[0].rotation.z = time * 1.4;
+			this.bodyMesh.children[1].rotation.z = -time * 2.1;
 		} else if (this.skill === "frostSpike") {
-			this.bodyMesh.rotation.z = Math.atan2(this.velocity.y, this.velocity.x);
+			this.bodyMesh.rotation.z =
+				Math.atan2(this.velocity.y, this.velocity.x) - Math.PI / 2;
 		} else if (this.skill === "orbitingHammers") {
 			this.bodyMesh.rotation.z = this.orbitAngle + this.orbitAge * 7;
 			const rotation = orbitingHammerRotation(this.orbitAge, this.orbitAngle);
@@ -468,7 +465,11 @@ export class Projectile extends GameObject {
 	}
 
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
-		if (!this.hammerModelLoaded)
+		if (
+			this.skill !== "frostOrb" &&
+			this.skill !== "frostSpike" &&
+			!this.hammerModelLoaded
+		)
 			this.billboardGroup.quaternion.copy(cameraQuaternion);
 	}
 }
