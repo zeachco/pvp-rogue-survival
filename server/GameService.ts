@@ -302,6 +302,7 @@ export class GameService {
 						player,
 						message.skillId,
 						message.equipped,
+						message.slot,
 					);
 				case "toggleSkillAutoFire":
 					return this.toggleSkillAutoFire(player, message.skillId);
@@ -439,6 +440,7 @@ export class GameService {
 		player: Player,
 		skillId: string,
 		shouldEquip: boolean,
+		slot?: number,
 	): void {
 		if (!isSkillId(skillId)) return;
 		const providedByEquipment = [
@@ -470,6 +472,23 @@ export class GameService {
 			player.progress.autoFireSkills ?? []
 		).filter((id) => loadout.includes(id));
 		const hasSkill = loadout.includes(skillId);
+		if (shouldEquip && slot !== undefined) {
+			if (!Number.isInteger(slot) || slot < 1 || slot > 6) return;
+			const next = loadout.filter((id) => id !== skillId);
+			const displaced = next[slot - 1];
+			if (displaced) next.splice(slot - 1, 1, skillId);
+			else next.splice(Math.min(slot - 1, next.length), 0, skillId);
+			player.progress.equippedSkills = next.slice(0, 6);
+			player.progress.autoFireSkills = (
+				player.progress.autoFireSkills ?? []
+			).filter((id) => id !== displaced && next.includes(id));
+			this.options.repository.markDirty(player.id);
+			this.sendProgress(
+				player,
+				`${SKILLS[skillId].label} assigned to spell slot ${slot}.`,
+			);
+			return;
+		}
 		if (shouldEquip && !hasSkill) {
 			if (loadout.length >= 6) return;
 			player.progress.equippedSkills = [...loadout, skillId];

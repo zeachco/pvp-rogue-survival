@@ -92,6 +92,23 @@ describe("realm game service", () => {
 		});
 		expect(player.progress.equippedSkills).toEqual([]);
 	});
+	test("assigns an acquired spell to an exact occupied loadout slot", () => {
+		const { game } = harness();
+		const player = game.join("SpellSlots");
+		player.progress.learnedSkills.push("bash", "cleave");
+		player.progress.learnedSkillLevels.bash = 1;
+		player.progress.learnedSkillLevels.cleave = 1;
+		player.progress.equippedSkills = ["healing", "bash"];
+		player.progress.autoFireSkills = ["healing", "bash"];
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "cleave",
+			equipped: true,
+			slot: 2,
+		});
+		expect(player.progress.equippedSkills).toEqual(["healing", "cleave"]);
+		expect(player.progress.autoFireSkills).toEqual(["healing"]);
+	});
 	test("reconciles server and client drop orphans without granting them", () => {
 		const { game, messages } = harness();
 		const player = game.join("Drops");

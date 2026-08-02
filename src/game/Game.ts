@@ -80,6 +80,7 @@ export class Game {
 	private isChatting = false;
 	private orbitingCamera = false;
 	private aimingHero = false;
+	private aimTarget?: Creep;
 	private touchCameraPointerId?: number;
 	private touchCameraX = 0;
 	private touchCameraY = 0;
@@ -157,8 +158,8 @@ export class Game {
 			onLogout: () => this.socket.send({ type: "logout" }),
 			onInspectHero: (heroId) =>
 				this.socket.send({ type: "inspectHero", heroId }),
-			onSetSkillEquipped: (skillId, equipped) =>
-				this.socket.send({ type: "setSkillEquipped", skillId, equipped }),
+			onSetSkillEquipped: (skillId, equipped, slot) =>
+				this.socket.send({ type: "setSkillEquipped", skillId, equipped, slot }),
 			onToggleSkillAutoFire: (skillId) =>
 				this.socket.send({ type: "toggleSkillAutoFire", skillId }),
 			onDismissPanelTrigger: (panel) =>
@@ -234,8 +235,15 @@ export class Game {
 				this.hud.focusChat();
 				return;
 			}
+			if (event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				if (!event.repeat) this.hud.toggleSpellCatalog();
+				return;
+			}
 			if (/^[1-6]$/.test(event.key)) {
 				event.preventDefault();
+				if (!event.repeat && this.hud.assignHoveredSpell(Number(event.key)))
+					return;
 				if (!event.repeat && this.player)
 					this.heroCombat.requestSpellSlot(
 						Number(event.key) - 1,
@@ -280,6 +288,8 @@ export class Game {
 			if (event.button === 2) {
 				stopMouseCameraOrbit();
 				this.aimingHero = false;
+				this.aimTarget = undefined;
+				this.hud.setAiming(false);
 			}
 		});
 		this.canvas.addEventListener("pointerdown", (event) => {
@@ -293,6 +303,10 @@ export class Game {
 			if (event.button === 2) {
 				event.preventDefault();
 				this.aimingHero = true;
+				this.aimTarget = this.closestLivingCreep();
+				if (this.aimTarget)
+					this.renderer.aimAt(this.hero.position, this.aimTarget.position);
+				this.hud.setAiming(true);
 				this.orbitingCamera = true;
 				this.canvas.setPointerCapture(event.pointerId);
 				if (typeof this.canvas.requestPointerLock === "function")
@@ -340,11 +354,15 @@ export class Game {
 			if (event.button === 2) {
 				stopMouseCameraOrbit();
 				this.aimingHero = false;
+				this.aimTarget = undefined;
+				this.hud.setAiming(false);
 			}
 		});
 		this.canvas.addEventListener("pointercancel", () => {
 			stopMouseCameraOrbit();
 			this.aimingHero = false;
+			this.aimTarget = undefined;
+			this.hud.setAiming(false);
 			this.touchCameraPointerId = undefined;
 		});
 		this.canvas.addEventListener("click", (event) => {
@@ -1056,6 +1074,19 @@ export class Game {
 	private eventWorld(event: MouseEvent): Vector2 {
 		return this.renderer.eventWorld(event);
 	}
+	private closestLivingCreep(): Creep | undefined {
+		let closest: Creep | undefined;
+		let closestDistance = Number.POSITIVE_INFINITY;
+		for (const creep of this.creeps) {
+			if (!creep.active || creep.hp <= 0) continue;
+			const candidateDistance = distance(this.hero.position, creep.position);
+			if (candidateDistance < closestDistance) {
+				closest = creep;
+				closestDistance = candidateDistance;
+			}
+		}
+		return closest;
+	}
 	private updateCamera(): void {
 		this.renderer.updateCameraPosition(
 			this.hero.position.x,
@@ -1067,7 +1098,7 @@ export class Game {
 			this.hero,
 			this.arena,
 			this.hovered,
-			this.inspected,
+			this.inspected ?? this.aimTarget,
 		);
 		this.renderer.render();
 	}

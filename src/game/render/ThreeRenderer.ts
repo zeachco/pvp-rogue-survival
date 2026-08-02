@@ -13,15 +13,16 @@ import { clamp } from "../types";
 
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 1.8;
-export const DEFAULT_CAMERA_ZOOM = MIN_ZOOM;
+export const DEFAULT_CAMERA_ZOOM = 0.9;
 const ZOOM_SPEED = 0.0012;
 export const MIN_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(8);
 export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(85);
 const TILT_SPEED = 0.0012;
 const ORBIT_TILT_SENSITIVITY = 0.005;
-const DEFAULT_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(40);
-const CAMERA_DISTANCE = 390;
-const CAMERA_LOOK_AHEAD = 95;
+const DEFAULT_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(32);
+const CAMERA_DISTANCE = 330;
+const CAMERA_LOOK_AHEAD = 115;
+const CAMERA_SHOULDER_OFFSET = 24;
 const ORBIT_SENSITIVITY = 0.005;
 const MAP_Z = -0.1;
 const MAP_LAYER_STEP = 0.01;
@@ -159,6 +160,14 @@ export class ThreeRenderer {
 		return cameraFacingAngle(this.yaw);
 	}
 
+	aimAt(
+		source: { x: number; y: number },
+		target: { x: number; y: number },
+	): void {
+		this.yaw = Math.atan2(target.x - source.x, target.y - source.y);
+		this.updateCameraTransform();
+	}
+
 	private updateCameraFrustum(): void {
 		this.camera.aspect = this.width / this.height;
 		this.camera.updateProjectionMatrix();
@@ -177,9 +186,11 @@ export class ThreeRenderer {
 		const offsetDistance = offset.y / this._zoomLevel;
 		const forwardX = sin;
 		const forwardY = cos;
+		const rightX = cos;
+		const rightY = -sin;
 		this.camera.position.set(
-			this.focusX + forwardX * offsetDistance,
-			this.focusY + forwardY * offsetDistance,
+			this.focusX + forwardX * offsetDistance + rightX * CAMERA_SHOULDER_OFFSET,
+			this.focusY + forwardY * offsetDistance + rightY * CAMERA_SHOULDER_OFFSET,
 			offset.z / this._zoomLevel,
 		);
 		this.camera.up.set(0, 0, 1);

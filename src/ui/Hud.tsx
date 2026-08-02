@@ -168,6 +168,14 @@ export class Hud {
 		multiplayer: false,
 	};
 	private readonly realmPanel = (<div class="realm-panel" />) as HTMLElement;
+	private readonly realmLobbyModal = (
+		<section class="realm-lobby-modal is-hidden" aria-label="Enter realm" />
+	) as HTMLElement;
+	private readonly aimReticle = (
+		<div class="aim-reticle is-hidden" aria-hidden="true">
+			<span />
+		</div>
+	) as HTMLElement;
 	private readonly noticeNode = (
 		<div class="notice" role="status" aria-live="polite">
 			Enter a name to join.
@@ -214,17 +222,22 @@ export class Hud {
 	) as HTMLElement;
 	private readonly spellBar = (<section class="spell-bar" />) as HTMLElement;
 	private readonly learnedSkillsBar = (
-		<div class="skill-bar learned-skills-bar" aria-label="Learned skills" />
+		<div class="skill-bar learned-skills-bar" aria-label="Equipped spells" />
 	) as HTMLElement;
 	private readonly learnedSkillsList = (
 		<div class="skill-list" />
 	) as HTMLElement;
-	private readonly gearedSkillsBar = (
-		<div class="skill-bar geared-skills-bar" aria-label="Geared skills" />
+	private readonly spellCatalog = (
+		<section
+			class="spell-catalog is-hidden"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Available spells"
+		/>
 	) as HTMLElement;
-	private readonly gearedSkillsList = (
-		<div class="skill-list" />
-	) as HTMLElement;
+	private selectedCatalogSpell?: SkillId;
+	private spellCatalogSignature = "";
+	private showLearnedSpellsOnly = false;
 	private readonly resourceDock = (
 		<section class="resource-dock" />
 	) as HTMLElement;
@@ -498,7 +511,10 @@ export class Hud {
 					<section class="notification-area">{this.noticeNode}</section>
 				</div>
 				{this.centerToast}
+				{this.aimReticle}
 				{this.spellBar}
+				{this.spellCatalog}
+				{this.realmLobbyModal}
 				<section class="chat-area">
 					{this.chatLog}
 					{this.chatInput}
@@ -881,6 +897,195 @@ export class Hud {
 	setSpells(spells: SpellSlot[]): void {
 		this.currentSpells = spells;
 		this.renderSpellSlots();
+		this.renderSpellCatalog();
+	}
+	setAiming(aiming: boolean): void {
+		this.aimReticle.classList.toggle("is-hidden", !aiming);
+	}
+	toggleSpellCatalog(): void {
+		this.spellCatalog.classList.toggle("is-hidden");
+		if (!this.spellCatalog.classList.contains("is-hidden")) {
+			this.renderSpellCatalog();
+			this.spellCatalog
+				.querySelector<HTMLElement>(".spell-catalog-scroll")
+				?.focus();
+		}
+	}
+	assignHoveredSpell(slot: number): boolean {
+		void slot;
+		return !this.spellCatalog.classList.contains("is-hidden");
+	}
+	private renderSpellCatalog(): void {
+		const available = new Map(
+			this.currentSpells.map((spell) => [spell.id, spell]),
+		);
+		const signature = (Object.keys(SKILLS) as SkillId[])
+			.map((id) => {
+				const spell = available.get(id);
+				return `${id}:${spell?.actualLevel ?? ""}:${Number(Boolean(spell?.passive))}:${Number(Boolean(spell?.active))}:${spell?.shortcut ?? ""}:${this.player?.progress.learnedSkillLevels[id] ?? 0}`;
+			})
+			.join("|");
+		if (signature === this.spellCatalogSignature) return;
+		this.spellCatalogSignature = signature;
+		const previousScrollTop =
+			this.spellCatalog.querySelector<HTMLElement>(".spell-catalog-scroll")
+				?.scrollTop ?? 0;
+		const close = (
+			<button class="spell-catalog-close" type="button">
+				×
+			</button>
+		) as HTMLButtonElement;
+		close.onclick = () => this.spellCatalog.classList.add("is-hidden");
+		const learnedOnly = (
+			<label class="spell-catalog-filter">
+				<input type="checkbox" checked={this.showLearnedSpellsOnly} />
+				<span>Learned only</span>
+			</label>
+		) as HTMLLabelElement;
+		const learnedOnlyInput = learnedOnly.querySelector(
+			"input",
+		) as HTMLInputElement;
+		learnedOnlyInput.onchange = () => {
+			this.showLearnedSpellsOnly = learnedOnlyInput.checked;
+			this.spellCatalog.classList.toggle(
+				"show-learned-only",
+				this.showLearnedSpellsOnly,
+			);
+		};
+		const slots = (
+			<div class="spell-catalog-slots" aria-label="Equipped spell slots" />
+		) as HTMLElement;
+		const equipped = this.currentSpells
+			.filter((spell) => spell.active && !spell.passive && spell.shortcut)
+			.sort((a, b) => (a.shortcut ?? 0) - (b.shortcut ?? 0));
+		for (let slot = 1; slot <= 6; slot += 1) {
+			const occupant = equipped.find((spell) => spell.shortcut === slot);
+			const destination = (
+				<button class="spell-catalog-slot" type="button">
+					<small>{slot}</small>
+					<strong>{occupant?.label ?? "Empty"}</strong>
+				</button>
+			) as HTMLButtonElement;
+			destination.onclick = () => {
+				if (!this.selectedCatalogSpell) return;
+				this.callbacks.onSetSkillEquipped(
+					this.selectedCatalogSpell,
+					true,
+					slot,
+				);
+				this.selectedCatalogSpell = undefined;
+				this.updateCatalogSelection();
+			};
+			slots.append(destination);
+		}
+		const scroll = (
+			<div
+				class="spell-catalog-scroll"
+				tabindex="0"
+				aria-label="Spell catalog entries"
+			/>
+		) as HTMLElement;
+		scroll.addEventListener(
+			"wheel",
+			(event) => {
+				scroll.scrollTop += event.deltaY;
+				event.preventDefault();
+			},
+			{ passive: false },
+		);
+		const sortedIds = (Object.keys(SKILLS) as SkillId[]).sort(
+			(a, b) =>
+				spellCatalogResourceOrder(SKILLS[a].resource) -
+					spellCatalogResourceOrder(SKILLS[b].resource) ||
+				SKILLS[a].label.localeCompare(SKILLS[b].label),
+		);
+		let currentResource: SpellSlot["resource"] | undefined;
+		let grid: HTMLElement | undefined;
+		for (const id of sortedIds) {
+			const spell = available.get(id);
+			const acquired = Boolean(spell);
+			const definition = SKILLS[id];
+			if (definition.resource !== currentResource) {
+				currentResource = definition.resource;
+				grid = (<div class="spell-catalog-grid" />) as HTMLElement;
+				scroll.append(
+					<h3
+						class={`spell-catalog-resource spell-resource-${currentResource}`}
+					>
+						{spellResourceLabel(currentResource)}
+					</h3>,
+					grid,
+				);
+			}
+			const learnedLevel = Math.max(
+				0,
+				this.player?.progress.learnedSkillLevels[id] ?? 0,
+			);
+			const card = (
+				<button
+					class={`spell-catalog-card spell-resource-${definition.resource}${acquired ? "" : " is-locked"}${learnedLevel > 0 ? "" : " is-not-learned"}`}
+					type="button"
+					aria-disabled={String(!acquired)}
+					tabindex={acquired ? "0" : "-1"}
+					data-spell-id={id}
+				>
+					<span class="spell-catalog-card-heading">
+						<strong>{definition.label}</strong>
+						<small>
+							{spell?.passive || definition.passive ? "Passive" : "Active"}
+						</small>
+					</span>
+					<span class="spell-catalog-description">
+						{definition.description}
+					</span>
+					<span class="spell-catalog-levels">
+						<span>
+							Available level <b>{spell?.actualLevel ?? "—"}</b>
+						</span>
+						<span>
+							Max learned <b>{learnedLevel}</b>
+						</span>
+					</span>
+					<small class="spell-catalog-resource-label">
+						Resource: {spellResourceLabel(definition.resource)}
+					</small>
+				</button>
+			) as HTMLButtonElement;
+			if (acquired && !spell?.passive) {
+				card.onclick = () => {
+					this.selectedCatalogSpell = id;
+					this.updateCatalogSelection();
+				};
+			}
+			grid?.append(card);
+		}
+		this.spellCatalog.replaceChildren(
+			<h2>Available Spells</h2>,
+			<p>Tap a spell, then tap one of the six destination slots.</p>,
+			close,
+			learnedOnly,
+			slots,
+			scroll,
+		);
+		scroll.scrollTop = previousScrollTop;
+		this.spellCatalog.classList.toggle(
+			"show-learned-only",
+			this.showLearnedSpellsOnly,
+		);
+		this.updateCatalogSelection();
+	}
+	private updateCatalogSelection(): void {
+		for (const card of this.spellCatalog.querySelectorAll<HTMLElement>(
+			".spell-catalog-card[data-spell-id]",
+		))
+			card.classList.toggle(
+				"is-selected",
+				card.dataset.spellId === this.selectedCatalogSpell,
+			);
+		this.spellCatalog.classList.toggle(
+			"has-selected-spell",
+			Boolean(this.selectedCatalogSpell),
+		);
 	}
 	private previewSpellLevels(skills?: SkillId[]): void {
 		this.spellPreviewProgress = undefined;
@@ -927,7 +1132,9 @@ export class Hud {
 						: ("geared" as const),
 				},
 		);
-		const visible = spells;
+		const visible = spells
+			.filter((spell) => spell.active && !spell.passive)
+			.sort((a, b) => (b.shortcut ?? 0) - (a.shortcut ?? 0));
 		const structure = visible
 			.map(
 				({
@@ -948,27 +1155,25 @@ export class Hud {
 			this.spellStructureSignature = structure;
 			this.spellNodes.clear();
 			this.learnedSkillsList.replaceChildren(
-				...visible
-					.filter((spell) => spell.bar === "learned")
-					.map((spell) => this.renderSpellSlot(spell, preview)),
+				...visible.map((spell) => this.renderSpellSlot(spell, preview)),
 			);
 			this.learnedSkillsBar.replaceChildren(
 				this.learnedSkillsList,
-				<small class="skill-bar-label">Learned</small>,
+				<small class="skill-bar-label">Spells</small>,
+				<button
+					class="spell-catalog-trigger"
+					type="button"
+					aria-label="Open available spells"
+				>
+					...
+				</button>,
 			);
-			this.gearedSkillsList.replaceChildren(
-				...visible
-					.filter((spell) => spell.bar === "geared")
-					.map((spell) => this.renderSpellSlot(spell, preview)),
+			const trigger = this.learnedSkillsBar.querySelector<HTMLButtonElement>(
+				".spell-catalog-trigger",
 			);
-			this.gearedSkillsBar.replaceChildren(
-				this.gearedSkillsList,
-				<small class="skill-bar-label">Geared</small>,
-			);
+			if (trigger) trigger.onclick = () => this.toggleSpellCatalog();
 			this.spellBar.replaceChildren(
-				...(visible.length
-					? [this.learnedSkillsBar, this.gearedSkillsBar]
-					: [<small>No skills</small>]),
+				...(visible.length ? [this.learnedSkillsBar] : [this.learnedSkillsBar]),
 			);
 		}
 		for (const spell of spells) {
@@ -1019,9 +1224,11 @@ export class Hud {
 				{spell.shortcut ? (
 					<span class="spell-shortcut">{spell.shortcut}</span>
 				) : null}
-				{spell.autoFire ? <span class="spell-auto-fire">A</span> : null}
+				{spell.autoFire ? (
+					<span class="spell-auto-fire" aria-label="Auto-fire enabled" />
+				) : null}
 				<strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
-				<small>{formatPreviewValue(levelValue)}</small>
+				<small class="spell-level">{formatPreviewValue(levelValue)}</small>
 				{this.renderSkillTooltip(spell, shownLevel)}
 			</button>
 		) as HTMLButtonElement;
@@ -1964,6 +2171,16 @@ export class Hud {
 		guards.append(...members(r.guards));
 		const attackers = (<span>Attacker: </span>) as HTMLElement;
 		attackers.append(...members(r.attackers));
+		this.realmPanel.classList.toggle("is-hidden", r.mode === "training");
+		this.realmLobbyModal.classList.toggle("is-hidden", r.mode !== "training");
+		if (r.mode === "training") {
+			this.realmLobbyModal.replaceChildren(
+				<h2>Halls of Realms</h2>,
+				<p>Enter matchmaking when you are ready to defend your realm.</p>,
+				action,
+				logout,
+			);
+		}
 		this.realmPanel.replaceChildren(
 			<strong>{title}</strong>,
 			guards,
@@ -1971,8 +2188,7 @@ export class Hud {
 			<span>
 				Queues {r.outgoingQueued} out / {r.incomingQueued} in
 			</span>,
-			action,
-			...(r.mode === "training" ? [logout] : [kill]),
+			...(r.mode === "training" ? [] : [action, kill]),
 		);
 	}
 	private renderAllocation(): void {
@@ -2929,6 +3145,14 @@ function rankedName(name: string, receivesDeathEchoes: boolean): Node {
 }
 function capitalize(value: string): string {
 	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+export function spellCatalogResourceOrder(
+	resource: SpellSlot["resource"],
+): number {
+	return { life: 0, rage: 1, mana: 2 }[resource];
+}
+function spellResourceLabel(resource: SpellSlot["resource"]): string {
+	return resource === "life" ? "HP" : resource === "rage" ? "Rage" : "Mana";
 }
 function fmt(value: number): string {
 	return Number(value.toFixed(2)).toString();

@@ -57,6 +57,10 @@ import { GroundSwamp } from "../GroundSwamp";
 import { SKILLS } from "../../../common/content";
 import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
 
+export function shouldAutoCastHealing(hp: number, maxHp: number): boolean {
+	return maxHp > 0 && hp <= maxHp * 0.3;
+}
+
 export class HeroCombatSystem {
 	private attackCooldown = 0;
 	private attackCooldownMax = 0;
@@ -159,7 +163,9 @@ export class HeroCombatSystem {
 		if (
 			isSkillActive(progress, "healing") &&
 			(autoFire.has("healing") || this.manualSkill === "healing") &&
-			hero.hp < hero.maxHp * (this.manualSkill === "healing" ? 1 : 0.75) &&
+			hero.hp < hero.maxHp &&
+			(this.manualSkill === "healing" ||
+				shouldAutoCastHealing(hero.hp, hero.maxHp)) &&
 			this.healingCooldown === 0 &&
 			healing.restoredHp > 0 &&
 			hero.mana >= healingManaCost

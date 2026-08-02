@@ -211,6 +211,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 		type: z.literal("setSkillEquipped"),
 		skillId: z.string().min(1),
 		equipped: z.boolean(),
+		slot: z.number().int().min(1).max(6).optional(),
 	}),
 	z.object({
 		type: z.literal("toggleSkillAutoFire"),
@@ -280,7 +281,12 @@ export type ClientMessage =
 	| { type: "logout" | "listHeroes" }
 	| { type: "inspectHero"; heroId: string }
 	| { type: "dismissPanelTrigger"; panel: PanelTrigger }
-	| { type: "setSkillEquipped"; skillId: string; equipped: boolean }
+	| {
+			type: "setSkillEquipped";
+			skillId: string;
+			equipped: boolean;
+			slot?: number;
+	  }
 	| { type: "toggleSkillAutoFire"; skillId: string }
 	| {
 			type: "setRarityAction";

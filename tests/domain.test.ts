@@ -135,6 +135,7 @@ import {
 	forceFieldFalloff,
 	forceFieldDamage,
 	isSkillActive,
+	shouldAutoCastHealing,
 	skillHealthRequirementMet,
 } from "../src/game/systems/HeroCombatSystem";
 import { gameSocketUrl } from "../src/net/SocketClient";
@@ -153,6 +154,7 @@ import { extractButtonStatus } from "../src/ui/inventoryAvailability";
 import {
 	effectiveStatRows,
 	passiveSkillMetrics,
+	spellCatalogResourceOrder,
 	statusEffectSummaries,
 	xpSendBuffSummary,
 } from "../src/ui/Hud";
@@ -183,8 +185,8 @@ describe("third-person camera", () => {
 		expect(cameraFacingAngle(Math.PI / 2)).toBeCloseTo(0);
 		expect(cameraFacingAngle(-Math.PI / 2)).toBeCloseTo(Math.PI);
 	});
-	test("starts at the farthest allowed chase distance", () => {
-		expect(DEFAULT_CAMERA_ZOOM).toBe(0.65);
+	test("starts at a close RPG chase distance", () => {
+		expect(DEFAULT_CAMERA_ZOOM).toBe(0.9);
 	});
 	test("places the chase camera behind and above the hero", () => {
 		expect(adjustedCameraTilt(0, 100)).toBe(MIN_CAMERA_TILT_RADIANS);
@@ -216,6 +218,22 @@ describe("third-person camera", () => {
 		expect(strafe.x).toBeCloseTo(0);
 		expect(strafe.y).toBeCloseTo(-1);
 	});
+});
+
+describe("Healing auto-fire", () => {
+	test("waits for thirty percent HP while including the threshold", () => {
+		expect(shouldAutoCastHealing(31, 100)).toBeFalse();
+		expect(shouldAutoCastHealing(30, 100)).toBeTrue();
+		expect(shouldAutoCastHealing(1, 100)).toBeTrue();
+	});
+});
+
+test("sorts the spell catalog by HP, Rage, then Mana", () => {
+	expect(
+		(["mana", "life", "rage"] as const).sort(
+			(a, b) => spellCatalogResourceOrder(a) - spellCatalogResourceOrder(b),
+		),
+	).toEqual(["life", "rage", "mana"]);
 });
 
 describe("hero auto-facing", () => {
