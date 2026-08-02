@@ -214,6 +214,7 @@ export class Game {
 
 	start(): void {
 		this.resize();
+		window.addEventListener("contextmenu", (event) => event.preventDefault());
 		window.addEventListener("resize", () => this.resize());
 		this.resizeObserver = new ResizeObserver(() => this.resize());
 		this.resizeObserver.observe(this.canvas);
@@ -289,9 +290,6 @@ export class Game {
 			this.orbitingCamera = false;
 			this.touchCameraPointerId = undefined;
 		});
-		this.canvas.addEventListener("contextmenu", (event) =>
-			event.preventDefault(),
-		);
 		this.canvas.addEventListener("click", (event) => {
 			if (this.suppressNextClick) {
 				this.suppressNextClick = false;
