@@ -80,6 +80,10 @@ export function cameraRelativeMovement(
 	};
 }
 
+export function cameraFacingAngle(yaw: number): number {
+	return Math.PI / 2 - yaw;
+}
+
 export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
@@ -149,6 +153,10 @@ export class ThreeRenderer {
 
 	movementForCamera(input: { x: number; y: number }): { x: number; y: number } {
 		return cameraRelativeMovement(input, this.yaw);
+	}
+
+	cameraFacing(): number {
+		return cameraFacingAngle(this.yaw);
 	}
 
 	private updateCameraFrustum(): void {

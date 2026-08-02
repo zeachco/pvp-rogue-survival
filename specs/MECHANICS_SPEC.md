@@ -54,6 +54,7 @@ Attacking, winding up an attack, and casting do not reduce movement speed. When 
 ## Hero Control and Targeting
 
 - The hero is controlled with WASD, including equivalent lowercase and uppercase key events.
+- While the right mouse button is held on the arena canvas, the hero immediately faces the camera's horizontal forward direction. This aiming override follows camera yaw continuously and takes priority over movement-facing and automatic closest-creep facing until the button is released, so every directional attack and spell resolves along the camera aim.
 - While moving, the hero turns along the shortest angular path toward its current movement-velocity vector at a maximum of 300 degrees per second. While stationary, it begins turning toward the closest living creep at that same bounded rate only when at least one enabled spell is off cooldown, affordable, and in range of that creep. A basic attack by itself does not cause stationary auto-facing.
 - Every directional hero weapon attack and spell emits along the hero's current facing at resolution time. Closest-creep selection still controls automatic eligibility and range, but never silently redirects an attack, projectile, boomerang, or ground-targeted cast toward that creep. Self-centered and radial skills remain centered on the hero.
 - The equipped weapon attacks the closest creep automatically when cooldown, resource, target, range, and health conditions allow.

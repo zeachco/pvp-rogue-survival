@@ -565,6 +565,7 @@ export class Game {
 			this.player.progress,
 			this.balance,
 			systemRandom,
+			this.orbitingCamera ? this.renderer.cameraFacing() : undefined,
 		);
 		this.auraSystem.update(
 			deltaSeconds,

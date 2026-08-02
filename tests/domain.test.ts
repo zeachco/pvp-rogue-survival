@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	adjustedCameraTilt,
 	adjustedCameraTiltFromDrag,
+	cameraFacingAngle,
 	cameraRelativeMovement,
 	cameraOffsetForTilt,
 	DEFAULT_CAMERA_ZOOM,
@@ -175,6 +176,11 @@ function progress(): PlayerProgress {
 let id = 0;
 
 describe("third-person camera", () => {
+	test("uses camera forward as the right-button aiming direction", () => {
+		expect(cameraFacingAngle(0)).toBeCloseTo(Math.PI / 2);
+		expect(cameraFacingAngle(Math.PI / 2)).toBeCloseTo(0);
+		expect(cameraFacingAngle(-Math.PI / 2)).toBeCloseTo(Math.PI);
+	});
 	test("starts at the farthest allowed chase distance", () => {
 		expect(DEFAULT_CAMERA_ZOOM).toBe(0.65);
 	});

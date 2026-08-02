@@ -92,6 +92,7 @@ export class HeroCombatSystem {
 		progress: PlayerProgress,
 		balance: BalanceConfig,
 		random: RandomSource,
+		aimFacing?: number,
 	): void {
 		this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds);
 		this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds);
@@ -204,7 +205,8 @@ export class HeroCombatSystem {
 		}
 		const target = closestTarget(hero, state.creeps);
 		const movementSpeed = Math.hypot(hero.velocity.x, hero.velocity.y);
-		if (movementSpeed > 0.01)
+		if (aimFacing !== undefined) hero.facing = aimFacing;
+		else if (movementSpeed > 0.01)
 			hero.turnTowards(
 				Math.atan2(hero.velocity.y, hero.velocity.x),
 				deltaSeconds,
@@ -261,7 +263,7 @@ export class HeroCombatSystem {
 			: undefined;
 		if (this.casting && !castingCandidate) this.casting = undefined;
 		const candidate = castingCandidate ?? rotatedSkills.find(usable);
-		if (movementSpeed <= 0.01 && candidate)
+		if (aimFacing === undefined && movementSpeed <= 0.01 && candidate)
 			hero.turnTowards(
 				Math.atan2(
 					target.position.y - hero.position.y,
