@@ -496,11 +496,11 @@ describe("arena systems", () => {
 			learnedSkillLevels: {},
 			universalSkills: [],
 		};
-		expect(combat.onKill(progress, hero)).toBe(1);
-		expect(internal.attackCooldown).toBe(4);
-		expect(internal.healingCooldown).toBe(2);
-		expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1);
-		expect(hero.blockCooldown).toBe(3);
+		expect(combat.onKill(progress, hero)).toBe(0.25);
+		expect(internal.attackCooldown).toBe(4.75);
+		expect(internal.healingCooldown).toBe(2.75);
+		expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1.75);
+		expect(hero.blockCooldown).toBe(3.75);
 	});
 	test("restores stacked requirement-adjusted accessory resources on kill", () => {
 		const hero = new Hero({ x: 0, y: 0 });
@@ -593,8 +593,8 @@ describe("arena systems", () => {
 		});
 		const hp = target.hp;
 		target.updateResources(1, { next: () => 0 });
-		expect(source.mana).toBeCloseTo(12);
-		expect(target.hp).toBeCloseTo(hp - 20 - 6 + 0.005);
+		expect(source.mana).toBeCloseTo(4.25);
+		expect(target.hp).toBeCloseTo(hp - 17 - 2.125 + 0.005);
 	});
 	test("Spirit Wounds does nothing for non-critical damage", () => {
 		const source = new Hero({ x: 0, y: 0 });
@@ -1702,7 +1702,7 @@ describe("arena systems", () => {
 		hero.skillLevels.set("penance", 99);
 		let rolls = [1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
-		expect(hero.mana).toBeGreaterThan(59);
+		expect(hero.mana).toBeGreaterThan(29);
 		expect(hero.mana).toBeLessThan(60);
 	});
 

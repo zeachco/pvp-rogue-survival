@@ -140,7 +140,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 105,
 		resource: "rage",
 		description:
-			"A heavy full-circle strike that always stuns for 1.1 seconds, with cooldown scaling from 5s to 1s between levels 1 and 99.",
+			"A heavy full-circle strike that always stuns for 1.1 seconds, with cooldown scaling from 6s to 3s between levels 1 and 99.",
 	},
 	sweep: {
 		id: "sweep",
@@ -186,12 +186,12 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "whirlwind",
 		label: "Whirlwind",
 		damageMultiplier: 0,
-		cooldown: 12,
+		cooldown: 18,
 		range: 90,
 		resource: "rage",
 		cost: 3,
 		description:
-			"Spinning edges follow the hero for 3–30 seconds; movement scales from 0.5× to 1.5× speed and pulses deal Strength-scaled physical damage.",
+			"Spinning edges follow the hero for 3–12 seconds; movement scales from 0.5× to 1.5× speed and pulses deal Strength-scaled physical damage.",
 	},
 	rendingThrow: {
 		id: "rendingThrow",
@@ -217,9 +217,10 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "orbitingHammers",
 		label: "Orbiting Hammers",
 		damageMultiplier: 0.85,
-		cooldown: 4.5,
+		cooldown: 12,
 		range: 240,
 		resource: "mana",
+		cost: 6,
 		description:
 			"Launches three drifting magical hammers that spiral outward, persist through impacts, and hit each enemy at most once.",
 	},
@@ -273,7 +274,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		upkeep: { resource: "rage", perLevelPerSecond: 0.002 },
 		description:
-			"Sustains its vigil with Rage. After a successful buckler block, restores Mana equal to blocked damage × Spirit × level conversion (1% at level 1, up to 60% at level 99). Cannot exceed maximum Mana.",
+			"Sustains its vigil with Rage. After a successful buckler block, restores Mana equal to blocked damage × Spirit × level conversion (1% at level 1, up to 30% at level 99). Cannot exceed maximum Mana.",
 	},
 	thorns: {
 		id: "thorns",
@@ -419,7 +420,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		upkeep: { resource: "mana", perLevelPerSecond: 0.01 },
 		description:
-			"Burns every nearby foe; Spirit accelerates pulses and Intelligence raises damage.",
+			"Burns every nearby foe; Spirit controls cadence and Magic raises damage.",
 	},
 	thunderAura: {
 		id: "thunderAura",
@@ -441,7 +442,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		upkeep: { resource: "mana", perLevelPerSecond: 0.002 },
 		description:
-			"After each enemy kill, reduces every hero cooldown by 1 to 10 seconds based on skill level.",
+			"After each enemy kill, reduces every hero cooldown by 0.25 to 2 seconds based on skill level.",
 	},
 };
 

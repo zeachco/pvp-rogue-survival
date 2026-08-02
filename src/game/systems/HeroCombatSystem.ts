@@ -195,7 +195,7 @@ export class HeroCombatSystem {
 				skillCooldown("rapidRegen", item, effectiveStats) *
 				cooldownScale(
 					rapidRegenLevel,
-					Math.min(0.8, derived.cooldownReduction + equipmentCooldown),
+					Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
 				);
 			this.skillCooldowns.set("rapidRegen", {
 				remaining: duration,
@@ -566,7 +566,7 @@ export class HeroCombatSystem {
 					: skillCooldown(activeSkill.id, item, effectiveStats) *
 						cooldownScale(
 							activeSkill.level,
-							Math.min(0.8, derived.cooldownReduction + equipmentCooldown),
+							Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
 						);
 			this.skillCooldowns.set(activeSkill.id, {
 				remaining: duration,

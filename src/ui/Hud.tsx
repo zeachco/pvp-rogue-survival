@@ -56,6 +56,7 @@ import {
 	cooldownScale,
 	healingCooldown,
 	manaConversionFraction,
+	spiritWoundsConversionFraction,
 	orbitingHammerDuration,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
@@ -2358,7 +2359,7 @@ export function effectiveStatRows(
 			"Cooldown reduction",
 			percent(
 				Math.min(
-					0.8,
+					0.6,
 					derived.cooldownReduction +
 						itemCooldownReduction(off) *
 							(off ? itemRequirementMultiplier(off, stats) : 1),
@@ -2735,14 +2736,20 @@ export function passiveSkillMetrics(
 						pixelsToMeters(35 * attractionSpeedMultiplier(level)),
 					)} m/s`,
 				},
-				{ label: "Magic find", value: `+${fmt(level)}%` },
-				{ label: "Gold find", value: `+${fmt(level)}%` },
+				{
+					label: "Magic find",
+					value: `+${fmt(attractionFindBonus(level) * 100)}%`,
+				},
+				{
+					label: "Gold find",
+					value: `+${fmt(attractionFindBonus(level) * 100)}%`,
+				},
 			];
 		case "manaDrain":
 			return [
 				{
 					label: "Mana + Cold",
-					value: `${fmt(manaConversionFraction(level) * 100)}% crit damage`,
+					value: `${fmt(spiritWoundsConversionFraction(level) * 100)}% crit damage`,
 				},
 			];
 		case "penance":
@@ -2753,7 +2760,7 @@ export function passiveSkillMetrics(
 				},
 			];
 		case "blocking":
-			return [{ label: "Base block chance", value: `+${fmt(level)}%` }];
+			return [{ label: "Base block chance", value: `+${fmt(level * 0.5)}%` }];
 		case "thorns":
 			return [{ label: "Damage returned", value: "5%" }];
 		case "voodoo":
@@ -2794,7 +2801,7 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Damage / pulse",
-					value: `${fmt(sunburnFraction(effectiveStats.intelligence) * 100)}% enemy HP`,
+					value: `${fmt(sunburnFraction(effectiveStats.magic) * 100)}% enemy HP`,
 				},
 				{
 					label: "Pulse interval",
@@ -2806,7 +2813,7 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Lightning damage",
-					value: fmt(thunderDamage(effectiveStats.intelligence)),
+					value: fmt(thunderDamage(effectiveStats.magic)),
 				},
 				{ label: "Pulse interval", value: `${fmt(thunderInterval(level))}s` },
 				radius(),

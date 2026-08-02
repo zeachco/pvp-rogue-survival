@@ -35,6 +35,7 @@ import {
 	cleaveHalfArc,
 	cleaveCooldown,
 	cleaveRange,
+	cooldownScale,
 	forceFieldRange,
 	flurryCooldown,
 	HEALING_MAX_RADIUS,
@@ -490,6 +491,20 @@ test("derives health from Strength and mana from Intelligence", () => {
 	expect(advanced.maxHp).toBe(13);
 	expect(advanced.maxMana).toBe(9);
 	expect(derivedStats({ ...ZERO_STATS, spirit: 10 }).rageRegen).toBe(0.3);
+});
+
+test("keeps attribute roles distinct and caps critical and cooldown scaling", () => {
+	const stats = derivedStats({
+		agility: 100,
+		strength: 0,
+		magic: 20,
+		spirit: 0,
+		intelligence: 100,
+	});
+	expect(stats.critChance).toBe(0.5);
+	expect(stats.critMultiplier).toBe(3.5);
+	expect(stats.cooldownReduction).toBe(0.4);
+	expect(stats.magicAmp).toBe(1.5);
 });
 describe("XP curve", () => {
 	test("uses a quadratic cumulative curve with a 15 XP first level", () => {
@@ -1021,8 +1036,8 @@ describe("amulets and charms", () => {
 		).find((item) => item.skills.includes("timeHarvest"))!;
 		expect(amulet.skills).toContain("timeHarvest");
 		expect(extractableSkills(amulet)).toContain("timeHarvest");
-		expect(timeHarvestCooldownReduction(1)).toBe(1);
-		expect(timeHarvestCooldownReduction(99)).toBe(10);
+		expect(timeHarvestCooldownReduction(1)).toBe(0.25);
+		expect(timeHarvestCooldownReduction(99)).toBe(2);
 		expect(timeHarvestItemSkillBonus(0)).toBe(0);
 		expect(timeHarvestItemSkillBonus(50)).toBe(99);
 		const state = progress();
@@ -1119,7 +1134,7 @@ test("adds Healing to high-rarity maces and permits permanent Healing upgrades",
 	expect(state.learnedSkillLevels.healing).toBe(2);
 	expect(state.universalSkills).toContain("healing");
 });
-test("extracts Blocking and adds one base block percentage point per effective level", () => {
+test("extracts Blocking and adds half a base block percentage point per effective level", () => {
 	const state = progress();
 	const buckler = generateBuckler(1, "common", 12);
 	state.inventoryTiles.push({
@@ -1139,7 +1154,7 @@ test("extracts Blocking and adds one base block percentage point per effective l
 	expect(
 		bucklerBlockChance(buckler, ZERO_STATS, 3) -
 			bucklerBlockChance(buckler, ZERO_STATS, 0),
-	).toBeCloseTo(0.03);
+	).toBeCloseTo(0.015);
 });
 describe("spell resources", () => {
 	test("registers Rent as life and buckler blocking as rage", () => {
@@ -1296,12 +1311,12 @@ describe("spell tooltip damage previews", () => {
 			detail: "target HP",
 		});
 		expect(
-			skillDamagePreview("sunburnAura", 1, { ...ZERO_STATS, intelligence: 100 })
+			skillDamagePreview("sunburnAura", 1, { ...ZERO_STATS, magic: 100 })
 				?.value,
-		).toBeCloseTo(0.1);
+		).toBeCloseTo(0.02);
 		expect(
-			skillDamagePreview("thunderAura", 1, { ...ZERO_STATS, intelligence: 10 }),
-		).toEqual({ kind: "flat", value: 9, detail: "lightning" });
+			skillDamagePreview("thunderAura", 1, { ...ZERO_STATS, magic: 10 }),
+		).toEqual({ kind: "flat", value: 6.5, detail: "lightning" });
 		expect(skillDamagePreview("healing", 1, ZERO_STATS)).toBeUndefined();
 	});
 });
@@ -1420,11 +1435,11 @@ describe("aura equipment", () => {
 		expect(auraRadius(100, 20)).toBe(600);
 		expect(auraSlowMultiplier(1)).toBeCloseTo(0.8);
 		expect(auraSlowMultiplier(99)).toBeCloseTo(0.5);
-		expect(sunburnInterval(100)).toBe(0.5);
-		expect(sunburnFraction(100)).toBeCloseTo(0.1);
+		expect(sunburnInterval(100)).toBe(2);
+		expect(sunburnFraction(100)).toBeCloseTo(0.02);
 		expect(thunderInterval(1)).toBe(10);
-		expect(thunderInterval(99)).toBe(1);
-		expect(thunderDamage(10)).toBe(9);
+		expect(thunderInterval(99)).toBe(3);
+		expect(thunderDamage(10)).toBe(6.5);
 		expect(thunderCritChance(0.2)).toBeCloseTo(0.3);
 	});
 });
@@ -1447,9 +1462,9 @@ test("adds extractable Whirlwind to high-rarity axes and scales its field", () =
 	expect(whirlwindRadius(1)).toBeCloseTo(91.2);
 	expect(whirlwindRadius(99)).toBe(208.8);
 	expect(whirlwindDuration(1)).toBe(3);
-	expect(whirlwindDuration(99)).toBe(30);
+	expect(whirlwindDuration(99)).toBe(12);
 	expect(orbitingHammerDuration(1)).toBe(2.4);
-	expect(orbitingHammerDuration(99)).toBe(30);
+	expect(orbitingHammerDuration(99)).toBe(10);
 	expect(whirlwindMovementSpeed(1)).toBe(0.5);
 	expect(whirlwindMovementSpeed(99)).toBe(1.5);
 	expect(whirlwindDamage(20)).toBe(9);
@@ -1645,22 +1660,22 @@ test("scales Flurry cooldown directly from six to three seconds", () => {
 	expect(skillCooldown("flurry", dagger, boosted, 1)).toBe(6);
 	expect(skillCooldown("flurry", dagger, boosted, 99)).toBe(3);
 });
-test("scales Bash cooldown directly from five to one second", () => {
-	expect(bashCooldown(1)).toBe(5);
-	expect(bashCooldown(50)).toBe(3);
-	expect(bashCooldown(99)).toBe(1);
+test("scales Bash cooldown directly from six to three seconds", () => {
+	expect(bashCooldown(1)).toBe(6);
+	expect(bashCooldown(50)).toBe(4.5);
+	expect(bashCooldown(99)).toBe(3);
 	const club = generateItem(50, "epic", 37, { allowedClasses: ["club"] });
 	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
-	expect(skillCooldown("bash", club, boosted, 1)).toBe(5);
-	expect(skillCooldown("bash", club, boosted, 99)).toBe(1);
+	expect(skillCooldown("bash", club, boosted, 1)).toBe(6);
+	expect(skillCooldown("bash", club, boosted, 99)).toBe(3);
 });
 describe("Healing scaling", () => {
 	test("scales healing and charges a level base plus mana per HP restored", () => {
 		expect(healingFraction(1)).toBeCloseTo(0.2);
 		expect(healingFraction(99)).toBeCloseTo(0.9);
 		expect(healingFraction(100)).toBeCloseTo(0.9);
-		expect(healingCooldown(1)).toBeCloseTo(15);
-		expect(healingCooldown(99)).toBeCloseTo(1);
+		expect(healingCooldown(1)).toBeCloseTo(18);
+		expect(healingCooldown(99)).toBeCloseTo(6);
 		expect(healingRadius(1)).toBe(150);
 		expect(healingRadius(99)).toBe(600);
 		expect(healingBaseManaCost(1)).toBe(7);
@@ -1682,15 +1697,16 @@ describe("Healing scaling", () => {
 		});
 	});
 });
-test("divides spell cooldown by Intelligence plus Agility with a safe floor", () => {
+test("does not divide base cooldown by Intelligence plus Agility", () => {
 	expect(
 		skillCooldown("fireBreath", starterClub(), {
 			...ZERO_STATS,
 			intelligence: 2,
 			agility: 3,
 		}),
-	).toBeCloseTo(9 / 5);
+	).toBeCloseTo(9);
 	expect(skillCooldown("fireBreath", starterClub(), ZERO_STATS)).toBe(9);
+	expect(cooldownScale(99, 1)).toBe(0.4);
 });
 test("registers configurable Spirit relic perks", () => {
 	expect(SKILLS.fireBreath).toMatchObject({ enemyEligible: true, cost: 4 });
@@ -1702,7 +1718,7 @@ test("registers configurable Spirit relic perks", () => {
 		"Critical damage from attacks, spells, projectiles, auras, reflection, statuses, and continuous effects",
 	);
 	expect(passiveSkillMetrics("manaDrain", 9, ZERO_STATS)).toEqual([
-		{ label: "Mana + Cold", value: "5.82% crit damage" },
+		{ label: "Mana + Cold", value: "2.96% crit damage" },
 	]);
 	expect(SKILLS.penance.passive).toBeTrue();
 	expect(SKILLS.thorns.passive).toBeTrue();
@@ -1710,10 +1726,10 @@ test("registers configurable Spirit relic perks", () => {
 		"blocked damage × Spirit × level conversion",
 	);
 	expect(passiveSkillMetrics("penance", 9, ZERO_STATS)).toEqual([
-		{ label: "Conversion", value: "5.82%" },
+		{ label: "Conversion", value: "3.37%" },
 	]);
 	expect(passiveSkillMetrics("timeHarvest", 99, ZERO_STATS)).toEqual([
-		{ label: "Cooldown removal", value: "10s / kill" },
+		{ label: "Cooldown removal", value: "2s / kill" },
 	]);
 	expect(SKILLS.rapidRegen).toMatchObject({ cost: 4, cooldown: 20 });
 	expect(rapidRegenDuration(1)).toBe(10);
@@ -1721,7 +1737,7 @@ test("registers configurable Spirit relic perks", () => {
 	expect(rapidRegenMultiplier(1)).toBeCloseTo(1.2);
 	expect(rapidRegenMultiplier(99)).toBe(5);
 	expect(manaConversionFraction(1)).toBeCloseTo(0.01);
-	expect(manaConversionFraction(99)).toBeCloseTo(0.6);
+	expect(manaConversionFraction(99)).toBeCloseTo(0.3);
 	const perks = Array.from(
 		{ length: 100 },
 		(_, seed) => generateRelic(3, "rare", seed).skills,

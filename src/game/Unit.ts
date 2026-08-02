@@ -19,6 +19,7 @@ import {
 	bucklerBlockCost,
 	cooldownScale,
 	manaConversionFraction,
+	spiritWoundsConversionFraction,
 	skillCooldown,
 	skillUpkeepPerSecond,
 	weaponAttackSpeed,
@@ -261,7 +262,7 @@ export abstract class Unit extends GameObject {
 			this.reflectiveSurgeRemaining = 6;
 			const derived = derivedStats(this.stats);
 			const reduction = Math.min(
-				0.8,
+				0.6,
 				derived.cooldownReduction +
 					itemCooldownReduction(this.offHand, this.amulet, this.charm),
 			);
@@ -309,7 +310,9 @@ export abstract class Unit extends GameObject {
 		) {
 			const spiritDamage =
 				damageDealt *
-				manaConversionFraction(source.skillLevels.get("manaDrain") ?? 1);
+				spiritWoundsConversionFraction(
+					source.skillLevels.get("manaDrain") ?? 1,
+				);
 			source.restoreMana(spiritDamage);
 			if (this.active && spiritDamage > 0)
 				this.receiveDamage(spiritDamage, random, source, false, false, {

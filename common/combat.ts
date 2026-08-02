@@ -184,7 +184,7 @@ export function bucklerBlockChance(
 	return item?.itemKind === "buckler"
 		? Math.min(
 				1,
-				0.01 * Math.max(0, blockingLevel) +
+				0.005 * Math.max(0, blockingLevel) +
 					(item.blockChance + 0.005 * (stats.strength + stats.agility)) *
 						itemRequirementMultiplier(item, stats),
 			)
@@ -235,13 +235,13 @@ export function skillDamagePreview(
 		case "sunburnAura":
 			return {
 				kind: "percentage",
-				value: sunburnFraction(stats.intelligence),
+				value: sunburnFraction(stats.magic),
 				detail: "target HP / pulse",
 			};
 		case "thunderAura":
 			return {
 				kind: "flat",
-				value: thunderDamage(stats.intelligence),
+				value: thunderDamage(stats.magic),
 				detail: "lightning",
 			};
 	}
@@ -250,7 +250,7 @@ export function skillDamagePreview(
 export function skillCooldown(
 	skill: SkillId,
 	item?: ItemInstance,
-	stats?: Stats,
+	_stats?: Stats,
 	level = 1,
 ): number {
 	if (skill === "swamp") return swampCooldown(level);
@@ -258,15 +258,11 @@ export function skillCooldown(
 	if (skill === "cleave") return cleaveCooldown(level);
 	if (skill === "flurry") return flurryCooldown(level);
 	const base = SKILLS[skill].cooldown;
-	return (
-		base /
-		Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) /
-		weaponSkillLevelScale(item?.level ?? 0)
-	);
+	return base / weaponSkillLevelScale(item?.level ?? 0);
 }
 
 export function bashCooldown(level: number): number {
-	return 5 - (4 * (cappedSkillLevel(level) - 1)) / 98;
+	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 
 export function cleaveCooldown(level: number): number {
@@ -314,9 +310,9 @@ export function spellPower(level: number): number {
 }
 export function cooldownScale(level: number, reduction: number): number {
 	return Math.max(
-		0.2,
-		(1 - Math.min(0.8, reduction)) *
-			(1 - Math.min(0.5, Math.max(0, level - 1) * 0.04)),
+		0.4,
+		(1 - Math.min(0.6, reduction)) *
+			(1 - Math.min(0.25, Math.max(0, level - 1) * 0.0025)),
 	);
 }
 export const MAX_SKILL_LEVEL = 99;
@@ -339,7 +335,10 @@ export function forceFieldRange(level: number): number {
 	return 200 + (cappedSkillLevel(level) - 1) * (600 / 98);
 }
 export function manaConversionFraction(level: number): number {
-	return 0.01 + (cappedSkillLevel(level) - 1) * (0.59 / 98);
+	return 0.01 + (cappedSkillLevel(level) - 1) * (0.29 / 98);
+}
+export function spiritWoundsConversionFraction(level: number): number {
+	return 0.01 + (cappedSkillLevel(level) - 1) * (0.24 / 98);
 }
 export function vampiricBoomerangHealingFraction(level: number): number {
 	return 0.01 + (cappedSkillLevel(level) - 1) * (0.79 / 98);
@@ -348,10 +347,10 @@ export function whirlwindRadius(level: number): number {
 	return 90 + 1.2 * cappedSkillLevel(level);
 }
 export function whirlwindDuration(level: number): number {
-	return 3 + ((cappedSkillLevel(level) - 1) / 98) * 27;
+	return 3 + ((cappedSkillLevel(level) - 1) / 98) * 9;
 }
 export function orbitingHammerDuration(level: number): number {
-	return 2.4 + ((cappedSkillLevel(level) - 1) / 98) * 27.6;
+	return 2.4 + ((cappedSkillLevel(level) - 1) / 98) * 7.6;
 }
 export function whirlwindMovementSpeed(level: number): number {
 	return 0.5 + (cappedSkillLevel(level) - 1) / 98;
@@ -375,19 +374,19 @@ export function healingFraction(level: number): number {
 	return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 98);
 }
 export function healingCooldown(level: number): number {
-	return 15 - (cappedSkillLevel(level) - 1) * (14 / 98);
+	return 18 - (cappedSkillLevel(level) - 1) * (12 / 98);
 }
 export function attractionSpeedMultiplier(level: number): number {
 	return 1 + (cappedSkillLevel(level) - 1) * (3 / 98);
 }
 export function attractionFindBonus(level: number): number {
-	return level > 0 ? cappedSkillLevel(level) * 0.01 : 0;
+	return level > 0 ? cappedSkillLevel(level) * 0.0025 : 0;
 }
 export function timeHarvestItemSkillBonus(itemLevel: number): number {
 	return Math.floor((Math.max(0, Math.min(50, itemLevel)) * 99) / 50);
 }
 export function timeHarvestCooldownReduction(level: number): number {
-	return 1 + (cappedSkillLevel(level) - 1) * (9 / 98);
+	return 0.25 + (cappedSkillLevel(level) - 1) * (1.75 / 98);
 }
 export const SKILL_BASE_CAST_TIME: Readonly<Partial<Record<SkillId, number>>> =
 	{
@@ -490,13 +489,11 @@ export function skillStatBonusDescription(skill: SkillId): string | undefined {
 			bonuses.push("Skill level increases cooldown removal per kill");
 			break;
 		case "sunburnAura":
-			bonuses.push(
-				"Intelligence increases damage; Spirit shortens pulse interval",
-			);
+			bonuses.push("Magic increases damage; Spirit shortens pulse interval");
 			break;
 		case "thunderAura":
 			bonuses.push(
-				"Intelligence increases lightning damage; Agility increases critical chance",
+				"Magic increases lightning damage; Agility increases critical chance",
 			);
 			break;
 		case "slowAura":
