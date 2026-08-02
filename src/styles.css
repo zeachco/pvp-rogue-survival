@@ -1,6 +1,7 @@
 :root {
 	--character-panel-width: 320px;
 	--inventory-panel-width: 640px;
+	--ground-item-preview-gap: 6px;
 	--build-panel-width: calc(
 		var(--character-panel-width) +
 		var(--inventory-panel-width)
@@ -42,16 +43,44 @@ input {
 	position: fixed;
 	z-index: 30;
 	top: 16px;
-	right: 16px;
+	right: calc(var(--inventory-panel-width) + var(--ground-item-preview-gap));
 	width: min(320px, calc(100vw - 32px));
 	max-height: calc(100vh - 32px);
 	overflow: hidden;
 	pointer-events: none;
+	transition: right 160ms ease;
 }
 
 .item-hover-card-copy {
 	width: 100%;
 	box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65);
+}
+
+.ground-resource-card {
+	display: grid;
+	gap: 10px;
+	border: 1px solid rgba(var(--rarity-rgb, 116, 133, 138), 0.9);
+	border-left-width: 4px;
+	padding: 12px;
+	background: rgba(8, 14, 17, 0.94);
+	box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65);
+}
+
+.ground-resource-card.is-gold {
+	--rarity-rgb: 240, 206, 114;
+	border-color: #f0ce72;
+}
+
+.ground-resource-card > span {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.ground-resource-card small {
+	color: #9fb8bf;
+	text-transform: uppercase;
 }
 
 #hud {

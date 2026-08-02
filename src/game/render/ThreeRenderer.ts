@@ -164,11 +164,12 @@ export class ThreeRenderer {
 		this.camera.updateMatrixWorld();
 	}
 
-	eventWorld(event: MouseEvent): { x: number; y: number } {
+	eventWorld(event: MouseEvent, worldZ = 0): { x: number; y: number } {
 		const rect = this.canvas.getBoundingClientRect();
 		const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
 		const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 		this.pointerRay.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+		this.arenaPlane.constant = -worldZ;
 		const hit = this.pointerRay.ray.intersectPlane(
 			this.arenaPlane,
 			new THREE.Vector3(),

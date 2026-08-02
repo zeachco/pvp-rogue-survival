@@ -5,6 +5,8 @@ import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
 import { Z_DROP } from "./render/ThreeRenderer";
 
+export const GROUND_RESOURCE_PRESENTATION_HEIGHT = 50;
+
 export class ItemDrop extends GameObject {
 	readonly radius = 14;
 	enteredArena = false;
@@ -127,7 +129,11 @@ export class ItemDrop extends GameObject {
 
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
-		this.mesh.position.set(this.position.x, this.position.y, 0);
+		this.mesh.position.set(
+			this.position.x,
+			this.position.y,
+			this.drop.kind === "item" ? 0 : GROUND_RESOURCE_PRESENTATION_HEIGHT,
+		);
 		if (this.glowMesh) {
 			const pulse = 0.3 + Math.sin(time * 3) * 0.1;
 			(this.glowMesh.material as THREE.MeshBasicMaterial).opacity = pulse;

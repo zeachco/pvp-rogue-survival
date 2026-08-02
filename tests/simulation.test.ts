@@ -23,7 +23,11 @@ import {
 	SpellEffect,
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
-import { dropRarityColor, ItemDrop } from "../src/game/ItemDrop";
+import {
+	dropRarityColor,
+	GROUND_RESOURCE_PRESENTATION_HEIGHT,
+	ItemDrop,
+} from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
 import {
 	HEALING_MAX_RADIUS,
@@ -1197,6 +1201,24 @@ describe("arena systems", () => {
 		expect(
 			scrap.mesh.children.some((child) => child.type === "LineSegments"),
 		).toBeTrue();
+	});
+	test("lifts Gold and Scrap one meter without lifting equipment", () => {
+		const drops = [
+			new ItemDrop({ id: "gold", kind: "gold", amount: 2 }, { x: 1, y: 2 }),
+			new ItemDrop(
+				{ id: "scrap", kind: "scrap", rarity: "rare", amount: 3 },
+				{ x: 1, y: 2 },
+			),
+			new ItemDrop(
+				{ id: "item", kind: "item", item: starterClub() },
+				{ x: 1, y: 2 },
+			),
+		];
+		for (const drop of drops) drop.updateVisuals(0);
+		expect(GROUND_RESOURCE_PRESENTATION_HEIGHT).toBe(50);
+		expect(drops[0].mesh.position.z).toBe(50);
+		expect(drops[1].mesh.position.z).toBe(50);
+		expect(drops[2].mesh.position.z).toBe(0);
 	});
 	test("billboards complete pickup presentations toward the camera", () => {
 		const cameraRotation = new THREE.Quaternion().setFromEuler(

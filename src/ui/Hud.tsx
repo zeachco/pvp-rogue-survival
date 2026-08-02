@@ -26,6 +26,7 @@ import {
 } from "../../common/progression";
 import type {
 	HeroSummary,
+	GroundDrop,
 	PanelTriggers,
 	PlayerProgress,
 	PublicHeroProfile,
@@ -122,6 +123,14 @@ export function panelShortcut(
 	if (key.toLowerCase() === "c") return "character";
 	if (["i", "v"].includes(key.toLowerCase())) return "inventory";
 	return undefined;
+}
+
+export function panelToggleTooltip(
+	kind: "character" | "inventory",
+	collapsed: boolean,
+): string {
+	const action = collapsed ? "Expand" : "Collapse";
+	return `${action} ${kind === "character" ? "character sheet (C)" : "inventory (V)"}`;
 }
 
 export class Hud {
@@ -352,6 +361,7 @@ export class Hud {
 				class="panel-toggle"
 				type="button"
 				aria-label="Collapse character sheet"
+				title={panelToggleTooltip("character", false)}
 				aria-expanded="true"
 			>
 				‹
@@ -362,6 +372,7 @@ export class Hud {
 				class="panel-toggle"
 				type="button"
 				aria-label="Collapse inventory"
+				title={panelToggleTooltip("inventory", false)}
 				aria-expanded="true"
 			>
 				›
@@ -701,7 +712,7 @@ export class Hud {
 		this.inspected = undefined;
 		this.committedInspection = undefined;
 		this.characterCollapsedBeforeInspection = undefined;
-		this.setGroundItemPreview();
+		this.setGroundDropPreview();
 		this.staticProgress = undefined;
 		this.dynamicSignature = "";
 		this.updateVisibility();
@@ -772,10 +783,30 @@ export class Hud {
 	focusChat(): void {
 		this.chatInput.focus();
 	}
-	setGroundItemPreview(item?: ItemInstance): void {
+	setGroundDropPreview(drop?: GroundDrop): void {
 		this.itemHoverCard.replaceChildren();
-		this.itemHoverCard.classList.toggle("is-hidden", !item || !this.player);
-		if (!item || !this.player) return;
+		this.itemHoverCard.classList.toggle("is-hidden", !drop || !this.player);
+		if (!drop || !this.player) return;
+		if (drop.kind !== "item") {
+			const label =
+				drop.kind === "gold"
+					? "Gold"
+					: `${drop.rarity[0].toUpperCase()}${drop.rarity.slice(1)} Scrap`;
+			const card = (
+				<div
+					class={`ground-resource-card ${drop.kind === "gold" ? "is-gold" : `rarity-${drop.rarity}`}`}
+				>
+					<strong>{label}</strong>
+					<span>
+						<small>Quantity</small>
+						<b>{drop.amount}</b>
+					</span>
+				</div>
+			) as HTMLElement;
+			this.itemHoverCard.append(card);
+			return;
+		}
+		const item = drop.item;
 		const card = itemTile(
 			{
 				id: `ground-${item.seed}`,
@@ -2138,6 +2169,7 @@ export class Hud {
 			"aria-label",
 			`${collapsed ? "Expand" : "Collapse"} ${kind === "character" ? "character sheet" : "inventory"}`,
 		);
+		toggle.title = panelToggleTooltip(kind, collapsed);
 		document.documentElement.style.setProperty(
 			kind === "character"
 				? "--character-panel-width"
@@ -2859,7 +2891,7 @@ function capitalize(value: string): string {
 	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }
 function fmt(value: number): string {
-	return Number(value.toFixed(3)).toString();
+	return Number(value.toFixed(2)).toString();
 }
 function percent(value: number): string {
 	return `${fmt(value * 100)}%`;

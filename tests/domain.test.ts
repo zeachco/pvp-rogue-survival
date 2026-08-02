@@ -8,7 +8,7 @@ import {
 } from "../src/game/render/ThreeRenderer";
 import { HERO_TURN_SPEED, turnAngleTowards } from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
-import { panelShortcut } from "../src/ui/Hud";
+import { panelShortcut, panelToggleTooltip } from "../src/ui/Hud";
 
 import {
 	auraRadius,
@@ -29,6 +29,9 @@ import {
 	attackProfile,
 	bucklerBlockChance,
 	bucklerBlockCost,
+	cleaveHalfArc,
+	cleaveCooldown,
+	cleaveRange,
 	forceFieldRange,
 	flurryCooldown,
 	HEALING_MAX_RADIUS,
@@ -45,6 +48,7 @@ import {
 	skillCastTime,
 	skillCooldown,
 	skillDamagePreview,
+	skillImpactForceScale,
 	skillRange,
 	skillStatBonusDescription,
 	skillUpkeepPerSecond,
@@ -1583,6 +1587,37 @@ describe("spell range and recovery", () => {
 			0.105,
 		);
 	});
+	test("scales Cleave base range from one to ten meters", () => {
+		expect(cleaveRange(1)).toBe(metersToPixels(1));
+		expect(cleaveRange(99)).toBe(metersToPixels(10));
+		expect(skillRange("cleave", starterClub(), 1, 0)).toBe(metersToPixels(1));
+		expect(skillRange("cleave", starterClub(), 99, 0)).toBe(metersToPixels(10));
+		expect(cleaveHalfArc(1) * 2).toBeCloseTo((45 * Math.PI) / 180);
+		expect(cleaveHalfArc(50) * 2).toBeCloseTo((157.5 * Math.PI) / 180);
+		expect(cleaveHalfArc(99) * 2).toBeCloseTo((270 * Math.PI) / 180);
+		expect(SKILLS.cleave.damageMultiplier).toBe(0.3625);
+		expect(SKILLS.cleave.cooldown).toBe(6);
+		expect(cleaveCooldown(1)).toBe(6);
+		expect(cleaveCooldown(99)).toBe(3);
+		expect(
+			skillCooldown(
+				"cleave",
+				generateItem(50, "epic", 91, { allowedClasses: ["axe"] }),
+				{ ...ZERO_STATS, agility: 500, intelligence: 500 },
+				1,
+			),
+		).toBe(6);
+		expect(
+			skillCooldown(
+				"cleave",
+				generateItem(50, "epic", 91, { allowedClasses: ["axe"] }),
+				{ ...ZERO_STATS, agility: 500, intelligence: 500 },
+				99,
+			),
+		).toBe(3);
+		expect(skillImpactForceScale("cleave")).toBe(2);
+		expect(skillImpactForceScale("bash")).toBe(1);
+	});
 });
 test("scales Flurry cooldown from ten seconds at level one to one second at level ninety-nine", () => {
 	expect(flurryCooldown(1)).toBe(10);
@@ -1637,7 +1672,7 @@ test("registers configurable Spirit relic perks", () => {
 		"Critical damage from attacks, spells, projectiles, auras, reflection, statuses, and continuous effects",
 	);
 	expect(passiveSkillMetrics("manaDrain", 9, ZERO_STATS)).toEqual([
-		{ label: "Mana + Cold", value: "5.816% crit damage" },
+		{ label: "Mana + Cold", value: "5.82% crit damage" },
 	]);
 	expect(SKILLS.penance.passive).toBeTrue();
 	expect(SKILLS.thorns.passive).toBeTrue();
@@ -1645,7 +1680,7 @@ test("registers configurable Spirit relic perks", () => {
 		"blocked damage × Spirit × level conversion",
 	);
 	expect(passiveSkillMetrics("penance", 9, ZERO_STATS)).toEqual([
-		{ label: "Conversion", value: "5.816%" },
+		{ label: "Conversion", value: "5.82%" },
 	]);
 	expect(passiveSkillMetrics("timeHarvest", 99, ZERO_STATS)).toEqual([
 		{ label: "Cooldown removal", value: "10s / kill" },
@@ -1786,4 +1821,15 @@ test("maps unmodified character and inventory panel shortcuts", () => {
 	expect(panelShortcut("V")).toBe("inventory");
 	expect(panelShortcut("x")).toBeUndefined();
 	expect(panelShortcut("c", true)).toBeUndefined();
+});
+
+test("describes panel toggle actions with their primary shortcuts", () => {
+	expect(panelToggleTooltip("character", false)).toBe(
+		"Collapse character sheet (C)",
+	);
+	expect(panelToggleTooltip("character", true)).toBe(
+		"Expand character sheet (C)",
+	);
+	expect(panelToggleTooltip("inventory", false)).toBe("Collapse inventory (V)");
+	expect(panelToggleTooltip("inventory", true)).toBe("Expand inventory (V)");
 });

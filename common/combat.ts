@@ -254,13 +254,20 @@ export function skillCooldown(
 	level = 1,
 ): number {
 	if (skill === "swamp") return swampCooldown(level);
+	if (skill === "cleave") return cleaveCooldown(level);
 	const base =
-		skill === "flurry" ? flurryCooldown(level) : SKILLS[skill].cooldown;
+		skill === "flurry"
+			? flurryCooldown(level)
+			: SKILLS[skill].cooldown;
 	return (
 		base /
 		Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) /
 		weaponSkillLevelScale(item?.level ?? 0)
 	);
+}
+
+export function cleaveCooldown(level: number): number {
+	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 export function skillRange(
 	skill: SkillId,
@@ -273,11 +280,28 @@ export function skillRange(
 	if (skill === "gravityPull") return forceFieldRange(level);
 	if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit);
 	if (skill === "whirlwind") return whirlwindRadius(level);
-	const base = SKILLS[skill].range ?? (item ? weaponRange(item) : 0);
+	const base =
+		skill === "cleave"
+			? cleaveRange(level)
+			: (SKILLS[skill].range ?? (item ? weaponRange(item) : 0));
 	return (
 		(base + Math.min(300, 0.5 * Math.max(1, level) * Math.max(0, spirit))) *
 		weaponSkillLevelScale(item?.level ?? 0)
 	);
+}
+
+export function cleaveRange(level: number): number {
+	return 50 + (450 * (cappedSkillLevel(level) - 1)) / 98;
+}
+
+export function cleaveHalfArc(level: number): number {
+	const progress = (cappedSkillLevel(level) - 1) / 98;
+	const arcDegrees = 45 + 225 * progress;
+	return (arcDegrees * Math.PI) / 360;
+}
+
+export function skillImpactForceScale(skill?: SkillId): number {
+	return skill === "cleave" ? 2 : 1;
 }
 export function skillLabel(skill: SkillId): string {
 	return SKILLS[skill].label;

@@ -3,6 +3,7 @@ import {
 	attackProfile,
 	bucklerBlockCost,
 	cappedSkillLevel,
+	cleaveHalfArc,
 	cooldownScale,
 	forceFieldRange,
 	healingBaseManaCost,
@@ -16,6 +17,7 @@ import {
 	skillCastTime,
 	skillCooldown,
 	skillDamageMultiplier,
+	skillImpactForceScale,
 	skillLabel,
 	skillRange,
 	skillUpkeepPerSecond,
@@ -519,7 +521,7 @@ export class HeroCombatSystem {
 								item?.definitionId === "hammer"))
 						? Math.PI
 						: activeSkill?.id === "cleave"
-							? 1.8
+							? cleaveHalfArc(activeSkill.level)
 							: activeSkill?.id === "flurry"
 								? 1.1
 								: 0.72,
@@ -530,7 +532,13 @@ export class HeroCombatSystem {
 					activeSkill?.id,
 					item,
 					presentation,
-					emittedImpactForce(hero, "radial", origin),
+					emittedImpactForce(
+						hero,
+						"radial",
+						origin,
+						undefined,
+						skillImpactForceScale(activeSkill?.id),
+					),
 				),
 			);
 		}
@@ -908,7 +916,7 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 	return `${formatCost(skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.rageCost ?? 1) + 0.35)} Rage`;
 }
 function formatCost(value: number): string {
-	return Number(value.toFixed(3)).toString();
+	return Number(value.toFixed(2)).toString();
 }
 function capitalizeResource(resource: "mana" | "rage" | "life"): string {
 	return resource[0].toUpperCase() + resource.slice(1);

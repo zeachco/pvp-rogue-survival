@@ -175,11 +175,12 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 	cleave: {
 		id: "cleave",
 		label: "Cleave",
-		damageMultiplier: 1.45,
-		cooldown: 4,
-		range: 125,
+		damageMultiplier: 0.3625,
+		cooldown: 6,
+		range: 50,
 		resource: "rage",
-		description: "A powerful axe cleave that always inflicts a 2-second bleed.",
+		description:
+			"A wide, forceful axe cleave with 2× knockback that inflicts a 2-second bleed. Range scales from 1m to 10m and its attack arc widens from 45° to 270° between levels 1 and 99.",
 	},
 	whirlwind: {
 		id: "whirlwind",

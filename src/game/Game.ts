@@ -18,7 +18,7 @@ import { Hud, panelShortcut } from "../ui/Hud";
 import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
-import { ItemDrop } from "./ItemDrop";
+import { GROUND_RESOURCE_PRESENTATION_HEIGHT, ItemDrop } from "./ItemDrop";
 import { GameMap } from "./Map";
 import { Projectile } from "./Projectile";
 import { SpellEffect } from "./SpellEffect";
@@ -81,7 +81,7 @@ export class Game {
 	private orbitingCamera = false;
 	private resizeObserver?: ResizeObserver;
 	private hovered?: Creep;
-	private hoveredItemDrop?: ItemDrop;
+	private hoveredDrop?: ItemDrop;
 	private hoverPeeking = false;
 	private inspected?: Creep;
 	private waveMode: "competitive" | "solo" | "training" = "training";
@@ -212,8 +212,8 @@ export class Game {
 			this.updateHover(event);
 		});
 		this.canvas.addEventListener("pointerleave", () => {
-			this.hoveredItemDrop = undefined;
-			this.hud.setGroundItemPreview();
+			this.hoveredDrop = undefined;
+			this.hud.setGroundDropPreview();
 		});
 		this.canvas.addEventListener("pointerup", (event) => {
 			if (event.button === 2) this.orbitingCamera = false;
@@ -680,9 +680,9 @@ export class Game {
 		removeInactive(this.arena.spellEffects);
 		removeInactive(this.arena.swamps);
 		removeInactive(this.arena.characterDeaths);
-		if (this.hoveredItemDrop && !this.hoveredItemDrop.active) {
-			this.hoveredItemDrop = undefined;
-			this.hud.setGroundItemPreview();
+		if (this.hoveredDrop && !this.hoveredDrop.active) {
+			this.hoveredDrop = undefined;
+			this.hud.setGroundDropPreview();
 		}
 		if (this.inspected && !this.inspected.active) this.clearInspection();
 		if (this.hoverPeeking && (!this.hovered || !this.hovered.active)) {
@@ -812,8 +812,8 @@ export class Game {
 	}
 	private resetArena(): void {
 		this.arena.clear();
-		this.hoveredItemDrop = undefined;
-		this.hud.setGroundItemPreview();
+		this.hoveredDrop = undefined;
+		this.hud.setGroundDropPreview();
 		this.pendingPickupAt.clear();
 		this.heroCombat.reset();
 		this.auraSystem.reset();
@@ -845,24 +845,26 @@ export class Game {
 
 	private updateHover(event: MouseEvent): void {
 		const world = this.eventWorld(event);
-		const previousItemDrop = this.hoveredItemDrop;
-		this.hoveredItemDrop = this.drops
-			.filter((drop) => drop.active && drop.drop.kind === "item")
-			.sort(
-				(a, b) => distance(a.position, world) - distance(b.position, world),
-			)[0];
-		if (
-			this.hoveredItemDrop &&
-			distance(this.hoveredItemDrop.position, world) >
-				this.hoveredItemDrop.radius + 8
-		)
-			this.hoveredItemDrop = undefined;
-		if (this.hoveredItemDrop !== previousItemDrop)
-			this.hud.setGroundItemPreview(
-				this.hoveredItemDrop?.drop.kind === "item"
-					? this.hoveredItemDrop.drop.item
-					: undefined,
+		const resourceWorld = this.renderer.eventWorld(
+			event,
+			GROUND_RESOURCE_PRESENTATION_HEIGHT,
+		);
+		const dropDistance = (drop: ItemDrop): number =>
+			distance(
+				drop.position,
+				drop.drop.kind === "item" ? world : resourceWorld,
 			);
+		const previousDrop = this.hoveredDrop;
+		this.hoveredDrop = this.drops
+			.filter((drop) => drop.active)
+			.sort((a, b) => dropDistance(a) - dropDistance(b))[0];
+		if (
+			this.hoveredDrop &&
+			dropDistance(this.hoveredDrop) > this.hoveredDrop.radius + 8
+		)
+			this.hoveredDrop = undefined;
+		if (this.hoveredDrop !== previousDrop)
+			this.hud.setGroundDropPreview(this.hoveredDrop?.drop);
 		const previous = this.hovered;
 		this.hovered = this.creeps
 			.filter((creep) => creep.active)
@@ -875,7 +877,7 @@ export class Game {
 		)
 			this.hovered = undefined;
 		this.canvas.style.cursor =
-			this.hovered || this.hoveredItemDrop ? "pointer" : "default";
+			this.hovered || this.hoveredDrop ? "pointer" : "default";
 		if (this.hovered === previous) return;
 		if (this.hovered) {
 			const reward = this.creepInspectionReward(this.hovered);

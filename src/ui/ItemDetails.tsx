@@ -425,7 +425,7 @@ function fmt(value: number): string {
 	return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 function precise(value: number): string {
-	return Number(value.toFixed(4)).toString();
+	return Number(value.toFixed(2)).toString();
 }
 function capitalize(value: string): string {
 	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
