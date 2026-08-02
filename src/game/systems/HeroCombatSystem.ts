@@ -553,7 +553,9 @@ export class HeroCombatSystem {
 		if (activeSkill) {
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 			const duration =
-				activeSkill.id === "swamp" || activeSkill.id === "flurry"
+				activeSkill.id === "swamp" ||
+				activeSkill.id === "flurry" ||
+				activeSkill.id === "cleave"
 					? skillCooldown(
 							activeSkill.id,
 							item,

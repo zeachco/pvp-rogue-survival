@@ -1619,10 +1619,13 @@ describe("spell range and recovery", () => {
 		expect(skillImpactForceScale("bash")).toBe(1);
 	});
 });
-test("scales Flurry cooldown from ten seconds at level one to one second at level ninety-nine", () => {
-	expect(flurryCooldown(1)).toBe(10);
-	expect(flurryCooldown(99)).toBe(1);
-	expect(skillCooldown("flurry", starterClub(), ZERO_STATS, 99)).toBe(1);
+test("scales Flurry cooldown directly from six to three seconds", () => {
+	expect(flurryCooldown(1)).toBe(6);
+	expect(flurryCooldown(99)).toBe(3);
+	const dagger = generateItem(50, "epic", 37, { allowedClasses: ["dagger"] });
+	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
+	expect(skillCooldown("flurry", dagger, boosted, 1)).toBe(6);
+	expect(skillCooldown("flurry", dagger, boosted, 99)).toBe(3);
 });
 describe("Healing scaling", () => {
 	test("scales healing and charges a level base plus mana per HP restored", () => {

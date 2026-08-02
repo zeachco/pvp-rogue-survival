@@ -255,10 +255,8 @@ export function skillCooldown(
 ): number {
 	if (skill === "swamp") return swampCooldown(level);
 	if (skill === "cleave") return cleaveCooldown(level);
-	const base =
-		skill === "flurry"
-			? flurryCooldown(level)
-			: SKILLS[skill].cooldown;
+	if (skill === "flurry") return flurryCooldown(level);
+	const base = SKILLS[skill].cooldown;
 	return (
 		base /
 		Math.max(1, (stats?.intelligence ?? 0) + (stats?.agility ?? 0)) /
@@ -330,7 +328,7 @@ export function healingRadius(level: number): number {
 	);
 }
 export function flurryCooldown(level: number): number {
-	return 10 - (cappedSkillLevel(level) - 1) * (9 / 98);
+	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 export function forceFieldRange(level: number): number {
 	return 200 + (cappedSkillLevel(level) - 1) * (600 / 98);

@@ -156,11 +156,11 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "flurry",
 		label: "Flurry",
 		damageMultiplier: 0.8,
-		cooldown: 10,
+		cooldown: 6,
 		range: 105,
 		resource: "rage",
 		description:
-			"A fast dagger attack with shortened recovery and a wide close-range arc.",
+			"A fast dagger attack with shortened recovery, a wide close-range arc, and a cooldown that scales from 6s to 3s between levels 1 and 99.",
 	},
 	shockwave: {
 		id: "shockwave",
