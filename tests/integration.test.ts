@@ -42,14 +42,18 @@ describe("server protocol integration", () => {
 			(message) => message?.type === "incomingWave",
 		);
 		expect(welcome?.config.balance.id).toBe("normal");
-		expect(welcome?.config.protocolVersion).toBe(37);
+		expect(welcome?.config.protocolVersion).toBe(38);
 		expect(welcome?.realm.mode).toBe("training");
 		expect(wave?.wave.mode).toBe("training");
 		expect(wave?.wave.waveNumber).toBe(1);
 		expect(wave?.wave.spawns).toHaveLength(10);
 		expect(
-			parseClientMessage({ type: "toggleSkill", skillId: "healing" })?.type,
-		).toBe("toggleSkill");
+			parseClientMessage({
+				type: "setSkillEquipped",
+				skillId: "healing",
+				equipped: true,
+			})?.type,
+		).toBe("setSkillEquipped");
 		expect(
 			parseClientMessage({
 				type: "creepKilled",

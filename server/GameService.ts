@@ -217,6 +217,8 @@ export class GameService {
 			learnedSkillLevels: p.learnedSkillLevels,
 			universalSkills: p.universalSkills,
 			disabledSkills: p.disabledSkills,
+			equippedSkills: p.equippedSkills,
+			autoFireSkills: p.autoFireSkills,
 		};
 	}
 
@@ -295,8 +297,14 @@ export class GameService {
 					);
 				case "sendItem":
 					return this.sendItem(player, message.tileId, message.bulk);
-				case "toggleSkill":
-					return this.toggleSkill(player, message.skillId);
+				case "setSkillEquipped":
+					return this.setSkillEquipped(
+						player,
+						message.skillId,
+						message.equipped,
+					);
+				case "toggleSkillAutoFire":
+					return this.toggleSkillAutoFire(player, message.skillId);
 				case "setRarityAction": {
 					if (!player.progress.rarityActions)
 						player.progress.rarityActions = {
@@ -419,29 +427,79 @@ export class GameService {
 				learnedSkillLevels: { healing: 1 },
 				universalSkills: ["healing"],
 				disabledSkills: [],
+				equippedSkills: ["healing"],
+				autoFireSkills: ["healing"],
 			},
 		};
 		this.options.repository.save(player);
 		return player;
 	}
 
-	private toggleSkill(player: Player, skillId: string): void {
+	private setSkillEquipped(
+		player: Player,
+		skillId: string,
+		shouldEquip: boolean,
+	): void {
 		if (!isSkillId(skillId)) return;
-		const equipped = [
+		const providedByEquipment = [
 			player.progress.mainHand,
 			player.progress.offHand,
 			player.progress.amulet,
 			player.progress.charm,
 		].some((item) => item?.skills.includes(skillId));
-		if (!player.progress.learnedSkills.includes(skillId) && !equipped) return;
-		const disabled = new Set(player.progress.disabledSkills ?? []);
-		if (disabled.has(skillId)) disabled.delete(skillId);
-		else disabled.add(skillId);
-		player.progress.disabledSkills = [...disabled];
+		if (
+			!player.progress.learnedSkills.includes(skillId) &&
+			!providedByEquipment
+		)
+			return;
+		if (SKILLS[skillId].passive) return;
+		const availableActive = new Set([
+			...player.progress.learnedSkills,
+			...[
+				player.progress.mainHand,
+				player.progress.offHand,
+				player.progress.amulet,
+				player.progress.charm,
+			].flatMap((item) => item?.skills ?? []),
+		]);
+		const loadout = (player.progress.equippedSkills ?? []).filter(
+			(id) => availableActive.has(id) && !SKILLS[id].passive,
+		);
+		player.progress.equippedSkills = loadout;
+		player.progress.autoFireSkills = (
+			player.progress.autoFireSkills ?? []
+		).filter((id) => loadout.includes(id));
+		const hasSkill = loadout.includes(skillId);
+		if (shouldEquip && !hasSkill) {
+			if (loadout.length >= 6) return;
+			player.progress.equippedSkills = [...loadout, skillId];
+		} else if (!shouldEquip && hasSkill) {
+			player.progress.equippedSkills = loadout.filter((id) => id !== skillId);
+			player.progress.autoFireSkills = (
+				player.progress.autoFireSkills ?? []
+			).filter((id) => id !== skillId);
+		} else return;
 		this.options.repository.markDirty(player.id);
 		this.sendProgress(
 			player,
-			`${SKILLS[skillId].label} ${disabled.has(skillId) ? "disabled" : "enabled"}.`,
+			`${SKILLS[skillId].label} ${shouldEquip ? "equipped" : "unequipped"}.`,
+		);
+	}
+
+	private toggleSkillAutoFire(player: Player, skillId: string): void {
+		if (
+			!isSkillId(skillId) ||
+			!(player.progress.equippedSkills ?? []).includes(skillId)
+		)
+			return;
+		const auto = new Set(player.progress.autoFireSkills ?? []);
+		if (auto.has(skillId)) auto.delete(skillId);
+		else auto.add(skillId);
+		player.progress.autoFireSkills = [...auto];
+		this.options.repository.markDirty(player.id);
+		this.sendProgress(
+			player,
+			`${SKILLS[skillId].label} auto-fire ${auto.has(skillId) ? "enabled" : "disabled"}.`,
 		);
 	}
 
@@ -1665,7 +1723,6 @@ function waveModeLabel(mode: "competitive" | "solo" | "training"): string {
 }
 function effectiveProgressSkillLevel(player: Player, skill: SkillId): number {
 	const progress = player.progress;
-	if (progress.disabledSkills?.includes(skill)) return 0;
 	return bossSkillLevels(progress)[skill] ?? 0;
 }
 function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {

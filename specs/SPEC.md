@@ -131,7 +131,8 @@ Client to server:
 - `equipItem`: `{ tileId }`
 - `sellItem`, `purgeItem`, `upgradeItem`, `sendItem`, `extractSkill`: `{ tileId, bulk? }`; `bulk: true` is authored by Shift+click and repeats the selected action server-side until it can no longer make progress.
 - `setRarityAction`: `{ rarity, action }`; changes the auto-action preference for a rarity tier. `action` is one of `"keep"`, `"auto-sell"`, `"auto-purge"`, or `"auto-send"`. The server persists the choice in `progress.rarityActions` and applies it to future item collections.
-- `toggleSkill`: `{ skillId }`; toggles one currently displayed learned or geared skill. The server persists disabled skills and rejects unknown or unavailable ids.
+- `setSkillEquipped`: `{ skillId, equipped }`; adds or removes one available active spell from the persisted spell loadout. At most six active spells may be equipped; the server rejects unavailable skills, passive skills, and additions beyond the limit.
+- `toggleSkillAutoFire`: `{ skillId }`; toggles automatic firing for an equipped active spell. Auto-fire is cleared when that spell is unequipped.
 - `heroDefeated`: `{ sourceUnitId? }`
 - `requestWave`: `{}`
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)

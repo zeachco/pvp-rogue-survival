@@ -29,6 +29,8 @@ import {
 } from "./render/AnimatedCharacter";
 
 export const CREEP_RESOURCE_BAR_CAMERA_OFFSET = 2;
+export const creepResourceBarAnchorY = (presentationHeight: number): number =>
+	presentationHeight + 8;
 
 export function resourceBarWidth(
 	current: number,
@@ -112,12 +114,13 @@ export class Creep extends Unit {
 	private readonly rageBg: THREE.Mesh;
 	private readonly rageFill: THREE.Mesh;
 	private readonly bubbleEye?: THREE.Mesh;
-	private healthBarY = 28;
+	readonly resourceBarAnchorY: number;
 	private barWidth = 32;
 	private healthBarHeight = 4;
 	private manaBarHeight = 2;
 	private rageBarHeight = 2;
 	private readonly spriteCenterHeight: number;
+	private readonly presentationHeight: number;
 
 	constructor(
 		build: UnitBuild,
@@ -196,7 +199,8 @@ export class Creep extends Unit {
 						: build.enemyRole === "invader"
 							? 2.7
 							: 2.5;
-			this.spriteCenterHeight = (this.radius * visualScale) / 2;
+			this.presentationHeight = this.radius * visualScale;
+			this.spriteCenterHeight = this.presentationHeight / 2;
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.PlaneGeometry(
 					this.radius * visualScale,
@@ -211,6 +215,7 @@ export class Creep extends Unit {
 				}),
 			);
 		} else if (this.kind === "melee") {
+			this.presentationHeight = this.radius * 2;
 			this.spriteCenterHeight = this.radius;
 			const shape = new THREE.Shape();
 			for (let i = 0; i < 6; i += 1) {
@@ -226,6 +231,7 @@ export class Creep extends Unit {
 				new THREE.MeshBasicMaterial({ color: fillColor }),
 			);
 		} else {
+			this.presentationHeight = this.radius * 2;
 			this.spriteCenterHeight = this.radius;
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.CircleGeometry(this.radius, 24),
@@ -277,11 +283,12 @@ export class Creep extends Unit {
 			this.spriteGroup.add(this.bubbleEye);
 		}
 		this.mesh.add(this.spriteGroup);
+		this.resourceBarAnchorY = creepResourceBarAnchorY(this.presentationHeight);
 
 		this.healthBarGroup = new THREE.Group();
 		this.healthBarGroup.renderOrder = Z_CREEP_OVERLAY;
 
-		const hbY = this.healthBarY;
+		const hbY = this.resourceBarAnchorY;
 		this.healthBg = new THREE.Mesh(
 			new THREE.PlaneGeometry(this.barWidth, this.healthBarHeight),
 			new THREE.MeshBasicMaterial({
@@ -339,6 +346,7 @@ export class Creep extends Unit {
 		this.healthBarGroup.add(this.rageFill);
 		for (const bar of this.healthBarGroup.children) {
 			if (!(bar instanceof THREE.Mesh)) continue;
+			bar.renderOrder = Z_CREEP_OVERLAY;
 			const material = bar.material as THREE.MeshBasicMaterial;
 			material.depthTest = false;
 			material.depthWrite = false;
@@ -680,7 +688,12 @@ export class Creep extends Unit {
 		if (this.labelObject) {
 			this.labelObject.position.set(
 				this.position.x,
-				this.position.y + this.radius + 38,
+				this.position.y +
+					this.resourceBarAnchorY +
+					this.healthBarHeight +
+					this.manaBarHeight +
+					this.rageBarHeight +
+					12,
 				Z_CREEP_OVERLAY + 0.01,
 			);
 		}

@@ -79,6 +79,7 @@ export class Game {
 	private defeatCooldown = 0;
 	private isChatting = false;
 	private orbitingCamera = false;
+	private aimingHero = false;
 	private touchCameraPointerId?: number;
 	private touchCameraX = 0;
 	private touchCameraY = 0;
@@ -156,8 +157,10 @@ export class Game {
 			onLogout: () => this.socket.send({ type: "logout" }),
 			onInspectHero: (heroId) =>
 				this.socket.send({ type: "inspectHero", heroId }),
-			onToggleSkill: (skillId) =>
-				this.socket.send({ type: "toggleSkill", skillId }),
+			onSetSkillEquipped: (skillId, equipped) =>
+				this.socket.send({ type: "setSkillEquipped", skillId, equipped }),
+			onToggleSkillAutoFire: (skillId) =>
+				this.socket.send({ type: "toggleSkillAutoFire", skillId }),
 			onDismissPanelTrigger: (panel) =>
 				this.socket.send({ type: "dismissPanelTrigger", panel }),
 			onChat: (text) => this.socket.send({ type: "chat", text }),
@@ -231,6 +234,15 @@ export class Game {
 				this.hud.focusChat();
 				return;
 			}
+			if (/^[1-6]$/.test(event.key)) {
+				event.preventDefault();
+				if (!event.repeat && this.player)
+					this.heroCombat.requestSpellSlot(
+						Number(event.key) - 1,
+						this.player.progress,
+					);
+				return;
+			}
 			const shortcut = panelShortcut(
 				event.key,
 				event.ctrlKey || event.metaKey || event.altKey,
@@ -257,11 +269,18 @@ export class Game {
 				this.orbitingCamera = false;
 		});
 		document.addEventListener("mousemove", (event) => {
-			if (this.orbitingCamera && document.pointerLockElement === this.canvas)
+			if (this.orbitingCamera && document.pointerLockElement === this.canvas) {
+				if (Math.abs(event.movementX) + Math.abs(event.movementY) > 1)
+					this.suppressNextClick = true;
 				this.renderer.orbit(event.movementX, event.movementY);
+			}
 		});
 		document.addEventListener("mouseup", (event) => {
-			if (event.button === 2) stopMouseCameraOrbit();
+			if (event.button === 0) stopMouseCameraOrbit();
+			if (event.button === 2) {
+				stopMouseCameraOrbit();
+				this.aimingHero = false;
+			}
 		});
 		this.canvas.addEventListener("pointerdown", (event) => {
 			if (event.pointerType === "touch") {
@@ -271,7 +290,18 @@ export class Game {
 				this.canvas.setPointerCapture(event.pointerId);
 				return;
 			}
-			if (event.button !== 2) return;
+			if (event.button === 2) {
+				event.preventDefault();
+				this.aimingHero = true;
+				this.orbitingCamera = true;
+				this.canvas.setPointerCapture(event.pointerId);
+				if (typeof this.canvas.requestPointerLock === "function")
+					void this.canvas.requestPointerLock().catch(() => {
+						// Pointer capture above remains the fallback when locking is denied.
+					});
+				return;
+			}
+			if (event.button !== 0) return;
 			event.preventDefault();
 			this.orbitingCamera = true;
 			this.canvas.setPointerCapture(event.pointerId);
@@ -292,6 +322,8 @@ export class Game {
 				return;
 			}
 			if (this.orbitingCamera && document.pointerLockElement !== this.canvas) {
+				if (Math.abs(event.movementX) + Math.abs(event.movementY) > 1)
+					this.suppressNextClick = true;
 				this.renderer.orbit(event.movementX, event.movementY);
 				return;
 			}
@@ -304,10 +336,15 @@ export class Game {
 		this.canvas.addEventListener("pointerup", (event) => {
 			if (event.pointerId === this.touchCameraPointerId)
 				this.touchCameraPointerId = undefined;
-			if (event.button === 2) stopMouseCameraOrbit();
+			if (event.button === 0) stopMouseCameraOrbit();
+			if (event.button === 2) {
+				stopMouseCameraOrbit();
+				this.aimingHero = false;
+			}
 		});
 		this.canvas.addEventListener("pointercancel", () => {
 			stopMouseCameraOrbit();
+			this.aimingHero = false;
 			this.touchCameraPointerId = undefined;
 		});
 		this.canvas.addEventListener("click", (event) => {
@@ -590,7 +627,7 @@ export class Game {
 			this.player.progress,
 			this.balance,
 			systemRandom,
-			this.orbitingCamera ? this.renderer.cameraFacing() : undefined,
+			this.aimingHero ? this.renderer.cameraFacing() : undefined,
 		);
 		this.auraSystem.update(
 			deltaSeconds,

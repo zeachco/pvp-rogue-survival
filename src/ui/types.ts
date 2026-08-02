@@ -20,7 +20,8 @@ export interface HudCallbacks {
 	onBack(): void;
 	onLogout(): void;
 	onInspectHero(heroId: string): void;
-	onToggleSkill(skillId: SkillId): void;
+	onSetSkillEquipped(skillId: SkillId, equipped: boolean): void;
+	onToggleSkillAutoFire(skillId: SkillId): void;
 	onDismissPanelTrigger(panel: PanelTrigger): void;
 	onChat(text: string): void;
 	onChattingChange(chatting: boolean): void;
@@ -40,5 +41,8 @@ export interface SpellSlot {
 	resource: "mana" | "rage" | "life";
 	costLabel: string;
 	active: boolean;
+	passive: boolean;
+	autoFire: boolean;
+	shortcut?: number;
 	bar: "learned" | "geared";
 }

@@ -315,6 +315,21 @@ input {
 	z-index: 1;
 	line-height: 1;
 }
+.spell-shortcut,
+.spell-auto-fire {
+	position: absolute;
+	top: 2px;
+	font-size: 10px;
+	font-weight: 800;
+	line-height: 1;
+}
+.spell-shortcut {
+	left: 7px;
+}
+.spell-auto-fire {
+	right: 7px;
+	color: #7ff5ff;
+}
 
 .spell-slot strong {
 	font-size: 15px;

@@ -920,6 +920,8 @@ export class Hud {
 						? `${SKILLS[id].upkeep!.resource}/s`
 						: capitalize(SKILLS[id].resource),
 					active: false,
+					passive: Boolean(SKILLS[id].passive),
+					autoFire: false,
 					bar: this.player?.progress.learnedSkills.includes(id)
 						? ("learned" as const)
 						: ("geared" as const),
@@ -928,8 +930,18 @@ export class Hud {
 		const visible = spells;
 		const structure = visible
 			.map(
-				({ id, label, level, resource, bar, active }) =>
-					`${bar}:${id}:${label}:${level}:${resource}:${active}:${preview?.get(id) ?? ""}`,
+				({
+					id,
+					label,
+					level,
+					resource,
+					bar,
+					active,
+					passive,
+					autoFire,
+					shortcut,
+				}) =>
+					`${bar}:${id}:${label}:${level}:${resource}:${active}:${passive}:${autoFire}:${shortcut ?? ""}:${preview?.get(id) ?? ""}`,
 			)
 			.join("|");
 		if (structure !== this.spellStructureSignature) {
@@ -1000,10 +1012,14 @@ export class Hud {
 			<button
 				class={`spell-slot spell-resource-${spell.resource}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${spell.active && !spell.affordable ? " is-unaffordable" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
 				type="button"
-				aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}, ${spell.active ? "enabled" : "disabled"}`}
+				aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}, ${spell.passive ? "passive, always active" : spell.active ? `equipped in slot ${spell.shortcut}${spell.autoFire ? ", auto-fire enabled" : ""}` : "unequipped"}`}
 				aria-pressed={String(spell.active)}
 			>
 				{cooldown}
+				{spell.shortcut ? (
+					<span class="spell-shortcut">{spell.shortcut}</span>
+				) : null}
+				{spell.autoFire ? <span class="spell-auto-fire">A</span> : null}
 				<strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
 				<small>{formatPreviewValue(levelValue)}</small>
 				{this.renderSkillTooltip(spell, shownLevel)}
@@ -1020,7 +1036,15 @@ export class Hud {
 			);
 			button.addEventListener("blur", () => this.hideSpellTooltip());
 		}
-		button.onclick = () => this.callbacks.onToggleSkill(spell.id);
+		button.onclick = () => {
+			if (!spell.passive)
+				this.callbacks.onSetSkillEquipped(spell.id, !spell.active);
+		};
+		button.oncontextmenu = (event) => {
+			event.preventDefault();
+			if (spell.active && !spell.passive)
+				this.callbacks.onToggleSkillAutoFire(spell.id);
+		};
 		return button;
 	}
 	private showSpellTooltip(
@@ -1054,6 +1078,13 @@ export class Hud {
 			<span class="spell-tooltip" role="tooltip">
 				<b>{skill.label}</b>
 				<span class="spell-tooltip-description">{skill.description}</span>
+				<span class="spell-tooltip-description">
+					{spell.passive
+						? "Passive — always active while available."
+						: spell.active
+							? `Equipped as ${spell.shortcut}. Press ${spell.shortcut} to cast; right-click toggles auto-fire.`
+							: "Click to equip this spell (maximum 6)."}
+				</span>
 				{skillStatBonusDescription(spell.id) ? (
 					<span class="spell-tooltip-description">
 						{skillStatBonusDescription(spell.id)}

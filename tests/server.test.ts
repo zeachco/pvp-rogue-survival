@@ -77,13 +77,20 @@ describe("realm game service", () => {
 		game.handle(player.id, { type: "dismissPanelTrigger", panel: "character" });
 		expect(player.panelTriggers.character).toBeFalse();
 	});
-	test("toggles an available skill's persisted activation state", () => {
+	test("edits an available skill's persisted loadout and auto-fire state", () => {
 		const { game } = harness();
 		const player = game.join("Toggle");
-		game.handle(player.id, { type: "toggleSkill", skillId: "healing" });
-		expect(player.progress.disabledSkills).toEqual(["healing"]);
-		game.handle(player.id, { type: "toggleSkill", skillId: "healing" });
-		expect(player.progress.disabledSkills).toEqual([]);
+		game.handle(player.id, {
+			type: "toggleSkillAutoFire",
+			skillId: "healing",
+		});
+		expect(player.progress.autoFireSkills).toEqual([]);
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "healing",
+			equipped: false,
+		});
+		expect(player.progress.equippedSkills).toEqual([]);
 	});
 	test("reconciles server and client drop orphans without granting them", () => {
 		const { game, messages } = harness();

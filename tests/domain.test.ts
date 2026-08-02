@@ -171,6 +171,8 @@ function progress(): PlayerProgress {
 		learnedSkills: ["healing"],
 		learnedSkillLevels: { healing: 1 },
 		universalSkills: ["healing", ...AURA_SKILLS],
+		equippedSkills: ["healing"],
+		autoFireSkills: ["healing"],
 	};
 }
 let id = 0;
@@ -193,7 +195,7 @@ describe("third-person camera", () => {
 		expect(offset.z).toBeGreaterThan(0);
 	});
 
-	test("clamps vertical right-drag orbiting above ground and below overturn", () => {
+	test("clamps vertical left-drag orbiting above ground and below overturn", () => {
 		expect(adjustedCameraTiltFromDrag(0, 100_000)).toBe(
 			MAX_CAMERA_TILT_RADIANS,
 		);
@@ -887,7 +889,7 @@ test("caps active skill level at the hero level while retaining its actual level
 	expect(actualSkillLevel(state, "bash")).toBe(15);
 	expect(effectiveSkillLevel(state, "bash")).toBe(4);
 });
-test("activates every learned or currently geared skill without a level-based rail limit", () => {
+test("limits active spells to the editable loadout while passives remain active", () => {
 	const state = progress();
 	state.level = 5;
 	state.mainHand = { ...state.mainHand!, skills: ["bash", "sweep"] };
@@ -895,18 +897,18 @@ test("activates every learned or currently geared skill without a level-based ra
 	state.learnedSkills.push("bash", "sweep");
 	state.learnedSkillLevels.bash = 1;
 	state.learnedSkillLevels.sweep = 1;
-	expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
-	state.level = 6;
-	expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
-	state.level = 0;
-	expect(activeSkillIds(state)).toEqual(["healing", "bash", "sweep"]);
+	state.equippedSkills = ["sweep"];
+	expect(activeSkillIds(state)).toEqual(["sweep"]);
+	state.learnedSkills.push("attraction");
+	state.learnedSkillLevels.attraction = 1;
+	expect(activeSkillIds(state)).toEqual(["sweep", "attraction"]);
 });
-test("keeps disabled rail skills visible but excludes them from activation", () => {
+test("keeps unequipped active spells visible but excludes them from activation", () => {
 	const state = progress();
-	state.disabledSkills = ["healing"];
+	state.equippedSkills = [];
 	expect(activeSkillIds(state)).not.toContain("healing");
 	expect(isSkillActive(state, "healing")).toBeFalse();
-	state.disabledSkills = [];
+	state.equippedSkills = ["healing"];
 	expect(isSkillActive(state, "healing")).toBeTrue();
 });
 describe("amulets and charms", () => {

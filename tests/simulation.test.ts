@@ -46,6 +46,7 @@ import { emptyScraps } from "../common/inventory";
 import {
 	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
 	Creep,
+	creepResourceBarAnchorY,
 	resourceBarWidth,
 } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
@@ -69,7 +70,11 @@ import {
 	CHARACTER_MODEL_MANIFESTS,
 	matchingAnimationClip,
 } from "../src/game/render/AnimatedCharacter";
-import { MAP_LAYER_STEP, MAP_Z } from "../src/game/render/ThreeRenderer";
+import {
+	MAP_LAYER_STEP,
+	MAP_Z,
+	Z_CREEP_OVERLAY,
+} from "../src/game/render/ThreeRenderer";
 
 describe("animated 3D characters", () => {
 	test("maps semantic animation aliases case-insensitively", () => {
@@ -288,12 +293,19 @@ describe("arena systems", () => {
 			new SeededRandom(1),
 		);
 		creep.healthBarGroup.position.set(10, 20, 0);
+		expect(creep.resourceBarAnchorY).toBe(creepResourceBarAnchorY(32));
+		expect(creepResourceBarAnchorY(16 * 2.5)).toBe(48);
+		expect(creepResourceBarAnchorY(22 * 3.2)).toBeCloseTo(78.4);
+		for (const bar of creep.healthBarGroup.children)
+			if (bar instanceof THREE.Mesh)
+				expect(bar.position.y).toBeGreaterThanOrEqual(creep.resourceBarAnchorY);
 		creep.faceCamera(new THREE.Quaternion());
 		expect(creep.healthBarGroup.position.z).toBe(
 			CREEP_RESOURCE_BAR_CAMERA_OFFSET,
 		);
 		for (const bar of creep.healthBarGroup.children) {
 			if (!(bar instanceof THREE.Mesh)) continue;
+			expect(bar.renderOrder).toBe(Z_CREEP_OVERLAY);
 			const material = bar.material as THREE.MeshBasicMaterial;
 			expect(material.depthTest).toBeFalse();
 			expect(material.depthWrite).toBeFalse();
@@ -457,6 +469,8 @@ describe("arena systems", () => {
 			],
 			learnedSkillLevels: { bash: 1, gravityPull: 1, rent: 1, penance: 1 },
 			universalSkills: [],
+			equippedSkills: ["bash", "rent"],
+			autoFireSkills: ["bash", "rent"],
 		};
 		hero.rage = 0;
 		expect(skillAffordable("bash", progress, hero)).toBeFalse();
@@ -500,6 +514,8 @@ describe("arena systems", () => {
 			learnedSkills: [],
 			learnedSkillLevels: {},
 			universalSkills: [],
+			equippedSkills: ["bash"],
+			autoFireSkills: ["bash"],
 		};
 		expect(combat.onKill(progress, hero)).toBe(0.25);
 		expect(internal.attackCooldown).toBe(4.75);
@@ -656,6 +672,8 @@ describe("arena systems", () => {
 			learnedSkills: ["bash" as const, "rent" as const],
 			learnedSkillLevels: { bash: 1, rent: 1 },
 			universalSkills: [],
+			equippedSkills: ["bash", "rent" as const],
+			autoFireSkills: ["bash", "rent" as const],
 		};
 		const combat = new HeroCombatSystem();
 		const rage = hero.rage;
@@ -767,6 +785,8 @@ describe("arena systems", () => {
 			learnedSkills: ["bash" as const],
 			learnedSkillLevels: { bash: 1 },
 			universalSkills: [],
+			equippedSkills: ["bash" as const],
+			autoFireSkills: ["bash" as const],
 		};
 		const combat = new HeroCombatSystem();
 		hero.rage = 0;

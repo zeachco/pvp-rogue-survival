@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 37;
+export const PROTOCOL_VERSION = 38;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -33,6 +33,8 @@ export interface PlayerProgress {
 	learnedSkillLevels: Partial<Record<SkillId, number>>;
 	universalSkills: SkillId[];
 	disabledSkills?: SkillId[];
+	equippedSkills?: SkillId[];
+	autoFireSkills?: SkillId[];
 	rarityActions?: Record<Rarity, RarityAction>;
 }
 export interface XpSendBuff {
@@ -69,6 +71,8 @@ export interface PublicHeroProfile {
 	learnedSkillLevels: Partial<Record<SkillId, number>>;
 	universalSkills: SkillId[];
 	disabledSkills?: SkillId[];
+	equippedSkills?: SkillId[];
+	autoFireSkills?: SkillId[];
 }
 export interface RealmMember extends PublicPlayer {
 	down: boolean;
@@ -203,7 +207,15 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 		type: z.literal("dismissPanelTrigger"),
 		panel: z.enum(["character", "inventory", "multiplayer"]),
 	}),
-	z.object({ type: z.literal("toggleSkill"), skillId: z.string().min(1) }),
+	z.object({
+		type: z.literal("setSkillEquipped"),
+		skillId: z.string().min(1),
+		equipped: z.boolean(),
+	}),
+	z.object({
+		type: z.literal("toggleSkillAutoFire"),
+		skillId: z.string().min(1),
+	}),
 	z.object({
 		type: z.literal("setRarityAction"),
 		rarity: z.enum(["common", "uncommon", "rare", "epic"]),
@@ -268,7 +280,8 @@ export type ClientMessage =
 	| { type: "logout" | "listHeroes" }
 	| { type: "inspectHero"; heroId: string }
 	| { type: "dismissPanelTrigger"; panel: PanelTrigger }
-	| { type: "toggleSkill"; skillId: string }
+	| { type: "setSkillEquipped"; skillId: string; equipped: boolean }
+	| { type: "toggleSkillAutoFire"; skillId: string }
 	| {
 			type: "setRarityAction";
 			rarity: Rarity;

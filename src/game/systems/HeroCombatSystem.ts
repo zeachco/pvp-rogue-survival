@@ -69,6 +69,7 @@ export class HeroCombatSystem {
 	private orbitCastSequence = 0;
 	private skillPriorityCursor = 0;
 	private casting?: { id: SkillId; elapsed: number; total: number };
+	private manualSkill?: SkillId;
 	private whirlwindRemaining = 0;
 	private whirlwindPulse = 0;
 	private whirlwindRange = 0;
@@ -83,6 +84,10 @@ export class HeroCombatSystem {
 			hero.knownSkills.add(skill);
 			hero.skillLevels.set(skill, effectiveSkillLevel(progress, skill));
 		}
+	}
+	requestSpellSlot(index: number, progress: PlayerProgress): void {
+		const skill = equippedActiveSkillIds(progress)[index];
+		if (skill) this.manualSkill = skill;
 	}
 	update(
 		deltaSeconds: number,
@@ -150,9 +155,11 @@ export class HeroCombatSystem {
 		const healingManaCost =
 			healing.manaCost *
 			(1 - resourceReduction(progress, "mana", effectiveStats));
+		const autoFire = new Set(autoFireSkillIds(progress));
 		if (
 			isSkillActive(progress, "healing") &&
-			hero.hp < hero.maxHp * 0.75 &&
+			(autoFire.has("healing") || this.manualSkill === "healing") &&
+			hero.hp < hero.maxHp * (this.manualSkill === "healing" ? 1 : 0.75) &&
 			this.healingCooldown === 0 &&
 			healing.restoredHp > 0 &&
 			hero.mana >= healingManaCost
@@ -165,6 +172,7 @@ export class HeroCombatSystem {
 			);
 			this.healingCooldown = healingCooldown(level);
 			this.healingCooldownMax = this.healingCooldown;
+			if (this.manualSkill === "healing") this.manualSkill = undefined;
 		}
 		const rapidRegenLevel = effectiveSkillLevel(progress, "rapidRegen");
 		const rapidRegenCost =
@@ -172,6 +180,7 @@ export class HeroCombatSystem {
 			(1 - resourceReduction(progress, "mana", effectiveStats));
 		if (
 			isSkillActive(progress, "rapidRegen") &&
+			(autoFire.has("rapidRegen") || this.manualSkill === "rapidRegen") &&
 			rapidRegenLevel > 0 &&
 			hero.hp < hero.maxHp &&
 			this.rapidRegenRemaining === 0 &&
@@ -202,6 +211,7 @@ export class HeroCombatSystem {
 				remaining: duration,
 				maximum: duration,
 			});
+			if (this.manualSkill === "rapidRegen") this.manualSkill = undefined;
 		}
 		const target = closestTarget(hero, state.creeps);
 		const movementSpeed = Math.hypot(hero.velocity.x, hero.velocity.y);
@@ -217,7 +227,9 @@ export class HeroCombatSystem {
 		}
 		const targetDistance = distance(hero.position, target.position);
 		const profile = attackProfile(item, effectiveStats, balance);
-		const orderedSkills = this.availableSkills(progress);
+		const orderedSkills = this.availableSkills(progress).filter(
+			(skill) => autoFire.has(skill.id) || skill.id === this.manualSkill,
+		);
 		const rotatedSkills = orderedSkills.length
 			? [
 					...orderedSkills.slice(
@@ -574,6 +586,7 @@ export class HeroCombatSystem {
 				remaining: duration,
 				maximum: duration,
 			});
+			if (this.manualSkill === activeSkill.id) this.manualSkill = undefined;
 			const castIndex = orderedSkills.findIndex(
 				({ id }) => id === activeSkill.id,
 			);
@@ -581,17 +594,25 @@ export class HeroCombatSystem {
 				? (castIndex + 1) % orderedSkills.length
 				: 0;
 		}
-		const nextRotated = orderedSkills.length
-			? [
-					...orderedSkills.slice(
-						this.skillPriorityCursor % orderedSkills.length,
-					),
-					...orderedSkills.slice(
-						0,
-						this.skillPriorityCursor % orderedSkills.length,
-					),
-				]
-			: [];
+		const automaticSkills = orderedSkills.filter((skill) =>
+			autoFire.has(skill.id),
+		);
+		const requestedSkill = orderedSkills.find(
+			(skill) => skill.id === this.manualSkill,
+		);
+		const nextRotated = requestedSkill
+			? [requestedSkill]
+			: automaticSkills.length
+				? [
+						...automaticSkills.slice(
+							this.skillPriorityCursor % automaticSkills.length,
+						),
+						...automaticSkills.slice(
+							0,
+							this.skillPriorityCursor % automaticSkills.length,
+						),
+					]
+				: [];
 		const nextSkill = nextRotated.find(usable);
 		if (nextSkill) {
 			const total = skillCastTime(
@@ -621,6 +642,8 @@ export class HeroCombatSystem {
 	}
 
 	spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
+		const equipped = equippedActiveSkillIds(progress);
+		const autoFire = new Set(autoFireSkillIds(progress));
 		return orderedSkillIds(progress).map((id) => {
 			const cooldown = this.skillCooldowns.get(id);
 			return {
@@ -654,6 +677,9 @@ export class HeroCombatSystem {
 				resource: SKILLS[id].resource,
 				costLabel: skillCostLabel(id, progress),
 				active: isSkillActive(progress, id),
+				passive: Boolean(SKILLS[id].passive),
+				autoFire: autoFire.has(id),
+				shortcut: equipped.includes(id) ? equipped.indexOf(id) + 1 : undefined,
 				bar: learnedSkillIds(progress).includes(id)
 					? ("learned" as const)
 					: ("geared" as const),
@@ -718,6 +744,7 @@ export class HeroCombatSystem {
 		this.orbitCastSequence = 0;
 		this.skillPriorityCursor = 0;
 		this.casting = undefined;
+		this.manualSkill = undefined;
 		this.whirlwindRemaining = 0;
 		this.whirlwindPulse = 0;
 		this.whirlwindSpeed = 1;
@@ -1039,8 +1066,21 @@ export function orderedSkillIds(progress: PlayerProgress): SkillId[] {
 	return availableSkillIds(progress);
 }
 export function activeSkillIds(progress: PlayerProgress): SkillId[] {
-	const disabled = new Set(progress.disabledSkills ?? []);
-	return availableSkillIds(progress).filter((skill) => !disabled.has(skill));
+	const equipped = new Set(equippedActiveSkillIds(progress));
+	return availableSkillIds(progress).filter(
+		(skill) => SKILLS[skill].passive || equipped.has(skill),
+	);
+}
+export const MAX_EQUIPPED_SPELLS = 6;
+export function equippedActiveSkillIds(progress: PlayerProgress): SkillId[] {
+	const available = new Set(availableSkillIds(progress));
+	return (progress.equippedSkills ?? [])
+		.filter((skill) => available.has(skill) && !SKILLS[skill].passive)
+		.slice(0, MAX_EQUIPPED_SPELLS);
+}
+export function autoFireSkillIds(progress: PlayerProgress): SkillId[] {
+	const equipped = new Set(equippedActiveSkillIds(progress));
+	return (progress.autoFireSkills ?? []).filter((skill) => equipped.has(skill));
 }
 export function isSkillActive(
 	progress: PlayerProgress,

@@ -1,4 +1,5 @@
 import { SQL } from "bun";
+import { SKILLS } from "../common/content.ts";
 import { itemStackKey, migrateLegacyItem } from "../common/items.ts";
 import type { PanelTriggers, PlayerProgress } from "../common/protocol.ts";
 import type { HeroSummary } from "../common/protocol.ts";
@@ -170,8 +171,23 @@ function fromRow(row: HeroRow): Player | undefined {
 		blob.progress.xp,
 		cumulativeXpForLevel(blob.progress.level),
 	);
-	blob.progress.disabledSkills ??= [];
 	migrateLegacyEquipment(blob.progress);
+	blob.progress.disabledSkills ??= [];
+	if (!blob.progress.equippedSkills) {
+		const disabled = new Set(blob.progress.disabledSkills);
+		const available = [
+			...blob.progress.learnedSkills,
+			...(blob.progress.mainHand?.skills ?? []),
+			...(blob.progress.offHand?.skills ?? []),
+			...(blob.progress.amulet?.skills ?? []),
+			...(blob.progress.charm?.skills ?? []),
+		];
+		blob.progress.equippedSkills = [...new Set(available)]
+			.filter((skill) => !SKILLS[skill].passive && !disabled.has(skill))
+			.slice(0, 6);
+		blob.progress.autoFireSkills = [...blob.progress.equippedSkills];
+	}
+	blob.progress.autoFireSkills ??= [];
 	return {
 		id: row.id,
 		name: row.username,
