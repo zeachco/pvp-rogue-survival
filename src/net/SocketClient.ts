@@ -33,7 +33,8 @@ export function gameSocketUrl(
 		const protocol =
 			base.protocol === "https:" || base.protocol === "wss:" ? "wss:" : "ws:";
 		const path = base.pathname.replace(/\/+$/, "");
-		return `${protocol}//${base.host}${path}/ws`;
+		const socketPath = path.endsWith("/ws") ? path : `${path}/ws`;
+		return `${protocol}//${base.host}${socketPath}`;
 	} catch {
 		return fallback;
 	}

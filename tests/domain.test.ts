@@ -1814,6 +1814,13 @@ test("connects WebSockets to the page origin unless server overrides it", () => 
 		gameSocketUrl({
 			host: "localhost:3000",
 			protocol: "http:",
+			search: "?server=wss%3A%2F%2Fpvp.railway%2Fgame%2Fws%2F",
+		} as Location),
+	).toBe("wss://pvp.railway/game/ws");
+	expect(
+		gameSocketUrl({
+			host: "localhost:3000",
+			protocol: "http:",
 			search: "?server=ftp%3A%2F%2Fbad.test",
 		} as Location),
 	).toBe("ws://localhost:3000/ws");
