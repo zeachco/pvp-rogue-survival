@@ -173,7 +173,6 @@ input {
 	display: flex;
 	flex-direction: row;
 	width: auto;
-	max-height: calc(100vh - 180px);
 	gap: 6px;
 	align-items: flex-end;
 	justify-content: flex-start;
@@ -186,14 +185,13 @@ input {
 	display: flex;
 	flex-direction: column;
 	width: 78px;
-	max-height: calc(100vh - 180px);
 	gap: 6px;
 	align-items: center;
 	justify-content: flex-end;
 	padding: 6px;
 	overflow: hidden;
 	border: 1px solid rgba(138, 216, 255, 0.35);
-	border-radius: 99px 99px 8px 8px;
+	border-radius: 8px;
 	background: rgba(13, 20, 24, 0.82);
 	box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
 	backdrop-filter: blur(10px);
@@ -201,18 +199,12 @@ input {
 
 .skill-list {
 	display: flex;
-	flex: 0 1 auto;
+	flex: 0 0 auto;
 	flex-direction: column;
 	width: 100%;
-	max-height: calc(100vh - 210px);
-	min-height: 0;
 	gap: 6px;
 	align-items: center;
-	overflow-y: auto;
-	overflow-x: hidden;
-	overscroll-behavior: contain;
-	scrollbar-color: rgba(138, 216, 255, 0.5) transparent;
-	scrollbar-width: thin;
+	overflow: visible;
 }
 
 .spell-slot.is-passive {
@@ -334,13 +326,12 @@ input {
 }
 .spell-shortcut {
 	position: absolute;
-	top: 2px;
+	top: 5px;
+	left: 50%;
 	font-size: 10px;
 	font-weight: 800;
 	line-height: 1;
-}
-.spell-shortcut {
-	left: 7px;
+	transform: translateX(-50%);
 }
 .spell-auto-fire {
 	position: absolute;
@@ -369,11 +360,11 @@ input {
 }
 
 .spell-slot .spell-level {
-	position: absolute;
-	top: 3px;
-	right: 6px;
-	font-size: 10px;
+	margin-left: 1px;
+	color: #fff;
+	font-size: 9px;
 	font-weight: 800;
+	vertical-align: super;
 }
 
 .aim-reticle {

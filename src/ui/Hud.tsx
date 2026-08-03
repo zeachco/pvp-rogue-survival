@@ -110,10 +110,8 @@ function formatSkillDamage(damage: SkillDamagePreview): string {
 	if (damage.kind === "flat") return `${fmt(damage.value)} ${damage.detail}`;
 	return `${fmt(damage.value * 100)}% ${damage.detail}`;
 }
-function formatSpellLevel(activeLevel: number, actualLevel: number): string {
-	return activeLevel < actualLevel
-		? `${activeLevel}/${actualLevel}`
-		: String(activeLevel);
+function formatSpellLevel(activeLevel: number): string {
+	return String(activeLevel);
 }
 
 export function panelShortcut(
@@ -1324,8 +1322,8 @@ export class Hud {
 			this.player?.progress.level ?? actualLevel,
 		);
 		const levelValue: PreviewValue<string> = {
-			currentVal: formatSpellLevel(spell.level, spell.actualLevel),
-			newVal: formatSpellLevel(shownLevel, actualLevel),
+			currentVal: formatSpellLevel(spell.level),
+			newVal: formatSpellLevel(shownLevel),
 		};
 		const changed = projected !== undefined && projected !== spell.actualLevel;
 		const button = (
@@ -1342,8 +1340,10 @@ export class Hud {
 				{spell.autoFire ? (
 					<span class="spell-auto-fire" aria-label="Auto-fire enabled" />
 				) : null}
-				<strong>{spell.label.slice(0, 2).toUpperCase()}</strong>
-				<small class="spell-level">{formatPreviewValue(levelValue)}</small>
+				<strong>
+					{spell.label.slice(0, 2).toUpperCase()}
+					<small class="spell-level">{formatPreviewValue(levelValue)}</small>
+				</strong>
 				{this.renderSkillTooltip(spell, shownLevel)}
 			</button>
 		) as HTMLButtonElement;
