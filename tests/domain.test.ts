@@ -158,6 +158,7 @@ import {
 	passiveSkillMetrics,
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
+	spellInitials,
 	statusEffectSummaries,
 	xpSendBuffSummary,
 } from "../src/ui/Hud";
@@ -237,6 +238,12 @@ test("sorts the spell catalog by HP, Rage, then Mana", () => {
 			(a, b) => spellCatalogResourceOrder(a) - spellCatalogResourceOrder(b),
 		),
 	).toEqual(["life", "rage", "mana"]);
+});
+
+test("uses word initials for multi-word spell badges", () => {
+	expect(spellInitials("Rending Throw")).toBe("RT");
+	expect(spellInitials("Reflective Surge")).toBe("RS");
+	expect(spellInitials("Voodoo")).toBe("VO");
 });
 
 test("combines spell type and learning-state catalog filters", () => {

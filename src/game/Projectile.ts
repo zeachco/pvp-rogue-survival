@@ -222,10 +222,14 @@ export class Projectile extends GameObject {
 			return group as unknown as THREE.Mesh;
 		}
 
-		if (this.weapon?.definitionId === "throwingAxe") {
+		if (
+			this.skill === "rendingThrow" ||
+			this.weapon?.definitionId === "throwingAxe"
+		) {
+			const rending = this.skill === "rendingThrow";
 			const handle = new THREE.Mesh(
-				new THREE.PlaneGeometry(18, 4),
-				new THREE.MeshBasicMaterial({ color: 0x8a552f }),
+				new THREE.PlaneGeometry(rending ? 24 : 18, rending ? 5 : 4),
+				new THREE.MeshBasicMaterial({ color: rending ? 0x4f1818 : 0x8a552f }),
 			);
 			const bladeShape = new THREE.Shape();
 			bladeShape.moveTo(2, -3);
@@ -234,11 +238,26 @@ export class Projectile extends GameObject {
 			bladeShape.closePath();
 			const blade = new THREE.Mesh(
 				new THREE.ShapeGeometry(bladeShape),
-				new THREE.MeshBasicMaterial({ color: 0xb9c4ca }),
+				new THREE.MeshBasicMaterial({ color: rending ? 0xff4c55 : 0xb9c4ca }),
 			);
 			blade.position.x = 5;
 			const group = new THREE.Group();
-			group.add(handle, blade);
+			if (rending) {
+				const oppositeBlade = blade.clone();
+				oppositeBlade.rotation.z = Math.PI;
+				oppositeBlade.position.x = -5;
+				const aura = new THREE.Mesh(
+					new THREE.RingGeometry(14, 18, 20),
+					new THREE.MeshBasicMaterial({
+						color: 0xc4142f,
+						transparent: true,
+						opacity: 0.38,
+						side: THREE.DoubleSide,
+					}),
+				);
+				aura.name = "rending-aura";
+				group.add(aura, handle, blade, oppositeBlade);
+			} else group.add(handle, blade);
 			return group as unknown as THREE.Mesh;
 		}
 
@@ -458,6 +477,14 @@ export class Projectile extends GameObject {
 		} else if (this.skill === "vampiricBoomerang") {
 			this.bodyMesh.rotation.z =
 				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 10;
+		} else if (this.skill === "rendingThrow") {
+			this.bodyMesh.rotation.z =
+				Math.atan2(this.velocity.y, this.velocity.x) + time * 14;
+			const aura = this.bodyMesh.getObjectByName("rending-aura");
+			if (aura) {
+				const pulse = 0.9 + 0.14 * (0.5 + 0.5 * Math.sin(time * 12));
+				aura.scale.setScalar(pulse);
+			}
 		} else if (this.weapon?.definitionId === "throwingAxe") {
 			this.bodyMesh.rotation.z =
 				Math.atan2(this.velocity.y, this.velocity.x) + this.lifetime * 11;

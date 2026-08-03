@@ -1348,7 +1348,7 @@ export class Hud {
 					<span class="spell-auto-fire" aria-label="Auto-fire enabled" />
 				) : null}
 				<strong>
-					{spell.label.slice(0, 2).toUpperCase()}
+					{spellInitials(spell.label)}
 					<small class="spell-level">lv{formatPreviewValue(levelValue)}</small>
 				</strong>
 				{this.renderSkillTooltip(spell, shownLevel)}
@@ -3286,6 +3286,15 @@ function rankedName(name: string, receivesDeathEchoes: boolean): Node {
 }
 function capitalize(value: string): string {
 	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+export function spellInitials(label: string): string {
+	const words = label.trim().split(/\s+/).filter(Boolean);
+	return (
+		words.length > 1 ? words.map((word) => word[0]).join("") : label.slice(0, 2)
+	)
+		.slice(0, 2)
+		.toUpperCase();
 }
 export function spellCatalogResourceOrder(
 	resource: SpellSlot["resource"],

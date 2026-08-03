@@ -1055,6 +1055,26 @@ describe("arena systems", () => {
 		expect(projectilePresentationCenter("vampiricBoomerang")).toBe(50);
 		expect(projectilePresentationCenter(undefined, "throwingAxe")).toBe(14);
 	});
+	test("gives Rending Throw a distinct spinning, pulsing projectile", () => {
+		const projectile = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 1, y: 0 },
+			1,
+			"hero",
+			"rendingThrow",
+		);
+		const body = projectile.mesh.children[0].children[0];
+		const aura = body.getObjectByName("rending-aura");
+		expect(aura).toBeDefined();
+
+		projectile.updateVisuals(0);
+		const initialRotation = body.rotation.z;
+		const initialScale = aura?.scale.x;
+		projectile.updateVisuals(0.1);
+
+		expect(body.rotation.z).not.toBe(initialRotation);
+		expect(aura?.scale.x).not.toBe(initialScale);
+	});
 	test("tumbles Orbiting Hammer models around all three axes", () => {
 		const first = orbitingHammerRotation(0.25, 0.4);
 		const second = orbitingHammerRotation(0.5, 0.8);
