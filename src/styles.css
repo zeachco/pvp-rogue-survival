@@ -326,12 +326,26 @@ input {
 }
 .spell-shortcut {
 	position: absolute;
-	top: 5px;
+	top: 3px;
 	left: 50%;
+	display: grid;
+	width: 14px;
+	height: 14px;
+	place-items: center;
+	border: 1px solid currentColor;
+	border-radius: 50%;
 	font-size: 10px;
 	font-weight: 800;
 	line-height: 1;
+	background: rgba(13, 20, 24, 0.5);
 	transform: translateX(-50%);
+}
+.spell-shortcut-dot {
+	display: block;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: currentColor;
 }
 .spell-auto-fire {
 	position: absolute;
@@ -352,6 +366,8 @@ input {
 }
 
 .spell-slot strong {
+	display: inline-flex;
+	align-items: center;
 	font-size: 15px;
 }
 
@@ -360,11 +376,10 @@ input {
 }
 
 .spell-slot .spell-level {
-	margin-left: 1px;
+	margin-left: 3px;
 	color: #fff;
-	font-size: 9px;
+	font-size: 8px;
 	font-weight: 800;
-	vertical-align: super;
 }
 
 .aim-reticle {

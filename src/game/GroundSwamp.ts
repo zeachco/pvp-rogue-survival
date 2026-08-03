@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { distance, type Vector2 } from "./types";
+import { damageStatusDuration, distance, type Vector2 } from "./types";
 import { GameObject } from "./GameObject";
 import type { Hero } from "./Hero";
 import type { Creep } from "./Creep";
@@ -112,7 +112,7 @@ export class GroundSwamp extends GameObject {
 			: 1;
 		creep.addStatus({
 			kind: "poison",
-			remaining: 8,
+			remaining: damageStatusDuration(8),
 			damagePerSecond: (0.2 + this.source.stats.spirit * 0.02) * voodoo,
 			source: this.source,
 		});

@@ -108,6 +108,7 @@ import {
 	cumulativeXpForLevel,
 	DEFAULT_ALLOCATION,
 	derivedStats,
+	heroTurnSpeedDegrees,
 	lerpXpDisplay,
 	levelForXp,
 	STAT_KEYS,
@@ -268,6 +269,13 @@ test("gates Orbiting Hammers and Frozen Orb at their authored hero levels", () =
 });
 
 describe("hero auto-facing", () => {
+	test("scales from the current turn speed to the capped near-instant rate", () => {
+		expect(heroTurnSpeedDegrees(0)).toBe(300);
+		expect(heroTurnSpeedDegrees(50)).toBe(3150);
+		expect(heroTurnSpeedDegrees(100)).toBe(6000);
+		expect(heroTurnSpeedDegrees(150)).toBe(6000);
+	});
+
 	test("turns toward a target at a bounded speed", () => {
 		expect(turnAngleTowards(0, Math.PI, HERO_TURN_SPEED / 60)).toBeCloseTo(
 			HERO_TURN_SPEED / 60,

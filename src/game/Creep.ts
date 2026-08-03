@@ -439,8 +439,9 @@ export class Creep extends Unit {
 	readonly kind: CreepKind;
 
 	override takeDamage(amount: number): void {
+		const hpBefore = this.hp;
 		super.takeDamage(amount);
-		this.damageFlash = true;
+		if (this.hp < hpBefore) this.damageFlash = true;
 	}
 
 	pursue(

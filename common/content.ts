@@ -151,7 +151,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 135,
 		resource: "rage",
 		description:
-			"A broad sword sweep that always inflicts a strong 3-second bleed.",
+			"A broad sword sweep that always inflicts a strong 9-second bleed.",
 	},
 	flurry: {
 		id: "flurry",
@@ -181,7 +181,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 50,
 		resource: "rage",
 		description:
-			"A wide, forceful axe cleave with 2× knockback that inflicts a 2-second bleed. Range scales from 1m to 10m and its attack arc widens from 45° to 270° between levels 1 and 99.",
+			"A wide, forceful axe cleave with 2× knockback that inflicts a 6-second bleed. Range scales from 1m to 10m and its attack arc widens from 45° to 270° between levels 1 and 99.",
 	},
 	whirlwind: {
 		id: "whirlwind",
@@ -320,7 +320,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cost: 4,
 		enemyEligible: true,
 		description:
-			"Breathes advancing fire arcs in a cone and burns targets for eight seconds, scaling with Spirit.",
+			"Breathes advancing fire arcs in a cone and burns targets for 24 seconds, scaling with Spirit.",
 	},
 	swamp: {
 		id: "swamp",

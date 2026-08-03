@@ -75,6 +75,7 @@ import {
 	MAP_Z,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
+import { damageStatusDuration } from "../src/game/types";
 
 describe("animated 3D characters", () => {
 	test("maps semantic animation aliases case-insensitively", () => {
@@ -128,6 +129,58 @@ describe("animated 3D characters", () => {
 				(child) => child.type === "Group" && child.position.z === creep.radius,
 			),
 		).toBeTrue();
+	});
+
+	test("flashes hero and enemy presentations white for exactly one rendered frame after damage", () => {
+		const hero = new Hero({ x: 0, y: 0 });
+		const heroBody = hero.mesh.children.find(
+			(child) =>
+				child.type === "Mesh" && child.geometry.type === "CircleGeometry",
+		) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+		hero.takeDamage(1);
+		hero.updateVisuals(0);
+		expect(heroBody.material.color.getHex()).toBe(0xffffff);
+		hero.updateVisuals(1 / 60);
+		expect(heroBody.material.color.getHex()).toBe(0xdffeff);
+
+		const creep = new Creep(
+			{
+				id: "flash-creep",
+				name: "Flash Creep",
+				kind: "melee",
+				level: 0,
+				stats: { ...ZERO_STATS },
+				mainHand: starterClub(),
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 0, y: 0 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		let creepBody:
+			| THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
+			| undefined;
+		creep.mesh.traverse((child) => {
+			if (
+				!creepBody &&
+				child instanceof THREE.Mesh &&
+				child.material instanceof THREE.MeshBasicMaterial &&
+				!child.material.wireframe
+			)
+				creepBody = child;
+		});
+		expect(creepBody).toBeDefined();
+		creep.takeDamage(1);
+		creep.updateVisuals(0);
+		expect(creepBody?.material.color.getHex()).toBe(0xffffff);
+		creep.updateVisuals(1 / 60);
+		expect(creepBody?.material.color.getHex()).not.toBe(0xffffff);
 	});
 
 	test("removes render-only boss defeat presentation after 1.2 seconds", () => {
@@ -1176,7 +1229,12 @@ describe("arena systems", () => {
 		const swamp = new GroundSwamp({ x: 0, y: 0 }, 100, hero);
 		swamp.update(1, [creep]);
 		expect(creep.statuses).toMatchObject([
-			{ kind: "poison", remaining: 8, damagePerSecond: 0.52, source: hero },
+			{
+				kind: "poison",
+				remaining: damageStatusDuration(8),
+				damagePerSecond: 0.52,
+				source: hero,
+			},
 		]);
 		creep.position.x = 200;
 		swamp.update(0.5, [creep]);

@@ -16,6 +16,11 @@ export type StatusEffectKind =
 	| "freeze"
 	| "shock"
 	| "curse";
+export const DAMAGE_STATUS_DURATION_MULTIPLIER = 3;
+
+export function damageStatusDuration(baseDuration: number): number {
+	return baseDuration * DAMAGE_STATUS_DURATION_MULTIPLIER;
+}
 export interface StatusEffectSnapshot {
 	kind: StatusEffectKind;
 	remaining: number;

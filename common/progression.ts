@@ -28,6 +28,23 @@ export const ZERO_STATS: Stats = {
 	intelligence: 0,
 };
 
+export const BASE_HERO_TURN_SPEED_DEGREES = 300;
+export const MAX_HERO_TURN_SPEED_DEGREES = 6000;
+export const HERO_TURN_SPEED_AGILITY_CAP = 100;
+
+export function heroTurnSpeedDegrees(agility: number): number {
+	const cappedAgility = Math.min(
+		HERO_TURN_SPEED_AGILITY_CAP,
+		Math.max(0, agility),
+	);
+	return (
+		BASE_HERO_TURN_SPEED_DEGREES +
+		((MAX_HERO_TURN_SPEED_DEGREES - BASE_HERO_TURN_SPEED_DEGREES) *
+			cappedAgility) /
+			HERO_TURN_SPEED_AGILITY_CAP
+	);
+}
+
 export interface DerivedStats {
 	baseDamage: number;
 	maxHp: number;

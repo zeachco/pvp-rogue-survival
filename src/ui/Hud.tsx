@@ -19,6 +19,7 @@ import {
 	STAT_KEYS,
 	cumulativeXpForLevel,
 	integerAllocation,
+	heroTurnSpeedDegrees,
 	lerpXpDisplay,
 	levelForXp,
 	xpForNextLevel,
@@ -1335,14 +1336,20 @@ export class Hud {
 			>
 				{cooldown}
 				{spell.shortcut ? (
-					<span class="spell-shortcut">{spell.shortcut}</span>
+					<span class="spell-shortcut" aria-hidden="true">
+						{spell.autoFire ? (
+							<span class="spell-shortcut-dot" />
+						) : (
+							spell.shortcut
+						)}
+					</span>
 				) : null}
 				{spell.autoFire ? (
 					<span class="spell-auto-fire" aria-label="Auto-fire enabled" />
 				) : null}
 				<strong>
 					{spell.label.slice(0, 2).toUpperCase()}
-					<small class="spell-level">{formatPreviewValue(levelValue)}</small>
+					<small class="spell-level">lv{formatPreviewValue(levelValue)}</small>
 				</strong>
 				{this.renderSkillTooltip(spell, shownLevel)}
 			</button>
@@ -2746,6 +2753,7 @@ export function effectiveStatRows(
 				),
 			),
 		],
+		["Turn speed", `${fmt(heroTurnSpeedDegrees(stats.agility))}°/s`],
 		["Spell range/Lv", `+${fmt(pixelsToMeters(0.5 * stats.spirit))} m`],
 		["Spell power/Lv", "+15%"],
 		["Max health", fmt(maxHp ?? derived.maxHp)],

@@ -261,9 +261,10 @@ export class AnimatedCharacter {
 			flash ? 0xffffff : (statusTint ?? this.manifest.baseTint),
 		);
 		for (const entry of this.materials) {
-			entry.material.color.copy(entry.color).multiply(tint);
+			if (flash) entry.material.color.set(0xffffff);
+			else entry.material.color.copy(entry.color).multiply(tint);
 			entry.material.emissive.copy(entry.emissive);
-			if (flash) entry.material.emissive.addScalar(0.35);
+			if (flash) entry.material.emissive.set(0xffffff);
 		}
 	}
 }

@@ -8,8 +8,14 @@ import { Z_HERO, Z_AURA } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
 import { auraRadius } from "../../common/auras";
 import { AnimatedCharacter } from "./render/AnimatedCharacter";
+import {
+	BASE_HERO_TURN_SPEED_DEGREES,
+	heroTurnSpeedDegrees,
+} from "../../common/progression";
 
-export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(300);
+export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(
+	BASE_HERO_TURN_SPEED_DEGREES,
+);
 
 export function turnAngleTowards(
 	current: number,
@@ -40,6 +46,7 @@ export class Hero extends Unit {
 	facing = 0;
 	movementSpeedMultiplier = 1;
 	readonly auraGroup = new THREE.Group();
+	private damageFlash = false;
 
 	private readonly bodyMesh: THREE.Mesh;
 	private readonly facingMesh: THREE.Mesh;
@@ -205,11 +212,18 @@ export class Hero extends Unit {
 		this.clampToBounds(width, height);
 	}
 
+	override takeDamage(amount: number): void {
+		const hpBefore = this.hp;
+		super.takeDamage(amount);
+		if (this.hp < hpBefore) this.damageFlash = true;
+	}
+
 	turnTowards(target: number, deltaSeconds: number): void {
 		this.facing = turnAngleTowards(
 			this.facing,
 			target,
-			HERO_TURN_SPEED * deltaSeconds,
+			THREE.MathUtils.degToRad(heroTurnSpeedDegrees(this.stats.agility)) *
+				deltaSeconds,
 		);
 	}
 
@@ -229,6 +243,8 @@ export class Hero extends Unit {
 		this.mesh.position.set(this.position.x, this.position.y, 0);
 		this.facingMesh.rotation.z = this.facing;
 
+		const flash = this.damageFlash;
+		this.damageFlash = false;
 		const tint = statusTint(this.statuses);
 		this.animatedCharacter.update({
 			time,
@@ -239,7 +255,11 @@ export class Hero extends Unit {
 			hitVersion: this.presentationHitVersion,
 			dead: !this.active && this.hp <= 0,
 			statusTint: tint,
+			flash,
 		});
+		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(
+			flash ? 0xffffff : 0xdffeff,
+		);
 		if (tint) {
 			(this.statusTint.material as THREE.MeshBasicMaterial).color.set(tint);
 			(this.statusTint.material as THREE.MeshBasicMaterial).opacity = 0.42;

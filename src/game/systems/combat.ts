@@ -7,7 +7,7 @@ import type { RandomSource } from "../../../common/random";
 import type { ArenaState } from "../ArenaState";
 import type { Hero } from "../Hero";
 import type { Unit } from "../Unit";
-import { distance } from "../types";
+import { damageStatusDuration, distance } from "../types";
 import { applyImpactForce } from "../ImpactForce";
 
 export function resolveCombat(
@@ -64,7 +64,7 @@ export function resolveCombat(
 					if (attack.skill === "sweep")
 						creep.addStatus({
 							kind: "bleed",
-							remaining: 3,
+							remaining: damageStatusDuration(3),
 							damagePerSecond: 0.35,
 						});
 					if (attack.skill === "rent")
@@ -74,14 +74,14 @@ export function resolveCombat(
 					if (attack.skill === "cleave")
 						creep.addStatus({
 							kind: "bleed",
-							remaining: 2,
+							remaining: damageStatusDuration(2),
 							damagePerSecond: 0.45,
 							source: attack.source as Unit | undefined,
 						});
 					if (attack.skill === "fireBreath" && !creep.lastHitDodged)
 						creep.addStatus({
 							kind: "burn",
-							remaining: 8,
+							remaining: damageStatusDuration(8),
 							damagePerSecond:
 								0.25 +
 								0.03 * ((attack.source as Unit | undefined)?.stats.spirit ?? 0),
@@ -110,7 +110,7 @@ export function resolveCombat(
 			if (attack.skill === "fireBreath" && !hero.lastHitDodged)
 				hero.addStatus({
 					kind: "burn",
-					remaining: 8,
+					remaining: damageStatusDuration(8),
 					damagePerSecond:
 						0.25 +
 						0.03 * ((attack.source as Unit | undefined)?.stats.spirit ?? 0),
@@ -181,7 +181,7 @@ export function resolveCombat(
 						if (projectile.skill === "rendingThrow")
 							hit.addStatus({
 								kind: "bleed",
-								remaining: 3,
+								remaining: damageStatusDuration(3),
 								damagePerSecond: 0.25,
 								source: projectile.source,
 							});
@@ -235,7 +235,7 @@ export function applyWeaponEffects(
 	if (random.next() < item.modifiers.bleedChance * effectiveness)
 		target.addStatus({
 			kind: "bleed",
-			remaining: 3,
+			remaining: damageStatusDuration(3),
 			damagePerSecond: 0.25,
 			source,
 		});
@@ -245,7 +245,7 @@ export function applyWeaponEffects(
 			: 1;
 		target.addStatus({
 			kind: "poison",
-			remaining: 8,
+			remaining: damageStatusDuration(8),
 			damagePerSecond: (0.2 + (source?.stats.spirit ?? 0) * 0.02) * voodoo,
 			source,
 		});
