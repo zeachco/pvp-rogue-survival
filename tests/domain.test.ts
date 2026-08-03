@@ -230,9 +230,9 @@ describe("third-person camera", () => {
 });
 
 describe("Healing auto-fire", () => {
-	test("waits for thirty percent HP while including the threshold", () => {
-		expect(shouldAutoCastHealing(31, 100)).toBeFalse();
-		expect(shouldAutoCastHealing(30, 100)).toBeTrue();
+	test("waits for fifty percent HP while including the threshold", () => {
+		expect(shouldAutoCastHealing(51, 100)).toBeFalse();
+		expect(shouldAutoCastHealing(50, 100)).toBeTrue();
 		expect(shouldAutoCastHealing(1, 100)).toBeTrue();
 	});
 });
@@ -1763,21 +1763,21 @@ test("scales Rending Throw pierce every third level after level two", () => {
 });
 describe("Healing scaling", () => {
 	test("scales healing and charges a level base plus mana per HP restored", () => {
-		expect(healingFraction(1)).toBeCloseTo(0.2);
-		expect(healingFraction(99)).toBeCloseTo(0.9);
-		expect(healingFraction(100)).toBeCloseTo(0.9);
+		expect(healingFraction(1)).toBeCloseTo(0.4);
+		expect(healingFraction(99)).toBeCloseTo(1);
+		expect(healingFraction(100)).toBeCloseTo(1);
 		expect(healingCooldown(1)).toBeCloseTo(18);
 		expect(healingCooldown(99)).toBeCloseTo(6);
 		expect(healingRadius(1)).toBe(150);
 		expect(healingRadius(99)).toBe(600);
 		expect(healingBaseManaCost(1)).toBe(7);
 		expect(healingCast(40, 100, 0, 10, 1)).toEqual({
-			restoredHp: 13,
-			manaCost: 10.25,
+			restoredHp: 21,
+			manaCost: 12.25,
 		});
 		expect(healingCast(40, 100, 10, 10, 1)).toEqual({
-			restoredHp: 18,
-			manaCost: 11.5,
+			restoredHp: 26,
+			manaCost: 13.5,
 		});
 		expect(healingCast(49, 50, 1, 1, 99)).toEqual({
 			restoredHp: 1,

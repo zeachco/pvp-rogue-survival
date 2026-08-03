@@ -481,6 +481,8 @@ describe("arena systems", () => {
 			BALANCE,
 			new SeededRandom(3),
 		);
+		healer.hp = healer.maxHp * 0.51;
+		expect(healer.castHealing([healer, ally, distantAlly], [])).toBeFalse();
 		healer.hp = healer.maxHp / 2;
 		ally.hp = ally.maxHp / 2;
 		distantAlly.hp = distantAlly.maxHp / 2;

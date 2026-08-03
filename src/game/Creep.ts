@@ -12,6 +12,7 @@ import { ENEMY_ARCHETYPES } from "../../common/content";
 import {
 	attackProfile,
 	forceFieldRange,
+	healingAutoCastThresholdMet,
 	healingCast,
 	healingCooldown,
 	healingRadius,
@@ -595,7 +596,7 @@ export class Creep extends Unit {
 			!this.active ||
 			!this.knownSkills.has("healing") ||
 			level <= 0 ||
-			this.hp >= this.maxHp * 0.75 ||
+			!healingAutoCastThresholdMet(this.hp, this.maxHp) ||
 			this.healingCooldown > 0
 		)
 			return false;

@@ -404,7 +404,13 @@ export function whirlwindDamage(strength: number): number {
 	return 1 + 0.4 * Math.max(0, strength);
 }
 export function healingFraction(level: number): number {
-	return 0.2 + (cappedSkillLevel(level) - 1) * (0.7 / 98);
+	return 0.4 + (cappedSkillLevel(level) - 1) * (0.6 / 98);
+}
+export function healingAutoCastThresholdMet(
+	hp: number,
+	maxHp: number,
+): boolean {
+	return maxHp > 0 && hp <= maxHp * 0.5;
 }
 export function healingCooldown(level: number): number {
 	return 18 - (cappedSkillLevel(level) - 1) * (12 / 98);

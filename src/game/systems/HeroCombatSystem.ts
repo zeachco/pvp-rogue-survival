@@ -7,6 +7,7 @@ import {
 	effectiveSkillCooldown,
 	forceFieldRange,
 	healingBaseManaCost,
+	healingAutoCastThresholdMet,
 	healingCast,
 	healingCooldown,
 	healingRadius,
@@ -57,7 +58,7 @@ import { SKILLS } from "../../../common/content";
 import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
 
 export function shouldAutoCastHealing(hp: number, maxHp: number): boolean {
-	return maxHp > 0 && hp <= maxHp * 0.3;
+	return healingAutoCastThresholdMet(hp, maxHp);
 }
 
 export class HeroCombatSystem {

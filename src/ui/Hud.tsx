@@ -54,6 +54,7 @@ import {
 	bucklerBlockCost,
 	cappedSkillLevel,
 	effectiveSkillCooldown,
+	healingFraction,
 	MAX_SKILL_LEVEL,
 	manaConversionFraction,
 	spiritWoundsConversionFraction,
@@ -1627,6 +1628,18 @@ export class Hud {
 						<span>
 							<small>Bleed</small>
 							<strong>{RENDING_THROW_BLEED_DURATION}s at 0.25/s</strong>
+						</span>
+					) : null}
+					{spell.id === "healing" ? (
+						<span>
+							<small>Current HP heal</small>
+							<strong>{fmt(healingFraction(shownLevel) * 100)}%</strong>
+						</span>
+					) : null}
+					{spell.id === "healing" ? (
+						<span>
+							<small>Auto-cast</small>
+							<strong>≤50% HP</strong>
 						</span>
 					) : null}
 					{spell.id === "rapidRegen" ? (
