@@ -4,7 +4,7 @@ import {
 	bucklerBlockCost,
 	cappedSkillLevel,
 	cleaveHalfArc,
-	cooldownScale,
+	effectiveSkillCooldown,
 	forceFieldRange,
 	healingBaseManaCost,
 	healingCast,
@@ -15,7 +15,6 @@ import {
 	rapidRegenMultiplier,
 	rollAttackStrike,
 	skillCastTime,
-	skillCooldown,
 	skillDamageMultiplier,
 	skillImpactForceScale,
 	skillLabel,
@@ -207,12 +206,13 @@ export class HeroCombatSystem {
 				),
 			);
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
-			const duration =
-				skillCooldown("rapidRegen", item, effectiveStats) *
-				cooldownScale(
-					rapidRegenLevel,
-					Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
-				);
+			const duration = effectiveSkillCooldown(
+				"rapidRegen",
+				item,
+				effectiveStats,
+				rapidRegenLevel,
+				Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
+			);
 			this.skillCooldowns.set("rapidRegen", {
 				remaining: duration,
 				maximum: duration,
@@ -521,6 +521,8 @@ export class HeroCombatSystem {
 					hero,
 					presentation,
 					item,
+					true,
+					activeSkill?.level ?? 1,
 				),
 			);
 		else {
@@ -572,22 +574,13 @@ export class HeroCombatSystem {
 			);
 		if (activeSkill) {
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
-			const duration =
-				activeSkill.id === "swamp" ||
-				activeSkill.id === "bash" ||
-				activeSkill.id === "flurry" ||
-				activeSkill.id === "cleave"
-					? skillCooldown(
-							activeSkill.id,
-							item,
-							effectiveStats,
-							activeSkill.level,
-						)
-					: skillCooldown(activeSkill.id, item, effectiveStats) *
-						cooldownScale(
-							activeSkill.level,
-							Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
-						);
+			const duration = effectiveSkillCooldown(
+				activeSkill.id,
+				item,
+				effectiveStats,
+				activeSkill.level,
+				Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
+			);
 			this.skillCooldowns.set(activeSkill.id, {
 				remaining: duration,
 				maximum: duration,

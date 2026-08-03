@@ -1683,6 +1683,63 @@ describe("arena systems", () => {
 		creep.pursue(hero.position, 1 / 60, 500, 500);
 		expect(creep.position.x).toBeGreaterThan(before);
 	});
+	test("Rending Throw pierces its level-scaled target count and applies its doubled bleed", () => {
+		const state = new ArenaState();
+		const hero = new Hero({ x: 0, y: 0 });
+		const makeCreep = (id: string) =>
+			new Creep(
+				{
+					id,
+					name: id,
+					kind: "melee",
+					level: 0,
+					stats: { ...ZERO_STATS },
+					mainHand: starterClub(),
+					carried: [],
+					isRival: false,
+					xpReward: 0,
+					goldReward: 0,
+					seed: 1,
+				},
+				"neutral",
+				"neutral",
+				{ x: 20, y: 0 },
+				BALANCE,
+				new SeededRandom(1),
+			);
+		const creeps = [
+			makeCreep("first"),
+			makeCreep("second"),
+			makeCreep("third"),
+		];
+		state.creeps.push(...creeps);
+		state.projectiles.push(
+			new Projectile(
+				hero.position,
+				{ x: 20, y: 0 },
+				1,
+				"hero",
+				"rendingThrow",
+				hero,
+				{ kind: "physical" },
+				starterClub(),
+				true,
+				2,
+			),
+		);
+
+		resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
+
+		expect(creeps.filter((creep) => creep.hp < creep.maxHp)).toHaveLength(2);
+		expect(
+			creeps.filter((creep) =>
+				creep.statuses.some(
+					(status) => status.kind === "bleed" && status.remaining === 18,
+				),
+			),
+		).toHaveLength(2);
+		expect(state.projectiles[0].active).toBeFalse();
+	});
 
 	test("launched projectiles advance independently", () => {
 		const projectile = new Projectile({ x: 0, y: 0 }, { x: 100, y: 0 }, 1);
@@ -1835,7 +1892,7 @@ describe("arena systems", () => {
 		const rage = hero.rage;
 		hero.receiveDamage(5, { next: () => 0.15 });
 		expect(hero.rage).toBe(rage - 1);
-		expect(hero.blockCooldown).toBe(1);
+		expect(hero.blockCooldown).toBeCloseTo(3 - (2 * 9) / 98);
 	});
 	test("restores Penance mana from damage prevented by a successful block", () => {
 		const hero = new Hero({ x: 0, y: 0 });
@@ -1915,7 +1972,7 @@ describe("arena systems", () => {
 		let rolls = [1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
-		expect(hero.blockCooldown).toBeCloseTo(1 / weaponAttackSpeed(club, stats));
+		expect(hero.blockCooldown).toBe(3);
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.hp).toBe(hp - 10);
 		hero.updateResources(hero.blockCooldown, { next: () => 1 });

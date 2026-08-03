@@ -308,12 +308,45 @@ export function skillLabel(skill: SkillId): string {
 export function spellPower(level: number): number {
 	return 1 + Math.max(0, level - 1) * 0.15;
 }
+export function rendingThrowPierce(level: number): number {
+	const cappedLevel = cappedSkillLevel(level);
+	return cappedLevel < 2 ? 0 : 1 + Math.floor((cappedLevel - 2) / 3);
+}
+export function rendingThrowTargetLimit(level: number): number {
+	return 1 + rendingThrowPierce(level);
+}
+export const RENDING_THROW_BLEED_DURATION = 18;
 export function cooldownScale(level: number, reduction: number): number {
 	return Math.max(
 		0.4,
 		(1 - Math.min(0.6, reduction)) *
 			(1 - Math.min(0.25, Math.max(0, level - 1) * 0.0025)),
 	);
+}
+export function spellCooldownFloor(level: number): number {
+	return 3 - (2 * (cappedSkillLevel(level) - 1)) / 98;
+}
+export function effectiveSkillCooldown(
+	skill: SkillId,
+	item: ItemInstance | undefined,
+	stats: Stats | undefined,
+	level: number,
+	reduction = 0,
+): number {
+	const authored =
+		skill === "healing"
+			? healingCooldown(level)
+			: skillCooldown(skill, item, stats, level);
+	const finalAuthored = [
+		"healing",
+		"swamp",
+		"bash",
+		"flurry",
+		"cleave",
+	].includes(skill)
+		? authored
+		: authored * cooldownScale(level, reduction);
+	return Math.max(spellCooldownFloor(level), finalAuthored);
 }
 export const MAX_SKILL_LEVEL = 99;
 export const HEALING_MIN_RADIUS = 150;

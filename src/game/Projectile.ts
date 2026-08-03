@@ -6,6 +6,7 @@ import type { Unit } from "./Unit";
 import type { DamagePresentation } from "./CombatText";
 import type { ItemInstance, SkillId } from "../../common/items";
 import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
+import { rendingThrowTargetLimit } from "../../common/combat";
 import { Z_PROJECTILE } from "./render/ThreeRenderer";
 
 export type ProjectileSkill = SkillId | "frostSpike";
@@ -113,6 +114,7 @@ export class Projectile extends GameObject {
 		presentation: DamagePresentation = { kind: "physical" },
 		weapon?: ItemInstance,
 		force = true,
+		readonly skillLevel = 1,
 	) {
 		super();
 		this.owner = owner;
@@ -408,6 +410,13 @@ export class Projectile extends GameObject {
 	}
 	markHit(targetId: string): void {
 		if (!this.boomerang) this.hitTargets.add(targetId);
+	}
+	get remainingTargetHits(): number {
+		if (this.skill !== "rendingThrow") return 1;
+		return Math.max(
+			0,
+			rendingThrowTargetLimit(this.skillLevel) - this.hitTargets.size,
+		);
 	}
 	recordDamage(amount: number): void {
 		if (this.boomerang) this.damageDealt += Math.max(0, amount);

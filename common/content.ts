@@ -197,12 +197,12 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 	rendingThrow: {
 		id: "rendingThrow",
 		label: "Rending Throw",
-		damageMultiplier: 1.35,
+		damageMultiplier: 0.45,
 		cooldown: 4,
 		range: 240,
 		resource: "rage",
 		description:
-			"A short-ranged physical axe projectile that guarantees a standard bleed.",
+			"A short-ranged piercing axe projectile with 0.45× damage that guarantees an 18-second Bleed. It hits 1 target at level 1, gains 1 pierce at level 2, then gains 1 more pierce every 3 levels.",
 	},
 	vampiricBoomerang: {
 		id: "vampiricBoomerang",

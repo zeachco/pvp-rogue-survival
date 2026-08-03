@@ -37,6 +37,7 @@ import {
 	cleaveCooldown,
 	cleaveRange,
 	cooldownScale,
+	effectiveSkillCooldown,
 	forceFieldRange,
 	flurryCooldown,
 	HEALING_MAX_RADIUS,
@@ -50,6 +51,9 @@ import {
 	orbitingHammerDuration,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
+	rendingThrowPierce,
+	rendingThrowTargetLimit,
+	RENDING_THROW_BLEED_DURATION,
 	skillCastTime,
 	skillCooldown,
 	skillDamagePreview,
@@ -57,6 +61,7 @@ import {
 	skillRange,
 	skillStatBonusDescription,
 	skillUpkeepPerSecond,
+	spellCooldownFloor,
 	timeHarvestCooldownReduction,
 	timeHarvestItemSkillBonus,
 	swampCooldown,
@@ -1742,6 +1747,20 @@ test("scales Bash cooldown directly from six to three seconds", () => {
 	expect(skillCooldown("bash", club, boosted, 1)).toBe(6);
 	expect(skillCooldown("bash", club, boosted, 99)).toBe(3);
 });
+
+test("scales Rending Throw pierce every third level after level two", () => {
+	expect(SKILLS.rendingThrow.damageMultiplier).toBe(0.45);
+	expect(RENDING_THROW_BLEED_DURATION).toBe(18);
+	expect(rendingThrowPierce(1)).toBe(0);
+	expect(rendingThrowTargetLimit(1)).toBe(1);
+	expect(rendingThrowPierce(2)).toBe(1);
+	expect(rendingThrowTargetLimit(2)).toBe(2);
+	expect(rendingThrowPierce(4)).toBe(1);
+	expect(rendingThrowPierce(5)).toBe(2);
+	expect(rendingThrowPierce(8)).toBe(3);
+	expect(rendingThrowPierce(99)).toBe(33);
+	expect(rendingThrowTargetLimit(99)).toBe(34);
+});
 describe("Healing scaling", () => {
 	test("scales healing and charges a level base plus mana per HP restored", () => {
 		expect(healingFraction(1)).toBeCloseTo(0.2);
@@ -1780,6 +1799,28 @@ test("does not divide base cooldown by Intelligence plus Agility", () => {
 	).toBeCloseTo(9);
 	expect(skillCooldown("fireBreath", starterClub(), ZERO_STATS)).toBe(9);
 	expect(cooldownScale(99, 1)).toBe(0.4);
+});
+
+test("floors every active and reactive spell at three seconds at level one and one second at level ninety-nine", () => {
+	const weapon = { ...starterClub(), level: 50 };
+	for (const skill of Object.values(SKILLS).filter(
+		(definition) => !definition.passive,
+	)) {
+		expect(
+			effectiveSkillCooldown(skill.id, weapon, ZERO_STATS, 1, 0.6),
+		).toBeGreaterThanOrEqual(3);
+		expect(
+			effectiveSkillCooldown(skill.id, weapon, ZERO_STATS, 99, 0.6),
+		).toBeGreaterThanOrEqual(1);
+	}
+	expect(spellCooldownFloor(1)).toBe(3);
+	expect(spellCooldownFloor(99)).toBe(1);
+	expect(effectiveSkillCooldown("healing", weapon, ZERO_STATS, 99, 0.6)).toBe(
+		6,
+	);
+	expect(
+		effectiveSkillCooldown("gravityPull", weapon, ZERO_STATS, 1, 0.6),
+	).toBeGreaterThan(3);
 });
 test("registers configurable Spirit relic perks", () => {
 	expect(SKILLS.fireBreath).toMatchObject({ enemyEligible: true, cost: 4 });

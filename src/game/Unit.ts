@@ -17,10 +17,10 @@ import type { CombatText, DamagePresentation } from "./CombatText";
 import {
 	bucklerBlockChance,
 	bucklerBlockCost,
-	cooldownScale,
+	effectiveSkillCooldown,
 	manaConversionFraction,
+	spellCooldownFloor,
 	spiritWoundsConversionFraction,
-	skillCooldown,
 	skillUpkeepPerSecond,
 	weaponAttackSpeed,
 } from "../../common/combat";
@@ -223,9 +223,13 @@ export abstract class Unit extends GameObject {
 				const attackSpeed = this.mainHand
 					? weaponAttackSpeed(this.mainHand, this.stats)
 					: 1;
-				this.blockCooldownMax = buckler.reflectionComponents.includes("return")
-					? 1 / Math.max(0.01, attackSpeed)
-					: 1;
+				const blockingLevel = this.skillLevels.get("blocking") ?? 1;
+				this.blockCooldownMax = Math.max(
+					spellCooldownFloor(blockingLevel),
+					buckler.reflectionComponents.includes("return")
+						? 1 / Math.max(0.01, attackSpeed)
+						: 1,
+				);
 				this.blockCooldown = this.blockCooldownMax;
 				const beforeBlock = remaining;
 				remaining = Math.max(
@@ -267,9 +271,13 @@ export abstract class Unit extends GameObject {
 					itemCooldownReduction(this.offHand, this.amulet, this.charm),
 			);
 			const level = this.skillLevels.get("reflectiveSurge") ?? 1;
-			this.reflectiveSurgeCooldownMax =
-				skillCooldown("reflectiveSurge", this.mainHand, this.stats, level) *
-				cooldownScale(level, reduction);
+			this.reflectiveSurgeCooldownMax = effectiveSkillCooldown(
+				"reflectiveSurge",
+				this.mainHand,
+				this.stats,
+				level,
+				reduction,
+			);
 			this.reflectiveSurgeCooldown = this.reflectiveSurgeCooldownMax;
 		}
 		if (reflectable && source) {

@@ -53,16 +53,17 @@ import {
 	bucklerBlockChance,
 	bucklerBlockCost,
 	cappedSkillLevel,
+	effectiveSkillCooldown,
 	MAX_SKILL_LEVEL,
-	cooldownScale,
-	healingCooldown,
 	manaConversionFraction,
 	spiritWoundsConversionFraction,
 	orbitingHammerDuration,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
+	rendingThrowPierce,
+	rendingThrowTargetLimit,
+	RENDING_THROW_BLEED_DURATION,
 	skillCastTime,
-	skillCooldown,
 	skillDamagePreview,
 	skillRange,
 	skillStatBonusDescription,
@@ -1444,19 +1445,23 @@ export class Hud {
 				)
 			: undefined;
 		const cooldownSeconds =
-			spell.id === "healing"
-				? healingCooldown(shownLevel)
-				: progress && stats
-					? skillCooldown(spell.id, progress.mainHand, stats, shownLevel) *
-						(spell.id === "bash" ||
-						spell.id === "flurry" ||
-						spell.id === "cleave"
-							? 1
-							: cooldownScale(
-									shownLevel,
-									derivedStats(stats).cooldownReduction,
-								))
-					: skill.cooldown;
+			progress && stats
+				? effectiveSkillCooldown(
+						spell.id,
+						progress.mainHand,
+						stats,
+						shownLevel,
+						Math.min(
+							0.6,
+							derivedStats(stats).cooldownReduction +
+								itemCooldownReduction(
+									progress.offHand,
+									progress.amulet,
+									progress.charm,
+								),
+						),
+					)
+				: Math.max(3, skill.cooldown);
 		const range =
 			progress && stats
 				? skillRange(spell.id, progress.mainHand, shownLevel, stats.spirit)
@@ -1604,6 +1609,24 @@ export class Hud {
 						<span>
 							<small>Duration</small>
 							<strong>{fmt(rapidRegenDuration(shownLevel))}s</strong>
+						</span>
+					) : null}
+					{spell.id === "rendingThrow" ? (
+						<span>
+							<small>Targets</small>
+							<strong>{rendingThrowTargetLimit(shownLevel)}</strong>
+						</span>
+					) : null}
+					{spell.id === "rendingThrow" ? (
+						<span>
+							<small>Pierce</small>
+							<strong>{rendingThrowPierce(shownLevel)}</strong>
+						</span>
+					) : null}
+					{spell.id === "rendingThrow" ? (
+						<span>
+							<small>Bleed</small>
+							<strong>{RENDING_THROW_BLEED_DURATION}s at 0.25/s</strong>
 						</span>
 					) : null}
 					{spell.id === "rapidRegen" ? (

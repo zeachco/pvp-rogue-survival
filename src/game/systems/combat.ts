@@ -9,6 +9,7 @@ import type { Hero } from "../Hero";
 import type { Unit } from "../Unit";
 import { damageStatusDuration, distance } from "../types";
 import { applyImpactForce } from "../ImpactForce";
+import { RENDING_THROW_BLEED_DURATION } from "../../../common/combat";
 
 export function resolveCombat(
 	state: ArenaState,
@@ -128,9 +129,13 @@ export function resolveCombat(
 					distance(projectile.position, creep.position) <=
 						projectile.radius + creep.radius,
 			);
-			for (const hit of projectile.skill === "vampiricBoomerang"
-				? hits
-				: hits.slice(0, 1)) {
+			const resolvedHits =
+				projectile.skill === "vampiricBoomerang"
+					? hits
+					: projectile.skill === "rendingThrow"
+						? hits.slice(0, projectile.remainingTargetHits)
+						: hits.slice(0, 1);
+			for (const hit of resolvedHits) {
 				projectile.markHit(hit.build.id);
 				if (projectile.skill === "frostOrb")
 					hit.addStatus({
@@ -181,7 +186,7 @@ export function resolveCombat(
 						if (projectile.skill === "rendingThrow")
 							hit.addStatus({
 								kind: "bleed",
-								remaining: damageStatusDuration(3),
+								remaining: RENDING_THROW_BLEED_DURATION,
 								damagePerSecond: 0.25,
 								source: projectile.source,
 							});
@@ -193,7 +198,9 @@ export function resolveCombat(
 					}
 					if (
 						projectile.skill !== "orbitingHammers" &&
-						projectile.skill !== "vampiricBoomerang"
+						projectile.skill !== "vampiricBoomerang" &&
+						(projectile.skill !== "rendingThrow" ||
+							projectile.remainingTargetHits === 0)
 					)
 						projectile.active = false;
 				}
