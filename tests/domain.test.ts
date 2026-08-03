@@ -135,6 +135,7 @@ import {
 	forceFieldFalloff,
 	forceFieldDamage,
 	isSkillActive,
+	isSkillAvailable,
 	shouldAutoCastHealing,
 	skillHealthRequirementMet,
 } from "../src/game/systems/HeroCombatSystem";
@@ -154,6 +155,7 @@ import { extractButtonStatus } from "../src/ui/inventoryAvailability";
 import {
 	effectiveStatRows,
 	passiveSkillMetrics,
+	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
 	statusEffectSummaries,
 	xpSendBuffSummary,
@@ -234,6 +236,35 @@ test("sorts the spell catalog by HP, Rage, then Mana", () => {
 			(a, b) => spellCatalogResourceOrder(a) - spellCatalogResourceOrder(b),
 		),
 	).toEqual(["life", "rage", "mana"]);
+});
+
+test("combines spell type and learning-state catalog filters", () => {
+	expect(
+		spellCatalogFilterMatches("passive", "learned", "both", "both"),
+	).toBeTrue();
+	expect(
+		spellCatalogFilterMatches("passive", "learned", "passive", "learned"),
+	).toBeTrue();
+	expect(
+		spellCatalogFilterMatches("active", "learned", "passive", "both"),
+	).toBeFalse();
+	expect(
+		spellCatalogFilterMatches("passive", "not-learned", "both", "learned"),
+	).toBeFalse();
+});
+
+test("gates Orbiting Hammers and Frozen Orb at their authored hero levels", () => {
+	const state = progress();
+	state.learnedSkills.push("orbitingHammers", "frostOrb");
+	state.learnedSkillLevels.orbitingHammers = 3;
+	state.learnedSkillLevels.frostOrb = 2;
+	state.level = 9;
+	expect(isSkillAvailable(state, "orbitingHammers")).toBeFalse();
+	state.level = 10;
+	expect(isSkillAvailable(state, "orbitingHammers")).toBeTrue();
+	expect(isSkillAvailable(state, "frostOrb")).toBeFalse();
+	state.level = 20;
+	expect(isSkillAvailable(state, "frostOrb")).toBeTrue();
 });
 
 describe("hero auto-facing", () => {

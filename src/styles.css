@@ -185,7 +185,7 @@ input {
 .skill-bar {
 	display: flex;
 	flex-direction: column;
-	width: 66px;
+	width: 78px;
 	max-height: calc(100vh - 180px);
 	gap: 6px;
 	align-items: center;
@@ -208,8 +208,15 @@ input {
 	min-height: 0;
 	gap: 6px;
 	align-items: center;
+	overflow-y: auto;
+	overflow-x: hidden;
+	overscroll-behavior: contain;
 	scrollbar-color: rgba(138, 216, 255, 0.5) transparent;
 	scrollbar-width: thin;
+}
+
+.spell-slot.is-passive {
+	cursor: help;
 }
 
 .skill-bar small {
@@ -505,23 +512,28 @@ input {
 	cursor: pointer;
 }
 
+.spell-catalog-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px;
+	margin: -4px 0 12px;
+}
+
 .spell-catalog-filter {
 	display: flex;
-	width: fit-content;
 	align-items: center;
 	gap: 7px;
-	margin: -4px 0 12px;
 	color: #c5d8dd;
 	font-size: 13px;
-	cursor: pointer;
 }
 
-.spell-catalog-filter input {
-	accent-color: #f2ce45;
-}
-
-.spell-catalog.show-learned-only .spell-catalog-card.is-not-learned {
-	display: none;
+.spell-catalog-filter select {
+	border: 1px solid #47717a;
+	border-radius: 4px;
+	padding: 4px 24px 4px 7px;
+	color: #e8f9ff;
+	background: #132a31;
 }
 
 .spell-catalog-grid {
@@ -599,6 +611,12 @@ input {
 	cursor: pointer;
 }
 
+.spell-catalog-card[hidden],
+.spell-catalog-grid[hidden],
+.spell-catalog-resource[hidden] {
+	display: none;
+}
+
 .spell-catalog-card:hover,
 .spell-catalog-card:focus-visible {
 	border-color: #f5c94a;
@@ -617,6 +635,56 @@ input {
 	background: #181b1c;
 	filter: saturate(0) brightness(0.62);
 	cursor: not-allowed;
+}
+
+.spell-level-requirement {
+	color: #9fb8bf;
+}
+
+.spell-level-requirement.is-unmet {
+	color: #ff7182;
+	font-weight: 700;
+}
+
+.inspection-health {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	padding: 8px 10px;
+	border-left: 3px solid #ed354b;
+	background: rgba(98, 22, 31, 0.26);
+}
+
+.creep-preview-tooltip {
+	position: fixed;
+	z-index: 26;
+	top: calc(var(--game-header-height) + 10px);
+	left: 50%;
+	display: grid;
+	width: min(300px, calc(100vw - 24px));
+	gap: 6px;
+	padding: 8px;
+	border: 1px solid rgba(138, 216, 255, 0.45);
+	border-radius: 6px;
+	background: rgba(7, 15, 19, 0.95);
+	box-shadow: 0 12px 34px rgba(0, 0, 0, 0.56);
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+
+.creep-preview-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.creep-preview-heading small {
+	color: #9fb8bf;
+}
+
+.creep-preview-tooltip .equipped-icon {
+	pointer-events: none;
 }
 
 @media (max-width: 640px) {

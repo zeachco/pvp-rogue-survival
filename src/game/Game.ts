@@ -1038,6 +1038,7 @@ export class Game {
 				reward,
 				undefined,
 				this.hovered.maxHp,
+				this.hovered.hp,
 			);
 			this.hoverPeeking = true;
 		} else if (this.hoverPeeking) {
@@ -1056,6 +1057,7 @@ export class Game {
 			reward,
 			undefined,
 			this.inspected?.maxHp,
+			this.inspected?.hp,
 		);
 		this.hoverPeeking = false;
 	}

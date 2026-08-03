@@ -1061,12 +1061,15 @@ export function isSkillAvailable(
 	skill: SkillId,
 ): boolean {
 	return (
-		learnedSkillIds(progress).includes(skill) ||
-		gearedSkillIds(progress).includes(skill)
+		progress.level >= (SKILLS[skill].minimumHeroLevel ?? 0) &&
+		(learnedSkillIds(progress).includes(skill) ||
+			gearedSkillIds(progress).includes(skill))
 	);
 }
 export function availableSkillIds(progress: PlayerProgress): SkillId[] {
-	return [...learnedSkillIds(progress), ...gearedSkillIds(progress)];
+	return [...learnedSkillIds(progress), ...gearedSkillIds(progress)].filter(
+		(skill) => isSkillAvailable(progress, skill),
+	);
 }
 export function orderedSkillIds(progress: PlayerProgress): SkillId[] {
 	return availableSkillIds(progress);

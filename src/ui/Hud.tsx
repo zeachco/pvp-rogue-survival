@@ -138,14 +138,15 @@ export class Hud {
 	private spellTooltipOverlay?: HTMLElement;
 	private player?: PlayerState;
 	private inspected?: UnitBuild;
-	private inspectedXp?: number;
 	private inspectedBestWave?: number;
 	private inspectedMaxHp?: number;
+	private inspectedHealth?: number;
 	private committedInspection?: {
 		build?: UnitBuild;
 		xpReward?: number;
 		bestWave?: number;
 		maxHp?: number;
+		health?: number;
 	};
 	private characterCollapsedBeforeInspection?: boolean;
 	private realm?: RealmState;
@@ -221,6 +222,9 @@ export class Hud {
 		<div class="rarity-filter" />
 	) as HTMLElement;
 	private readonly spellBar = (<section class="spell-bar" />) as HTMLElement;
+	private readonly creepPreview = (
+		<aside class="creep-preview-tooltip is-hidden" aria-live="polite" />
+	) as HTMLElement;
 	private readonly learnedSkillsBar = (
 		<div class="skill-bar learned-skills-bar" aria-label="Equipped spells" />
 	) as HTMLElement;
@@ -237,7 +241,9 @@ export class Hud {
 	) as HTMLElement;
 	private selectedCatalogSpell?: SkillId;
 	private spellCatalogSignature = "";
-	private showLearnedSpellsOnly = false;
+	private spellCatalogTypeFilter: "both" | "active" | "passive" = "both";
+	private spellCatalogLearningFilter: "both" | "learned" | "not-learned" =
+		"both";
 	private readonly resourceDock = (
 		<section class="resource-dock" />
 	) as HTMLElement;
@@ -511,6 +517,7 @@ export class Hud {
 					<section class="notification-area">{this.noticeNode}</section>
 				</div>
 				{this.centerToast}
+				{this.creepPreview}
 				{this.aimReticle}
 				{this.spellBar}
 				{this.spellCatalog}
@@ -739,6 +746,7 @@ export class Hud {
 		xpReward?: number,
 		bestWave?: number,
 		maxHp?: number,
+		health?: number,
 	): void {
 		const hadInspection = Boolean(this.committedInspection?.build);
 		if (build && !hadInspection) {
@@ -759,24 +767,58 @@ export class Hud {
 			);
 			this.characterCollapsedBeforeInspection = undefined;
 		}
-		this.committedInspection = { build, xpReward, bestWave, maxHp };
-		this.showInspection(build, xpReward, bestWave, maxHp);
+		this.committedInspection = { build, xpReward, bestWave, maxHp, health };
+		this.showInspection(build, xpReward, bestWave, maxHp, health);
 	}
 	setInspectionPreview(
 		build?: UnitBuild,
 		xpReward?: number,
 		bestWave?: number,
 		maxHp?: number,
+		health?: number,
 	): void {
-		this.showInspection(build, xpReward, bestWave, maxHp);
+		void xpReward;
+		void bestWave;
+		this.renderCreepPreview(build, maxHp, health);
 	}
 	clearInspectionPreview(): void {
-		const committed = this.committedInspection;
-		this.showInspection(
-			committed?.build,
-			committed?.xpReward,
-			committed?.bestWave,
-			committed?.maxHp,
+		this.renderCreepPreview();
+	}
+	private renderCreepPreview(
+		build?: UnitBuild,
+		maxHp?: number,
+		health?: number,
+	): void {
+		this.creepPreview.classList.toggle("is-hidden", !build);
+		if (!build) {
+			this.creepPreview.replaceChildren();
+			return;
+		}
+		this.creepPreview.replaceChildren(
+			<div class="creep-preview-heading">
+				<strong>{build.name}</strong>
+				<small>Level {build.level}</small>
+			</div>,
+			<div class="inspection-health">
+				<small>HP</small>
+				<strong>
+					{fmt(health ?? maxHp ?? 0)} / {fmt(maxHp ?? 0)}
+				</strong>
+			</div>,
+			<div class="equipped-icons" aria-label="Equipped items">
+				{equipmentIcon(build.mainHand, "Main hand")}
+				{equipmentIcon(build.offHand, "Offhand")}
+				{equipmentIcon(build.amulet, "Amulet")}
+				{equipmentIcon(build.charm, "Charm")}
+			</div>,
+			<div class="attribute-grid">
+				{STAT_KEYS.map((key) => (
+					<span data-stat={key}>
+						<small>{key}</small>
+						<b>{fmt(build.stats[key])}</b>
+					</span>
+				))}
+			</div>,
 		);
 	}
 	private showInspection(
@@ -784,11 +826,13 @@ export class Hud {
 		xpReward?: number,
 		bestWave?: number,
 		maxHp?: number,
+		health?: number,
 	): void {
+		void xpReward;
 		this.inspected = build;
-		this.inspectedXp = build ? (xpReward ?? build.xpReward) : undefined;
 		this.inspectedBestWave = build ? bestWave : undefined;
 		this.inspectedMaxHp = build ? maxHp : undefined;
+		this.inspectedHealth = build ? health : undefined;
 		this.renderStaticHud();
 	}
 	setRealm(realm: RealmState): void {
@@ -936,22 +980,52 @@ export class Hud {
 			</button>
 		) as HTMLButtonElement;
 		close.onclick = () => this.spellCatalog.classList.add("is-hidden");
-		const learnedOnly = (
+		const typeFilter = (
 			<label class="spell-catalog-filter">
-				<input type="checkbox" checked={this.showLearnedSpellsOnly} />
-				<span>Learned only</span>
+				<span>Type</span>
+				<select>
+					<option value="both">Both</option>
+					<option value="active">Active</option>
+					<option value="passive">Passive</option>
+				</select>
 			</label>
 		) as HTMLLabelElement;
-		const learnedOnlyInput = learnedOnly.querySelector(
-			"input",
-		) as HTMLInputElement;
-		learnedOnlyInput.onchange = () => {
-			this.showLearnedSpellsOnly = learnedOnlyInput.checked;
-			this.spellCatalog.classList.toggle(
-				"show-learned-only",
-				this.showLearnedSpellsOnly,
-			);
+		const typeSelect = typeFilter.querySelector("select") as HTMLSelectElement;
+		typeSelect.value = this.spellCatalogTypeFilter;
+		typeSelect.onchange = () => {
+			this.spellCatalogTypeFilter = typeSelect.value as
+				| "both"
+				| "active"
+				| "passive";
+			this.updateCatalogFilters();
 		};
+		const learningFilter = (
+			<label class="spell-catalog-filter">
+				<span>Learning</span>
+				<select>
+					<option value="both">Both</option>
+					<option value="learned">Learned</option>
+					<option value="not-learned">Not learned</option>
+				</select>
+			</label>
+		) as HTMLLabelElement;
+		const learningSelect = learningFilter.querySelector(
+			"select",
+		) as HTMLSelectElement;
+		learningSelect.value = this.spellCatalogLearningFilter;
+		learningSelect.onchange = () => {
+			this.spellCatalogLearningFilter = learningSelect.value as
+				| "both"
+				| "learned"
+				| "not-learned";
+			this.updateCatalogFilters();
+		};
+		const filters = (
+			<div class="spell-catalog-filters">
+				{typeFilter}
+				{learningFilter}
+			</div>
+		) as HTMLElement;
 		const slots = (
 			<div class="spell-catalog-slots" aria-label="Equipped spell slots" />
 		) as HTMLElement;
@@ -1021,18 +1095,27 @@ export class Hud {
 				0,
 				this.player?.progress.learnedSkillLevels[id] ?? 0,
 			);
+			const minimumHeroLevel = definition.minimumHeroLevel ?? 0;
+			const levelEligible =
+				(this.player?.progress.level ?? 0) >= minimumHeroLevel;
 			const card = (
 				<button
-					class={`spell-catalog-card spell-resource-${definition.resource}${acquired ? "" : " is-locked"}${learnedLevel > 0 ? "" : " is-not-learned"}`}
+					class={`spell-catalog-card spell-resource-${definition.resource}${acquired ? "" : " is-locked"}${learnedLevel > 0 && levelEligible ? "" : " is-not-learned"}`}
 					type="button"
 					aria-disabled={String(!acquired)}
 					tabindex={acquired ? "0" : "-1"}
 					data-spell-id={id}
+					data-spell-type={definition.passive ? "passive" : "active"}
+					data-learning={
+						learnedLevel > 0 && levelEligible ? "learned" : "not-learned"
+					}
 				>
 					<span class="spell-catalog-card-heading">
 						<strong>{definition.label}</strong>
 						<small>
-							{spell?.passive || definition.passive ? "Passive" : "Active"}
+							{spell?.passive || definition.passive
+								? "Passive · Always active"
+								: "Active"}
 						</small>
 					</span>
 					<span class="spell-catalog-description">
@@ -1049,6 +1132,17 @@ export class Hud {
 					<small class="spell-catalog-resource-label">
 						Resource: {spellResourceLabel(definition.resource)}
 					</small>
+					{minimumHeroLevel > 0 ? (
+						<small
+							class={
+								levelEligible
+									? "spell-level-requirement"
+									: "spell-level-requirement is-unmet"
+							}
+						>
+							Requires hero level {minimumHeroLevel}
+						</small>
+					) : null}
 				</button>
 			) as HTMLButtonElement;
 			if (acquired && !spell?.passive) {
@@ -1063,16 +1157,33 @@ export class Hud {
 			<h2>Available Spells</h2>,
 			<p>Tap a spell, then tap one of the six destination slots.</p>,
 			close,
-			learnedOnly,
+			filters,
 			slots,
 			scroll,
 		);
 		scroll.scrollTop = previousScrollTop;
-		this.spellCatalog.classList.toggle(
-			"show-learned-only",
-			this.showLearnedSpellsOnly,
-		);
+		this.updateCatalogFilters();
 		this.updateCatalogSelection();
+	}
+	private updateCatalogFilters(): void {
+		for (const card of this.spellCatalog.querySelectorAll<HTMLElement>(
+			".spell-catalog-card[data-spell-id]",
+		)) {
+			card.hidden = !spellCatalogFilterMatches(
+				card.dataset.spellType as "active" | "passive",
+				card.dataset.learning as "learned" | "not-learned",
+				this.spellCatalogTypeFilter,
+				this.spellCatalogLearningFilter,
+			);
+		}
+		for (const grid of this.spellCatalog.querySelectorAll<HTMLElement>(
+			".spell-catalog-grid",
+		)) {
+			const empty = !grid.querySelector(".spell-catalog-card:not([hidden])");
+			grid.hidden = empty;
+			if (grid.previousElementSibling instanceof HTMLElement)
+				grid.previousElementSibling.hidden = empty;
+		}
 	}
 	private updateCatalogSelection(): void {
 		for (const card of this.spellCatalog.querySelectorAll<HTMLElement>(
@@ -1132,9 +1243,13 @@ export class Hud {
 						: ("geared" as const),
 				},
 		);
-		const visible = spells
+		const activeSpells = spells
 			.filter((spell) => spell.active && !spell.passive)
 			.sort((a, b) => (b.shortcut ?? 0) - (a.shortcut ?? 0));
+		const passiveSpells = spells
+			.filter((spell) => spell.passive && spell.active)
+			.sort((a, b) => a.label.localeCompare(b.label));
+		const visible = [...passiveSpells, ...activeSpells];
 		const structure = visible
 			.map(
 				({
@@ -1215,7 +1330,7 @@ export class Hud {
 		const changed = projected !== undefined && projected !== spell.actualLevel;
 		const button = (
 			<button
-				class={`spell-slot spell-resource-${spell.resource}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${spell.active && !spell.affordable ? " is-unaffordable" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
+				class={`spell-slot spell-resource-${spell.resource}${spell.passive ? " is-passive" : ""}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${spell.active && !spell.affordable ? " is-unaffordable" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
 				type="button"
 				aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}, ${spell.passive ? "passive, always active" : spell.active ? `equipped in slot ${spell.shortcut}${spell.autoFire ? ", auto-fire enabled" : ""}` : "unequipped"}`}
 				aria-pressed={String(spell.active)}
@@ -1647,6 +1762,9 @@ export class Hud {
 		if (!this.player) return;
 		const p = this.player.progress;
 		const build = this.inspected;
+		const creepInspection = Boolean(
+			build && this.inspectedBestWave === undefined,
+		);
 		const stats = build?.stats ?? p.stats;
 		const main = build?.mainHand ?? p.mainHand;
 		const off = build?.offHand ?? p.offHand;
@@ -1687,12 +1805,23 @@ export class Hud {
 				<small>
 					Level {build?.level ?? p.level}
 					{build
-						? this.inspectedBestWave === undefined
-							? ` · ${fmt(this.inspectedXp ?? build.xpReward)} XP`
+						? creepInspection
+							? ""
 							: ` · Best wave ${this.inspectedBestWave}`
 						: ` · Best wave ${this.player.maxWaveReached}`}
 				</small>
 			</div>,
+			...(creepInspection
+				? [
+						<div class="inspection-health">
+							<small>HP</small>
+							<strong>
+								{fmt(this.inspectedHealth ?? this.inspectedMaxHp ?? 0)} /{" "}
+								{fmt(this.inspectedMaxHp ?? 0)}
+							</strong>
+						</div>,
+					]
+				: []),
 			<div class="equipped-icons" aria-label="Equipped items">
 				{equipmentIcon(main, "Main hand")}
 				{equipmentIcon(off, "Offhand")}
@@ -1703,23 +1832,27 @@ export class Hud {
 				{STAT_KEYS.map((key) => (
 					<span data-stat={key}>
 						<small>{key}</small>
-						<b>{fmt(effectiveStats[key])}</b>
+						<b>{fmt(creepInspection ? stats[key] : effectiveStats[key])}</b>
 					</span>
 				))}
 			</div>,
 			this.allocationNode,
-			<strong>Effective stats</strong>,
-			effectiveStatSheet(
-				main,
-				off,
-				amulet,
-				charm,
-				effectiveStats,
-				undefined,
-				this.inspectedMaxHp,
-				blockingLevel,
-				attractionLevel,
-			),
+			...(creepInspection
+				? []
+				: [
+						<strong>Effective stats</strong>,
+						effectiveStatSheet(
+							main,
+							off,
+							amulet,
+							charm,
+							effectiveStats,
+							undefined,
+							this.inspectedMaxHp,
+							blockingLevel,
+							attractionLevel,
+						),
+					]),
 			...(build
 				? [
 						<strong>Main hand</strong>,
@@ -3150,6 +3283,17 @@ export function spellCatalogResourceOrder(
 	resource: SpellSlot["resource"],
 ): number {
 	return { life: 0, rage: 1, mana: 2 }[resource];
+}
+export function spellCatalogFilterMatches(
+	type: "active" | "passive",
+	learning: "learned" | "not-learned",
+	typeFilter: "both" | "active" | "passive",
+	learningFilter: "both" | "learned" | "not-learned",
+): boolean {
+	return (
+		(typeFilter === "both" || type === typeFilter) &&
+		(learningFilter === "both" || learning === learningFilter)
+	);
 }
 function spellResourceLabel(resource: SpellSlot["resource"]): string {
 	return resource === "life" ? "HP" : resource === "rage" ? "Rage" : "Mana";

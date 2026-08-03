@@ -107,7 +107,30 @@ describe("realm game service", () => {
 			slot: 2,
 		});
 		expect(player.progress.equippedSkills).toEqual(["healing", "cleave"]);
-		expect(player.progress.autoFireSkills).toEqual(["healing"]);
+		expect(player.progress.autoFireSkills).toEqual(["healing", "cleave"]);
+	});
+	test("rejects loadout assignment below an authored spell level gate", () => {
+		const { game } = harness();
+		const player = game.join("GatedSpell");
+		player.progress.learnedSkills.push("orbitingHammers");
+		player.progress.learnedSkillLevels.orbitingHammers = 1;
+		player.progress.level = 9;
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "orbitingHammers",
+			equipped: true,
+			slot: 1,
+		});
+		expect(player.progress.equippedSkills).toEqual(["healing"]);
+		player.progress.level = 10;
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "orbitingHammers",
+			equipped: true,
+			slot: 1,
+		});
+		expect(player.progress.equippedSkills).toEqual(["orbitingHammers"]);
+		expect(player.progress.autoFireSkills).toEqual(["orbitingHammers"]);
 	});
 	test("reconciles server and client drop orphans without granting them", () => {
 		const { game, messages } = harness();

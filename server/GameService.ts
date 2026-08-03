@@ -443,6 +443,7 @@ export class GameService {
 		slot?: number,
 	): void {
 		if (!isSkillId(skillId)) return;
+		if (player.progress.level < (SKILLS[skillId].minimumHeroLevel ?? 0)) return;
 		const providedByEquipment = [
 			player.progress.mainHand,
 			player.progress.offHand,
@@ -479,9 +480,12 @@ export class GameService {
 			if (displaced) next.splice(slot - 1, 1, skillId);
 			else next.splice(Math.min(slot - 1, next.length), 0, skillId);
 			player.progress.equippedSkills = next.slice(0, 6);
-			player.progress.autoFireSkills = (
-				player.progress.autoFireSkills ?? []
-			).filter((id) => id !== displaced && next.includes(id));
+			player.progress.autoFireSkills = [
+				...(player.progress.autoFireSkills ?? []).filter(
+					(id) => id !== displaced && id !== skillId && next.includes(id),
+				),
+				skillId,
+			];
 			this.options.repository.markDirty(player.id);
 			this.sendProgress(
 				player,
@@ -492,6 +496,12 @@ export class GameService {
 		if (shouldEquip && !hasSkill) {
 			if (loadout.length >= 6) return;
 			player.progress.equippedSkills = [...loadout, skillId];
+			player.progress.autoFireSkills = [
+				...(player.progress.autoFireSkills ?? []).filter(
+					(id) => id !== skillId,
+				),
+				skillId,
+			];
 		} else if (!shouldEquip && hasSkill) {
 			player.progress.equippedSkills = loadout.filter((id) => id !== skillId);
 			player.progress.autoFireSkills = (

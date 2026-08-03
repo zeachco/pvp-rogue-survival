@@ -22,6 +22,7 @@ export interface SkillDefinition {
 	range?: number;
 	resource: "rage" | "mana" | "life";
 	description: string;
+	minimumHeroLevel?: number;
 	passive?: boolean;
 	upkeep?: { resource: "mana" | "rage"; perLevelPerSecond: number };
 	cost?: number;
@@ -220,6 +221,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cooldown: 12,
 		range: 240,
 		resource: "mana",
+		minimumHeroLevel: 10,
 		cost: 6,
 		description:
 			"Launches three drifting magical hammers that spiral outward, persist through impacts, and hit each enemy at most once.",
@@ -304,6 +306,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cooldown: 20,
 		range: 500,
 		resource: "mana",
+		minimumHeroLevel: 20,
 		description:
 			"Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction.",
 	},

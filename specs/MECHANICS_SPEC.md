@@ -54,6 +54,8 @@ Attacking, winding up an attack, and casting do not reduce movement speed. When 
 
 ## Hero Control and Targeting
 
+- Equipping or assigning an active spell enables its persisted auto-fire state by default, so its rail badge immediately shows the four gold selection corners. The player may still right-click the equipped badge to turn auto-fire off or back on. Reassigning a spell enables auto-fire for the assigned spell and removes the displaced spell from auto-fire. Existing persisted loadouts retain their saved auto-fire choices until changed. Passives remain always active through availability and never enter the auto-fire list.
+
 - The hero is controlled with WASD, including equivalent lowercase and uppercase key events.
 - While the right mouse button is held on the arena canvas, the hero immediately faces the camera's horizontal forward direction. The closest living enemy is acquired instantly on press and visibly selected; this initial lock does not remain sticky when the player moves the camera. The aiming override follows camera yaw continuously and takes priority over movement-facing and automatic closest-creep facing until the button is released, so every directional attack and spell resolves through the center reticle.
 - While moving, the hero turns along the shortest angular path toward its current movement-velocity vector at a maximum of 300 degrees per second. While stationary, it begins turning toward the closest living creep at that same bounded rate only when at least one enabled spell is off cooldown, affordable, and in range of that creep. A basic attack by itself does not cause stationary auto-facing.
