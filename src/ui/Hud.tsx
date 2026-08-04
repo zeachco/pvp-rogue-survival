@@ -1405,6 +1405,8 @@ export class Hud {
 	private renderSkillTooltip(spell: SpellSlot, level: number): HTMLElement {
 		const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
 		const skill = SKILLS[spell.id];
+		const progress = this.spellPreviewProgress ?? this.player?.progress;
+		const maxLearnedLevel = progress?.learnedSkillLevels[spell.id] ?? 0;
 		return (
 			<span class="spell-tooltip" role="tooltip">
 				<b>{skill.label}</b>
@@ -1422,8 +1424,10 @@ export class Hud {
 					</span>
 				) : null}
 				<span class="spell-tooltip-comparison">
-					{this.renderSkillProperties(spell, shownLevel, "Current level")}
-					{this.renderSkillProperties(spell, shownLevel + 1, "Next level")}
+					{spellTooltipLevels(shownLevel, maxLearnedLevel).map(
+						({ level, heading }) =>
+							this.renderSkillProperties(spell, level, heading),
+					)}
 				</span>
 			</span>
 		) as HTMLElement;
@@ -3331,6 +3335,18 @@ export function spellInitials(label: string): string {
 	)
 		.slice(0, 2)
 		.toUpperCase();
+}
+export function spellTooltipLevels(
+	level: number,
+	maxLearnedLevel: number,
+): Array<{ heading: string; level: number }> {
+	const current = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
+	const maxLearned = Math.max(0, Math.min(MAX_SKILL_LEVEL, maxLearnedLevel));
+	return [
+		{ heading: "Current level", level: current },
+		{ heading: "Next level", level: Math.min(MAX_SKILL_LEVEL, current + 1) },
+		{ heading: "Max learned", level: maxLearned },
+	];
 }
 export function spellCatalogResourceOrder(
 	resource: SpellSlot["resource"],

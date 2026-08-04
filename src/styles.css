@@ -442,7 +442,7 @@ input {
 
 .spell-catalog-scroll {
 	min-height: 0;
-	overflow-y: auto;
+	overflow: auto;
 	padding: 2px 8px 18px 2px;
 	overscroll-behavior: contain;
 	scrollbar-color: rgba(138, 216, 255, 0.58) transparent;
@@ -730,7 +730,7 @@ input {
 	z-index: 30;
 	display: grid;
 	gap: 8px;
-	width: 510px;
+	width: 760px;
 	max-width: calc(100vw - 16px);
 	max-height: calc(100vh - 16px);
 	overflow-y: auto;
@@ -763,7 +763,7 @@ input {
 
 .spell-tooltip-comparison {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-columns: repeat(3, minmax(190px, 1fr));
 	gap: 12px;
 }
 
@@ -784,8 +784,12 @@ input {
 	text-transform: uppercase;
 }
 
-.spell-tooltip-property-column:last-child > b {
+.spell-tooltip-property-column:nth-child(2) > b {
 	color: #62e88a;
+}
+
+.spell-tooltip-property-column:last-child > b {
+	color: #55c8ff;
 }
 
 .spell-tooltip-description {

@@ -164,6 +164,7 @@ import {
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
 	spellInitials,
+	spellTooltipLevels,
 	statusEffectSummaries,
 	xpSendBuffSummary,
 } from "../src/ui/Hud";
@@ -249,6 +250,24 @@ test("uses word initials for multi-word spell badges", () => {
 	expect(spellInitials("Rending Throw")).toBe("RT");
 	expect(spellInitials("Reflective Surge")).toBe("RS");
 	expect(spellInitials("Voodoo")).toBe("VO");
+});
+
+test("shows current, next, and maximum spell tooltip levels", () => {
+	expect(spellTooltipLevels(7, 12)).toEqual([
+		{ heading: "Current level", level: 7 },
+		{ heading: "Next level", level: 8 },
+		{ heading: "Max learned", level: 12 },
+	]);
+	expect(spellTooltipLevels(99, 120)).toEqual([
+		{ heading: "Current level", level: 99 },
+		{ heading: "Next level", level: 99 },
+		{ heading: "Max learned", level: 99 },
+	]);
+	expect(spellTooltipLevels(4, 0)).toEqual([
+		{ heading: "Current level", level: 4 },
+		{ heading: "Next level", level: 5 },
+		{ heading: "Max learned", level: 0 },
+	]);
 });
 
 test("combines spell type and learning-state catalog filters", () => {
