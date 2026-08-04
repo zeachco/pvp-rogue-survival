@@ -232,6 +232,11 @@ input {
 	cursor: pointer;
 }
 
+.spell-catalog-trigger.is-extract-preview {
+	color: #62e88a;
+	text-shadow: 0 0 7px rgba(98, 232, 138, 0.7);
+}
+
 .spell-slot {
 	position: relative;
 	display: grid;
@@ -540,6 +545,25 @@ input {
 	padding: 4px 24px 4px 7px;
 	color: #e8f9ff;
 	background: #132a31;
+}
+
+.spell-catalog-search {
+	flex: 1 1 260px;
+}
+
+.spell-catalog-search input {
+	width: 100%;
+	min-width: 180px;
+	border: 1px solid #47717a;
+	border-radius: 4px;
+	padding: 5px 8px;
+	color: #e8f9ff;
+	background: #132a31;
+}
+
+.spell-catalog-search input:focus {
+	border-color: #62e88a;
+	outline: 1px solid rgba(98, 232, 138, 0.35);
 }
 
 .spell-catalog-grid {
@@ -1118,9 +1142,23 @@ input {
 	position: relative;
 }
 
-.xp-toast {
+.timed-effects {
 	position: absolute;
 	bottom: calc(100% + 9px);
+	left: 50%;
+	display: flex;
+	width: max-content;
+	max-width: min(440px, 60vw);
+	gap: 4px;
+	align-items: center;
+	justify-content: center;
+	transform: translateX(-50%);
+	pointer-events: auto;
+}
+
+.xp-toast {
+	position: absolute;
+	bottom: calc(100% + 42px);
 	left: 50%;
 	width: max-content;
 	max-width: 240px;
@@ -2092,7 +2130,7 @@ input {
 	gap: 4px;
 	align-items: center;
 	justify-content: flex-end;
-	margin-bottom: 4px;
+	margin-bottom: 0;
 }
 .status-effects:empty {
 	display: none;
@@ -2104,7 +2142,8 @@ input {
 	display: flex;
 	min-height: 24px;
 	justify-content: flex-start;
-	margin-bottom: 4px;
+	gap: 4px;
+	margin-bottom: 0;
 }
 .beneficial-effects:empty {
 	display: none;
@@ -2118,13 +2157,13 @@ input {
 	align-items: center;
 	gap: 4px;
 	padding: 1px 7px;
-	border: 1px solid #73e8ff;
+	border: 1px solid #64ef9a;
 	border-radius: 11px;
-	color: #c9f9ff;
-	background: rgba(5, 38, 48, 0.9);
+	color: #d8ffe6;
+	background: rgba(5, 43, 24, 0.9);
 	box-shadow:
 		0 2px 7px rgba(0, 0, 0, 0.45),
-		0 0 8px rgba(77, 224, 255, 0.3);
+		0 0 8px rgba(68, 232, 126, 0.3);
 	font-size: 11px;
 	line-height: 1;
 	pointer-events: auto;
@@ -2165,7 +2204,7 @@ input {
 	width: 22px;
 	height: 22px;
 	place-items: center;
-	border: 1px solid rgba(232, 249, 255, 0.45);
+	border: 1px solid #ff6575;
 	border-radius: 50%;
 	background: rgba(5, 12, 16, 0.9);
 	box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45);
@@ -2212,21 +2251,6 @@ input {
 .status-effect:hover .status-effect-tooltip,
 .status-effect:focus .status-effect-tooltip {
 	display: block;
-}
-.status-effect-bleed {
-	border-color: #ff6575;
-}
-.status-effect-poison {
-	border-color: #df6bff;
-}
-.status-effect-burn {
-	border-color: #ff6534;
-}
-.status-effect-stun {
-	border-color: #ffd86b;
-}
-.status-effect-freeze {
-	border-color: #7df9ff;
 }
 .resource-bar-track {
 	height: 16px;

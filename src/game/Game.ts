@@ -431,6 +431,8 @@ export class Game {
 				maxRage: 1,
 				attackProgress: 1,
 				statuses: [],
+				reflectiveSurgeRemaining: 0,
+				rapidRegenRemaining: 0,
 				xpSendBuffs: message.xpSendBuffs,
 				gold: message.progress.gold,
 				progress: message.progress,
@@ -993,6 +995,9 @@ export class Game {
 				damagePerSecond,
 			}),
 		);
+		this.player.reflectiveSurgeRemaining = this.hero.reflectiveSurgeRemaining;
+		this.player.rapidRegenRemaining =
+			this.heroCombat.rapidRegenerationRemaining;
 		this.player.gold = this.player.progress.gold;
 	}
 

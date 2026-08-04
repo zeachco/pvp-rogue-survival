@@ -293,11 +293,11 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "reflectiveSurge",
 		label: "Reflective Surge",
 		damageMultiplier: 0,
-		cooldown: 16,
+		cooldown: 30,
 		range: 600,
 		resource: "rage",
 		description:
-			"When hit while ready, spends 3 Rage and immediately surges for 6 seconds, doubling Thorns and block reflection while adding another 1% of incoming damage to every return.",
+			"When hit while ready, spends 3 Rage and surges for 5–19 seconds, doubling Thorns and block reflection, adding 1% of incoming damage to every return, and granting 10–30% block chance up to a 95% final cap.",
 	},
 	frostOrb: {
 		id: "frostOrb",

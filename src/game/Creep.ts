@@ -114,6 +114,7 @@ export class Creep extends Unit {
 	private readonly manaFill: THREE.Mesh;
 	private readonly rageBg: THREE.Mesh;
 	private readonly rageFill: THREE.Mesh;
+	private readonly reflectiveSurgeIcon: THREE.Mesh;
 	private readonly bubbleEye?: THREE.Mesh;
 	readonly resourceBarAnchorY: number;
 	private barWidth = 32;
@@ -345,6 +346,14 @@ export class Creep extends Unit {
 		);
 		this.rageFill.position.set(0, rageY, 0.01);
 		this.healthBarGroup.add(this.rageFill);
+		this.reflectiveSurgeIcon = createReflectiveSurgeIcon();
+		this.reflectiveSurgeIcon.position.set(
+			this.barWidth / 2 + 6,
+			rageY + this.rageBarHeight + 5,
+			0.02,
+		);
+		this.reflectiveSurgeIcon.visible = false;
+		this.healthBarGroup.add(this.reflectiveSurgeIcon);
 		for (const bar of this.healthBarGroup.children) {
 			if (!(bar instanceof THREE.Mesh)) continue;
 			bar.renderOrder = Z_CREEP_OVERLAY;
@@ -714,6 +723,7 @@ export class Creep extends Unit {
 			this.maxRage > 0 ? clamp(this.rage / this.maxRage, 0, 1) : 0;
 		this.rageFill.scale.x = Math.max(0.001, rageRatio);
 		this.rageFill.position.x = -hbW / 2 + (hbW * rageRatio) / 2;
+		this.reflectiveSurgeIcon.visible = this.reflectiveSurgeRemaining > 0;
 
 		this.attackWindupRing.visible = this.pendingAttack;
 		this.attackWindupRing.position.set(this.position.x, this.position.y, 0);
@@ -783,6 +793,29 @@ export class Creep extends Unit {
 		this.threatArrow.quaternion.copy(camera.quaternion);
 		this.threatArrow.rotateZ(angle);
 	}
+}
+
+function createReflectiveSurgeIcon(): THREE.Mesh {
+	const shape = new THREE.Shape();
+	shape.moveTo(0, 5);
+	shape.lineTo(5, 0);
+	shape.lineTo(0, -5);
+	shape.lineTo(-5, 0);
+	shape.closePath();
+	const icon = new THREE.Mesh(
+		new THREE.ShapeGeometry(shape),
+		new THREE.MeshBasicMaterial({
+			color: 0xffe46b,
+			transparent: true,
+			opacity: 0.9,
+			depthTest: false,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+		}),
+	);
+	icon.name = "reflective-surge-aura-icon";
+	icon.renderOrder = Z_CREEP_OVERLAY + 0.02;
+	return icon;
 }
 
 function statusTint(statuses: { kind: string }[]): string | undefined {

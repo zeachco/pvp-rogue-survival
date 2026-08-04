@@ -16,6 +16,8 @@ import type { RandomSource } from "../../common/random";
 import type { CombatText, DamagePresentation } from "./CombatText";
 import {
 	bucklerBlockChance,
+	reflectiveSurgeBlockChanceBonus,
+	reflectiveSurgeDuration,
 	bucklerBlockCost,
 	effectiveSkillCooldown,
 	manaConversionFraction,
@@ -207,15 +209,48 @@ export abstract class Unit extends GameObject {
 		const buckler = this.offHand;
 		const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
 		if (
+			source &&
+			incomingAmount > 0 &&
+			this.isSkillOperational("reflectiveSurge") &&
+			this.reflectiveSurgeCooldown === 0 &&
+			this.rage >= 3
+		) {
+			this.spendRage(3);
+			const level = this.skillLevels.get("reflectiveSurge") ?? 1;
+			this.reflectiveSurgeRemaining = reflectiveSurgeDuration(level);
+			const derived = derivedStats(this.stats);
+			const reduction = Math.min(
+				0.6,
+				derived.cooldownReduction +
+					itemCooldownReduction(this.offHand, this.amulet, this.charm),
+			);
+			this.reflectiveSurgeCooldownMax = effectiveSkillCooldown(
+				"reflectiveSurge",
+				this.mainHand,
+				this.stats,
+				level,
+				reduction,
+			);
+			this.reflectiveSurgeCooldown = this.reflectiveSurgeCooldownMax;
+		}
+		if (
 			buckler?.itemKind === "buckler" &&
 			this.isSkillOperational("blocking") &&
 			this.blockCooldown === 0 &&
 			this.rage >= blockCost
 		) {
-			const chance = bucklerBlockChance(
-				buckler,
-				this.stats,
-				this.skillLevels.get("blocking") ?? 0,
+			const chance = Math.min(
+				this.reflectiveSurgeRemaining > 0 ? 0.95 : 1,
+				bucklerBlockChance(
+					buckler,
+					this.stats,
+					this.skillLevels.get("blocking") ?? 0,
+				) +
+					(this.reflectiveSurgeRemaining > 0
+						? reflectiveSurgeBlockChanceBonus(
+								this.skillLevels.get("reflectiveSurge") ?? 1,
+							)
+						: 0),
 			);
 			if (random.next() < chance) {
 				this.emitOutcome("block", "BLOCK");
@@ -254,31 +289,6 @@ export abstract class Unit extends GameObject {
 						reflected * power * itemRequirementMultiplier(buckler, this.stats);
 				}
 			}
-		}
-		if (
-			source &&
-			incomingAmount > 0 &&
-			this.isSkillOperational("reflectiveSurge") &&
-			this.reflectiveSurgeCooldown === 0 &&
-			this.rage >= 3
-		) {
-			this.spendRage(3);
-			this.reflectiveSurgeRemaining = 6;
-			const derived = derivedStats(this.stats);
-			const reduction = Math.min(
-				0.6,
-				derived.cooldownReduction +
-					itemCooldownReduction(this.offHand, this.amulet, this.charm),
-			);
-			const level = this.skillLevels.get("reflectiveSurge") ?? 1;
-			this.reflectiveSurgeCooldownMax = effectiveSkillCooldown(
-				"reflectiveSurge",
-				this.mainHand,
-				this.stats,
-				level,
-				reduction,
-			);
-			this.reflectiveSurgeCooldown = this.reflectiveSurgeCooldownMax;
 		}
 		if (reflectable && source) {
 			const reflectionEffectiveness =

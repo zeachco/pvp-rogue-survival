@@ -44,6 +44,8 @@ export interface PlayerState {
 	maxRage: number;
 	attackProgress: number;
 	statuses: StatusEffectSnapshot[];
+	reflectiveSurgeRemaining: number;
+	rapidRegenRemaining: number;
 	xpSendBuffs: XpSendBuff[];
 }
 

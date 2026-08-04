@@ -5,6 +5,7 @@ import {
 	cappedSkillLevel,
 	cleaveHalfArc,
 	effectiveSkillCooldown,
+	reflectiveSurgeDuration,
 	forceFieldRange,
 	healingBaseManaCost,
 	healingAutoCastThresholdMet,
@@ -29,6 +30,7 @@ import {
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
+	weaponSkillTriggerChance,
 	whirlwindRadius,
 } from "../../../common/combat";
 import {
@@ -81,6 +83,10 @@ export class HeroCombatSystem {
 	private whirlwindSpeed = 1;
 	private rapidRegenRemaining = 0;
 	private rapidRegenMultiplierValue = 1;
+	private readonly pendingWeaponProcs: SkillId[] = [];
+	get rapidRegenerationRemaining(): number {
+		return this.rapidRegenRemaining;
+	}
 	syncSkills(progress: PlayerProgress, hero: Hero): void {
 		hero.knownSkills.clear();
 		hero.skillLevels.clear();
@@ -234,9 +240,39 @@ export class HeroCombatSystem {
 		}
 		const targetDistance = distance(hero.position, target.position);
 		const profile = attackProfile(item, effectiveStats, balance);
-		const orderedSkills = this.availableSkills(progress).filter(
+		const equipmentCooldown = itemCooldownReduction(...accessories(progress));
+		const procSkills = weaponProcSkills(progress);
+		const castingProc = this.casting
+			? procSkills.find(({ id }) => id === this.casting?.id)
+			: undefined;
+		if (
+			!this.casting &&
+			this.pendingWeaponProcs.length === 0 &&
+			this.attackCooldown === 0 &&
+			targetDistance <= profile.range + target.radius
+		)
+			for (const { id, level } of procSkills) {
+				if ((this.skillCooldowns.get(id)?.remaining ?? 0) > 0) continue;
+				const cooldown = effectiveSkillCooldown(
+					id,
+					item,
+					effectiveStats,
+					level,
+					Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
+				);
+				if (random.next() < weaponSkillTriggerChance(cooldown))
+					this.pendingWeaponProcs.push(id);
+			}
+		const triggeredProc = procSkills.find(
+			({ id }) => id === this.pendingWeaponProcs[0],
+		);
+		const directSkills = this.availableSkills(progress).filter(
 			(skill) => autoFire.has(skill.id) || skill.id === this.manualSkill,
 		);
+		const procSkill = castingProc ?? triggeredProc;
+		const orderedSkills = procSkill
+			? [procSkill, ...directSkills.filter(({ id }) => id !== procSkill.id)]
+			: directSkills;
 		const rotatedSkills = orderedSkills.length
 			? [
 					...orderedSkills.slice(
@@ -328,6 +364,7 @@ export class HeroCombatSystem {
 					? rageSkillCost
 					: profile.rageCost;
 		if (!activeSkill) {
+			if (procSkill && !candidate) this.pendingWeaponProcs.shift();
 			this.tryBasicAttack(
 				hero,
 				target,
@@ -475,7 +512,9 @@ export class HeroCombatSystem {
 		else if (activeSkill?.id === "gravityPull" && item)
 			castForceField(state, hero, activeSkill.level, random);
 		else if (activeSkill?.id === "reflectiveSurge")
-			hero.reflectiveSurgeRemaining = 6;
+			hero.reflectiveSurgeRemaining = reflectiveSurgeDuration(
+				activeSkill.level,
+			);
 		else if (activeSkill?.id === "whirlwind") {
 			this.whirlwindRemaining = whirlwindDuration(activeSkill.level);
 			this.whirlwindPulse = 0;
@@ -574,7 +613,8 @@ export class HeroCombatSystem {
 				new SpellEffect(activeSkill.id, hero.position, hero.facing, range),
 			);
 		if (activeSkill) {
-			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
+			if (this.pendingWeaponProcs[0] === activeSkill.id)
+				this.pendingWeaponProcs.shift();
 			const duration = effectiveSkillCooldown(
 				activeSkill.id,
 				item,
@@ -751,6 +791,7 @@ export class HeroCombatSystem {
 		this.rapidRegenRemaining = 0;
 		this.rapidRegenMultiplierValue = 1;
 		this.skillCooldowns.clear();
+		this.pendingWeaponProcs.length = 0;
 	}
 	private availableSkills(
 		progress: PlayerProgress,
@@ -1041,11 +1082,45 @@ export function castForceFieldTargets(
 export function learnedSkillIds(progress: PlayerProgress): SkillId[] {
 	return [...new Set(progress.learnedSkills)];
 }
+
+export function weaponProcSkills(
+	progress: PlayerProgress,
+): Array<{ id: SkillId; level: number }> {
+	if (progress.mainHand?.itemKind !== "weapon") return [];
+	const learned = new Set(learnedSkillIds(progress));
+	const stats = statsWithItemBonuses(
+		progress.stats,
+		progress.mainHand,
+		...accessories(progress),
+	);
+	return [...new Set(progress.mainHand.skills)]
+		.filter((id) => !SKILLS[id].passive && !learned.has(id))
+		.map((id) => {
+			const accessoryBonus = accessories(progress).reduce(
+				(sum, candidate) =>
+					sum +
+					itemSkillLevelBonus(candidate, SKILLS[id].resource) *
+						(candidate ? itemRequirementMultiplier(candidate, stats) : 1),
+				0,
+			);
+			return {
+				id,
+				level: Math.max(
+					1,
+					Math.min(
+						progress.level,
+						cappedSkillLevel(1 + Math.floor(accessoryBonus)),
+					),
+				),
+			};
+		});
+}
 export function gearedSkillIds(progress: PlayerProgress): SkillId[] {
 	const learned = new Set(learnedSkillIds(progress));
 	return [
 		...new Set<SkillId>([
-			...(progress.mainHand?.skills ?? []),
+			...(progress.mainHand?.skills.filter((skill) => SKILLS[skill].passive) ??
+				[]),
 			...accessories(progress).flatMap((item) => item?.skills ?? []),
 		]),
 	].filter((skill) => !learned.has(skill));

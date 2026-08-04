@@ -2,6 +2,8 @@
 
 This specification extends `specs/SPEC.md` and is authoritative for arena simulation, movement, targeting, telegraphs, projectiles, collision resolution, and local defeat reset behavior. Progression, itemization, stat formulas, wave composition, generated builds, XP, drops, and rival scaling belong in `specs/PROGRESSION_SPEC.md`. Individual spell contracts live in `specs/spells/`; item-applied slow contracts live in `specs/item-effects/`.
 
+The HUD groups timed effects above the XP bar: harmful statuses are red-outlined, while positive buffs are green-outlined. Positive timed buffs include XP Send, Reflective Surge, and Rapid Regeneration.
+
 ## Unarmed Combat
 
 An empty main-hand slot resolves to an unarmed physical attack profile: `1 + effective Strength` base damage, 1.4 m range, and one attack per second. Basic weapon and unarmed attacks cost no Rage; each successful basic hit restores Rage equal to that attack's authored base Rage value (the weapon's Rage cost, or 1 for an unarmed hit), capped at maximum Rage. Punches use the ordinary critical-hit and target-mitigation rules, but have no weapon affixes or weapon/offensive active skills. Independent offhand and globally bound effects—including Healing, auras, Attraction, and buckler Blocking—remain available. Empty-handed clones and death echoes use this same profile.

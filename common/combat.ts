@@ -190,6 +190,22 @@ export function bucklerBlockChance(
 			)
 		: 0;
 }
+
+export function reflectiveSurgeCooldown(level: number): number {
+	return 30 - (10 * (cappedSkillLevel(level) - 1)) / 98;
+}
+
+export function reflectiveSurgeDuration(level: number): number {
+	return 5 + (14 * (cappedSkillLevel(level) - 1)) / 98;
+}
+
+export function reflectiveSurgeBlockChanceBonus(level: number): number {
+	return 0.1 + (0.2 * (cappedSkillLevel(level) - 1)) / 98;
+}
+
+export function weaponSkillTriggerChance(effectiveCooldown: number): number {
+	return Math.min(1, 1 / Math.max(Number.EPSILON, effectiveCooldown));
+}
 export function bucklerBlockCost(item: ItemInstance, stats: Stats): number {
 	if (item.itemKind !== "buckler") return 0;
 	if (!item.reflectionComponents.includes("return")) return 1;
@@ -253,6 +269,7 @@ export function skillCooldown(
 	_stats?: Stats,
 	level = 1,
 ): number {
+	if (skill === "reflectiveSurge") return reflectiveSurgeCooldown(level);
 	if (skill === "swamp") return swampCooldown(level);
 	if (skill === "bash") return bashCooldown(level);
 	if (skill === "cleave") return cleaveCooldown(level);

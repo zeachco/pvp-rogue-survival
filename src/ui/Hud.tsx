@@ -59,6 +59,8 @@ import {
 	manaConversionFraction,
 	spiritWoundsConversionFraction,
 	orbitingHammerDuration,
+	reflectiveSurgeBlockChanceBonus,
+	reflectiveSurgeDuration,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
 	rendingThrowPierce,
@@ -245,6 +247,8 @@ export class Hud {
 	private spellCatalogTypeFilter: "both" | "active" | "passive" = "both";
 	private spellCatalogLearningFilter: "both" | "learned" | "not-learned" =
 		"both";
+	private spellCatalogSearch = "";
+	private spellPreviewKind?: "extract" | "equipment";
 	private readonly resourceDock = (
 		<section class="resource-dock" />
 	) as HTMLElement;
@@ -263,6 +267,9 @@ export class Hud {
 	) as HTMLElement;
 	private readonly beneficialEffects = (
 		<div class="beneficial-effects" aria-label="Active beneficial effects" />
+	) as HTMLElement;
+	private readonly timedEffects = (
+		<div class="timed-effects" />
 	) as HTMLElement;
 	private readonly manaBar = resourceBar("Mana", "mana");
 	private readonly rageLine = (
@@ -480,7 +487,6 @@ export class Hud {
 		this.resourceDock.append(
 			(
 				<div class="health-cluster">
-					{this.statusEffects}
 					{this.healthBar.node}
 					{this.rageLine}
 				</div>
@@ -488,16 +494,13 @@ export class Hud {
 			(
 				<div class="xp-cluster">
 					{this.xpToast}
+					{this.timedEffects}
 					{this.xpBadge}
 				</div>
 			) as HTMLElement,
-			(
-				<div class="mana-cluster">
-					{this.beneficialEffects}
-					{this.manaBar.node}
-				</div>
-			) as HTMLElement,
+			(<div class="mana-cluster">{this.manaBar.node}</div>) as HTMLElement,
 		);
+		this.timedEffects.append(this.statusEffects, this.beneficialEffects);
 		const dismissMultiplayer = (
 			<button type="button">Got it</button>
 		) as HTMLButtonElement;
@@ -1021,8 +1024,21 @@ export class Hud {
 				| "not-learned";
 			this.updateCatalogFilters();
 		};
+		const search = (
+			<label class="spell-catalog-filter spell-catalog-search">
+				<span>Search</span>
+				<input type="search" placeholder="Name, effect, resource…" />
+			</label>
+		) as HTMLLabelElement;
+		const searchInput = search.querySelector("input") as HTMLInputElement;
+		searchInput.value = this.spellCatalogSearch;
+		searchInput.oninput = () => {
+			this.spellCatalogSearch = searchInput.value;
+			this.updateCatalogFilters();
+		};
 		const filters = (
 			<div class="spell-catalog-filters">
+				{search}
 				{typeFilter}
 				{learningFilter}
 			</div>
@@ -1110,6 +1126,7 @@ export class Hud {
 					data-learning={
 						learnedLevel > 0 && levelEligible ? "learned" : "not-learned"
 					}
+					data-search={`${id} ${definition.label} ${definition.description} ${spellResourceLabel(definition.resource)}`}
 				>
 					<span class="spell-catalog-card-heading">
 						<strong>{definition.label}</strong>
@@ -1175,6 +1192,8 @@ export class Hud {
 				card.dataset.learning as "learned" | "not-learned",
 				this.spellCatalogTypeFilter,
 				this.spellCatalogLearningFilter,
+				this.spellCatalogSearch,
+				card.dataset.search,
 			);
 		}
 		for (const grid of this.spellCatalog.querySelectorAll<HTMLElement>(
@@ -1201,15 +1220,14 @@ export class Hud {
 	}
 	private previewSpellLevels(skills?: SkillId[]): void {
 		this.spellPreviewProgress = undefined;
+		this.spellPreviewKind = skills ? "extract" : undefined;
 		this.spellPreview =
 			skills && this.player
 				? new Map(
 						skills.map((id) => [
 							id,
-							cappedSkillLevel(
-								(this.currentSpells.find((spell) => spell.id === id)
-									?.actualLevel ??
-									actualSkillLevel(this.player!.progress, id)) + 1,
+							extractedLearnedLevel(
+								this.player!.progress.learnedSkillLevels[id] ?? 0,
 							),
 						]),
 					)
@@ -1251,8 +1269,18 @@ export class Hud {
 			.filter((spell) => spell.passive && spell.active)
 			.sort((a, b) => a.label.localeCompare(b.label));
 		const visible = [...passiveSpells, ...activeSpells];
-		const structure = visible
-			.map(
+		const hasHiddenExtractPreview =
+			this.spellPreviewKind === "extract" &&
+			Boolean(
+				preview &&
+					[...preview.keys()].some(
+						(id) => !visible.some((spell) => spell.id === id),
+					),
+			);
+		const structure = [
+			this.spellPreviewKind ?? "none",
+			String(hasHiddenExtractPreview),
+			...visible.map(
 				({
 					id,
 					label,
@@ -1265,8 +1293,8 @@ export class Hud {
 					shortcut,
 				}) =>
 					`${bar}:${id}:${label}:${level}:${resource}:${active}:${passive}:${autoFire}:${shortcut ?? ""}:${preview?.get(id) ?? ""}`,
-			)
-			.join("|");
+			),
+		].join("|");
 		if (structure !== this.spellStructureSignature) {
 			this.spellStructureSignature = structure;
 			this.spellNodes.clear();
@@ -1277,7 +1305,7 @@ export class Hud {
 				this.learnedSkillsList,
 				<small class="skill-bar-label">Spells</small>,
 				<button
-					class="spell-catalog-trigger"
+					class={`spell-catalog-trigger${hasHiddenExtractPreview ? " is-extract-preview" : ""}`}
 					type="button"
 					aria-label="Open available spells"
 				>
@@ -1320,18 +1348,20 @@ export class Hud {
 		const projected = preview?.get(spell.id);
 		const actualLevel =
 			projected === undefined ? spell.actualLevel : (projected ?? 0);
-		const shownLevel = Math.min(
-			actualLevel,
-			this.player?.progress.level ?? actualLevel,
-		);
+		const shownLevel =
+			projected !== undefined && this.spellPreviewKind === "extract"
+				? actualLevel
+				: Math.min(actualLevel, this.player?.progress.level ?? actualLevel);
 		const levelValue: PreviewValue<string> = {
 			currentVal: formatSpellLevel(spell.level),
 			newVal: formatSpellLevel(shownLevel),
 		};
-		const changed = projected !== undefined && projected !== spell.actualLevel;
+		const changed =
+			projected !== undefined &&
+			(this.spellPreviewKind === "extract" || projected !== spell.actualLevel);
 		const button = (
 			<button
-				class={`spell-slot spell-resource-${spell.resource}${spell.passive ? " is-passive" : ""}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${spell.active && !spell.affordable ? " is-unaffordable" : ""}${changed ? (projected === null || projected < spell.actualLevel ? " is-level-cost-preview" : " is-level-preview") : ""}`}
+				class={`spell-slot spell-resource-${spell.resource}${spell.passive ? " is-passive" : ""}${spell.active && spell.cooldown <= 0 ? " is-ready" : ""}${spell.active ? "" : " is-disabled"}${spell.active && !spell.affordable ? " is-unaffordable" : ""}${changed ? (this.spellPreviewKind !== "extract" && (projected === null || projected < spell.actualLevel) ? " is-level-cost-preview" : " is-level-preview") : ""}`}
 				type="button"
 				aria-label={`${spell.label}, level ${formatPreviewValue(levelValue)}, ${spell.passive ? "passive, always active" : spell.active ? `equipped in slot ${spell.shortcut}${spell.autoFire ? ", auto-fire enabled" : ""}` : "unequipped"}`}
 				aria-pressed={String(spell.active)}
@@ -1616,6 +1646,26 @@ export class Hud {
 							<strong>{fmt(rapidRegenDuration(shownLevel))}s</strong>
 						</span>
 					) : null}
+					{spell.id === "reflectiveSurge" ? (
+						<span>
+							<small>Duration</small>
+							<strong>{fmt(reflectiveSurgeDuration(shownLevel))}s</strong>
+						</span>
+					) : null}
+					{spell.id === "reflectiveSurge" ? (
+						<span>
+							<small>Block chance</small>
+							<strong>
+								+{fmt(reflectiveSurgeBlockChanceBonus(shownLevel) * 100)}%
+							</strong>
+						</span>
+					) : null}
+					{spell.id === "reflectiveSurge" ? (
+						<span>
+							<small>Block cap</small>
+							<strong>95%</strong>
+						</span>
+					) : null}
 					{spell.id === "rendingThrow" ? (
 						<span>
 							<small>Targets</small>
@@ -1730,6 +1780,8 @@ export class Hud {
 			this.player.xpSendBuffs.map((buff) => buff.expiresAt).join(","),
 			this.player.xpSendBuffs.map((buff) => buff.multiplier).join(","),
 			xpSendBuffSummary(this.player.xpSendBuffs)?.remaining ?? 0,
+			Math.ceil(this.player.reflectiveSurgeRemaining * 10) / 10,
+			Math.ceil(this.player.rapidRegenRemaining * 10) / 10,
 		]
 			.map(flatValue)
 			.join("|");
@@ -1742,7 +1794,11 @@ export class Hud {
 				healthRegen,
 			);
 			this.renderStatusEffects(this.player.statuses);
-			this.renderBeneficialEffects(this.player.xpSendBuffs);
+			this.renderBeneficialEffects(
+				this.player.xpSendBuffs,
+				this.player.reflectiveSurgeRemaining,
+				this.player.rapidRegenRemaining,
+			);
 			updateResourceBar(
 				this.manaBar,
 				this.player.mana,
@@ -1785,9 +1841,41 @@ export class Hud {
 			),
 		);
 	}
-	private renderBeneficialEffects(buffs: PlayerState["xpSendBuffs"]): void {
+	private renderBeneficialEffects(
+		buffs: PlayerState["xpSendBuffs"],
+		reflectiveSurgeRemaining: number,
+		rapidRegenRemaining: number,
+	): void {
 		const buff = xpSendBuffSummary(buffs);
 		this.beneficialEffects.replaceChildren(
+			...(rapidRegenRemaining > 0
+				? [
+						<span
+							class="beneficial-effect beneficial-effect-rapid-regen"
+							tabindex="0"
+							aria-label={`Rapid Regeneration — ${fmt(rapidRegenRemaining)}s remaining`}
+						>
+							<span aria-hidden="true">+</span>
+							<span class="beneficial-effect-tooltip" role="tooltip">
+								Rapid Regeneration — {fmt(rapidRegenRemaining)}s remaining
+							</span>
+						</span>,
+					]
+				: []),
+			...(reflectiveSurgeRemaining > 0
+				? [
+						<span
+							class="beneficial-effect beneficial-effect-reflective-surge"
+							tabindex="0"
+							aria-label={`Reflective Surge — ${fmt(reflectiveSurgeRemaining)}s remaining`}
+						>
+							<span aria-hidden="true">◈</span>
+							<span class="beneficial-effect-tooltip" role="tooltip">
+								Reflective Surge — {fmt(reflectiveSurgeRemaining)}s remaining
+							</span>
+						</span>,
+					]
+				: []),
 			...(buff
 				? [
 						<span
@@ -2034,6 +2122,7 @@ export class Hud {
 			this.previewBuild(p.mainHand, p.offHand, p.amulet, p.charm, false);
 			this.spellPreview = undefined;
 			this.spellPreviewProgress = undefined;
+			this.spellPreviewKind = undefined;
 			this.renderSpellSlots();
 			return;
 		}
@@ -2062,6 +2151,7 @@ export class Hud {
 		this.previewBuild(main, off, amulet, charm, true);
 		const projected = { ...p, mainHand: main, offHand: off, amulet, charm };
 		this.spellPreviewProgress = projected;
+		this.spellPreviewKind = "equipment";
 		const ids = new Set<SkillId>([
 			...this.currentSpells.map((spell) => spell.id),
 			...p.learnedSkills,
@@ -3348,6 +3438,9 @@ export function spellTooltipLevels(
 		{ heading: "Max learned", level: maxLearned },
 	];
 }
+export function extractedLearnedLevel(currentLearnedLevel: number): number {
+	return cappedSkillLevel(currentLearnedLevel + 1);
+}
 export function spellCatalogResourceOrder(
 	resource: SpellSlot["resource"],
 ): number {
@@ -3358,10 +3451,14 @@ export function spellCatalogFilterMatches(
 	learning: "learned" | "not-learned",
 	typeFilter: "both" | "active" | "passive",
 	learningFilter: "both" | "learned" | "not-learned",
+	search = "",
+	searchableText = "",
 ): boolean {
+	const query = search.trim().toLocaleLowerCase();
 	return (
 		(typeFilter === "both" || type === typeFilter) &&
-		(learningFilter === "both" || learning === learningFilter)
+		(learningFilter === "both" || learning === learningFilter) &&
+		(!query || searchableText.toLocaleLowerCase().includes(query))
 	);
 }
 function spellResourceLabel(resource: SpellSlot["resource"]): string {

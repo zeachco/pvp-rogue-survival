@@ -1942,7 +1942,7 @@ describe("arena systems", () => {
 			critical: false,
 		});
 		expect(defender.rage).toBe(1);
-		expect(defender.reflectiveSurgeRemaining).toBe(6);
+		expect(defender.reflectiveSurgeRemaining).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBeGreaterThan(0);
 		expect(attacker.hp).toBeCloseTo(before - 0.55);
 		const cooldown = defender.reflectiveSurgeCooldown;

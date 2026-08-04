@@ -53,6 +53,9 @@ import {
 	rapidRegenMultiplier,
 	rendingThrowPierce,
 	rendingThrowTargetLimit,
+	reflectiveSurgeBlockChanceBonus,
+	reflectiveSurgeCooldown,
+	reflectiveSurgeDuration,
 	RENDING_THROW_BLEED_DURATION,
 	skillCastTime,
 	skillCooldown,
@@ -70,6 +73,7 @@ import {
 	weaponDamage,
 	weaponRange,
 	weaponUsesProjectile,
+	weaponSkillTriggerChance,
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
@@ -143,6 +147,7 @@ import {
 	isSkillActive,
 	isSkillAvailable,
 	shouldAutoCastHealing,
+	weaponProcSkills,
 	skillHealthRequirementMet,
 } from "../src/game/systems/HeroCombatSystem";
 import { gameSocketUrl } from "../src/net/SocketClient";
@@ -160,6 +165,7 @@ import {
 import { extractButtonStatus } from "../src/ui/inventoryAvailability";
 import {
 	effectiveStatRows,
+	extractedLearnedLevel,
 	passiveSkillMetrics,
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
@@ -270,6 +276,12 @@ test("shows current, next, and maximum spell tooltip levels", () => {
 	]);
 });
 
+test("previews extraction from the permanent learned maximum", () => {
+	expect(extractedLearnedLevel(0)).toBe(1);
+	expect(extractedLearnedLevel(5)).toBe(6);
+	expect(extractedLearnedLevel(99)).toBe(99);
+});
+
 test("combines spell type and learning-state catalog filters", () => {
 	expect(
 		spellCatalogFilterMatches("passive", "learned", "both", "both"),
@@ -282,6 +294,26 @@ test("combines spell type and learning-state catalog filters", () => {
 	).toBeFalse();
 	expect(
 		spellCatalogFilterMatches("passive", "not-learned", "both", "learned"),
+	).toBeFalse();
+	expect(
+		spellCatalogFilterMatches(
+			"active",
+			"learned",
+			"both",
+			"both",
+			"frost",
+			"frostOrb Frozen Orb launches ice Mana",
+		),
+	).toBeTrue();
+	expect(
+		spellCatalogFilterMatches(
+			"active",
+			"learned",
+			"both",
+			"both",
+			"poison",
+			"frostOrb Frozen Orb launches ice Mana",
+		),
 	).toBeFalse();
 });
 
@@ -955,7 +987,7 @@ describe("equipped skill levels", () => {
 	test("temporarily adds one level while learned skills remain active without matching gear", () => {
 		const state = progress();
 		state.level = 100;
-		expect(effectiveSkillLevel(state, "bash")).toBe(1);
+		expect(effectiveSkillLevel(state, "bash")).toBe(0);
 		state.learnedSkills.push("bash");
 		state.learnedSkillLevels.bash = 3;
 		expect(effectiveSkillLevel(state, "bash")).toBe(4);
@@ -966,6 +998,26 @@ describe("equipped skill levels", () => {
 		expect(relic.skills).toContain("gravityPull");
 		expect(effectiveSkillLevel(state, "gravityPull")).toBe(1);
 	});
+});
+test("keeps unlearned weapon actives off the rail while retaining them as cooldown-weighted procs", () => {
+	const state = progress();
+	state.level = 20;
+	state.mainHand = { ...state.mainHand!, skills: ["bash", "thorns"] };
+	expect(effectiveSkillLevel(state, "bash")).toBe(0);
+	expect(effectiveSkillLevel(state, "thorns")).toBe(1);
+	expect(weaponProcSkills(state)).toEqual([{ id: "bash", level: 1 }]);
+	expect(weaponSkillTriggerChance(10)).toBe(0.1);
+	expect(weaponSkillTriggerChance(1)).toBe(1);
+	expect(weaponSkillTriggerChance(0.5)).toBe(1);
+});
+
+test("scales Reflective Surge cooldown, duration, and block bonus to exact endpoints", () => {
+	expect(reflectiveSurgeCooldown(1)).toBe(30);
+	expect(reflectiveSurgeCooldown(99)).toBe(20);
+	expect(reflectiveSurgeDuration(1)).toBe(5);
+	expect(reflectiveSurgeDuration(99)).toBe(19);
+	expect(reflectiveSurgeBlockChanceBonus(1)).toBe(0.1);
+	expect(reflectiveSurgeBlockChanceBonus(99)).toBeCloseTo(0.3);
 });
 test("caps active skill level at the hero level while retaining its actual level", () => {
 	const state = progress();
@@ -1123,7 +1175,7 @@ describe("amulets and charms", () => {
 			},
 		};
 		expect(effectiveSkillLevel(state, "healing")).toBe(9);
-		expect(effectiveSkillLevel(state, "bash")).toBe(14);
+		expect(effectiveSkillLevel(state, "bash")).toBe(0);
 		expect(itemCooldownReduction(state.offHand)).toBe(0.8);
 	});
 	test("rolls the extractable Time Harvest passive and scales its cooldown removal", () => {
