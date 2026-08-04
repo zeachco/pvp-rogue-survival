@@ -691,18 +691,18 @@ describe("realm game service", () => {
 		game.handle(sender.id, { type: "sendItem", tileId: "rare-xp-buff" });
 		game.handle(sender.id, { type: "sendItem", tileId: "epic-xp-buff" });
 		expect(sender.xpSendBuffs).toEqual([
-			{ multiplier: 2, expiresAt: 21_000 },
-			{ multiplier: 3, expiresAt: 31_000 },
+			{ multiplier: 2, expiresAt: 15_000 },
+			{ multiplier: 3, expiresAt: 27_000 },
 		]);
 		const firstUnit = sender.issuedUnits.keys().next().value as string;
 		game.handle(sender.id, { type: "creepDefeated", unitId: firstUnit });
 		expect(sender.progress.xp).toBe(20);
-		now = 21_000;
+		now = 15_000;
 		const secondUnit = [...sender.issuedUnits.keys()][0]!;
 		game.handle(sender.id, { type: "creepDefeated", unitId: secondUnit });
 		expect(sender.progress.xp).toBe(50);
-		expect(sender.xpSendBuffs).toEqual([{ multiplier: 3, expiresAt: 31_000 }]);
-		now = 31_000;
+		expect(sender.xpSendBuffs).toEqual([{ multiplier: 3, expiresAt: 27_000 }]);
+		now = 27_000;
 		const thirdUnit = [...sender.issuedUnits.keys()][0]!;
 		game.handle(sender.id, { type: "creepDefeated", unitId: thirdUnit });
 		expect(sender.progress.xp).toBe(60);

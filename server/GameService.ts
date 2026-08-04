@@ -1582,7 +1582,7 @@ export class GameService {
 		const startsAt = Math.max(this.now(), buffs.at(-1)?.expiresAt ?? 0);
 		buffs.push({
 			multiplier: XP_SEND_MULTIPLIERS[item.rarity],
-			expiresAt: startsAt + item.level * 10_000,
+			expiresAt: startsAt + (10 + item.level * 2) * 1_000,
 		});
 	}
 	private xpSendBuffs(player: Player): XpSendBuff[] {
