@@ -80,6 +80,11 @@ import {
 	whirlwindRadius,
 } from "../common/combat";
 import { SKILLS, WEAPONS } from "../common/content";
+import { SPELL_SOURCES } from "../common/spellSources";
+import {
+	inventorySlotMatches,
+	orderInventoryTiles,
+} from "../src/ui/InventoryView";
 import {
 	collectIntoInventory,
 	dropInventoryOverflow,
@@ -315,6 +320,40 @@ test("combines spell type and learning-state catalog filters", () => {
 			"frostOrb Frozen Orb launches ice Mana",
 		),
 	).toBeFalse();
+});
+
+test("defines a concrete acquisition source for every catalog spell", () => {
+	expect(Object.keys(SPELL_SOURCES).sort()).toEqual(Object.keys(SKILLS).sort());
+	for (const source of Object.values(SPELL_SOURCES))
+		expect(source).not.toBe("");
+});
+
+test("keeps inventory chronology while applying the slot filter as an AND clause", () => {
+	const state = progress();
+	const oldMain = {
+		id: "old-main",
+		key: "old-main",
+		item: starterClub(),
+		quantity: 1,
+	};
+	const charmItem = generateAccessory(1, "common", 3, "charm");
+	const newCharm = {
+		id: "new-charm",
+		key: "new-charm",
+		item: charmItem,
+		quantity: 1,
+	};
+	const removed = { ...oldMain, id: "removed", quantity: 0 };
+	state.inventoryTiles = [oldMain, removed, newCharm];
+	expect(
+		orderInventoryTiles(state.inventoryTiles, state).map(({ id }) => id),
+	).toEqual(["old-main", "new-charm"]);
+	expect(
+		orderInventoryTiles(state.inventoryTiles, state, "charms").map(
+			({ id }) => id,
+		),
+	).toEqual(["new-charm"]);
+	expect(inventorySlotMatches(newCharm, "mainhand")).toBeFalse();
 });
 
 test("gates Orbiting Hammers and Frozen Orb at their authored hero levels", () => {

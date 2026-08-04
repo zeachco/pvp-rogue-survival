@@ -94,6 +94,8 @@ export class HeroCombatSystem {
 			hero.knownSkills.add(skill);
 			hero.skillLevels.set(skill, effectiveSkillLevel(progress, skill));
 		}
+		hero.reflectiveSurgeAutomatic =
+			autoFireSkillIds(progress).includes("reflectiveSurge");
 	}
 	requestSpellSlot(index: number, progress: PlayerProgress): void {
 		const skill = equippedActiveSkillIds(progress)[index];
@@ -166,6 +168,10 @@ export class HeroCombatSystem {
 			healing.manaCost *
 			(1 - resourceReduction(progress, "mana", effectiveStats));
 		const autoFire = new Set(autoFireSkillIds(progress));
+		if (this.manualSkill === "reflectiveSurge") {
+			if (!autoFire.has("reflectiveSurge")) hero.activateReflectiveSurge();
+			this.manualSkill = undefined;
+		}
 		if (
 			isSkillActive(progress, "healing") &&
 			(autoFire.has("healing") || this.manualSkill === "healing") &&

@@ -62,8 +62,8 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 7. Visual and UX Direction
 
-- A creep inspection character panel is intentionally compact: it shows only the creep name, level, live/current HP against combat maximum HP, unmodified base attributes, and equipped Main hand, Offhand, Amulet, and Charm details. It does not show XP reward or the derived Effective stats section. Local and public hero character panels retain their existing advanced-stat presentation.
-- Pointer-hover creep preview never replaces or expands the character panel. It appears as a compact, non-interactive tooltip centered at the top of the arena and shows only name, level, live/current HP against combat maximum HP, equipped-item icons, and unmodified base attributes. Leaving the creep hides the tooltip and preserves whichever hero or committed creep inspection was already shown in the character panel.
+- A creep inspection character panel is intentionally compact: it shows only the creep name, level, live/current HP against combat maximum HP, current timed states, unmodified base attributes, and equipped Main hand, Offhand, Amulet, and Charm details. It does not show XP reward or the derived Effective stats section. Local and public hero character panels retain their existing advanced-stat presentation.
+- Pointer-hover creep preview never replaces or expands the character panel. It appears as a compact, non-interactive tooltip centered at the top of the arena and shows only name, level, live/current HP against combat maximum HP, current timed states, equipped-item icons, and unmodified base attributes. Poison, Burn, Bleed, Frost/Freeze, Stun, Shock, Curse, Rapid Regeneration, and Reflective Surge use compact state badges, including stack count and remaining duration when applicable. Leaving the creep hides the tooltip and preserves whichever hero or committed creep inspection was already shown in the character panel.
 
 - Use futuristic, simple geometric shapes with no required external art pipeline.
 - Telegraph and combat rendering rules follow `specs/MECHANICS_SPEC.md`.

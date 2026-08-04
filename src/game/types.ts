@@ -26,6 +26,11 @@ export interface StatusEffectSnapshot {
 	remaining: number;
 	damagePerSecond: number;
 }
+export interface CreepTimedStates {
+	statuses: StatusEffectSnapshot[];
+	reflectiveSurgeRemaining: number;
+	regenerating: boolean;
+}
 export interface PlayerState {
 	id: string;
 	name: string;

@@ -63,7 +63,7 @@ export class Hero extends Unit {
 		const bodyGeo = texture
 			? new THREE.PlaneGeometry(50, 50)
 			: new THREE.CircleGeometry(18, 32);
-		const bodyMat = new THREE.MeshBasicMaterial(
+		const bodyMat = new THREE.MeshStandardMaterial(
 			texture
 				? {
 						map: texture,
@@ -256,10 +256,18 @@ export class Hero extends Unit {
 			dead: !this.active && this.hp <= 0,
 			statusTint: tint,
 			flash,
+			reflectiveSurge: this.reflectiveSurgeRemaining > 0,
 		});
-		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(
-			flash ? 0xffffff : 0xdffeff,
-		);
+		const reflective = this.reflectiveSurgeRemaining > 0;
+		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
+		bodyMaterial.color.set(flash ? 0xffffff : reflective ? 0x3f4448 : 0xdffeff);
+		const bodyMap = reflective ? null : (loadHeroTexture() ?? null);
+		if (bodyMaterial.map !== bodyMap) {
+			bodyMaterial.map = bodyMap;
+			bodyMaterial.needsUpdate = true;
+		}
+		bodyMaterial.metalness = reflective ? 0.9 : 0;
+		bodyMaterial.roughness = reflective ? 0.35 : 1;
 		if (tint) {
 			(this.statusTint.material as THREE.MeshBasicMaterial).color.set(tint);
 			(this.statusTint.material as THREE.MeshBasicMaterial).opacity = 0.42;

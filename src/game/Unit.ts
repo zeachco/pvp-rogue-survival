@@ -62,6 +62,7 @@ export abstract class Unit extends GameObject {
 	reflectiveSurgeRemaining = 0;
 	reflectiveSurgeCooldown = 0;
 	reflectiveSurgeCooldownMax = 0;
+	reflectiveSurgeAutomatic = true;
 	healthRegenMultiplier = 1;
 	healthRegenFlat = 0;
 	readonly knownSkills = new Set<SkillId>();
@@ -132,6 +133,32 @@ export abstract class Unit extends GameObject {
 			this.knownSkills.has(skill) &&
 			(!upkeep || !this.suspendedUpkeep.has(upkeep.resource))
 		);
+	}
+
+	activateReflectiveSurge(): boolean {
+		if (
+			!this.isSkillOperational("reflectiveSurge") ||
+			this.reflectiveSurgeCooldown > 0 ||
+			!this.spendRage(3)
+		)
+			return false;
+		const level = this.skillLevels.get("reflectiveSurge") ?? 1;
+		this.reflectiveSurgeRemaining = reflectiveSurgeDuration(level);
+		const derived = derivedStats(this.stats);
+		const reduction = Math.min(
+			0.6,
+			derived.cooldownReduction +
+				itemCooldownReduction(this.offHand, this.amulet, this.charm),
+		);
+		this.reflectiveSurgeCooldownMax = effectiveSkillCooldown(
+			"reflectiveSurge",
+			this.mainHand,
+			this.stats,
+			level,
+			reduction,
+		);
+		this.reflectiveSurgeCooldown = this.reflectiveSurgeCooldownMax;
+		return true;
 	}
 
 	receiveDamage(
@@ -208,30 +235,8 @@ export abstract class Unit extends GameObject {
 		let blockReflection = 0;
 		const buckler = this.offHand;
 		const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
-		if (
-			source &&
-			incomingAmount > 0 &&
-			this.isSkillOperational("reflectiveSurge") &&
-			this.reflectiveSurgeCooldown === 0 &&
-			this.rage >= 3
-		) {
-			this.spendRage(3);
-			const level = this.skillLevels.get("reflectiveSurge") ?? 1;
-			this.reflectiveSurgeRemaining = reflectiveSurgeDuration(level);
-			const derived = derivedStats(this.stats);
-			const reduction = Math.min(
-				0.6,
-				derived.cooldownReduction +
-					itemCooldownReduction(this.offHand, this.amulet, this.charm),
-			);
-			this.reflectiveSurgeCooldownMax = effectiveSkillCooldown(
-				"reflectiveSurge",
-				this.mainHand,
-				this.stats,
-				level,
-				reduction,
-			);
-			this.reflectiveSurgeCooldown = this.reflectiveSurgeCooldownMax;
+		if (source && incomingAmount > 0 && this.reflectiveSurgeAutomatic) {
+			this.activateReflectiveSurge();
 		}
 		if (
 			buckler?.itemKind === "buckler" &&

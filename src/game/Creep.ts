@@ -21,7 +21,13 @@ import { canvas2dContext } from "../platform/Canvas";
 import { Unit } from "./Unit";
 import { dropRarityColor } from "./ItemDrop";
 import { SpellEffect } from "./SpellEffect";
-import { clamp, distance, normalize, type Vector2 } from "./types";
+import {
+	clamp,
+	distance,
+	normalize,
+	type CreepTimedStates,
+	type Vector2,
+} from "./types";
 import { creepMaxHealth } from "../../common/waves";
 import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
 import {
@@ -105,6 +111,7 @@ export class Creep extends Unit {
 	readonly threatArrow: THREE.Mesh;
 
 	private readonly bodyMesh: THREE.Mesh;
+	private readonly bodyTexture?: THREE.Texture;
 	private readonly spriteGroup = new THREE.Group();
 	private readonly animatedCharacter?: AnimatedCharacter;
 	private readonly strokeMesh: THREE.Mesh;
@@ -115,6 +122,7 @@ export class Creep extends Unit {
 	private readonly rageBg: THREE.Mesh;
 	private readonly rageFill: THREE.Mesh;
 	private readonly reflectiveSurgeIcon: THREE.Mesh;
+	private readonly stateIcons: THREE.Mesh[] = [];
 	private readonly bubbleEye?: THREE.Mesh;
 	readonly resourceBarAnchorY: number;
 	private barWidth = 32;
@@ -185,6 +193,7 @@ export class Creep extends Unit {
 				: 0xff6f7d;
 		const strokeColorStr = build.isRival ? "#704d00" : "#501721";
 		const texture = enemyTexture(enemyRole(build));
+		this.bodyTexture = texture;
 		const sentItem = [
 			build.mainHand,
 			build.offHand,
@@ -208,7 +217,7 @@ export class Creep extends Unit {
 					this.radius * visualScale,
 					this.radius * visualScale,
 				),
-				new THREE.MeshBasicMaterial({
+				new THREE.MeshStandardMaterial({
 					map: texture,
 					transparent: true,
 					alphaTest: 0.02,
@@ -230,14 +239,14 @@ export class Creep extends Unit {
 			shape.closePath();
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.ShapeGeometry(shape),
-				new THREE.MeshBasicMaterial({ color: fillColor }),
+				new THREE.MeshStandardMaterial({ color: fillColor }),
 			);
 		} else {
 			this.presentationHeight = this.radius * 2;
 			this.spriteCenterHeight = this.radius;
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.CircleGeometry(this.radius, 24),
-				new THREE.MeshBasicMaterial({ color: fillColor }),
+				new THREE.MeshStandardMaterial({ color: fillColor }),
 			);
 		}
 		if (this.kind === "melee") {
@@ -354,6 +363,17 @@ export class Creep extends Unit {
 		);
 		this.reflectiveSurgeIcon.visible = false;
 		this.healthBarGroup.add(this.reflectiveSurgeIcon);
+		for (let index = 0; index < 8; index += 1) {
+			const icon = new THREE.Mesh(
+				new THREE.CircleGeometry(2.2, 12),
+				new THREE.MeshBasicMaterial({ color: 0xffffff }),
+			);
+			icon.name = "creep-state-icon";
+			icon.position.set(-this.barWidth / 2 + 2.2 + index * 4.6, hbY - 5, 0.02);
+			icon.visible = false;
+			this.healthBarGroup.add(icon);
+			this.stateIcons.push(icon);
+		}
 		for (const bar of this.healthBarGroup.children) {
 			if (!(bar instanceof THREE.Mesh)) continue;
 			bar.renderOrder = Z_CREEP_OVERLAY;
@@ -683,17 +703,29 @@ export class Creep extends Unit {
 			dead: false,
 			statusTint: statusTint(this.statuses),
 			flash,
+			reflectiveSurge: this.reflectiveSurgeRemaining > 0,
 		});
+		const reflective = this.reflectiveSurgeRemaining > 0;
 		const fillColor = flash
 			? 0xffffff
-			: (this.bodyMesh.material as THREE.MeshBasicMaterial).map
-				? 0xdddddd
-				: this.build.isRival
-					? 0xffd166
-					: this.kind === "bubbleShooter"
-						? 0x8c7cff
-						: 0xff6f7d;
+			: reflective
+				? 0x3f4448
+				: (this.bodyMesh.material as THREE.MeshBasicMaterial).map
+					? 0xdddddd
+					: this.build.isRival
+						? 0xffd166
+						: this.kind === "bubbleShooter"
+							? 0x8c7cff
+							: 0xff6f7d;
 		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);
+		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
+		const bodyMap = reflective ? null : (this.bodyTexture ?? null);
+		if (bodyMaterial.map !== bodyMap) {
+			bodyMaterial.map = bodyMap;
+			bodyMaterial.needsUpdate = true;
+		}
+		bodyMaterial.metalness = reflective ? 0.9 : 0;
+		bodyMaterial.roughness = reflective ? 0.35 : 1;
 
 		this.healthBarGroup.position.set(this.position.x, this.position.y, 0);
 		if (this.labelObject) {
@@ -724,6 +756,20 @@ export class Creep extends Unit {
 		this.rageFill.scale.x = Math.max(0.001, rageRatio);
 		this.rageFill.position.x = -hbW / 2 + (hbW * rageRatio) / 2;
 		this.reflectiveSurgeIcon.visible = this.reflectiveSurgeRemaining > 0;
+		const stateColors = [
+			...new Set(this.statuses.map((status) => status.kind)),
+			...(this.healthRegenMultiplier > 1 || this.healthRegenFlat > 0
+				? ["regen"]
+				: []),
+			...(reflective ? ["reflective"] : []),
+		].map(creepStateColor);
+		this.stateIcons.forEach((icon, index) => {
+			icon.visible = index < stateColors.length;
+			if (icon.visible)
+				(icon.material as THREE.MeshBasicMaterial).color.set(
+					stateColors[index],
+				);
+		});
 
 		this.attackWindupRing.visible = this.pendingAttack;
 		this.attackWindupRing.position.set(this.position.x, this.position.y, 0);
@@ -736,6 +782,18 @@ export class Creep extends Unit {
 		if (isHighlighted) {
 			this.selectionRing.position.set(this.position.x, this.position.y, 0);
 		}
+	}
+
+	timedStates(): CreepTimedStates {
+		return {
+			statuses: this.statuses.map(({ kind, remaining, damagePerSecond }) => ({
+				kind,
+				remaining,
+				damagePerSecond,
+			})),
+			reflectiveSurgeRemaining: this.reflectiveSurgeRemaining,
+			regenerating: this.healthRegenMultiplier > 1 || this.healthRegenFlat > 0,
+		};
 	}
 
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
@@ -824,4 +882,15 @@ function statusTint(statuses: { kind: string }[]): string | undefined {
 	if (statuses.some((status) => status.kind === "poison")) return "#92f58b";
 	if (statuses.some((status) => status.kind === "curse")) return "#4b225e";
 	return undefined;
+}
+
+function creepStateColor(kind: string): number {
+	if (kind === "poison") return 0x92f58b;
+	if (kind === "burn") return 0xff783d;
+	if (kind === "bleed") return 0xff4858;
+	if (kind === "freeze") return 0x8de7ff;
+	if (kind === "stun" || kind === "shock") return 0xffffff;
+	if (kind === "curse") return 0x9d60c4;
+	if (kind === "regen") return 0x62e88a;
+	return 0xffe46b;
 }

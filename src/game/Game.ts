@@ -1044,6 +1044,7 @@ export class Game {
 				undefined,
 				this.hovered.maxHp,
 				this.hovered.hp,
+				this.hovered.timedStates(),
 			);
 			this.hoverPeeking = true;
 		} else if (this.hoverPeeking) {

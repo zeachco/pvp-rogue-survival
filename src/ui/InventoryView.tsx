@@ -19,12 +19,31 @@ import {
 import { extractButtonStatus } from "./inventoryAvailability";
 import { formatProjectedValue } from "./preview";
 
+export type InventorySlotFilter = "all" | "mainhand" | "charms" | "offhands";
+
+export function inventorySlotMatches(
+	tile: InventoryTile,
+	filter: InventorySlotFilter,
+): boolean {
+	if (filter === "all") return true;
+	if (filter === "mainhand")
+		return !["buckler", "relic", "amulet", "charm"].includes(
+			tile.item.itemKind,
+		);
+	if (filter === "charms")
+		return tile.item.itemKind === "amulet" || tile.item.itemKind === "charm";
+	return tile.item.itemKind === "buckler" || tile.item.itemKind === "relic";
+}
+
 export function orderInventoryTiles(
 	tiles: InventoryTile[],
 	progress: PlayerProgress,
+	filter: InventorySlotFilter = "all",
 ): InventoryTile[] {
 	void progress;
-	return tiles.filter((tile) => tile.quantity > 0);
+	return tiles.filter(
+		(tile) => tile.quantity > 0 && inventorySlotMatches(tile, filter),
+	);
 }
 
 export function itemTile(

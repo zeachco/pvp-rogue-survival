@@ -142,6 +142,12 @@ describe("animated 3D characters", () => {
 		expect(heroBody.material.color.getHex()).toBe(0xffffff);
 		hero.updateVisuals(1 / 60);
 		expect(heroBody.material.color.getHex()).toBe(0xdffeff);
+		hero.reflectiveSurgeRemaining = 2;
+		hero.updateVisuals(2 / 60);
+		expect(
+			(heroBody.material as unknown as THREE.MeshStandardMaterial).metalness,
+		).toBe(0.9);
+		expect(heroBody.material.color.getHex()).toBe(0x3f4448);
 
 		const creep = new Creep(
 			{
@@ -164,13 +170,13 @@ describe("animated 3D characters", () => {
 			new SeededRandom(1),
 		);
 		let creepBody:
-			| THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
+			| THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>
 			| undefined;
 		creep.mesh.traverse((child) => {
 			if (
 				!creepBody &&
 				child instanceof THREE.Mesh &&
-				child.material instanceof THREE.MeshBasicMaterial &&
+				child.material instanceof THREE.MeshStandardMaterial &&
 				!child.material.wireframe
 			)
 				creepBody = child;
@@ -181,6 +187,10 @@ describe("animated 3D characters", () => {
 		expect(creepBody?.material.color.getHex()).toBe(0xffffff);
 		creep.updateVisuals(1 / 60);
 		expect(creepBody?.material.color.getHex()).not.toBe(0xffffff);
+		creep.reflectiveSurgeRemaining = 2;
+		creep.updateVisuals(2 / 60);
+		expect(creepBody?.material.metalness).toBe(0.9);
+		expect(creepBody?.material.color.getHex()).toBe(0x3f4448);
 	});
 
 	test("removes render-only boss defeat presentation after 1.2 seconds", () => {
@@ -350,7 +360,7 @@ describe("arena systems", () => {
 		expect(creepResourceBarAnchorY(16 * 2.5)).toBe(48);
 		expect(creepResourceBarAnchorY(22 * 3.2)).toBeCloseTo(78.4);
 		for (const bar of creep.healthBarGroup.children)
-			if (bar instanceof THREE.Mesh)
+			if (bar instanceof THREE.Mesh && bar.name !== "creep-state-icon")
 				expect(bar.position.y).toBeGreaterThanOrEqual(creep.resourceBarAnchorY);
 		creep.faceCamera(new THREE.Quaternion());
 		expect(creep.healthBarGroup.position.z).toBe(
@@ -1952,6 +1962,100 @@ describe("arena systems", () => {
 		});
 		expect(defender.rage).toBe(1);
 		expect(defender.reflectiveSurgeCooldown).toBe(cooldown);
+	});
+
+	test("manually activates Reflective Surge by slot only when auto-fire is off", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const attacker = new Hero({ x: 80, y: 50 });
+		hero.configureStats({ ...ZERO_STATS, strength: 10 });
+		const progress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS, strength: 10 },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			inventoryTiles: [],
+			learnedSkills: ["reflectiveSurge" as const],
+			learnedSkillLevels: { reflectiveSurge: 1 },
+			universalSkills: [],
+			equippedSkills: ["reflectiveSurge" as const],
+			autoFireSkills: [],
+		};
+		const combat = new HeroCombatSystem();
+		combat.syncSkills(progress, hero);
+		hero.receiveDamage(1, { next: () => 1 }, attacker);
+		expect(hero.reflectiveSurgeRemaining).toBe(0);
+		expect(hero.rage).toBe(11);
+
+		combat.requestSpellSlot(0, progress);
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			new ArenaState(),
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.rage).toBe(8);
+		expect(hero.reflectiveSurgeRemaining).toBe(5);
+		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
+
+		const cooldown = hero.reflectiveSurgeCooldown;
+		const rage = hero.rage;
+		combat.requestSpellSlot(0, progress);
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			new ArenaState(),
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.rage).toBe(rage);
+		expect(hero.reflectiveSurgeCooldown).toBe(cooldown);
+	});
+
+	test("auto-fire Reflective Surge ignores its shortcut and triggers on hit", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const attacker = new Hero({ x: 80, y: 50 });
+		hero.configureStats({ ...ZERO_STATS, strength: 10 });
+		const progress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS, strength: 10 },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			inventoryTiles: [],
+			learnedSkills: ["reflectiveSurge" as const],
+			learnedSkillLevels: { reflectiveSurge: 1 },
+			universalSkills: [],
+			equippedSkills: ["reflectiveSurge" as const],
+			autoFireSkills: ["reflectiveSurge" as const],
+		};
+		const combat = new HeroCombatSystem();
+		combat.requestSpellSlot(0, progress);
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			new ArenaState(),
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.reflectiveSurgeRemaining).toBe(0);
+		expect(hero.rage).toBe(11);
+
+		hero.receiveDamage(1, { next: () => 1 }, attacker);
+		expect(hero.reflectiveSurgeRemaining).toBe(5);
+		expect(hero.rage).toBe(8);
+		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
 	});
 
 	test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {

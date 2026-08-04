@@ -20,6 +20,7 @@ export interface CharacterAnimationSnapshot {
 	dead: boolean;
 	statusTint?: string;
 	flash?: boolean;
+	reflectiveSurge?: boolean;
 }
 
 interface CharacterModelManifest {
@@ -94,6 +95,9 @@ interface ModelMaterial {
 	material: THREE.MeshStandardMaterial;
 	color: THREE.Color;
 	emissive: THREE.Color;
+	map: THREE.Texture | null;
+	metalness: number;
+	roughness: number;
 }
 
 export class AnimatedCharacter {
@@ -161,7 +165,11 @@ export class AnimatedCharacter {
 			this.play(snapshot.moving ? "move" : "idle");
 		}
 
-		this.applyTint(snapshot.statusTint, snapshot.flash ?? false);
+		this.applyTint(
+			snapshot.statusTint,
+			snapshot.flash ?? false,
+			snapshot.reflectiveSurge ?? false,
+		);
 		if (delta > 0) this.mixer?.update(Math.min(delta, 0.1));
 	}
 
@@ -201,6 +209,9 @@ export class AnimatedCharacter {
 							material,
 							color: material.color.clone(),
 							emissive: material.emissive.clone(),
+							map: material.map,
+							metalness: material.metalness,
+							roughness: material.roughness,
 						});
 			});
 
@@ -256,15 +267,33 @@ export class AnimatedCharacter {
 		if (previous && previous !== next) previous.crossFadeTo(next, 0.12, false);
 	}
 
-	private applyTint(statusTint: string | undefined, flash: boolean): void {
+	private applyTint(
+		statusTint: string | undefined,
+		flash: boolean,
+		reflectiveSurge: boolean,
+	): void {
 		const tint = new THREE.Color(
 			flash ? 0xffffff : (statusTint ?? this.manifest.baseTint),
 		);
 		for (const entry of this.materials) {
 			if (flash) entry.material.color.set(0xffffff);
+			else if (reflectiveSurge) entry.material.color.set(0x3f4448);
 			else entry.material.color.copy(entry.color).multiply(tint);
 			entry.material.emissive.copy(entry.emissive);
 			if (flash) entry.material.emissive.set(0xffffff);
+			const map = reflectiveSurge ? null : entry.map;
+			const metalness = reflectiveSurge ? 0.9 : entry.metalness;
+			const roughness = reflectiveSurge ? 0.35 : entry.roughness;
+			if (
+				entry.material.map !== map ||
+				entry.material.metalness !== metalness ||
+				entry.material.roughness !== roughness
+			) {
+				entry.material.map = map;
+				entry.material.metalness = metalness;
+				entry.material.roughness = roughness;
+				entry.material.needsUpdate = true;
+			}
 		}
 	}
 }

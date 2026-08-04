@@ -1,3 +1,37 @@
+.inventory-slot-filter {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	width: 100%;
+	color: #b9d1d6;
+}
+.inventory-slot-filter select {
+	border: 1px solid #74858a;
+	border-radius: 3px;
+	padding: 2px 4px;
+	color: #e4f5f8;
+	font-size: 10px;
+	background: rgba(8, 14, 17, 0.75);
+}
+.spell-catalog-source {
+	color: #d6b85a;
+}
+.creep-state-badges {
+	display: flex;
+	min-height: 20px;
+	gap: 4px;
+	align-items: center;
+}
+.creep-state-badge {
+	min-width: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.22);
+	border-radius: 10px;
+	padding: 2px 5px;
+	font-size: 10px;
+	text-align: center;
+	background: rgba(8, 14, 17, 0.8);
+}
+
 :root {
 	--character-panel-width: 320px;
 	--inventory-panel-width: 640px;
