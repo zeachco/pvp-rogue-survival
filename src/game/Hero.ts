@@ -227,14 +227,9 @@ export class Hero extends Unit {
 		);
 	}
 
-	update(
-		deltaSeconds: number,
-		random?: RandomSource,
-		training = false,
-		regenerateRage = true,
-	): void {
+	update(deltaSeconds: number, random?: RandomSource, training = false): void {
 		this.damageFloorOne = training;
-		this.updateResources(deltaSeconds, random, training, regenerateRage);
+		this.updateResources(deltaSeconds, random, training);
 	}
 
 	override updateVisuals(time: number): void {

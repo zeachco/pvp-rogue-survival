@@ -397,7 +397,6 @@ export abstract class Unit extends GameObject {
 		deltaSeconds: number,
 		random?: RandomSource,
 		invulnerable = false,
-		regenerateRage = true,
 	): void {
 		this.damageSlowRemaining = Math.max(
 			0,
@@ -458,12 +457,10 @@ export abstract class Unit extends GameObject {
 				this.mana + derived.manaRegen * manaMultiplier * deltaSeconds,
 			),
 		);
-		if (regenerateRage)
-			this.rage = Math.max(
-				0,
-				Math.min(this.maxRage, this.rage + derived.rageRegen * deltaSeconds),
-			);
-		else this.rage = Math.max(0, Math.min(this.maxRage, this.rage));
+		this.rage = Math.max(
+			0,
+			Math.min(this.maxRage, this.rage + derived.rageRegen * deltaSeconds),
+		);
 		this.updateSkillUpkeep(deltaSeconds);
 	}
 

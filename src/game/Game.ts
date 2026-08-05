@@ -616,23 +616,11 @@ export class Game {
 						this.touchMovement.y,
 				};
 		const movementInput = this.renderer.movementForCamera(rawMovementInput);
-		const heroAttackActive = this.attacks.some(
-			(attack) => attack.active && attack.owner === "hero",
-		);
-		const heroMoving =
-			movementInput.x !== 0 ||
-			movementInput.y !== 0 ||
-			Math.hypot(this.hero.velocity.x, this.hero.velocity.y) > 0.01;
 		this.heroCombat.syncSkills(this.player.progress, this.hero);
 		this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed;
 		this.hero.healthRegenMultiplier = this.heroCombat.rapidRegenMultiplier;
 		this.hero.healthRegenFlat = this.heroCombat.rapidRegenFlat;
-		this.hero.update(
-			deltaSeconds,
-			systemRandom,
-			this.waveMode === "training",
-			!heroMoving && !heroAttackActive && !this.heroCombat.attacking,
-		);
+		this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training");
 		this.hero.move(
 			movementInput,
 			deltaSeconds,
