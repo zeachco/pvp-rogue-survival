@@ -8,7 +8,7 @@ Selling equipment returns Gold equal to ten times the item's base `sellValue` in
 
 Hero, public-profile, rival-clone, and death-echo main-hand slots may be empty. Heroes and copied player builds have four independent equipment slots: main hand, offhand, amulet, and charm. Equipping an equipped item toggles it off without creating or restoring a Plain Club; the backpack stack retains the equipped copy. Offhands, amulets, and charms may be equipped while empty-handed. Equipping a two-handed weapon still displaces an offhand but never displaces the amulet or charm. Generated ordinary enemies remain weapon-equipped.
 
-Healing is the only spell globally bound to a newly created hero. Extraction upgrades spells the hero already permanently owns; non-Epic equipment carrying any unlearned extractable spell cannot be extracted. Epic extraction may extract carried skills even when they are not yet learned, permanently learning and universally binding each one. Reactive Blocking is not extractable.
+Healing is the only spell globally bound to a newly created hero. Extraction upgrades spells the hero already permanently owns; non-Epic equipment carrying any unlearned extractable spell cannot be extracted. Epic extraction may extract carried skills even when they are not yet learned, permanently learning and universally binding each one. When an Epic item carries at least one extractable spell the hero has not permanently learned, its Extract button shows a small floating green `new` badge. Reactive Blocking is not extractable.
 
 ## Progression
 

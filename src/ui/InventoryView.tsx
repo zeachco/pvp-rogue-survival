@@ -19,7 +19,10 @@ import {
 	sellYield,
 	upgradeCosts,
 } from "../../common/inventory";
-import { extractButtonStatus } from "./inventoryAvailability";
+import {
+	extractButtonStatus,
+	extractionLearnsNewSkill,
+} from "./inventoryAvailability";
 import { formatProjectedValue } from "./preview";
 
 export type InventorySlotFilter = "all" | "mainhand" | "charms" | "offhands";
@@ -106,7 +109,16 @@ export function itemTile(
 					<button type="button">Upgrade</button>
 					<button type="button">Send</button>
 					<button type="button">Reroll</button>
-					{skills.length ? <button type="button">Extract</button> : null}
+					{skills.length ? (
+						<button
+							type="button"
+							class={
+								extractionLearnsNewSkill(tile, progress) ? "has-new-spell" : ""
+							}
+						>
+							Extract
+						</button>
+					) : null}
 				</div>
 			</div>
 		</div>

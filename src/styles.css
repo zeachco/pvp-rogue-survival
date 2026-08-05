@@ -1915,9 +1915,27 @@ input {
 	margin: 0;
 }
 .item-menu button {
+	position: relative;
 	width: 100%;
 	padding-inline: 4px;
 	font-size: 12px;
+}
+.item-menu button.has-new-spell::after {
+	position: absolute;
+	top: -6px;
+	right: -5px;
+	content: "new";
+	border: 1px solid #7dff9e;
+	border-radius: 999px;
+	padding: 1px 4px;
+	color: #08220f;
+	background: #62e88a;
+	box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
+	font-size: 9px;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: 0.03em;
+	pointer-events: none;
 }
 .item-menu button,
 .allocation-panel button,

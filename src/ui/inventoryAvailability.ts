@@ -9,6 +9,18 @@ export type ExtractButtonStatus =
 	| "needs-gold"
 	| "available";
 
+export function extractionLearnsNewSkill(
+	tile: InventoryTile,
+	progress: PlayerProgress,
+): boolean {
+	return (
+		tile.item.rarity === "epic" &&
+		extractableSkills(tile.item).some(
+			(skill) => !progress.learnedSkills.includes(skill),
+		)
+	);
+}
+
 export function extractButtonStatus(
 	tile: InventoryTile,
 	progress: PlayerProgress,

@@ -180,7 +180,10 @@ import {
 	formatProjectedValue,
 	previewTone,
 } from "../src/ui/preview";
-import { extractButtonStatus } from "../src/ui/inventoryAvailability";
+import {
+	extractButtonStatus,
+	extractionLearnsNewSkill,
+} from "../src/ui/inventoryAvailability";
 import {
 	effectiveStatRows,
 	extractedLearnedLevel,
@@ -863,6 +866,7 @@ describe("permanent inventory", () => {
 		state.inventoryTiles.push(tile);
 		state.gold = 0;
 		expect(extractButtonStatus(tile, state)).toBe("available");
+		expect(extractionLearnsNewSkill(tile, state)).toBe(true);
 		expect(extractFromInventory(state, tile.id)).toMatchObject({
 			changed: true,
 		});
@@ -870,6 +874,22 @@ describe("permanent inventory", () => {
 			expect(state.learnedSkills).toContain(skill);
 			expect(state.universalSkills).toContain(skill);
 			expect(state.learnedSkillLevels[skill]).toBe(1);
+		}
+		expect(extractionLearnsNewSkill(tile, state)).toBe(false);
+	});
+	test("marks only Epic extraction as teaching a new spell", () => {
+		const state = progress();
+		for (const rarity of ["rare", "epic", "unique"] as const) {
+			const item = generateItem(1, rarity, 41, {
+				allowedClasses: ["staff"],
+			});
+			const tile = {
+				id: `${rarity}-new-spell`,
+				key: itemStackKey(item),
+				item,
+				quantity: 1,
+			};
+			expect(extractionLearnsNewSkill(tile, state)).toBe(rarity === "epic");
 		}
 	});
 	test("toggles an equipped weapon to an empty main hand without creating a fallback club", () => {
