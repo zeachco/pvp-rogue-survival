@@ -33,6 +33,7 @@ import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
 import {
 	AnimatedCharacter,
 	AnimatedCharacterDeath,
+	type CharacterModelKind,
 } from "./render/AnimatedCharacter";
 
 export const CREEP_RESOURCE_BAR_CAMERA_OFFSET = 2;
@@ -114,6 +115,7 @@ export class Creep extends Unit {
 	private readonly bodyTexture?: THREE.Texture;
 	private readonly spriteGroup = new THREE.Group();
 	private readonly animatedCharacter?: AnimatedCharacter;
+	private readonly modelKind?: CharacterModelKind;
 	private readonly strokeMesh: THREE.Mesh;
 	private readonly healthBg: THREE.Mesh;
 	private readonly healthFill: THREE.Mesh;
@@ -278,8 +280,18 @@ export class Creep extends Unit {
 		this.bodyMesh.renderOrder = Z_CREEP;
 		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
 		this.spriteGroup.add(this.bodyMesh);
-		if (enemyRole(build) === "boss") {
-			this.animatedCharacter = new AnimatedCharacter("boss", this.bodyMesh);
+		const role = enemyRole(build);
+		const modelKind: CharacterModelKind | undefined =
+			role === "boss"
+				? "boss"
+				: role === "champion"
+					? "champion"
+					: role === "creep"
+						? "creep"
+						: undefined;
+		this.modelKind = modelKind;
+		if (modelKind) {
+			this.animatedCharacter = new AnimatedCharacter(modelKind, this.bodyMesh);
 			this.mesh.add(this.animatedCharacter.root);
 		}
 		this.spriteGroup.add(this.strokeMesh);
@@ -804,7 +816,7 @@ export class Creep extends Unit {
 	}
 
 	createDeathVisual(): AnimatedCharacterDeath | undefined {
-		return this.animatedCharacter
+		return this.modelKind === "boss" && this.animatedCharacter
 			? new AnimatedCharacterDeath("boss", this.position, this.facing)
 			: undefined;
 	}

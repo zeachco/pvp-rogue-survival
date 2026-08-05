@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
-export type CharacterModelKind = "hero" | "boss";
+export type CharacterModelKind = "hero" | "boss" | "creep" | "champion";
 export type CharacterAnimationState =
 	| "idle"
 	| "move"
@@ -62,6 +62,34 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 			attack: ["Attack", "AttackAuto"],
 			hit: ["Hit"],
 			death: ["TurnOff", "Death", "Hit"],
+		},
+	},
+	creep: {
+		path: "/assets/models/creep.glb",
+		footprint: 40,
+		facingOffset: Math.PI / 2,
+		baseTint: 0xff6f7d,
+		renderOrder: 40,
+		clips: {
+			idle: ["Idle", "Look"],
+			move: ["Run", "Walk", "Idle"],
+			attack: ["Attack", "Charge"],
+			hit: ["Hit"],
+			death: ["TurnOff", "Death", "Hit"],
+		},
+	},
+	champion: {
+		path: "/assets/models/champion.glb",
+		footprint: 62,
+		facingOffset: Math.PI / 2,
+		baseTint: 0xffd166,
+		renderOrder: 40,
+		clips: {
+			idle: ["CharacterArmature|Idle"],
+			move: ["CharacterArmature|Run", "CharacterArmature|Walk"],
+			attack: ["CharacterArmature|Attack", "CharacterArmature|Shoot"],
+			hit: [],
+			death: ["CharacterArmature|Death"],
 		},
 	},
 };
