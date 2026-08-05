@@ -291,7 +291,10 @@ export class Creep extends Unit {
 						: undefined;
 		this.modelKind = modelKind;
 		if (modelKind) {
-			this.animatedCharacter = new AnimatedCharacter(modelKind, this.bodyMesh);
+			this.animatedCharacter = new AnimatedCharacter(
+				modelKind,
+				this.spriteGroup,
+			);
 			this.mesh.add(this.animatedCharacter.root);
 		}
 		this.spriteGroup.add(this.strokeMesh);

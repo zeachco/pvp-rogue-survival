@@ -9,16 +9,13 @@ import { canvas2dContext } from "../platform/Canvas";
 const GROUND_PRESENTATION_CLEARANCE = 2;
 const DIAMOND_PRESENTATION_RADIUS = 18;
 const MONEY_BAG_PRESENTATION_SIZE = 28;
-const COIN_PRESENTATION_HEIGHT = 16;
-const COIN_SPRITE_WIDTH = 44;
+const COIN_PRESENTATION_SIZE = 18;
 
 export function groundDropPresentationCenter(drop: GroundDrop): number {
 	if (drop.kind !== "gold")
 		return DIAMOND_PRESENTATION_RADIUS + GROUND_PRESENTATION_CLEARANCE;
 	return (
-		(drop.amount >= 10
-			? MONEY_BAG_PRESENTATION_SIZE
-			: COIN_PRESENTATION_HEIGHT) /
+		(drop.amount >= 10 ? MONEY_BAG_PRESENTATION_SIZE : COIN_PRESENTATION_SIZE) /
 			2 +
 		GROUND_PRESENTATION_CLEARANCE
 	);
@@ -188,7 +185,7 @@ function coinSprite(): THREE.Mesh | undefined {
 	if (typeof document === "undefined") return undefined;
 	const texture = coinTexture();
 	return new THREE.Mesh(
-		new THREE.PlaneGeometry(COIN_SPRITE_WIDTH, COIN_PRESENTATION_HEIGHT),
+		new THREE.PlaneGeometry(COIN_PRESENTATION_SIZE, COIN_PRESENTATION_SIZE),
 		new THREE.MeshBasicMaterial({
 			map: texture,
 			transparent: true,
@@ -267,27 +264,26 @@ function moneyBagTexture(): THREE.CanvasTexture {
 function coinTexture(): THREE.CanvasTexture {
 	if (cachedCoinTexture) return cachedCoinTexture;
 
+	const size = COIN_PRESENTATION_SIZE;
 	const canvas = document.createElement("canvas");
-	canvas.width = COIN_SPRITE_WIDTH;
-	canvas.height = COIN_PRESENTATION_HEIGHT;
+	canvas.width = size;
+	canvas.height = size;
 	const ctx = canvas2dContext(canvas);
 
 	const glow = ctx.createRadialGradient(
-		COIN_SPRITE_WIDTH / 2,
-		COIN_PRESENTATION_HEIGHT / 2,
+		size / 2,
+		size / 2,
 		2,
-		COIN_SPRITE_WIDTH / 2,
-		COIN_PRESENTATION_HEIGHT / 2,
-		COIN_SPRITE_WIDTH / 2,
+		size / 2,
+		size / 2,
+		size / 2,
 	);
 	glow.addColorStop(0, "rgba(244,207,66,0.55)");
 	glow.addColorStop(1, "rgba(244,207,66,0)");
 	ctx.fillStyle = glow;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillRect(0, 0, size, size);
 
-	drawCoin(ctx, 11, 9, 7);
-	drawCoin(ctx, 22, 7, 7);
-	drawCoin(ctx, 33, 9, 7);
+	drawCoin(ctx, size / 2, size / 2, size / 2 - 2.5);
 
 	cachedCoinTexture = new THREE.CanvasTexture(canvas);
 	cachedCoinTexture.colorSpace = THREE.SRGBColorSpace;
