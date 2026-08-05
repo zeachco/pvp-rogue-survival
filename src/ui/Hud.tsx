@@ -49,6 +49,7 @@ import {
 import {
 	inventoryCapacity,
 	occupiedInventorySlots,
+	REROLL_SOUL_COST,
 	SCRAP_PROMOTION_COST,
 	upgradeCosts,
 } from "../../common/inventory";
@@ -351,6 +352,8 @@ export class Hud {
 	private staticPlayerName = "";
 	private staticReceivesDeathEchoes = false;
 	private staticBestWave = -1;
+	private staticSurgeActive = false;
+	private staticRapidRegenActive = false;
 	private activeMainHand?: HTMLElement;
 	private currentSpells: SpellSlot[] = [];
 	private spellPreview?: Map<SkillId, number | null>;
@@ -606,12 +609,16 @@ export class Hud {
 			this.staticProgress !== player.progress ||
 			this.staticPlayerName !== player.name ||
 			this.staticReceivesDeathEchoes !== player.receivesDeathEchoes ||
-			this.staticBestWave !== player.maxWaveReached
+			this.staticBestWave !== player.maxWaveReached ||
+			this.staticSurgeActive !== player.reflectiveSurgeRemaining > 0 ||
+			this.staticRapidRegenActive !== player.rapidRegenRemaining > 0
 		) {
 			this.staticProgress = player.progress;
 			this.staticPlayerName = player.name;
 			this.staticReceivesDeathEchoes = player.receivesDeathEchoes;
 			this.staticBestWave = player.maxWaveReached;
+			this.staticSurgeActive = player.reflectiveSurgeRemaining > 0;
+			this.staticRapidRegenActive = player.rapidRegenRemaining > 0;
 			this.renderStaticHud();
 		}
 		const actions = player.progress.rarityActions;
@@ -1222,7 +1229,6 @@ export class Hud {
 		scroll.scrollTop = previousScrollTop;
 		this.updateCatalogFilters();
 		this.updateCatalogSelection();
-		console.log({ searchText });
 		if (typeof searchText === "string") {
 			searchInput.value = searchText;
 			searchInput.select();
@@ -1984,6 +1990,7 @@ export class Hud {
 					? 1
 					: 0))
 			: effectiveSkillLevel(p, "attraction");
+		const buffs = build ? undefined : activeStatBuffs(this.player, p);
 		const mainSummary = equipmentSummary(main, effectiveStats, "main");
 		this.activeMainHand = build ? mainSummary : undefined;
 		this.sheetNode.replaceChildren(
@@ -2042,6 +2049,7 @@ export class Hud {
 							this.inspectedMaxHp,
 							blockingLevel,
 							attractionLevel,
+							buffs,
 						),
 					]),
 			...(build
@@ -2125,7 +2133,7 @@ export class Hud {
 		ordered.forEach((tile, index) => {
 			const costs = upgradeCosts(tile.item);
 			const upgradeAvailability = `${Number(progress.gold >= costs.gold)}:${Number(progress.scraps[tile.item.rarity] >= costs.scraps)}:${Number(progress.souls >= costs.souls)}`;
-			const signature = `${tile.key}:${tile.quantity}:${Number(equippedKeys.has(tile.key))}:${statsSignature}:${Number(canSend)}:${extractButtonStatus(tile, progress)}:${upgradeAvailability}`;
+			const signature = `${tile.key}:${tile.quantity}:${Number(equippedKeys.has(tile.key))}:${statsSignature}:${Number(canSend)}:${extractButtonStatus(tile, progress)}:${upgradeAvailability}:${Number(progress.souls >= REROLL_SOUL_COST)}`;
 			let node = existing.get(tile.id);
 			if (!node || node.dataset.renderSignature !== signature) {
 				const replacement = itemTile(
@@ -2172,7 +2180,7 @@ export class Hud {
 	private previewItem(
 		item?: ItemInstance,
 		equipped = false,
-		action: "card" | "upgrade" = "card",
+		action: "card" | "upgrade" | "reroll" = "card",
 	): void {
 		if (!this.player || this.inspected) return;
 		const p = this.player.progress;
@@ -2190,7 +2198,7 @@ export class Hud {
 		let off = p.offHand;
 		let amulet = p.amulet;
 		let charm = p.charm;
-		if (action === "upgrade") {
+		if (action === "upgrade" || action === "reroll") {
 			if (item.itemKind === "weapon") main = item;
 			else if (item.itemKind === "amulet") amulet = item;
 			else if (item.itemKind === "charm") charm = item;
@@ -2257,7 +2265,7 @@ export class Hud {
 	private highlightDisplacedItems(
 		item?: ItemInstance,
 		equipped = false,
-		action: "card" | "upgrade" = "card",
+		action: "card" | "upgrade" | "reroll" = "card",
 	): void {
 		for (const card of this.backpackScroll.querySelectorAll<HTMLElement>(
 			".item-card",
@@ -2413,6 +2421,7 @@ export class Hud {
 			this.player.progress,
 			"attraction",
 		);
+		const buffs = activeStatBuffs(this.player, this.player.progress);
 		let baseline: Array<[string, string]> | undefined;
 		if (highlight) {
 			const p = this.player.progress;
@@ -2425,6 +2434,7 @@ export class Hud {
 				undefined,
 				blockingLevel,
 				attractionLevel,
+				buffs,
 			);
 		}
 		current.replaceWith(
@@ -2438,6 +2448,7 @@ export class Hud {
 				undefined,
 				blockingLevel,
 				attractionLevel,
+				buffs,
 			),
 		);
 	}
@@ -2868,6 +2879,31 @@ function equipmentSummary(
 	);
 	return node;
 }
+export interface ActiveStatBuffs {
+	reflectiveSurge?: { level: number };
+	rapidRegen?: { multiplier: number; flat: number };
+}
+
+export function activeStatBuffs(
+	player: PlayerState | undefined,
+	progress: PlayerProgress,
+): ActiveStatBuffs | undefined {
+	const buffs: ActiveStatBuffs = {};
+	if ((player?.reflectiveSurgeRemaining ?? 0) > 0) {
+		const level = effectiveSkillLevel(progress, "reflectiveSurge");
+		if (level > 0) buffs.reflectiveSurge = { level };
+	}
+	if ((player?.rapidRegenRemaining ?? 0) > 0) {
+		const level = effectiveSkillLevel(progress, "rapidRegen");
+		if (level > 0)
+			buffs.rapidRegen = {
+				multiplier: rapidRegenMultiplier(level),
+				flat: 0.1,
+			};
+	}
+	return buffs.reflectiveSurge || buffs.rapidRegen ? buffs : undefined;
+}
+
 export function effectiveStatRows(
 	main: ItemInstance | undefined,
 	off: ItemInstance | undefined,
@@ -2877,6 +2913,7 @@ export function effectiveStatRows(
 	maxHp?: number,
 	blockingLevel = 0,
 	attractionLevel = 0,
+	buffs?: ActiveStatBuffs,
 ): Array<[string, string]> {
 	const derived = derivedStats(stats);
 	const items = [main, off].filter(Boolean) as ItemInstance[];
@@ -2888,6 +2925,9 @@ export function effectiveStatRows(
 	const bucklerEffectiveness = buckler
 		? itemRequirementMultiplier(buckler, stats)
 		: 1;
+	const surge = buffs?.reflectiveSurge;
+	const regenMultiplier = buffs?.rapidRegen?.multiplier ?? 1;
+	const regenFlat = buffs?.rapidRegen?.flat ?? 0;
 	const lifeSteal = items.reduce((sum, item) => {
 		const effectiveness = itemRequirementMultiplier(item, stats);
 		const base = (item.modifiers.lifeStealBase ?? 0) * effectiveness;
@@ -2992,13 +3032,22 @@ export function effectiveStatRows(
 		],
 		[
 			"Block chance",
-			percent(bucklerBlockChance(buckler, stats, blockingLevel)),
+			percent(
+				Math.min(
+					surge ? 0.95 : 1,
+					bucklerBlockChance(buckler, stats, blockingLevel) +
+						(surge ? reflectiveSurgeBlockChanceBonus(surge.level) : 0),
+				),
+			),
 		],
 		[
 			"Block cost",
 			buckler ? `${fmt(bucklerBlockCost(buckler, stats))} rage` : "0",
 		],
-		["Health regen", `${fmt(derived.hpRegen + vigorous)}/s`],
+		[
+			"Health regen",
+			`${fmt((derived.hpRegen + vigorous) * regenMultiplier + regenFlat)}/s`,
+		],
 		[
 			"Mana regen",
 			`${fmt(derived.manaRegen * (1 + ((main?.modifiers.manaRegenMultiplier ?? 1) - 1) * mainEffectiveness))}/s`,
@@ -3054,16 +3103,20 @@ export function effectiveStatRows(
 			buckler && buckler.reflectionComponents.length
 				? (() => {
 						const power = RARITY_POWER[buckler.rarity] * bucklerEffectiveness;
+						const multiplier = surge ? 2 : 1;
 						const parts: string[] = [];
 						if (buckler.reflectionComponents.includes("flat"))
-							parts.push(fmt(1 * power));
+							parts.push(fmt(1 * power * multiplier));
 						if (buckler.reflectionComponents.includes("strength"))
-							parts.push(`${fmt(0.2 * stats.strength * power)} (20%×STR)`);
+							parts.push(
+								`${fmt(0.2 * stats.strength * power * multiplier)} (20%×STR)`,
+							);
 						if (buckler.reflectionComponents.includes("return"))
 							parts.push(
-								`${fmt((0.15 + 0.004 * stats.agility) * power * 100)}% inc. (15%+0.4%×AGI)`,
+								`${fmt((0.15 + 0.004 * stats.agility) * power * 100 * multiplier)}% inc. (15%+0.4%×AGI)`,
 							);
-						return `Reflect: ${parts.join(" + ")}`;
+						if (surge) parts.push("1% inc. (Surge)");
+						return `Reflect: ${parts.join(" + ")}${surge ? " · 2× Surge" : ""}`;
 					})()
 				: "None",
 		],
@@ -3079,6 +3132,7 @@ function effectiveStatSheet(
 	maxHp?: number,
 	blockingLevel = 0,
 	attractionLevel = 0,
+	buffs?: ActiveStatBuffs,
 ): HTMLElement {
 	const previous = new Map(baseline);
 	const rows = effectiveStatRows(
@@ -3090,6 +3144,7 @@ function effectiveStatSheet(
 		maxHp,
 		blockingLevel,
 		attractionLevel,
+		buffs,
 	);
 	const offensive = new Set([
 		"Damage",

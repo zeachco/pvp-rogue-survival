@@ -1821,6 +1821,10 @@ input {
 	color: #62e88a;
 	text-shadow: 0 0 6px rgba(98, 232, 138, 0.3);
 }
+.item-effect-list li.is-cost-preview {
+	color: #ff6575;
+	text-shadow: 0 0 6px rgba(255, 101, 117, 0.3);
+}
 .item-skill-list li.is-extract-preview {
 	color: #55c8ff;
 	text-shadow: 0 0 7px rgba(85, 200, 255, 0.55);

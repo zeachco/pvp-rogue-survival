@@ -729,9 +729,10 @@ describe("realm game service", () => {
 			sender.progress.inventoryTiles.some((tile) => tile.id === "bulk-tile"),
 		).toBeFalse();
 	});
-	test("rerolls an inventory item through the rerollItem message at no Soul cost", () => {
+	test("rerolls an inventory item through the rerollItem message for one Soul", () => {
 		const { game } = harness();
 		const player = game.join("Reroller");
+		player.progress.souls = 1;
 		const item = {
 			...generateItem(6, "rare", 901, { allowedClasses: ["mace"] }),
 			requirements: {},

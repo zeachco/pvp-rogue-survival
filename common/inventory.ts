@@ -1,4 +1,5 @@
 import {
+	itemPendingRerollSeed,
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
@@ -19,7 +20,7 @@ export interface InventoryResult {
 }
 export const sellYield = (item: ItemInstance): number => item.sellValue * 10;
 export const SCRAP_PROMOTION_COST = 100;
-export const REROLL_SOUL_COST = 0;
+export const REROLL_SOUL_COST = 1;
 export interface ScrapPromotionResult {
 	changed: boolean;
 	promotions: number;
@@ -277,6 +278,7 @@ export function upgradeFromInventory(
 					: `Requires ${gold} gold and ${scraps} ${tile.item.rarity} scraps.`,
 		};
 	const created = levelUpItem(tile.item, nextSeed());
+	created.pendingRerollSeed = nextSeed();
 	const existing = progress.inventoryTiles.find(
 		(candidate) => candidate.key === itemStackKey(created),
 	);
@@ -346,7 +348,8 @@ export function rerollFromInventory(
 			changed: false,
 			reason: `Rerolling costs ${REROLL_SOUL_COST} Soul.`,
 		};
-	const created = rerollItem(tile.item, nextSeed());
+	const created = rerollItem(tile.item, itemPendingRerollSeed(tile.item));
+	created.pendingRerollSeed = nextSeed();
 	const existing = progress.inventoryTiles.find(
 		(candidate) => candidate.key === itemStackKey(created),
 	);

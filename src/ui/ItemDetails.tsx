@@ -16,7 +16,7 @@ import {
 import { STAT_KEYS, type Stats } from "../../common/progression";
 import { pixelsToMeters } from "../../common/units";
 import { h } from "./dom";
-import { formatProjectedValue, previewTone } from "./preview";
+import { formatProjectedValue, previewTone, type PreviewTone } from "./preview";
 
 export function itemDetails(
 	item: ItemInstance,
@@ -24,6 +24,7 @@ export function itemDetails(
 	baselineItem?: ItemInstance,
 	baselineStats?: Stats,
 	showRequirementPenalty = false,
+	statDeltas = false,
 ): HTMLElement {
 	const displayStats = requirementDisplayStats(
 		item,
@@ -44,7 +45,13 @@ export function itemDetails(
 		: undefined;
 	const effectiveness = itemRequirementMultiplier(item, effectiveStats);
 	const requirements = itemRequirementRows(item, effectiveStats, baselineItem);
-	const effects = itemEffectSummary(item, displayStats);
+	const effects = itemEffectSummary(
+		item,
+		displayStats,
+		baselineItem,
+		baselineDisplayStats,
+		statDeltas,
+	);
 	const baselineDamage =
 		baselineItem?.itemKind === "weapon"
 			? weaponDamage(baselineItem, baselineDisplayStats)
@@ -99,7 +106,7 @@ export function itemDetails(
 			{effects.length || baselineEffects.length ? (
 				<span class="equipment-detail-wide">
 					<small>Effects</small>
-					{effectList(baselineEffects, effects)}
+					{effectList(baselineEffects, effects, statDeltas)}
 				</span>
 			) : null}
 			{item.skills.length ? (
@@ -256,17 +263,90 @@ function detailValue(
 		</b>
 	) as HTMLElement;
 }
-function effectList(current: string[], projected: string[]): HTMLElement {
+export interface EffectRow {
+	key: string;
+	text: string;
+	tone: PreviewTone;
+}
+
+export function statBonusDeltaRows(
+	item: ItemInstance,
+	effectiveStats: Stats,
+	baselineItem: ItemInstance,
+	baselineStats: Stats,
+): EffectRow[] {
+	const effectiveness = itemRequirementMultiplier(item, effectiveStats);
+	const baselineEffectiveness = itemRequirementMultiplier(
+		baselineItem,
+		baselineStats,
+	);
+	const rows: EffectRow[] = [];
+	for (const key of STAT_KEYS) {
+		const scaled = (item.statBonuses[key] ?? 0) * effectiveness;
+		const baseScaled =
+			(baselineItem.statBonuses[key] ?? 0) * baselineEffectiveness;
+		if (baseScaled === 0 && scaled === 0) continue;
+		const delta = scaled - baseScaled;
+		rows.push({
+			key: `stat:${key}`,
+			text:
+				delta > 0
+					? `+${fmt(delta)} ${capitalize(key)}`
+					: delta < 0
+						? `-${fmt(-delta)} ${capitalize(key)}`
+						: `+${fmt(scaled)} ${capitalize(key)}`,
+			tone: delta > 0 ? "gain" : delta < 0 ? "cost" : "same",
+		});
+	}
+	return rows;
+}
+
+function effectList(
+	current: EffectRow[],
+	projected: EffectRow[],
+	statDeltas = false,
+): HTMLElement {
+	const currentByKey = new Map(current.map((row) => [row.key, row]));
+	const rows = projected.map((row) => {
+		const baseline = currentByKey.get(row.key);
+		const tone =
+			row.tone !== "same"
+				? row.tone
+				: !baseline
+					? "gain"
+					: baseline.text !== row.text
+						? "gain"
+						: "same";
+		return { row, tone };
+	});
+	const projectedKeys = new Set(projected.map((row) => row.key));
+	const removed = statDeltas
+		? current.filter((row) => !projectedKeys.has(row.key))
+		: [];
 	return (
 		<ul class="item-effect-list">
-			{projected.map((text, index) => (
+			{rows.map(({ row, tone }) => (
 				<li
-					class={current[index] !== text ? "is-gain-preview" : ""}
+					class={
+						tone === "gain"
+							? "is-gain-preview"
+							: tone === "cost"
+								? "is-cost-preview"
+								: ""
+					}
 					tabindex="0"
 				>
-					<span>{text}</span>
+					<span>{row.text}</span>
 					<span class="tile-text-tooltip" role="tooltip">
-						{text}
+						{row.text}
+					</span>
+				</li>
+			))}
+			{removed.map((row) => (
+				<li class="is-cost-preview" tabindex="0">
+					<span>{row.text}</span>
+					<span class="tile-text-tooltip" role="tooltip">
+						{row.text}
 					</span>
 				</li>
 			))}
@@ -311,54 +391,77 @@ export function itemSkillDescription(skill: SkillId): {
 function itemEffectSummary(
 	item: ItemInstance,
 	effectiveStats: Stats,
-): string[] {
-	const effects = item.affixes.map(capitalize);
+	baselineItem?: ItemInstance,
+	baselineStats?: Stats,
+	statDeltas = false,
+): EffectRow[] {
+	const effects: EffectRow[] = [];
 	const effectiveness = itemRequirementMultiplier(item, effectiveStats);
-	if (item.blockChance > 0)
-		effects.push(
-			`${precise(item.blockChance * effectiveness * 100)}% block`,
+	const push = (
+		key: string,
+		text: string,
+		tone: PreviewTone = "same",
+	): void => {
+		effects.push({ key, text, tone });
+	};
+	for (const affix of item.affixes) push(`affix:${affix}`, capitalize(affix));
+	if (item.blockChance > 0) {
+		push("block", `${precise(item.blockChance * effectiveness * 100)}% block`);
+		push(
+			"blockcost",
 			`${fmt(bucklerBlockCost(item, effectiveStats))} rage/block`,
 		);
+	}
 	if (item.attractionSpeed > 0)
-		effects.push(
+		push(
+			"attraction",
 			`Attraction ${fmt(
 				pixelsToMeters(item.attractionSpeed * effectiveness),
 			)} m/s`,
 		);
 	if (item.modifiers.critChance > 0)
-		effects.push(
+		push(
+			"crit",
 			`${precise(item.modifiers.critChance * effectiveness * 100)}% crit`,
 		);
 	if (item.modifiers.bleedChance > 0)
-		effects.push(
+		push(
+			"bleed",
 			`${precise(item.modifiers.bleedChance * effectiveness * 100)}% bleed`,
 		);
 	if (item.modifiers.poisonChance > 0)
-		effects.push(
+		push(
+			"poison",
 			`${precise(item.modifiers.poisonChance * effectiveness * 100)}% poison`,
 		);
 	if (item.modifiers.stunChance > 0)
-		effects.push(
+		push(
+			"stun",
 			`${precise(item.modifiers.stunChance * effectiveness * 100)}% stun`,
 		);
 	if (item.modifiers.magicAmp > 0)
-		effects.push(
+		push(
+			"magic",
 			`+${precise(item.modifiers.magicAmp * effectiveness * 100)}% magic`,
 		);
 	if (item.modifiers.lifeStealBase > 0)
-		effects.push(
+		push(
+			"lifesteal",
 			`${precise(item.modifiers.lifeStealBase * effectiveness * 100)}% + 0.1%/Spirit life steal`,
 		);
 	if (item.modifiers.strengthRegenMultiplier > 0)
-		effects.push(
+		push(
+			"vigorous",
 			`Vigorous regen: 0.01 + ${precise(item.modifiers.strengthRegenMultiplier * effectiveness)}× Strength/s`,
 		);
 	if (item.modifiers.goldGain > 0)
-		effects.push(
+		push(
+			"gold",
 			`+${precise(item.modifiers.goldGain * effectiveness * 100)}% Gold gain`,
 		);
 	if (item.modifiers.rarityBoost > 0)
-		effects.push(
+		push(
+			"rarity",
 			`+${precise(item.modifiers.rarityBoost * effectiveness * 100)}% Rarity boost`,
 		);
 	if (item.reflectionComponents.length) {
@@ -372,49 +475,75 @@ function itemEffectSummary(
 			parts.push(
 				`${precise((0.15 + 0.004 * effectiveStats.agility) * power * 100)}% of incoming (15%+0.4%×AGI)`,
 			);
-		effects.push(`Reflect on block: ${parts.join(" + ")}`);
+		push("reflection", `Reflect on block: ${parts.join(" + ")}`);
 	}
 	const accessory = item.accessoryBonuses;
 	if ((accessory?.healthOnKill ?? 0) > 0)
-		effects.push(`${fmt(accessory!.healthOnKill! * effectiveness)} HP on kill`);
+		push(
+			"healthOnKill",
+			`${fmt(accessory!.healthOnKill! * effectiveness)} HP on kill`,
+		);
 	if ((accessory?.manaOnKill ?? 0) > 0)
-		effects.push(`${fmt(accessory!.manaOnKill! * effectiveness)} Mana on kill`);
+		push(
+			"manaOnKill",
+			`${fmt(accessory!.manaOnKill! * effectiveness)} Mana on kill`,
+		);
 	if ((accessory?.manaSkillLevels ?? 0) > 0)
-		effects.push(`+${accessory!.manaSkillLevels} Mana skill levels`);
+		push("manaSkillLevels", `+${accessory!.manaSkillLevels} Mana skill levels`);
 	if ((accessory?.rageSkillLevels ?? 0) > 0)
-		effects.push(`+${accessory!.rageSkillLevels} Rage skill levels`);
+		push("rageSkillLevels", `+${accessory!.rageSkillLevels} Rage skill levels`);
 	if ((accessory?.allSkillLevels ?? 0) > 0)
-		effects.push(`+${accessory!.allSkillLevels} All skill levels`);
+		push("allSkillLevels", `+${accessory!.allSkillLevels} All skill levels`);
 	if ((accessory?.globalCooldownReduction ?? 0) > 0)
-		effects.push(
+		push(
+			"gcd",
 			`${precise(accessory!.globalCooldownReduction! * effectiveness * 100)}% global cooldown reduction`,
 		);
 	if ((accessory?.manaCostReduction ?? 0) > 0)
-		effects.push(
+		push(
+			"manaCost",
 			`${precise(accessory!.manaCostReduction! * effectiveness * 100)}% Mana cost reduction`,
 		);
 	if ((accessory?.lifeCostReduction ?? 0) > 0)
-		effects.push(
+		push(
+			"lifeCost",
 			`${precise(accessory!.lifeCostReduction! * effectiveness * 100)}% Life cost reduction`,
 		);
 	for (const [kind, fraction] of Object.entries(
 		accessory?.physicalDamage ?? {},
 	))
-		effects.push(
+		push(
+			`physical:${kind}`,
 			`+${precise((fraction ?? 0) * effectiveness * 100)}% ${capitalize(kind)} damage on physical hits`,
 		);
-	for (const key of STAT_KEYS)
-		if ((item.statBonuses[key] ?? 0) !== 0)
-			effects.push(
-				`+${fmt((item.statBonuses[key] ?? 0) * effectiveness)} ${capitalize(key)}`,
-			);
+	if (statDeltas && baselineItem) {
+		effects.push(
+			...statBonusDeltaRows(
+				item,
+				effectiveStats,
+				baselineItem,
+				baselineStats ?? effectiveStats,
+			),
+		);
+	} else {
+		for (const key of STAT_KEYS) {
+			const bonus = item.statBonuses[key] ?? 0;
+			if (bonus !== 0)
+				push(
+					`stat:${key}`,
+					`+${fmt(bonus * effectiveness)} ${capitalize(key)}`,
+				);
+		}
+	}
 	for (const key of ITEM_PERKS)
 		if ((item.perks?.[key] ?? 0) > 0)
-			effects.push(
+			push(
+				`perk:${key}`,
 				`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]! * effectiveness) : `${precise(item.perks![key]! * effectiveness * 100)}%`}`,
 			);
 	for (const immunity of item.immunities ?? [])
-		effects.push(
+		push(
+			`immune:${immunity}`,
 			effectiveness === 1
 				? `Immune to ${capitalize(immunity)}`
 				: `${capitalize(immunity)} immunity inactive`,

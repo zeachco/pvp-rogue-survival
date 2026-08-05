@@ -191,6 +191,7 @@ export interface ItemInstance {
 	perks?: Partial<Record<ItemPerkId, number>>;
 	immunities?: ItemImmunity[];
 	accessoryBonuses?: AccessoryBonuses;
+	pendingRerollSeed?: number;
 }
 export interface ItemGenerationFilters {
 	allowedClasses?: WeaponClass[];
@@ -248,6 +249,7 @@ export function starterClub(): ItemInstance {
 		blockChance: 0,
 		reflectionComponents: [],
 		attractionSpeed: 0,
+		pendingRerollSeed: rerollPendingSeed(1),
 	};
 }
 
@@ -660,6 +662,16 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
 	return preserveRolledTraits(base, next);
 }
 
+export function rerollPendingSeed(seed: number): number {
+	let derived = ((Math.imul(seed | 0, 0x27d4eb2d) >>> 0) % 0x7fffffff) + 1;
+	if (derived === (seed | 0)) derived += 1;
+	return derived;
+}
+
+export function itemPendingRerollSeed(item: ItemInstance): number {
+	return item.pendingRerollSeed ?? rerollPendingSeed(item.seed);
+}
+
 export function rerollItem(item: ItemInstance, seed: number): ItemInstance {
 	if (item.definitionId === "scepter")
 		return buildWeapon(
@@ -845,6 +857,7 @@ function buildWeapon(
 		blockChance: 0,
 		reflectionComponents: [],
 		attractionSpeed: weaponClass === "staff" && seed % 4 === 0 ? 35 : 0,
+		pendingRerollSeed: rerollPendingSeed(seed),
 	};
 }
 
@@ -1147,7 +1160,13 @@ function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 			);
 	}
 	return ensureUpgradableAttribute(
-		{ ...item, perks, immunities, requirements },
+		{
+			...item,
+			perks,
+			immunities,
+			requirements,
+			pendingRerollSeed: rerollPendingSeed(seed),
+		},
 		seed,
 	);
 }

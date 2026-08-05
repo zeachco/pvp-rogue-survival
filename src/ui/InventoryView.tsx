@@ -1,9 +1,11 @@
 /** @jsx h */
 import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 import {
+	itemPendingRerollSeed,
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
+	rerollItem,
 	statsWithItemBonuses,
 } from "../../common/items";
 import { h } from "./dom";
@@ -13,6 +15,7 @@ import {
 	extractionCost,
 	extractableSkills,
 	purgeYield,
+	REROLL_SOUL_COST,
 	sellYield,
 	upgradeCosts,
 } from "../../common/inventory";
@@ -53,7 +56,7 @@ export function itemTile(
 	onPreview?: (
 		item?: InventoryTile["item"],
 		equipped?: boolean,
-		action?: "card" | "upgrade",
+		action?: "card" | "upgrade" | "reroll",
 	) => void,
 	onCurrencyPreview?: (preview?: CurrencyPreview) => void,
 	onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void,
@@ -169,6 +172,11 @@ export function itemTile(
 				? `Requires ${costs.souls} Soul`
 				: `Requires ${costs.gold} gold and ${costs.scraps} ${item.rarity} scraps`;
 	}
+	const rerollButton = buttons[4] as HTMLButtonElement | undefined;
+	if (rerollButton && progress.souls < REROLL_SOUL_COST) {
+		rerollButton.disabled = true;
+		rerollButton.title = `Requires ${REROLL_SOUL_COST} Soul`;
+	}
 	const bindBulk = (
 		index: number,
 		callback: (tileId: string, bulk: boolean) => void,
@@ -264,7 +272,33 @@ export function itemTile(
 		if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade");
 	});
 	bindActionPreview(3);
-	bindActionPreview(4);
+	const rerolled = rerollItem(item, itemPendingRerollSeed(item));
+	const previewRerollCard = (active: boolean): void => {
+		const shown = active ? rerolled : item;
+		const shownStats = statsWithItemBonuses(progress.stats, shown);
+		const level = formatProjectedValue({
+			currentVal: item.level,
+			newVal: shown.level,
+		});
+		subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`;
+		subtitle.classList.toggle("is-gain-preview", active);
+		const replacement = itemDetails(
+			shown,
+			shownStats,
+			active ? item : undefined,
+			active ? stats : undefined,
+			false,
+			true,
+		);
+		details.replaceWith(replacement);
+		details = replacement;
+		bindRequirementPreview(details, shown, shownStats);
+	};
+	rerollButton?.addEventListener("mouseenter", () => previewRerollCard(true));
+	rerollButton?.addEventListener("mouseleave", () => previewRerollCard(false));
+	bindActionPreview(4, { souls: -REROLL_SOUL_COST }, () => {
+		if (equipped && spare <= 0) onPreview?.(rerolled, true, "reroll");
+	});
 	bindActionPreview(5, { gold: -extractCost }, () => {
 		onSpellPreview?.(skills);
 		highlightExtractableSkills(true);

@@ -113,6 +113,7 @@ import {
 	generateItem,
 	generateRelic,
 	itemCooldownReduction,
+	itemPendingRerollSeed,
 	migrateLegacyItem,
 	itemRequirementMultiplier,
 	itemStackKey,
@@ -120,7 +121,9 @@ import {
 	MAX_ITEM_LEVEL,
 	nextRarity,
 	rerollItem,
+	rerollPendingSeed,
 	starterClub,
+	type ItemInstance,
 } from "../common/items";
 import {
 	cumulativeXpForLevel,
@@ -165,6 +168,7 @@ import {
 	itemSkillDescription,
 	requirementDisplayStats,
 	requirementMetStats,
+	statBonusDeltaRows,
 } from "../src/ui/ItemDetails";
 import {
 	formatPreviewValue,
@@ -558,6 +562,87 @@ describe("equipment requirements", () => {
 				}),
 			).get("Frost resist"),
 		).toBe("Immune");
+	});
+	test("bumps effective stats while Reflective Surge and Rapid Regeneration are active", () => {
+		const buckler: ItemInstance = {
+			...generateBuckler(8, "epic", 503),
+			requirements: {},
+			reflectionComponents: ["flat", "strength", "return"],
+		};
+		const stats = { ...ZERO_STATS, strength: 20, agility: 10 };
+		const rows = (buffs?: {
+			reflectiveSurge?: { level: number };
+			rapidRegen?: { multiplier: number; flat: number };
+		}) =>
+			new Map(
+				effectiveStatRows(
+					undefined,
+					buckler,
+					undefined,
+					undefined,
+					stats,
+					undefined,
+					5,
+					0,
+					buffs,
+				),
+			);
+		const base = rows();
+		const surged = rows({ reflectiveSurge: { level: 1 } });
+		const baseChance = bucklerBlockChance(buckler, stats, 5);
+		const surgedChance = Math.min(
+			0.95,
+			baseChance + reflectiveSurgeBlockChanceBonus(1),
+		);
+		expect(surged.get("Block chance")).toBe(
+			`${Number((surgedChance * 100).toFixed(2))}%`,
+		);
+		expect(base.get("Block chance")).toBe(
+			`${Number((baseChance * 100).toFixed(2))}%`,
+		);
+		expect(surged.get("Block chance")).not.toBe(base.get("Block chance"));
+		expect(surged.get("Reflection")).toContain("2× Surge");
+		expect(surged.get("Reflection")).toContain("1% inc. (Surge)");
+		const derived = derivedStats(stats);
+		const rapid = rows({ rapidRegen: { multiplier: 2, flat: 0.1 } });
+		expect(rapid.get("Health regen")).toBe(
+			`${Number((derived.hpRegen * 2 + 0.1).toFixed(2))}/s`,
+		);
+		expect(rapid.get("Health regen")).not.toBe(base.get("Health regen"));
+	});
+	test("renders reroll attribute deltas in red and green", () => {
+		const current: ItemInstance = {
+			...generateItem(4, "rare", 702, { allowedClasses: ["sword"] }),
+			requirements: {},
+			statBonuses: { agility: 4, strength: 2 },
+		};
+		const rerolled: ItemInstance = {
+			...current,
+			statBonuses: { agility: 2, strength: 6 },
+		};
+		const stats = { ...ZERO_STATS };
+		const rows = statBonusDeltaRows(rerolled, stats, current, stats);
+		const agility = rows.find((row) => row.text.includes("Agility"))!;
+		const strength = rows.find((row) => row.text.includes("Strength"))!;
+		expect(agility.text).toBe("-2 Agility");
+		expect(agility.tone).toBe("cost");
+		expect(strength.text).toBe("+4 Strength");
+		expect(strength.tone).toBe("gain");
+	});
+	test("shows the full negative delta for a removed attribute bonus", () => {
+		const current: ItemInstance = {
+			...generateItem(4, "rare", 703, { allowedClasses: ["sword"] }),
+			requirements: {},
+			statBonuses: { agility: 4 },
+		};
+		const rerolled: ItemInstance = {
+			...current,
+			statBonuses: {},
+		};
+		const stats = { ...ZERO_STATS };
+		const rows = statBonusDeltaRows(rerolled, stats, current, stats);
+		expect(rows.map((row) => row.text)).toContain("-4 Agility");
+		expect(rows.find((row) => row.text === "-4 Agility")?.tone).toBe("cost");
 	});
 	test("caps every generated and upgraded requirement at 100 per stat", () => {
 		const generated = [
@@ -1055,8 +1140,92 @@ describe("permanent inventory", () => {
 		expect(rerolledBuckler.level).toBe(8);
 		expect(rerolledBuckler.rarity).toBe("epic");
 	});
-	test("rerolls a spare inventory copy into a new stack at no cost", () => {
+	test("stores a deterministic pending reroll seed on every generated item", () => {
+		for (const item of [
+			generateItem(3, "rare", 510),
+			generateBuckler(4, "epic", 511),
+			generateRelic(2, "uncommon", 512),
+			generateAccessory(5, "unique", 513),
+			starterClub(),
+		]) {
+			expect(item.pendingRerollSeed).toBe(rerollPendingSeed(item.seed));
+			expect(itemPendingRerollSeed(item)).toBe(item.pendingRerollSeed);
+			expect(itemPendingRerollSeed(item)).toBe(itemPendingRerollSeed(item));
+		}
+	});
+	test("rerolls from the pre-rolled seed stored on the item and stores a fresh one", () => {
 		const state = progress();
+		state.souls = 5;
+		const item = {
+			...generateItem(3, "rare", 606, { allowedClasses: ["sword"] }),
+			requirements: {},
+		};
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles[0];
+		const result = rerollFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 505,
+		);
+		expect(result.changed).toBeTrue();
+		expect(itemStackKey(result.created!)).toBe(
+			itemStackKey(rerollItem(item, itemPendingRerollSeed(item))),
+		);
+		expect(result.created!.pendingRerollSeed).toBe(505);
+		expect(itemPendingRerollSeed(result.created!)).toBe(505);
+	});
+	test("rejects a reroll without enough Souls", () => {
+		const state = progress();
+		state.souls = 0;
+		collectIntoInventory(
+			state,
+			generateItem(1, "common", 609),
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles[0];
+		const result = rerollFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 505,
+		);
+		expect(result.changed).toBeFalse();
+		expect(state.souls).toBe(0);
+		expect(tile.quantity).toBe(1);
+	});
+	test("re-randomizes the stored reroll seed when the item is upgraded", () => {
+		const state = progress();
+		state.scraps.common = 10;
+		const item = { ...generateItem(1, "common", 608), requirements: {} };
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles[0];
+		const before = itemPendingRerollSeed(tile.item);
+		const result = upgradeFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 401,
+		);
+		expect(result.changed).toBeTrue();
+		expect(result.created!.pendingRerollSeed).toBe(401);
+		expect(itemPendingRerollSeed(result.created!)).toBe(401);
+		expect(itemPendingRerollSeed(result.created!)).not.toBe(before);
+	});
+	test("rerolls a spare inventory copy into a new stack for one Soul", () => {
+		const state = progress();
+		state.souls = 2;
 		const item = {
 			...generateItem(4, "rare", 81, { allowedClasses: ["sword"] }),
 			requirements: {},
@@ -1082,7 +1251,7 @@ describe("permanent inventory", () => {
 			() => 505,
 		);
 		expect(result.changed).toBeTrue();
-		expect(state.souls).toBe(souls);
+		expect(state.souls).toBe(souls - 1);
 		expect(state.inventoryTiles.length).toBe(2);
 		expect(
 			state.inventoryTiles.reduce(
@@ -1095,6 +1264,7 @@ describe("permanent inventory", () => {
 	});
 	test("rerolls a lone equipped copy in place without freeing an extra slot", () => {
 		const state = progress();
+		state.souls = 2;
 		const item = { ...generateItem(1, "common", 141), requirements: {} };
 		collectIntoInventory(
 			state,
@@ -1111,6 +1281,7 @@ describe("permanent inventory", () => {
 			() => 507,
 		);
 		expect(result.changed).toBeTrue();
+		expect(state.souls).toBe(1);
 		expect(state.mainHand?.level).toBe(item.level);
 		expect(state.mainHand?.rarity).toBe(item.rarity);
 		expect(itemStackKey(state.mainHand!)).toBe(
