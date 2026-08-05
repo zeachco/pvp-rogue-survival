@@ -245,6 +245,7 @@ export class ThreeRenderer {
 		for (const projectile of arena.projectiles) current.add(projectile.mesh);
 		for (const effect of arena.spellEffects) current.add(effect.mesh);
 		for (const swamp of arena.swamps) current.add(swamp.mesh);
+		for (const blizzard of arena.blizzards) current.add(blizzard.mesh);
 		for (const death of arena.characterDeaths) current.add(death.mesh);
 
 		if (hero.auraGroup) current.add(hero.auraGroup);
@@ -280,6 +281,7 @@ export class ThreeRenderer {
 		}
 		for (const effect of arena.spellEffects) effect.updateVisuals(time);
 		for (const swamp of arena.swamps) swamp.updateVisuals(time);
+		for (const blizzard of arena.blizzards) blizzard.updateVisuals(time);
 		for (const death of arena.characterDeaths) death.updateVisuals(time);
 		if (hero.auraGroup) hero.updateAuraVisuals(time);
 

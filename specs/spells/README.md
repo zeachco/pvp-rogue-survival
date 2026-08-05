@@ -21,6 +21,7 @@ Each registered `SkillId` has exactly one contract in this directory, named afte
 | `thorns` | [Thorns](thorns.md) |
 | `reflectiveSurge` | [Reflective Surge](reflective-surge.md) |
 | `frostOrb` | [Frozen Orb](frost-orb.md) |
+| `blizzard` | [Blizzard](blizzard.md) |
 | `fireBreath` | [Fire Breath](fire-breath.md) |
 | `swamp` | [Gooey Swamp](swamp.md) |
 | `voodoo` | [Voodoo](voodoo.md) |

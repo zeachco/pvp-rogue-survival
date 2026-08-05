@@ -232,6 +232,12 @@ export function skillDamagePreview(
 			value: SKILLS[skill].damageMultiplier * spellPower(level),
 		};
 	switch (skill) {
+		case "blizzard":
+			return {
+				kind: "flat",
+				value: blizzardProjectileDamage(level, stats.intelligence),
+				detail: "per icicle",
+			};
 		case "whirlwind":
 			return {
 				kind: "flat",
@@ -308,6 +314,28 @@ export function skillRange(
 
 export function cleaveRange(level: number): number {
 	return 50 + (450 * (cappedSkillLevel(level) - 1)) / 98;
+}
+
+function blizzardLevelProgress(level: number): number {
+	return (cappedSkillLevel(level) - 1) / 98;
+}
+export function blizzardManaCost(level: number): number {
+	return 30 + 270 * blizzardLevelProgress(level);
+}
+export function blizzardProjectileDamage(
+	level: number,
+	intelligence: number,
+): number {
+	return cappedSkillLevel(level) + 1.2 * Math.max(0, intelligence);
+}
+export function blizzardDuration(level: number): number {
+	return 5 + 10 * blizzardLevelProgress(level);
+}
+export function blizzardProjectilesPerSecond(level: number): number {
+	return 1 + 2 * blizzardLevelProgress(level);
+}
+export function blizzardRadius(level: number): number {
+	return 100 + 100 * blizzardLevelProgress(level);
 }
 
 export function cleaveHalfArc(level: number): number {
@@ -513,6 +541,11 @@ export function skillStatBonusDescription(skill: SkillId): string | undefined {
 	if (SKILLS[skill].cooldown > 0 && skill !== "healing")
 		bonuses.push("Intelligence and Agility reduce cooldown");
 	switch (skill) {
+		case "blizzard":
+			bonuses.push(
+				"Intelligence increases icicle damage; skill level increases damage, duration, impact area, and rainfall",
+			);
+			break;
 		case "healing":
 			bonuses.push("Rage adds up to 5% maximum HP");
 			break;

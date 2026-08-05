@@ -19,6 +19,7 @@ export const SPELL_SOURCES: Readonly<Record<SkillId, string>> = {
 	thorns: "Rare or Epic Spiked Buckler",
 	reflectiveSurge: "Rare or Epic Spiked Buckler",
 	frostOrb: "Rare or Epic Staff",
+	blizzard: "Rare, Epic, or Unique Staff",
 	fireBreath: "Ember Idol relic",
 	swamp: "Voodoo Doll relic",
 	rapidRegen: "Renewal Idol relic",

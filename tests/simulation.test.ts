@@ -36,6 +36,7 @@ import {
 	SpellEffect,
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
+import { Blizzard } from "../src/game/Blizzard";
 import {
 	dropRarityColor,
 	groundDropPresentationCenter,
@@ -1329,6 +1330,36 @@ describe("arena systems", () => {
 		swamp.update(0.5, [creep]);
 		expect(creep.statuses).toHaveLength(2);
 	});
+	test("Blizzard impacts deal Cold area damage and add one Frost stack", () => {
+		const hero = new Hero({ x: 0, y: 0 });
+		const creep = new Creep(
+			{
+				id: "blizzard-target",
+				name: "Blizzard Target",
+				kind: "melee",
+				level: 0,
+				stats: { ...ZERO_STATS },
+				mainHand: starterClub(),
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 20, y: 0 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		const hpBefore = creep.hp;
+		const blizzard = new Blizzard({ x: 0, y: 0 }, 100, 5, 1, 13, hero, false);
+		blizzard.update(0.36, [creep], new SeededRandom(2));
+		expect(creep.hp).toBeLessThan(hpBefore);
+		expect(creep.statuses).toMatchObject([
+			{ kind: "freeze", remaining: 4, damagePerSecond: 0, source: hero },
+		]);
+	});
 	test("pulls ground drops toward an attracting hero at a bounded speed", () => {
 		const drop = new ItemDrop(
 			{ id: "drop", kind: "item", item: starterClub() },
@@ -1544,7 +1575,7 @@ describe("arena systems", () => {
 			expect(drop.mesh.position.z).toBe(
 				groundDropPresentationCenter(drop.drop),
 			);
-		expect(groundDropPresentationCenter(drops[0].drop)).toBe(10);
+		expect(groundDropPresentationCenter(drops[0].drop)).toBe(11);
 		expect(groundDropPresentationCenter(drops[1].drop)).toBe(16);
 		expect(groundDropPresentationCenter(drops[2].drop)).toBe(20);
 		expect(groundDropPresentationCenter(drops[3].drop)).toBe(20);

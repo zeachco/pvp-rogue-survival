@@ -33,6 +33,11 @@ import {
 	bashCooldown,
 	bucklerBlockChance,
 	bucklerBlockCost,
+	blizzardDuration,
+	blizzardManaCost,
+	blizzardProjectileDamage,
+	blizzardProjectilesPerSecond,
+	blizzardRadius,
 	cleaveHalfArc,
 	cleaveCooldown,
 	cleaveRange,
@@ -2180,6 +2185,19 @@ describe("HUD preview values", () => {
 	});
 });
 describe("spell range and recovery", () => {
+	test("scales Blizzard exactly between its level-one and level-ninety-nine endpoints", () => {
+		expect(blizzardManaCost(1)).toBe(30);
+		expect(blizzardManaCost(99)).toBe(300);
+		expect(blizzardProjectileDamage(1, 10)).toBe(13);
+		expect(blizzardProjectileDamage(99, 10)).toBe(111);
+		expect(blizzardDuration(1)).toBe(5);
+		expect(blizzardDuration(99)).toBe(15);
+		expect(blizzardProjectilesPerSecond(1)).toBe(1);
+		expect(blizzardProjectilesPerSecond(99)).toBe(3);
+		expect(blizzardRadius(1)).toBe(metersToPixels(2));
+		expect(blizzardRadius(99)).toBe(metersToPixels(4));
+		expect(SKILLS.blizzard.minimumHeroLevel).toBe(25);
+	});
 	test("converts simulation pixels to player-facing meters without changing distance", () => {
 		expect(LOGICAL_PIXELS_PER_METER).toBe(50);
 		expect(pixelsToMeters(150)).toBe(3);

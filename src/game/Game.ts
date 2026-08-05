@@ -654,6 +654,8 @@ export class Game {
 		for (const creep of this.creeps) creep.setGroundMovementMultiplier(1);
 		for (const swamp of this.arena.swamps)
 			swamp.update(deltaSeconds, this.creeps);
+		for (const blizzard of this.arena.blizzards)
+			blizzard.update(deltaSeconds, this.creeps, systemRandom);
 		for (const creep of this.creeps) {
 			if (!creep.active) continue;
 			creep.castHealing(this.creeps, this.arena.spellEffects, this.hero);
@@ -829,6 +831,7 @@ export class Game {
 		removeInactive(this.drops);
 		removeInactive(this.arena.spellEffects);
 		removeInactive(this.arena.swamps);
+		removeInactive(this.arena.blizzards);
 		removeInactive(this.arena.characterDeaths);
 		if (this.hoveredDrop && !this.hoveredDrop.active) {
 			this.hoveredDrop = undefined;

@@ -37,6 +37,7 @@ export type SkillId =
 	| "thorns"
 	| "reflectiveSurge"
 	| "frostOrb"
+	| "blizzard"
 	| "fireBreath"
 	| "swamp"
 	| "rapidRegen"
@@ -837,6 +838,10 @@ function buildWeapon(
 					...(weaponClass === "staff" &&
 					(rarity === "rare" || rarity === "epic" || rarity === "unique")
 						? ["frostOrb" as const]
+						: []),
+					...(weaponClass === "staff" &&
+					(rarity === "rare" || rarity === "epic" || rarity === "unique")
+						? ["blizzard" as const]
 						: []),
 					...(weaponClass === "mace" &&
 					(rarity === "rare" || rarity === "epic" || rarity === "unique")

@@ -310,6 +310,17 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		description:
 			"Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction.",
 	},
+	blizzard: {
+		id: "blizzard",
+		label: "Blizzard",
+		damageMultiplier: 0,
+		cooldown: 20,
+		range: 500,
+		resource: "mana",
+		minimumHeroLevel: 25,
+		description:
+			"Rains icicles for 5–15 seconds. Each impact deals level + 1.2× Intelligence Cold damage in a 2–4m area and applies one Frost stack. Mana cost and rainfall scale from 30 to 300 and 1 to 3 icicles/s.",
+	},
 	fireBreath: {
 		id: "fireBreath",
 		label: "Fire Breath",

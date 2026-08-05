@@ -59,6 +59,9 @@ import {
 	attackProfile,
 	attractionFindBonus,
 	attractionSpeedMultiplier,
+	blizzardDuration,
+	blizzardProjectilesPerSecond,
+	blizzardRadius,
 	bucklerBlockChance,
 	bucklerBlockCost,
 	cappedSkillLevel,
@@ -1691,6 +1694,26 @@ export class Hud {
 						<span>
 							<small>Duration</small>
 							<strong>{fmt(whirlwindDuration(shownLevel))}s</strong>
+						</span>
+					) : null}
+					{spell.id === "blizzard" ? (
+						<span>
+							<small>Duration</small>
+							<strong>{fmt(blizzardDuration(shownLevel))}s</strong>
+						</span>
+					) : null}
+					{spell.id === "blizzard" ? (
+						<span>
+							<small>Rainfall</small>
+							<strong>{fmt(blizzardProjectilesPerSecond(shownLevel))}/s</strong>
+						</span>
+					) : null}
+					{spell.id === "blizzard" ? (
+						<span>
+							<small>Impact area</small>
+							<strong>
+								{fmt(pixelsToMeters(blizzardRadius(shownLevel)))} m
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "whirlwind" ? (

@@ -1,6 +1,11 @@
 import type { BalanceConfig } from "../../../common/balance";
 import {
 	attackProfile,
+	blizzardDuration,
+	blizzardManaCost,
+	blizzardProjectileDamage,
+	blizzardProjectilesPerSecond,
+	blizzardRadius,
 	bucklerBlockCost,
 	cappedSkillLevel,
 	cleaveHalfArc,
@@ -58,6 +63,7 @@ import { Projectile } from "../Projectile";
 import { distance, type Vector2 } from "../types";
 import { SpellEffect } from "../SpellEffect";
 import { GroundSwamp } from "../GroundSwamp";
+import { Blizzard } from "../Blizzard";
 import { SKILLS } from "../../../common/content";
 import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
 
@@ -328,7 +334,10 @@ export class HeroCombatSystem {
 				return false;
 			const definition = SKILLS[skill.id];
 			if (definition.resource === "mana")
-				return hero.mana >= skillManaCost(skill.id) * (1 - manaReduction);
+				return (
+					hero.mana >=
+					skillManaCost(skill.id, skill.level) * (1 - manaReduction)
+				);
 			if (definition.resource === "life")
 				return skillHealthRequirementMet(skill.id, hero.hp, hero.maxHp);
 			const cost =
@@ -353,7 +362,7 @@ export class HeroCombatSystem {
 				deltaSeconds,
 			);
 		const manaCost = candidate
-			? skillManaCost(candidate.id) * (1 - manaReduction)
+			? skillManaCost(candidate.id, candidate.level) * (1 - manaReduction)
 			: 0;
 		const rageSkillCost =
 			candidate?.id === "reflectiveSurge" || candidate?.id === "whirlwind"
@@ -462,18 +471,23 @@ export class HeroCombatSystem {
 				? { damage: 0, critical: false }
 				: rollAttackStrike(item, effectiveStats, "hero", balance, random);
 		const damage =
-			activeSkill && SKILLS[activeSkill.id].resource === "life"
-				? bloodSkillDamage(
-						activeSkill.id,
+			activeSkill?.id === "blizzard"
+				? blizzardProjectileDamage(
 						activeSkill.level,
-						strike.damage,
-						lifeCost,
+						effectiveStats.intelligence,
 					)
-				: strike.damage *
-					(activeSkill
-						? skillDamageMultiplier(activeSkill.id) *
-							spellPower(activeSkill.level)
-						: 1);
+				: activeSkill && SKILLS[activeSkill.id].resource === "life"
+					? bloodSkillDamage(
+							activeSkill.id,
+							activeSkill.level,
+							strike.damage,
+							lifeCost,
+						)
+					: strike.damage *
+						(activeSkill
+							? skillDamageMultiplier(activeSkill.id) *
+								spellPower(activeSkill.level)
+							: 1);
 		const presentation = {
 			kind:
 				activeSkill?.id === "arcaneBolt" ||
@@ -548,6 +562,18 @@ export class HeroCombatSystem {
 			const radius = swampRadius(activeSkill.level) * (gooey ? 4 : 1);
 			const center = gooey ? { ...hero.position } : facingTarget;
 			state.swamps.push(new GroundSwamp(center, radius, hero, gooey));
+		} else if (activeSkill?.id === "blizzard") {
+			state.blizzards.push(
+				new Blizzard(
+					{ ...target.position },
+					blizzardRadius(activeSkill.level),
+					blizzardDuration(activeSkill.level),
+					blizzardProjectilesPerSecond(activeSkill.level),
+					damage,
+					hero,
+					strike.critical,
+				),
+			);
 		} else if (activeSkill?.id === "gravityPull" && item)
 			castForceField(state, hero, activeSkill.level, random);
 		else if (activeSkill?.id === "reflectiveSurge")
@@ -949,9 +975,9 @@ function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined {
 		}
 	return target;
 }
-function skillManaCost(skill: SkillId): number {
+function skillManaCost(skill: SkillId, level = 1): number {
 	return (
-		SKILLS[skill].cost ??
+		(skill === "blizzard" ? blizzardManaCost(level) : SKILLS[skill].cost) ??
 		(skill === "frostOrb"
 			? 10
 			: skill === "gravityPull"
@@ -993,7 +1019,8 @@ export function skillAffordable(
 	if (definition.resource === "mana")
 		return (
 			hero.mana >=
-			skillManaCost(skill) * (1 - resourceReduction(progress, "mana", stats))
+			skillManaCost(skill, effectiveSkillLevel(progress, skill)) *
+				(1 - resourceReduction(progress, "mana", stats))
 		);
 	if (definition.resource === "life")
 		return skillHealthRequirementMet(skill, hero.hp, hero.maxHp);
@@ -1021,7 +1048,7 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 	if (skill === "blocking")
 		return `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.resource === "mana")
-		return `${formatCost(skillManaCost(skill) * (1 - resourceReduction(progress, "mana", stats)))} Mana`;
+		return `${formatCost(skillManaCost(skill, effectiveSkillLevel(progress, skill)) * (1 - resourceReduction(progress, "mana", stats)))} Mana`;
 	if (definition.resource === "life")
 		return skill === "vampiricBoomerang"
 			? "max(3% Remaining HP, 1 HP)"
