@@ -701,15 +701,6 @@ input {
 	cursor: not-allowed;
 }
 
-.spell-level-requirement {
-	color: #9fb8bf;
-}
-
-.spell-level-requirement.is-unmet {
-	color: #ff7182;
-	font-weight: 700;
-}
-
 .inspection-health {
 	display: flex;
 	align-items: baseline;

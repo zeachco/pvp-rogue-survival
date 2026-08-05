@@ -457,7 +457,6 @@ export class GameService {
 		slot?: number,
 	): void {
 		if (!isSkillId(skillId)) return;
-		if (player.progress.level < (SKILLS[skillId].minimumHeroLevel ?? 0)) return;
 		const providedByEquipment = [
 			player.progress.mainHand,
 			player.progress.offHand,

@@ -109,20 +109,12 @@ describe("realm game service", () => {
 		expect(player.progress.equippedSkills).toEqual(["healing", "cleave"]);
 		expect(player.progress.autoFireSkills).toEqual(["healing", "cleave"]);
 	});
-	test("rejects loadout assignment below an authored spell level gate", () => {
+	test("allows loadout assignment without a minimum hero level", () => {
 		const { game } = harness();
 		const player = game.join("GatedSpell");
 		player.progress.learnedSkills.push("orbitingHammers");
 		player.progress.learnedSkillLevels.orbitingHammers = 1;
-		player.progress.level = 9;
-		game.handle(player.id, {
-			type: "setSkillEquipped",
-			skillId: "orbitingHammers",
-			equipped: true,
-			slot: 1,
-		});
-		expect(player.progress.equippedSkills).toEqual(["healing"]);
-		player.progress.level = 10;
+		player.progress.level = 0;
 		game.handle(player.id, {
 			type: "setSkillEquipped",
 			skillId: "orbitingHammers",

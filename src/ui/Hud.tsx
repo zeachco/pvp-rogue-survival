@@ -1160,20 +1160,15 @@ export class Hud {
 				0,
 				this.player?.progress.learnedSkillLevels[id] ?? 0,
 			);
-			const minimumHeroLevel = definition.minimumHeroLevel ?? 0;
-			const levelEligible =
-				(this.player?.progress.level ?? 0) >= minimumHeroLevel;
 			const card = (
 				<button
-					class={`spell-catalog-card spell-resource-${definition.resource}${acquired ? "" : " is-locked"}${learnedLevel > 0 && levelEligible ? "" : " is-not-learned"}`}
+					class={`spell-catalog-card spell-resource-${definition.resource}${acquired ? "" : " is-locked"}${learnedLevel > 0 ? "" : " is-not-learned"}`}
 					type="button"
 					aria-disabled={String(!acquired)}
 					tabindex={acquired ? "0" : "-1"}
 					data-spell-id={id}
 					data-spell-type={definition.passive ? "passive" : "active"}
-					data-learning={
-						learnedLevel > 0 && levelEligible ? "learned" : "not-learned"
-					}
+					data-learning={learnedLevel > 0 ? "learned" : "not-learned"}
 					data-search={`${id} ${definition.label} ${definition.description} ${spellResourceLabel(definition.resource)}`}
 				>
 					<span class="spell-catalog-card-heading">
@@ -1201,17 +1196,6 @@ export class Hud {
 					{learnedLevel === 0 ? (
 						<small class="spell-catalog-source">
 							Source: {SPELL_SOURCES[id]}
-						</small>
-					) : null}
-					{minimumHeroLevel > 0 ? (
-						<small
-							class={
-								levelEligible
-									? "spell-level-requirement"
-									: "spell-level-requirement is-unmet"
-							}
-						>
-							Requires hero level {minimumHeroLevel}
 						</small>
 					) : null}
 				</button>
@@ -1498,17 +1482,6 @@ export class Hud {
 			<span class="spell-tooltip" role="tooltip">
 				<b>{skill.label}</b>
 				<span class="spell-tooltip-description">{skill.description}</span>
-				{skill.minimumHeroLevel ? (
-					<span
-						class={
-							(progress?.level ?? 0) >= skill.minimumHeroLevel
-								? "spell-tooltip-description"
-								: "spell-tooltip-description spell-level-requirement is-unmet"
-						}
-					>
-						Requires hero level {skill.minimumHeroLevel}
-					</span>
-				) : null}
 				<span class="spell-tooltip-description">
 					{spell.passive
 						? "Passive — always active while available."

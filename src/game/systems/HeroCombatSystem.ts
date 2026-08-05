@@ -978,13 +978,7 @@ function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined {
 function skillManaCost(skill: SkillId, level = 1): number {
 	return (
 		(skill === "blizzard" ? blizzardManaCost(level) : SKILLS[skill].cost) ??
-		(skill === "frostOrb"
-			? 10
-			: skill === "gravityPull"
-				? 8
-				: skill === "orbitingHammers"
-					? 3
-					: 1)
+		(skill === "gravityPull" ? 8 : 1)
 	);
 }
 export function skillAffordable(
@@ -1197,9 +1191,8 @@ export function isSkillAvailable(
 	skill: SkillId,
 ): boolean {
 	return (
-		progress.level >= (SKILLS[skill].minimumHeroLevel ?? 0) &&
-		(learnedSkillIds(progress).includes(skill) ||
-			gearedSkillIds(progress).includes(skill))
+		learnedSkillIds(progress).includes(skill) ||
+		gearedSkillIds(progress).includes(skill)
 	);
 }
 export function availableSkillIds(progress: PlayerProgress): SkillId[] {

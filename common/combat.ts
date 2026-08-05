@@ -320,7 +320,7 @@ function blizzardLevelProgress(level: number): number {
 	return (cappedSkillLevel(level) - 1) / 98;
 }
 export function blizzardManaCost(level: number): number {
-	return 30 + 270 * blizzardLevelProgress(level);
+	return 55 + 245 * blizzardLevelProgress(level);
 }
 export function blizzardProjectileDamage(
 	level: number,

@@ -369,18 +369,16 @@ test("keeps inventory chronology while applying the slot filter as an AND clause
 	expect(inventorySlotMatches(newCharm, "mainhand")).toBeFalse();
 });
 
-test("gates Orbiting Hammers and Frozen Orb at their authored hero levels", () => {
+test("makes learned spells available without minimum hero levels", () => {
 	const state = progress();
-	state.learnedSkills.push("orbitingHammers", "frostOrb");
+	state.learnedSkills.push("orbitingHammers", "frostOrb", "blizzard");
 	state.learnedSkillLevels.orbitingHammers = 3;
 	state.learnedSkillLevels.frostOrb = 2;
-	state.level = 9;
-	expect(isSkillAvailable(state, "orbitingHammers")).toBeFalse();
-	state.level = 10;
+	state.learnedSkillLevels.blizzard = 1;
+	state.level = 0;
 	expect(isSkillAvailable(state, "orbitingHammers")).toBeTrue();
-	expect(isSkillAvailable(state, "frostOrb")).toBeFalse();
-	state.level = 20;
 	expect(isSkillAvailable(state, "frostOrb")).toBeTrue();
+	expect(isSkillAvailable(state, "blizzard")).toBeTrue();
 });
 
 describe("hero auto-facing", () => {
@@ -2186,7 +2184,7 @@ describe("HUD preview values", () => {
 });
 describe("spell range and recovery", () => {
 	test("scales Blizzard exactly between its level-one and level-ninety-nine endpoints", () => {
-		expect(blizzardManaCost(1)).toBe(30);
+		expect(blizzardManaCost(1)).toBe(55);
 		expect(blizzardManaCost(99)).toBe(300);
 		expect(blizzardProjectileDamage(1, 10)).toBe(13);
 		expect(blizzardProjectileDamage(99, 10)).toBe(111);
@@ -2196,7 +2194,8 @@ describe("spell range and recovery", () => {
 		expect(blizzardProjectilesPerSecond(99)).toBe(3);
 		expect(blizzardRadius(1)).toBe(metersToPixels(2));
 		expect(blizzardRadius(99)).toBe(metersToPixels(4));
-		expect(SKILLS.blizzard.minimumHeroLevel).toBe(25);
+		expect(SKILLS.orbitingHammers.cost).toBe(25);
+		expect(SKILLS.frostOrb.cost).toBe(45);
 	});
 	test("converts simulation pixels to player-facing meters without changing distance", () => {
 		expect(LOGICAL_PIXELS_PER_METER).toBe(50);

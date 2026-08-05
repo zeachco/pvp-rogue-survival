@@ -22,7 +22,6 @@ export interface SkillDefinition {
 	range?: number;
 	resource: "rage" | "mana" | "life";
 	description: string;
-	minimumHeroLevel?: number;
 	passive?: boolean;
 	upkeep?: { resource: "mana" | "rage"; perLevelPerSecond: number };
 	cost?: number;
@@ -221,8 +220,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cooldown: 12,
 		range: 240,
 		resource: "mana",
-		minimumHeroLevel: 10,
-		cost: 6,
+		cost: 25,
 		description:
 			"Launches three drifting magical hammers that spiral outward, persist through impacts, and hit each enemy at most once.",
 	},
@@ -306,9 +304,9 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cooldown: 20,
 		range: 500,
 		resource: "mana",
-		minimumHeroLevel: 20,
+		cost: 45,
 		description:
-			"Spends 10 mana to launch a slow freezing orb that sprays damaging ice spikes in every direction.",
+			"Spends 45 Mana to launch a slow freezing orb that sprays damaging ice spikes in every direction.",
 	},
 	blizzard: {
 		id: "blizzard",
@@ -317,9 +315,8 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		cooldown: 20,
 		range: 500,
 		resource: "mana",
-		minimumHeroLevel: 25,
 		description:
-			"Rains icicles for 5–15 seconds. Each impact deals level + 1.2× Intelligence Cold damage in a 2–4m area and applies one Frost stack. Mana cost and rainfall scale from 30 to 300 and 1 to 3 icicles/s.",
+			"Rains icicles for 5–15 seconds. Each impact deals level + 1.2× Intelligence Cold damage in a 2–4m area and applies one Frost stack. Mana cost and rainfall scale from 55 to 300 and 1 to 3 icicles/s.",
 	},
 	fireBreath: {
 		id: "fireBreath",
