@@ -1472,6 +1472,10 @@ describe("arena systems", () => {
 		const drops = [
 			new ItemDrop({ id: "gold", kind: "gold", amount: 2 }, { x: 1, y: 2 }),
 			new ItemDrop(
+				{ id: "gold-bag", kind: "gold", amount: 10 },
+				{ x: 1, y: 2 },
+			),
+			new ItemDrop(
 				{ id: "scrap", kind: "scrap", rarity: "rare", amount: 3 },
 				{ x: 1, y: 2 },
 			),
@@ -1487,9 +1491,10 @@ describe("arena systems", () => {
 			expect(drop.mesh.position.z).toBe(
 				groundDropPresentationCenter(drop.drop),
 			);
-		expect(groundDropPresentationCenter(drops[0].drop)).toBe(18);
-		expect(groundDropPresentationCenter(drops[1].drop)).toBe(20);
+		expect(groundDropPresentationCenter(drops[0].drop)).toBe(10);
+		expect(groundDropPresentationCenter(drops[1].drop)).toBe(16);
 		expect(groundDropPresentationCenter(drops[2].drop)).toBe(20);
+		expect(groundDropPresentationCenter(drops[3].drop)).toBe(20);
 	});
 	test("billboards complete pickup presentations toward the camera", () => {
 		const cameraRotation = new THREE.Quaternion().setFromEuler(

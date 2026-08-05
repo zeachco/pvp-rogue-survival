@@ -4,16 +4,23 @@ import type { GroundDrop } from "../../common/protocol";
 import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
 import { Z_DROP } from "./render/ThreeRenderer";
+import { canvas2dContext } from "../platform/Canvas";
 
 const GROUND_PRESENTATION_CLEARANCE = 2;
-const GOLD_PRESENTATION_RADIUS = 16;
 const DIAMOND_PRESENTATION_RADIUS = 18;
+const MONEY_BAG_PRESENTATION_SIZE = 28;
+const COIN_PRESENTATION_HEIGHT = 16;
+const COIN_SPRITE_WIDTH = 44;
 
 export function groundDropPresentationCenter(drop: GroundDrop): number {
+	if (drop.kind !== "gold")
+		return DIAMOND_PRESENTATION_RADIUS + GROUND_PRESENTATION_CLEARANCE;
 	return (
-		(drop.kind === "gold"
-			? GOLD_PRESENTATION_RADIUS
-			: DIAMOND_PRESENTATION_RADIUS) + GROUND_PRESENTATION_CLEARANCE
+		(drop.amount >= 10
+			? MONEY_BAG_PRESENTATION_SIZE
+			: COIN_PRESENTATION_HEIGHT) /
+			2 +
+		GROUND_PRESENTATION_CLEARANCE
 	);
 }
 
@@ -34,30 +41,36 @@ export class ItemDrop extends GameObject {
 		this.position = { ...position };
 
 		if (drop.kind === "gold") {
-			const color = 0xf4cf42;
-			this.bodyMesh = new THREE.Mesh(
-				new THREE.CircleGeometry(10, 16),
-				new THREE.MeshBasicMaterial({ color }),
-			);
-			const stroke = new THREE.Mesh(
-				new THREE.RingGeometry(9, 11, 16),
-				new THREE.MeshBasicMaterial({
-					color: 0xfff0a0,
-					side: THREE.DoubleSide,
-				}),
-			);
-			stroke.renderOrder = 0.001;
-			this.glowMesh = new THREE.Mesh(
-				new THREE.CircleGeometry(16, 16),
-				new THREE.MeshBasicMaterial({
-					color,
-					transparent: true,
-					opacity: 0.35,
-					depthWrite: false,
-				}),
-			);
-			this.glowMesh.renderOrder = -0.001;
-			this.mesh.add(this.glowMesh, this.bodyMesh, stroke);
+			const sprite = drop.amount >= 10 ? moneyBagSprite() : coinSprite();
+			if (sprite) {
+				this.bodyMesh = sprite;
+				this.mesh.add(this.bodyMesh);
+			} else {
+				const color = 0xf4cf42;
+				this.bodyMesh = new THREE.Mesh(
+					new THREE.CircleGeometry(10, 16),
+					new THREE.MeshBasicMaterial({ color }),
+				);
+				const stroke = new THREE.Mesh(
+					new THREE.RingGeometry(9, 11, 16),
+					new THREE.MeshBasicMaterial({
+						color: 0xfff0a0,
+						side: THREE.DoubleSide,
+					}),
+				);
+				stroke.renderOrder = 0.001;
+				this.glowMesh = new THREE.Mesh(
+					new THREE.CircleGeometry(16, 16),
+					new THREE.MeshBasicMaterial({
+						color,
+						transparent: true,
+						opacity: 0.35,
+						depthWrite: false,
+					}),
+				);
+				this.glowMesh.renderOrder = -0.001;
+				this.mesh.add(this.glowMesh, this.bodyMesh, stroke);
+			}
 		} else {
 			const rarity: Rarity =
 				drop.kind === "item" ? drop.item.rarity : drop.rarity;
@@ -153,6 +166,159 @@ export class ItemDrop extends GameObject {
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
 		this.mesh.quaternion.copy(cameraQuaternion);
 	}
+}
+
+function moneyBagSprite(): THREE.Mesh | undefined {
+	if (typeof document === "undefined") return undefined;
+	const texture = moneyBagTexture();
+	return new THREE.Mesh(
+		new THREE.PlaneGeometry(
+			MONEY_BAG_PRESENTATION_SIZE,
+			MONEY_BAG_PRESENTATION_SIZE,
+		),
+		new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true,
+			depthWrite: false,
+		}),
+	);
+}
+
+function coinSprite(): THREE.Mesh | undefined {
+	if (typeof document === "undefined") return undefined;
+	const texture = coinTexture();
+	return new THREE.Mesh(
+		new THREE.PlaneGeometry(COIN_SPRITE_WIDTH, COIN_PRESENTATION_HEIGHT),
+		new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true,
+			depthWrite: false,
+		}),
+	);
+}
+
+let cachedMoneyBagTexture: THREE.CanvasTexture | undefined;
+let cachedCoinTexture: THREE.CanvasTexture | undefined;
+
+function moneyBagTexture(): THREE.CanvasTexture {
+	if (cachedMoneyBagTexture) return cachedMoneyBagTexture;
+
+	const size = MONEY_BAG_PRESENTATION_SIZE;
+	const canvas = document.createElement("canvas");
+	canvas.width = size;
+	canvas.height = size;
+	const ctx = canvas2dContext(canvas);
+
+	const glow = ctx.createRadialGradient(
+		size / 2,
+		size / 2,
+		3,
+		size / 2,
+		size / 2,
+		size / 2,
+	);
+	glow.addColorStop(0, "rgba(244,207,66,0.5)");
+	glow.addColorStop(1, "rgba(244,207,66,0)");
+	ctx.fillStyle = glow;
+	ctx.fillRect(0, 0, size, size);
+
+	const cx = size / 2;
+	ctx.beginPath();
+	ctx.moveTo(cx - 5, 9);
+	ctx.quadraticCurveTo(cx - 12, 9, cx - 12, 15);
+	ctx.quadraticCurveTo(cx - 12, 24, cx, 25);
+	ctx.quadraticCurveTo(cx + 12, 24, cx + 12, 15);
+	ctx.quadraticCurveTo(cx + 12, 9, cx + 5, 9);
+	ctx.quadraticCurveTo(cx, 12, cx - 5, 9);
+	const pouchGradient = ctx.createLinearGradient(cx, 9, cx, 25);
+	pouchGradient.addColorStop(0, "#ffe27a");
+	pouchGradient.addColorStop(0.55, "#f4cf42");
+	pouchGradient.addColorStop(1, "#d9a524");
+	ctx.fillStyle = pouchGradient;
+	ctx.fill();
+	ctx.lineWidth = 1.5;
+	ctx.strokeStyle = "#8a6413";
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.arc(cx, 7, 2.6, 0, Math.PI * 2);
+	ctx.fillStyle = "#c69a1f";
+	ctx.fill();
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = "#8a6413";
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.arc(cx - 0.8, 6.3, 0.9, 0, Math.PI * 2);
+	ctx.fillStyle = "rgba(255,240,160,0.9)";
+	ctx.fill();
+
+	ctx.fillStyle = "#8a6413";
+	ctx.font = "700 10px Inter, sans-serif";
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.fillText("$", cx, 17);
+
+	cachedMoneyBagTexture = new THREE.CanvasTexture(canvas);
+	cachedMoneyBagTexture.colorSpace = THREE.SRGBColorSpace;
+	return cachedMoneyBagTexture;
+}
+
+function coinTexture(): THREE.CanvasTexture {
+	if (cachedCoinTexture) return cachedCoinTexture;
+
+	const canvas = document.createElement("canvas");
+	canvas.width = COIN_SPRITE_WIDTH;
+	canvas.height = COIN_PRESENTATION_HEIGHT;
+	const ctx = canvas2dContext(canvas);
+
+	const glow = ctx.createRadialGradient(
+		COIN_SPRITE_WIDTH / 2,
+		COIN_PRESENTATION_HEIGHT / 2,
+		2,
+		COIN_SPRITE_WIDTH / 2,
+		COIN_PRESENTATION_HEIGHT / 2,
+		COIN_SPRITE_WIDTH / 2,
+	);
+	glow.addColorStop(0, "rgba(244,207,66,0.55)");
+	glow.addColorStop(1, "rgba(244,207,66,0)");
+	ctx.fillStyle = glow;
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	drawCoin(ctx, 11, 9, 7);
+	drawCoin(ctx, 22, 7, 7);
+	drawCoin(ctx, 33, 9, 7);
+
+	cachedCoinTexture = new THREE.CanvasTexture(canvas);
+	cachedCoinTexture.colorSpace = THREE.SRGBColorSpace;
+	return cachedCoinTexture;
+}
+
+function drawCoin(
+	ctx: CanvasRenderingContext2D,
+	cx: number,
+	cy: number,
+	r: number,
+): void {
+	ctx.beginPath();
+	ctx.arc(cx, cy, r, 0, Math.PI * 2);
+	ctx.fillStyle = "#f4cf42";
+	ctx.fill();
+	ctx.lineWidth = 1.5;
+	ctx.strokeStyle = "#a97a14";
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.arc(cx, cy, r - 3, 0, Math.PI * 2);
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = "#e3b52c";
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.arc(cx - 1.5, cy - 1.5, r - 3.5, Math.PI * 1.1, Math.PI * 1.9);
+	ctx.strokeStyle = "rgba(255,240,160,0.9)";
+	ctx.lineWidth = 1.5;
+	ctx.stroke();
 }
 
 const DROP_RARITY_COLORS: Record<Rarity, string> = {
