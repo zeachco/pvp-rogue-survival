@@ -737,6 +737,17 @@ export class Hud {
 				hero.amulet,
 				hero.charm,
 				stats,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				hasThornsSkill(hero.learnedSkills, [
+					hero.mainHand,
+					hero.offHand,
+					hero.amulet,
+					hero.charm,
+				]),
 			),
 			<strong>Main hand</strong>,
 			equipmentSummary(hero.mainHand, stats, "main"),
@@ -1994,6 +2005,14 @@ export class Hud {
 					: 0))
 			: effectiveSkillLevel(p, "attraction");
 		const buffs = build ? undefined : activeStatBuffs(this.player, p);
+		const thornsActive = build
+			? Boolean(
+					build.skillLevels?.thorns ||
+						[main, off, amulet, charm].some((item) =>
+							item?.skills.includes("thorns"),
+						),
+				)
+			: hasThornsSkill(p.learnedSkills, [main, off, amulet, charm]);
 		const mainSummary = equipmentSummary(main, effectiveStats, "main");
 		this.activeMainHand = build ? mainSummary : undefined;
 		this.sheetNode.replaceChildren(
@@ -2053,6 +2072,7 @@ export class Hud {
 							blockingLevel,
 							attractionLevel,
 							buffs,
+							thornsActive,
 						),
 					]),
 			...(build
@@ -2438,6 +2458,12 @@ export class Hud {
 				blockingLevel,
 				attractionLevel,
 				buffs,
+				hasThornsSkill(p.learnedSkills, [
+					p.mainHand,
+					p.offHand,
+					p.amulet,
+					p.charm,
+				]),
 			);
 		}
 		current.replaceWith(
@@ -2452,6 +2478,12 @@ export class Hud {
 				blockingLevel,
 				attractionLevel,
 				buffs,
+				hasThornsSkill(this.player.progress.learnedSkills, [
+					main,
+					off,
+					amulet,
+					charm,
+				]),
 			),
 		);
 	}
@@ -2887,6 +2919,16 @@ export interface ActiveStatBuffs {
 	rapidRegen?: { multiplier: number; flat: number };
 }
 
+function hasThornsSkill(
+	learnedSkills: SkillId[],
+	items: Array<ItemInstance | undefined>,
+): boolean {
+	return (
+		learnedSkills.includes("thorns") ||
+		items.some((item) => item?.skills.includes("thorns"))
+	);
+}
+
 export function activeStatBuffs(
 	player: PlayerState | undefined,
 	progress: PlayerProgress,
@@ -2917,6 +2959,7 @@ export function effectiveStatRows(
 	blockingLevel = 0,
 	attractionLevel = 0,
 	buffs?: ActiveStatBuffs,
+	thornsActive = false,
 ): Array<[string, string]> {
 	const derived = derivedStats(stats);
 	const items = [main, off].filter(Boolean) as ItemInstance[];
@@ -3103,21 +3146,25 @@ export function effectiveStatRows(
 		],
 		[
 			"Reflection",
-			buckler && buckler.reflectionComponents.length
+			buckler?.reflectionComponents.length || thornsActive
 				? (() => {
-						const power = RARITY_POWER[buckler.rarity] * bucklerEffectiveness;
+						const power = buckler
+							? RARITY_POWER[buckler.rarity] * bucklerEffectiveness
+							: 0;
 						const multiplier = surge ? 2 : 1;
 						const parts: string[] = [];
-						if (buckler.reflectionComponents.includes("flat"))
+						if (buckler?.reflectionComponents.includes("flat"))
 							parts.push(fmt(1 * power * multiplier));
-						if (buckler.reflectionComponents.includes("strength"))
+						if (buckler?.reflectionComponents.includes("strength"))
 							parts.push(
 								`${fmt(0.2 * stats.strength * power * multiplier)} (20%×STR)`,
 							);
-						if (buckler.reflectionComponents.includes("return"))
+						if (buckler?.reflectionComponents.includes("return"))
 							parts.push(
 								`${fmt((0.15 + 0.004 * stats.agility) * power * 100 * multiplier)}% inc. (15%+0.4%×AGI)`,
 							);
+						if (thornsActive)
+							parts.push(`${fmt(5 * multiplier)}% inc. (Thorns)`);
 						if (surge) parts.push("1% inc. (Surge)");
 						return `Reflect: ${parts.join(" + ")}${surge ? " · 2× Surge" : ""}`;
 					})()
@@ -3136,6 +3183,7 @@ function effectiveStatSheet(
 	blockingLevel = 0,
 	attractionLevel = 0,
 	buffs?: ActiveStatBuffs,
+	thornsActive = false,
 ): HTMLElement {
 	const previous = new Map(baseline);
 	const rows = effectiveStatRows(
@@ -3148,6 +3196,7 @@ function effectiveStatSheet(
 		blockingLevel,
 		attractionLevel,
 		buffs,
+		thornsActive,
 	);
 	const offensive = new Set([
 		"Damage",

@@ -616,6 +616,27 @@ describe("equipment requirements", () => {
 		);
 		expect(rapid.get("Health regen")).not.toBe(base.get("Health regen"));
 	});
+	test("includes available Thorns in the effective Reflection stat", () => {
+		const withoutThorns = new Map(
+			effectiveStatRows(undefined, undefined, undefined, undefined, ZERO_STATS),
+		);
+		const withThorns = new Map(
+			effectiveStatRows(
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				ZERO_STATS,
+				undefined,
+				0,
+				0,
+				undefined,
+				true,
+			),
+		);
+		expect(withoutThorns.get("Reflection")).toBe("None");
+		expect(withThorns.get("Reflection")).toBe("Reflect: 5% inc. (Thorns)");
+	});
 	test("renders reroll attribute deltas in red and green", () => {
 		const current: ItemInstance = {
 			...generateItem(4, "rare", 702, { allowedClasses: ["sword"] }),
