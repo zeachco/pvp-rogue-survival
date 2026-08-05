@@ -32,6 +32,7 @@ import {
 	whirlwindMovementSpeed,
 	weaponSkillTriggerChance,
 	whirlwindRadius,
+	BASIC_ATTACK_RAGE_GAIN,
 } from "../../../common/combat";
 import {
 	equippedSkillLevelContribution,
@@ -869,6 +870,7 @@ export class HeroCombatSystem {
 			critical: strike.critical,
 		};
 		hero.presentAttack(Math.min(0.8, 1 / profile.attacksPerSecond));
+		hero.grantRage(BASIC_ATTACK_RAGE_GAIN);
 		const facingTarget = pointAlongFacing(
 			hero.position,
 			hero.facing,

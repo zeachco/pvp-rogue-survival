@@ -42,9 +42,12 @@ import {
 } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
 import {
+	BASIC_ATTACK_RAGE_GAIN,
 	HEALING_MAX_RADIUS,
 	healingCast,
 	healingRadius,
+	RAGE_DECAY_GRACE_SECONDS,
+	RAGE_DECAY_PER_SECOND,
 	spellPower,
 	swampRadius,
 	weaponAttackSpeed,
@@ -293,14 +296,16 @@ describe("arena systems", () => {
 		hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
 		expect(hero.velocity.x).toBe(352.5);
 	});
-	test("regenerates rage four times slower and pauses it while the hero is active", () => {
+	test("keeps rage full during the grace period then decays it without combat", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.configureStats({ ...ZERO_STATS, spirit: 10 });
-		hero.rage = 0;
-		hero.update(1, undefined, false, true);
-		expect(hero.rage).toBeCloseTo(0.3);
-		hero.update(1, undefined, false, false);
-		expect(hero.rage).toBeCloseTo(0.3);
+		hero.update(RAGE_DECAY_GRACE_SECONDS, undefined, false);
+		expect(hero.rage).toBeCloseTo(hero.maxRage);
+		hero.update(1, undefined, false);
+		expect(hero.rage).toBeCloseTo(hero.maxRage - RAGE_DECAY_PER_SECOND);
+		hero.grantRage(BASIC_ATTACK_RAGE_GAIN);
+		hero.update(1, undefined, false);
+		expect(hero.rage).toBeCloseTo(hero.maxRage);
 	});
 	test("drains combined passive upkeep and suspends effects until Mana reaches one", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -312,7 +317,7 @@ describe("arena systems", () => {
 		hero.mana = 5;
 		hero.update(1);
 		expect(hero.mana).toBeCloseTo(4.99);
-		expect(hero.rage).toBeCloseTo(0.98);
+		expect(hero.rage).toBeCloseTo(4.98);
 
 		hero.knownSkills.clear();
 		hero.skillLevels.clear();
@@ -891,7 +896,7 @@ describe("arena systems", () => {
 		);
 		expect(hero.facing).toBeLessThan(Math.PI / 2);
 	});
-	test("basic weapon attacks are free and restore their authored Rage on a damaging hit", () => {
+	test("basic weapon attacks are free and grant rage when swung", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const weapon = starterClub();
 		hero.configureStats(ZERO_STATS, undefined, weapon);
@@ -941,10 +946,10 @@ describe("arena systems", () => {
 			BALANCE,
 			new SeededRandom(1),
 		);
-		expect(hero.rage).toBe(0);
+		expect(hero.rage).toBe(BASIC_ATTACK_RAGE_GAIN);
 		for (const attack of state.attacks) attack.update(0.2);
 		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
-		expect(hero.rage).toBeCloseTo(weapon.rageCost);
+		expect(hero.rage).toBe(BASIC_ATTACK_RAGE_GAIN);
 	});
 	test("restores resources and clears transient combat state for a new realm", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -1887,7 +1892,7 @@ describe("arena systems", () => {
 		let rolls = [1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(10);
-		expect(hero.rage).toBe(5);
+		expect(hero.rage).toBe(hero.maxRage);
 		hero.damageFloorOne = true;
 		hero.receiveDamage(100, { next: () => 1 });
 		expect(hero.hp).toBe(1);
@@ -1905,7 +1910,7 @@ describe("arena systems", () => {
 		let rolls = [1, 0.999];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
-		expect(hero.rage).toBe(hero.maxRage - 1);
+		expect(hero.rage).toBe(hero.maxRage);
 		hero.rage = 0;
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.hp).toBe(hp - 10);
@@ -1921,7 +1926,7 @@ describe("arena systems", () => {
 		hero.skillLevels.set("blocking", 10);
 		const rage = hero.rage;
 		hero.receiveDamage(5, { next: () => 0.15 });
-		expect(hero.rage).toBe(rage - 1);
+		expect(hero.rage).toBe(rage);
 		expect(hero.blockCooldown).toBeCloseTo(3 - (2 * 9) / 98);
 	});
 	test("restores Penance mana from damage prevented by a successful block", () => {
@@ -1969,7 +1974,7 @@ describe("arena systems", () => {
 			kind: "physical",
 			critical: false,
 		});
-		expect(defender.rage).toBe(1);
+		expect(defender.rage).toBe(3);
 		expect(defender.reflectiveSurgeRemaining).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBeGreaterThan(0);
 		expect(attacker.hp).toBeCloseTo(before - 0.55);
@@ -1978,7 +1983,7 @@ describe("arena systems", () => {
 			kind: "physical",
 			critical: false,
 		});
-		expect(defender.rage).toBe(1);
+		expect(defender.rage).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBe(cooldown);
 	});
 
@@ -2005,7 +2010,7 @@ describe("arena systems", () => {
 		combat.syncSkills(progress, hero);
 		hero.receiveDamage(1, { next: () => 1 }, attacker);
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
-		expect(hero.rage).toBe(11);
+		expect(hero.rage).toBe(hero.maxRage);
 
 		combat.requestSpellSlot(0, progress);
 		combat.update(
@@ -2017,7 +2022,7 @@ describe("arena systems", () => {
 			BALANCE,
 			new SeededRandom(1),
 		);
-		expect(hero.rage).toBe(8);
+		expect(hero.rage).toBe(hero.maxRage - 3);
 		expect(hero.reflectiveSurgeRemaining).toBe(5);
 		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
 
@@ -2068,11 +2073,11 @@ describe("arena systems", () => {
 			new SeededRandom(1),
 		);
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
-		expect(hero.rage).toBe(11);
+		expect(hero.rage).toBe(hero.maxRage);
 
 		hero.receiveDamage(1, { next: () => 1 }, attacker);
 		expect(hero.reflectiveSurgeRemaining).toBe(5);
-		expect(hero.rage).toBe(8);
+		expect(hero.rage).toBe(hero.maxRage - 1);
 		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
 	});
 

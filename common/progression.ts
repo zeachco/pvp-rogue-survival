@@ -63,7 +63,7 @@ export function derivedStats(stats: Stats): DerivedStats {
 	return {
 		baseDamage: 1 + stats.strength * 0.2,
 		maxHp: 10 + stats.strength,
-		maxRage: 1 + stats.strength,
+		maxRage: 5 + stats.strength,
 		maxMana: 5 + stats.intelligence * 2,
 		critChance: Math.min(0.5, stats.agility * 0.01),
 		critMultiplier: 1.5 + stats.intelligence * 0.02,

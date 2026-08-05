@@ -50,8 +50,6 @@ export function resolveCombat(
 					);
 					if (dealt > 0) {
 						applyImpactForce(creep, attack.force);
-						if (!attack.skill)
-							source?.restoreRage(attack.weapon?.rageCost ?? 1);
 					}
 					if (attack.weapon && !creep.lastHitDodged) {
 						applyWeaponEffects(creep, attack.weapon, random, source);
@@ -207,8 +205,6 @@ export function resolveCombat(
 					}
 					if (dealt > 0) {
 						applyImpactForce(hit, projectile.force);
-						if (!projectile.skill)
-							projectile.source?.restoreRage(weapon?.rageCost ?? 1);
 					}
 					if (
 						projectile.skill === "arcaneBolt" &&

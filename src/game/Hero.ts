@@ -12,6 +12,13 @@ import {
 	BASE_HERO_TURN_SPEED_DEGREES,
 	heroTurnSpeedDegrees,
 } from "../../common/progression";
+import {
+	RAGE_DECAY_GRACE_SECONDS,
+	RAGE_DECAY_PER_SECOND,
+	RAGE_GAIN_ON_BLOCK,
+	RAGE_GAIN_ON_DAMAGE,
+	RAGE_GAIN_ON_DODGE,
+} from "../../common/combat";
 
 export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(
 	BASE_HERO_TURN_SPEED_DEGREES,
@@ -178,6 +185,7 @@ export class Hero extends Unit {
 		this.hp = this.maxHp;
 		this.mana = this.maxMana;
 		this.rage = this.maxRage;
+		this.rageGrace = RAGE_DECAY_GRACE_SECONDS;
 		this.statuses = [];
 		this.velocity = { x: 0, y: 0 };
 		this.active = true;
@@ -193,6 +201,34 @@ export class Hero extends Unit {
 		this.reflectiveSurgeCooldownMax = 0;
 		this.lastHitDodged = false;
 		this.immunityRemaining = 0;
+	}
+
+	protected override updateRageResource(
+		deltaSeconds: number,
+		_regenPerSecond: number,
+	): void {
+		this.rageGrace = Math.max(0, this.rageGrace - deltaSeconds);
+		if (this.rageGrace <= 0) {
+			this.rage = Math.max(
+				0,
+				Math.min(
+					this.maxRage,
+					this.rage - RAGE_DECAY_PER_SECOND * deltaSeconds,
+				),
+			);
+		}
+	}
+
+	protected override grantDefensiveRage(
+		kind: "dodge" | "block" | "damage",
+	): void {
+		const amount =
+			kind === "damage"
+				? RAGE_GAIN_ON_DAMAGE
+				: kind === "block"
+					? RAGE_GAIN_ON_BLOCK
+					: RAGE_GAIN_ON_DODGE;
+		this.grantRage(amount);
 	}
 
 	move(

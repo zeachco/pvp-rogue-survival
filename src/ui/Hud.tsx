@@ -83,6 +83,7 @@ import {
 	timeHarvestCooldownReduction,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
+	RAGE_DECAY_PER_SECOND,
 	type SkillDamagePreview,
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
@@ -294,6 +295,7 @@ export class Hud {
 			<span />
 		</div>
 	) as HTMLElement;
+	private readonly rageValue = (<small class="rage-value" />) as HTMLElement;
 	private readonly xpName = (<small />) as HTMLElement;
 	private readonly xpLevel = (<strong />) as HTMLElement;
 	private readonly xpBadge = (
@@ -520,6 +522,7 @@ export class Hud {
 				<div class="health-cluster">
 					{this.healthBar.node}
 					{this.rageLine}
+					{this.rageValue}
 				</div>
 			) as HTMLElement,
 			(
@@ -1874,6 +1877,10 @@ export class Hud {
 			this.rageLine.setAttribute("aria-valuenow", String(this.player.rage));
 			(this.rageLine.firstElementChild as HTMLElement).style.width =
 				`${rage * 100}%`;
+			setText(
+				this.rageValue,
+				`${fmt(this.player.rage)} / ${fmt(this.player.maxRage)}`,
+			);
 			this.xpBadge.style.setProperty("--xp-angle", `${xpRatio * 360}deg`);
 			this.xpBadge.setAttribute("aria-valuemax", String(needed));
 			this.xpBadge.setAttribute("aria-valuenow", String(into));
@@ -3052,7 +3059,7 @@ export function effectiveStatRows(
 			"Mana regen",
 			`${fmt(derived.manaRegen * (1 + ((main?.modifiers.manaRegenMultiplier ?? 1) - 1) * mainEffectiveness))}/s`,
 		],
-		["Rage regen", `${fmt(derived.rageRegen)}/s`],
+		["Rage decay", `−${fmt(RAGE_DECAY_PER_SECOND)}/s`],
 		["HP on kill", fmt(onKill.health)],
 		["Mana on kill", fmt(onKill.mana)],
 		["Life steal", percent(lifeSteal)],

@@ -25,6 +25,10 @@ import {
 	spiritWoundsConversionFraction,
 	skillUpkeepPerSecond,
 	weaponAttackSpeed,
+	RAGE_DECAY_GRACE_SECONDS,
+	RAGE_GAIN_ON_BLOCK,
+	RAGE_GAIN_ON_DAMAGE,
+	RAGE_GAIN_ON_DODGE,
 } from "../../common/combat";
 import { SKILLS } from "../../common/content";
 
@@ -40,8 +44,9 @@ export abstract class Unit extends GameObject {
 	maxHp: number;
 	mana = 0;
 	maxMana = 0;
-	rage = 1;
-	maxRage = 1;
+	rage = 5;
+	maxRage = 5;
+	rageGrace = RAGE_DECAY_GRACE_SECONDS;
 	stats: Stats = {
 		agility: 0,
 		strength: 0,
@@ -209,6 +214,7 @@ export abstract class Unit extends GameObject {
 				)
 		) {
 			this.lastHitDodged = true;
+			this.grantDefensiveRage("dodge");
 			this.emitOutcome("dodge", "DODGE");
 			return 0;
 		}
@@ -242,6 +248,7 @@ export abstract class Unit extends GameObject {
 			Math.max(0, incomingAmount - perks.defense) *
 			(1 - Math.min(0.5, perks[resistKey]));
 		let blockReflection = 0;
+		let blocked = false;
 		const buckler = this.offHand;
 		const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
 		if (source && incomingAmount > 0 && this.reflectiveSurgeAutomatic) {
@@ -267,8 +274,10 @@ export abstract class Unit extends GameObject {
 						: 0),
 			);
 			if (random.next() < chance) {
+				blocked = true;
 				this.emitOutcome("block", "BLOCK");
 				this.spendRage(blockCost);
+				this.grantDefensiveRage("block");
 				const attackSpeed = this.mainHand
 					? weaponAttackSpeed(this.mainHand, this.stats)
 					: 1;
@@ -353,6 +362,8 @@ export abstract class Unit extends GameObject {
 		if (remaining > 0)
 			this.emitCombatText(remaining, presentation.kind, critical);
 		const damageDealt = Math.max(0, hpBefore - this.hp);
+		if (damageDealt > 0 && !blocked && !this.lastHitDodged)
+			this.grantDefensiveRage("damage");
 		if (
 			critical &&
 			damageDealt > 0 &&
@@ -390,6 +401,13 @@ export abstract class Unit extends GameObject {
 			0,
 			Math.min(this.maxRage, this.rage + Math.max(0, amount)),
 		);
+	}
+	grantRage(amount: number): void {
+		this.restoreRage(amount);
+		this.rageGrace = RAGE_DECAY_GRACE_SECONDS;
+	}
+	protected grantDefensiveRage(kind: "dodge" | "block" | "damage"): void {
+		void kind;
 	}
 
 	configureStats(
@@ -485,11 +503,18 @@ export abstract class Unit extends GameObject {
 				this.mana + derived.manaRegen * manaMultiplier * deltaSeconds,
 			),
 		);
+		this.updateRageResource(deltaSeconds, derived.rageRegen);
+		this.updateSkillUpkeep(deltaSeconds);
+	}
+
+	protected updateRageResource(
+		deltaSeconds: number,
+		regenPerSecond: number,
+	): void {
 		this.rage = Math.max(
 			0,
-			Math.min(this.maxRage, this.rage + derived.rageRegen * deltaSeconds),
+			Math.min(this.maxRage, this.rage + regenPerSecond * deltaSeconds),
 		);
-		this.updateSkillUpkeep(deltaSeconds);
 	}
 
 	private updateSkillUpkeep(deltaSeconds: number): void {
