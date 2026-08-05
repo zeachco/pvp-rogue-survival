@@ -372,8 +372,9 @@ export const BASIC_ATTACK_RAGE_GAIN = 3;
 export const RAGE_GAIN_ON_DAMAGE = 2;
 export const RAGE_GAIN_ON_BLOCK = 1;
 export const RAGE_GAIN_ON_DODGE = 1;
-export const RAGE_DECAY_PER_SECOND = 2;
-export const RAGE_DECAY_GRACE_SECONDS = 2;
+export const RAGE_DECAY_PER_SECOND = 1;
+export const MAX_RAGE = 10;
+export const STARTING_RAGE = 5;
 export function cappedSkillLevel(level: number): number {
 	return Math.max(1, Math.min(MAX_SKILL_LEVEL, level));
 }

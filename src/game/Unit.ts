@@ -25,10 +25,8 @@ import {
 	spiritWoundsConversionFraction,
 	skillUpkeepPerSecond,
 	weaponAttackSpeed,
-	RAGE_DECAY_GRACE_SECONDS,
-	RAGE_GAIN_ON_BLOCK,
-	RAGE_GAIN_ON_DAMAGE,
-	RAGE_GAIN_ON_DODGE,
+	MAX_RAGE,
+	RAGE_DECAY_PER_SECOND,
 } from "../../common/combat";
 import { SKILLS } from "../../common/content";
 
@@ -45,8 +43,7 @@ export abstract class Unit extends GameObject {
 	mana = 0;
 	maxMana = 0;
 	rage = 5;
-	maxRage = 5;
-	rageGrace = RAGE_DECAY_GRACE_SECONDS;
+	maxRage = MAX_RAGE;
 	stats: Stats = {
 		agility: 0,
 		strength: 0,
@@ -404,7 +401,6 @@ export abstract class Unit extends GameObject {
 	}
 	grantRage(amount: number): void {
 		this.restoreRage(amount);
-		this.rageGrace = RAGE_DECAY_GRACE_SECONDS;
 	}
 	protected grantDefensiveRage(kind: "dodge" | "block" | "damage"): void {
 		void kind;
@@ -417,6 +413,7 @@ export abstract class Unit extends GameObject {
 		amulet?: ItemInstance,
 		charm?: ItemInstance,
 	): void {
+		const currentRage = this.rage;
 		this.stats = { ...stats };
 		this.offHand = offHand;
 		this.mainHand = mainHand;
@@ -435,7 +432,7 @@ export abstract class Unit extends GameObject {
 		this.maxMana = derived.maxMana;
 		this.mana = derived.maxMana;
 		this.maxRage = derived.maxRage;
-		this.rage = derived.maxRage;
+		this.rage = Math.max(0, Math.min(this.maxRage, currentRage));
 	}
 
 	updateResources(
@@ -509,11 +506,11 @@ export abstract class Unit extends GameObject {
 
 	protected updateRageResource(
 		deltaSeconds: number,
-		regenPerSecond: number,
+		_regenPerSecond: number,
 	): void {
 		this.rage = Math.max(
 			0,
-			Math.min(this.maxRage, this.rage + regenPerSecond * deltaSeconds),
+			Math.min(this.maxRage, this.rage - RAGE_DECAY_PER_SECOND * deltaSeconds),
 		);
 	}
 

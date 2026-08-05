@@ -770,7 +770,8 @@ test("derives health from Strength and mana from Intelligence", () => {
 	const base = derivedStats(ZERO_STATS);
 	expect(base.maxHp).toBe(10);
 	expect(base.maxMana).toBe(5);
-	expect(base.rageRegen).toBe(0.05);
+	expect(base.maxRage).toBe(10);
+	expect(base.rageRegen).toBe(0);
 	const advanced = derivedStats({
 		...ZERO_STATS,
 		strength: 3,
@@ -779,7 +780,7 @@ test("derives health from Strength and mana from Intelligence", () => {
 	});
 	expect(advanced.maxHp).toBe(13);
 	expect(advanced.maxMana).toBe(9);
-	expect(derivedStats({ ...ZERO_STATS, spirit: 10 }).rageRegen).toBe(0.3);
+	expect(derivedStats({ ...ZERO_STATS, spirit: 10 }).rageRegen).toBe(0);
 });
 
 test("keeps attribute roles distinct and caps critical and cooldown scaling", () => {
@@ -1768,10 +1769,11 @@ test("blood skills spend remaining HP, scale damage with the amount spent, and p
 	}
 	expect(bloodSkillLifeCost("rent", 100)).toBe(10);
 	expect(bloodSkillLifeCost("rent", 50)).toBe(5);
-	expect(bloodSkillLifeCost("vampiricBoomerang", 50)).toBe(1.5);
-	expect(bloodSkillLifeCost("vampiricBoomerang", 20)).toBe(1);
+	expect(bloodSkillLifeCost("vampiricBoomerang", 50)).toBe(5);
+	expect(bloodSkillLifeCost("vampiricBoomerang", 20)).toBe(2);
 	expect(bloodSkillLifeCost("vampiricBoomerang", 1.1)).toBeCloseTo(0.1);
 	expect(bloodSkillLifeCost("rent", 100, 0.5)).toBe(5);
+	expect(bloodSkillLifeCost("vampiricBoomerang", 50, 0.5)).toBe(2.5);
 	expect(bloodSkillDamage("rent", 1, 10, 10)).toBeGreaterThan(
 		bloodSkillDamage("rent", 1, 10, 5),
 	);

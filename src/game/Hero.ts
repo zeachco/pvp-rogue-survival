@@ -13,11 +13,11 @@ import {
 	heroTurnSpeedDegrees,
 } from "../../common/progression";
 import {
-	RAGE_DECAY_GRACE_SECONDS,
 	RAGE_DECAY_PER_SECOND,
 	RAGE_GAIN_ON_BLOCK,
 	RAGE_GAIN_ON_DAMAGE,
 	RAGE_GAIN_ON_DODGE,
+	STARTING_RAGE,
 } from "../../common/combat";
 
 export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(
@@ -178,14 +178,13 @@ export class Hero extends Unit {
 		if (preserveRatio) {
 			this.mana = Math.max(0, Math.min(this.maxMana, mana));
 			this.rage = Math.max(0, Math.min(this.maxRage, rage));
-		}
+		} else this.rage = Math.min(STARTING_RAGE, this.maxRage);
 	}
 
 	resetForRealm(): void {
 		this.hp = this.maxHp;
 		this.mana = this.maxMana;
-		this.rage = this.maxRage;
-		this.rageGrace = RAGE_DECAY_GRACE_SECONDS;
+		this.rage = STARTING_RAGE;
 		this.statuses = [];
 		this.velocity = { x: 0, y: 0 };
 		this.active = true;
@@ -207,16 +206,10 @@ export class Hero extends Unit {
 		deltaSeconds: number,
 		_regenPerSecond: number,
 	): void {
-		this.rageGrace = Math.max(0, this.rageGrace - deltaSeconds);
-		if (this.rageGrace <= 0) {
-			this.rage = Math.max(
-				0,
-				Math.min(
-					this.maxRage,
-					this.rage - RAGE_DECAY_PER_SECOND * deltaSeconds,
-				),
-			);
-		}
+		this.rage = Math.max(
+			0,
+			Math.min(this.maxRage, this.rage - RAGE_DECAY_PER_SECOND * deltaSeconds),
+		);
 	}
 
 	protected override grantDefensiveRage(

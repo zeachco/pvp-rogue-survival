@@ -1,6 +1,8 @@
 import { BALANCE, type BalanceConfig } from "../../common/balance";
 import { itemRequirementMultiplier } from "../../common/items";
 import {
+	MAX_RAGE,
+	STARTING_RAGE,
 	attractionSpeedMultiplier,
 	rollAttackStrike,
 	spellPower,
@@ -431,8 +433,8 @@ export class Game {
 				healthRegen: 0,
 				mana: 0,
 				maxMana: 0,
-				rage: 5,
-				maxRage: 5,
+				rage: STARTING_RAGE,
+				maxRage: MAX_RAGE,
 				attackProgress: 1,
 				statuses: [],
 				reflectiveSurgeRemaining: 0,

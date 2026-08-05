@@ -212,7 +212,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 260,
 		resource: "life",
 		description:
-			"Spends max(3% of remaining HP, 1 HP), then launches a huge fast crescent with half knockback. Consumed HP adds to damage at 1 + skill level / 10; it hits each foe on both legs and heals from their cumulative actual damage when it returns.",
+			"Spends max(10% of remaining HP, 1 HP), then launches a huge fast crescent with half knockback. Every 0.5 seconds it damages all overlapping foes; consumed HP adds to damage at 1 + skill level / 10, and it heals from cumulative actual damage when it returns.",
 	},
 	orbitingHammers: {
 		id: "orbitingHammers",

@@ -37,6 +37,7 @@ export function orbitingHammerRotation(
 }
 
 const PROJECTILE_GROUND_CLEARANCE = 2;
+export const VAMPIRIC_BOOMERANG_COLLISION_INTERVAL = 0.5;
 
 export function projectilePresentationCenter(
 	skill?: ProjectileSkill,
@@ -91,6 +92,7 @@ export class Projectile extends GameObject {
 	private travelled = 0;
 	private damageDealt = 0;
 	private healingFraction = 0;
+	private boomerangCollisionTimer = 0;
 	private boomerangDamageSeconds = 0;
 
 	readonly force?: ImpactForce;
@@ -470,8 +472,19 @@ export class Projectile extends GameObject {
 			this.position.x += this.velocity.x * deltaSeconds;
 			this.position.y += this.velocity.y * deltaSeconds;
 		}
-		if (this.boomerang && this.active)
-			this.boomerangDamageSeconds = deltaSeconds;
+		if (this.boomerang && this.active) {
+			this.boomerangCollisionTimer += deltaSeconds;
+			const collisionTicks = Math.floor(
+				(this.boomerangCollisionTimer + Number.EPSILON) /
+					VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
+			);
+			if (collisionTicks > 0) {
+				this.boomerangCollisionTimer -=
+					collisionTicks * VAMPIRIC_BOOMERANG_COLLISION_INTERVAL;
+				this.boomerangDamageSeconds =
+					collisionTicks * VAMPIRIC_BOOMERANG_COLLISION_INTERVAL;
+			}
+		}
 		this.lifetime -= deltaSeconds;
 		if (this.lifetime <= 0) this.active = false;
 	}
@@ -511,6 +524,7 @@ export class Projectile extends GameObject {
 		if (
 			this.skill !== "frostOrb" &&
 			this.skill !== "frostSpike" &&
+			this.skill !== "vampiricBoomerang" &&
 			!this.hammerModelLoaded
 		)
 			this.billboardGroup.quaternion.copy(cameraQuaternion);

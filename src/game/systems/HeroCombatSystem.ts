@@ -491,6 +491,13 @@ export class HeroCombatSystem {
 			Math.max(1, targetDistance),
 		);
 		hero.presentAttack(0.5);
+		if (
+			!activeSkill ||
+			(activeSkill.id !== "healing" &&
+				activeSkill.id !== "rapidRegen" &&
+				activeSkill.id !== "reflectiveSurge")
+		)
+			hero.grantRage(BASIC_ATTACK_RAGE_GAIN);
 		if (activeSkill?.id === "orbitingHammers") {
 			const sequence = this.orbitCastSequence++;
 			const lifetime = orbitingHammerDuration(activeSkill.level);
@@ -1271,7 +1278,7 @@ export function bloodSkillLifeCost(
 	const reduction = 1 - Math.min(0.9, Math.max(0, lifeCostReduction));
 	const rawCost =
 		skill === "vampiricBoomerang"
-			? Math.max(currentHp * 0.03 * reduction, 1)
+			? Math.max(currentHp * 0.1 * reduction, 1)
 			: currentHp * 0.1 * reduction;
 	return Math.min(rawCost, currentHp - 1);
 }

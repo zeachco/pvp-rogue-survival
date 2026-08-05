@@ -14,6 +14,7 @@ import {
 	orbitingHammerRotation,
 	projectilePresentationCenter,
 	Projectile,
+	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
 } from "../src/game/Projectile";
 import {
 	releaseReadySpawns,
@@ -46,7 +47,6 @@ import {
 	HEALING_MAX_RADIUS,
 	healingCast,
 	healingRadius,
-	RAGE_DECAY_GRACE_SECONDS,
 	RAGE_DECAY_PER_SECOND,
 	spellPower,
 	swampRadius,
@@ -296,16 +296,30 @@ describe("arena systems", () => {
 		hero.move({ x: 1, y: 0 }, 1, 2_000, 2_000);
 		expect(hero.velocity.x).toBe(352.5);
 	});
-	test("keeps rage full during the grace period then decays it without combat", () => {
+	test("starts Rage at five, decays at one per second, and gains three on attack", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.configureStats({ ...ZERO_STATS, spirit: 10 });
-		hero.update(RAGE_DECAY_GRACE_SECONDS, undefined, false);
-		expect(hero.rage).toBeCloseTo(hero.maxRage);
+		expect(hero.rage).toBe(5);
 		hero.update(1, undefined, false);
-		expect(hero.rage).toBeCloseTo(hero.maxRage - RAGE_DECAY_PER_SECOND);
+		expect(hero.rage).toBeCloseTo(5 - RAGE_DECAY_PER_SECOND);
 		hero.grantRage(BASIC_ATTACK_RAGE_GAIN);
 		hero.update(1, undefined, false);
-		expect(hero.rage).toBeCloseTo(hero.maxRage);
+		expect(hero.rage).toBeCloseTo(
+			5 -
+				RAGE_DECAY_PER_SECOND +
+				BASIC_ATTACK_RAGE_GAIN -
+				RAGE_DECAY_PER_SECOND,
+		);
+	});
+	test("gains two Rage from damage and one from a dodge", () => {
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats({ ...ZERO_STATS, agility: 100 });
+		hero.rage = 0;
+		hero.receiveDamage(1, { next: () => 0 });
+		expect(hero.rage).toBe(1);
+		hero.rage = 0;
+		hero.receiveDamage(1, { next: () => 1 });
+		expect(hero.rage).toBe(2);
 	});
 	test("drains combined passive upkeep and suspends effects until Mana reaches one", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -317,7 +331,7 @@ describe("arena systems", () => {
 		hero.mana = 5;
 		hero.update(1);
 		expect(hero.mana).toBeCloseTo(4.99);
-		expect(hero.rage).toBeCloseTo(4.98);
+		expect(hero.rage).toBeCloseTo(3.98);
 
 		hero.knownSkills.clear();
 		hero.skillLevels.clear();
@@ -776,7 +790,7 @@ describe("arena systems", () => {
 		).toBe(0);
 		expect(state.attacks).toHaveLength(1);
 		expect(state.attacks[0].skill).toBeUndefined();
-		expect(hero.rage).toBe(rage);
+		expect(hero.rage).toBe(rage + BASIC_ATTACK_RAGE_GAIN);
 		const rageAfterBasic = hero.rage;
 		combat.update(
 			0.2,
@@ -801,7 +815,7 @@ describe("arena systems", () => {
 		expect(
 			state.attacks.filter((attack) => attack.skill === "bash"),
 		).toHaveLength(1);
-		expect(hero.rage).toBeLessThan(rageAfterBasic);
+		expect(hero.rage).toBeGreaterThanOrEqual(rageAfterBasic);
 		expect(
 			(combat as unknown as { attackCooldown: number }).attackCooldown,
 		).toBeLessThan(1);
@@ -964,7 +978,7 @@ describe("arena systems", () => {
 		hero.resetForRealm();
 		expect(hero.hp).toBe(hero.maxHp);
 		expect(hero.mana).toBe(hero.maxMana);
-		expect(hero.rage).toBe(hero.maxRage);
+		expect(hero.rage).toBe(5);
 		expect(hero.statuses).toHaveLength(0);
 		expect(hero.velocity).toEqual({ x: 0, y: 0 });
 		expect(hero.blockCooldown).toBe(0);
@@ -1181,7 +1195,7 @@ describe("arena systems", () => {
 		expect(boomerang.active).toBeFalse();
 		expect(hero.hp).toBe(9);
 	});
-	test("Vampiric Boomerang continuously damages every creep overlapping its broad area", () => {
+	test("Vampiric Boomerang damages every overlapping creep at 0.5-second collision ticks", () => {
 		const state = new ArenaState();
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.configureStats(ZERO_STATS);
@@ -1207,8 +1221,8 @@ describe("arena systems", () => {
 				BALANCE,
 				new SeededRandom(1),
 			);
-		const first = makeCreep("first", 65);
-		const second = makeCreep("second", 80);
+		const first = makeCreep("first", 140);
+		const second = makeCreep("second", 155);
 		state.creeps.push(first, second);
 		const boomerang = Projectile.vampiricBoomerang(
 			hero,
@@ -1221,14 +1235,35 @@ describe("arena systems", () => {
 		state.projectiles.push(boomerang);
 		const firstHp = first.hp;
 		const secondHp = second.hp;
+		boomerang.update(VAMPIRIC_BOOMERANG_COLLISION_INTERVAL - 0.1);
+		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
+		expect(first.hp).toBe(firstHp);
+		expect(second.hp).toBe(secondHp);
 		boomerang.update(0.1);
 		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
-		expect(first.hp).toBeCloseTo(firstHp - 0.2);
-		expect(second.hp).toBeCloseTo(secondHp - 0.2);
-		boomerang.update(0.1);
+		expect(first.hp).toBeCloseTo(firstHp - 1);
+		expect(second.hp).toBeCloseTo(secondHp - 1);
 		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
-		expect(first.hp).toBeCloseTo(firstHp - 0.4);
-		expect(second.hp).toBeCloseTo(secondHp - 0.4);
+		expect(first.hp).toBeCloseTo(firstHp - 1);
+		expect(second.hp).toBeCloseTo(secondHp - 1);
+	});
+	test("Vampiric Boomerang stays world-up when projectiles face the camera", () => {
+		const hero = new Hero({ x: 0, y: 0 });
+		const boomerang = Projectile.vampiricBoomerang(
+			hero,
+			{ x: 100, y: 0 },
+			2,
+			100,
+			0.5,
+			starterClub(),
+		);
+		const cameraQuaternion = new THREE.Quaternion().setFromEuler(
+			new THREE.Euler(0.4, 0.2, 0.1),
+		);
+		boomerang.faceCamera(cameraQuaternion);
+		expect(
+			boomerang.mesh.children[0]?.quaternion.equals(new THREE.Quaternion()),
+		).toBeTrue();
 	});
 	test("moves Frozen Orb slowly and emits eight damaging radial spikes", () => {
 		const hero = new Hero({ x: 0, y: 0 });
@@ -1892,7 +1927,7 @@ describe("arena systems", () => {
 		let rolls = [1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(10);
-		expect(hero.rage).toBe(hero.maxRage);
+		expect(hero.rage).toBe(5);
 		hero.damageFloorOne = true;
 		hero.receiveDamage(100, { next: () => 1 });
 		expect(hero.hp).toBe(1);
@@ -1910,14 +1945,14 @@ describe("arena systems", () => {
 		let rolls = [1, 0.999];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
-		expect(hero.rage).toBe(hero.maxRage);
+		expect(hero.rage).toBe(5);
 		hero.rage = 0;
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.hp).toBe(hp - 10);
-		expect(hero.rage).toBe(0);
+		expect(hero.rage).toBe(2);
 		hero.rage = 1;
 		hero.receiveDamage(10, { next: () => 1 });
-		expect(hero.rage).toBe(1);
+		expect(hero.rage).toBe(3);
 	});
 	test("adds one block-chance percentage point per effective Blocking level", () => {
 		const hero = new Hero({ x: 50, y: 50 });
@@ -2010,7 +2045,7 @@ describe("arena systems", () => {
 		combat.syncSkills(progress, hero);
 		hero.receiveDamage(1, { next: () => 1 }, attacker);
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
-		expect(hero.rage).toBe(hero.maxRage);
+		expect(hero.rage).toBe(7);
 
 		combat.requestSpellSlot(0, progress);
 		combat.update(
@@ -2022,7 +2057,7 @@ describe("arena systems", () => {
 			BALANCE,
 			new SeededRandom(1),
 		);
-		expect(hero.rage).toBe(hero.maxRage - 3);
+		expect(hero.rage).toBe(4);
 		expect(hero.reflectiveSurgeRemaining).toBe(5);
 		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
 
@@ -2073,11 +2108,11 @@ describe("arena systems", () => {
 			new SeededRandom(1),
 		);
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
-		expect(hero.rage).toBe(hero.maxRage);
+		expect(hero.rage).toBe(5);
 
 		hero.receiveDamage(1, { next: () => 1 }, attacker);
 		expect(hero.reflectiveSurgeRemaining).toBe(5);
-		expect(hero.rage).toBe(hero.maxRage - 1);
+		expect(hero.rage).toBe(4);
 		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
 	});
 
