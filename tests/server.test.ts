@@ -656,6 +656,34 @@ describe("realm game service", () => {
 			sender.progress.inventoryTiles.some((tile) => tile.id === "bulk-tile"),
 		).toBeFalse();
 	});
+	test("rerolls an inventory item through the rerollItem message at no Soul cost", () => {
+		const { game } = harness();
+		const player = game.join("Reroller");
+		const item = {
+			...generateItem(6, "rare", 901, { allowedClasses: ["mace"] }),
+			requirements: {},
+		};
+		player.progress.inventoryTiles.push({
+			id: "reroll-tile",
+			key: itemStackKey(item),
+			item,
+			quantity: 2,
+		});
+		const before = player.progress.inventoryTiles.length;
+		game.handle(player.id, { type: "rerollItem", tileId: "reroll-tile" });
+		expect(player.progress.souls).toBe(0);
+		const source = player.progress.inventoryTiles.find(
+			(tile) => tile.id === "reroll-tile",
+		);
+		expect(source?.quantity).toBe(1);
+		expect(player.progress.inventoryTiles.length).toBe(before + 1);
+		const rerolled = player.progress.inventoryTiles.find(
+			(tile) => tile.id !== "reroll-tile" && tile.item.definitionId === "mace",
+		);
+		expect(rerolled?.item.level).toBe(6);
+		expect(rerolled?.item.rarity).toBe("rare");
+		expect(rerolled?.key).not.toBe(source?.key);
+	});
 	test("maps each sent item rarity to its configured XP multiplier", () => {
 		const { game } = harness();
 		const player = game.join("Multiplier");

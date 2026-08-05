@@ -12,6 +12,7 @@ export interface HudCallbacks {
 	onUpgrade(tileId: string, bulk: boolean): void;
 	onSend(tileId: string, bulk: boolean): void;
 	onExtract(tileId: string, bulk: boolean): void;
+	onReroll(tileId: string, bulk: boolean): void;
 	onPromoteScrap(target: Rarity, bulk: boolean): void;
 	onSetRarityAction(rarity: Rarity, action: RarityAction): void;
 	onLeaveRealm(): void;

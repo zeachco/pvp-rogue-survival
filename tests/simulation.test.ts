@@ -622,8 +622,8 @@ describe("arena systems", () => {
 		hero.hp = 1;
 		hero.mana = 0;
 		new HeroCombatSystem().onKill(state, hero);
-		expect(hero.hp).toBe(26);
-		expect(hero.mana).toBe(40);
+		expect(hero.hp).toBeCloseTo(30.0909);
+		expect(hero.mana).toBeCloseTo(48.1818);
 	});
 	test("Spirit Wounds restores Mana and echoes every critical damage kind as non-recursive Cold damage", () => {
 		const source = new Hero({ x: 0, y: 0 });

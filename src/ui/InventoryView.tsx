@@ -102,6 +102,7 @@ export function itemTile(
 					<button type="button">Purge</button>
 					<button type="button">Upgrade</button>
 					<button type="button">Send</button>
+					<button type="button">Reroll</button>
 					{skills.length ? <button type="button">Extract</button> : null}
 				</div>
 			</div>
@@ -136,7 +137,7 @@ export function itemTile(
 		};
 	}
 	if (spare <= 0)
-		for (const index of [0, 1, 3, 4])
+		for (const index of [0, 1, 3, 5])
 			if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
 	const sendButton = buttons[3] as HTMLButtonElement | undefined;
 	if (sendButton && !canSend) {
@@ -173,8 +174,9 @@ export function itemTile(
 	bindBulk(1, callbacks.onPurge);
 	bindBulk(2, callbacks.onUpgrade);
 	bindBulk(3, callbacks.onSend);
-	bindBulk(4, callbacks.onExtract);
-	const extractButton = buttons[4] as HTMLButtonElement | undefined;
+	bindBulk(4, callbacks.onReroll);
+	bindBulk(5, callbacks.onExtract);
+	const extractButton = buttons[5] as HTMLButtonElement | undefined;
 	if (extractButton && extractStatus === "needs-gold") {
 		extractButton.disabled = true;
 		extractButton.title = `Extracting costs ${extractCost} gold`;
@@ -254,7 +256,8 @@ export function itemTile(
 		},
 	);
 	bindActionPreview(3);
-	bindActionPreview(4, { gold: -extractCost }, () => {
+	bindActionPreview(4);
+	bindActionPreview(5, { gold: -extractCost }, () => {
 		onSpellPreview?.(skills);
 		highlightExtractableSkills(true);
 	});

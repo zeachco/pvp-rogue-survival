@@ -157,7 +157,8 @@ const tileCommand = (
 		| "purgeItem"
 		| "upgradeItem"
 		| "sendItem"
-		| "extractSkill",
+		| "extractSkill"
+		| "rerollItem",
 ) =>
 	z.object({
 		type: z.literal(type),
@@ -187,6 +188,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	tileCommand("upgradeItem"),
 	tileCommand("sendItem"),
 	tileCommand("extractSkill"),
+	tileCommand("rerollItem"),
 	z.object({
 		type: z.literal("heroDefeated"),
 		sourceUnitId: z.string().optional(),
@@ -270,7 +272,8 @@ export type ClientMessage =
 				| "purgeItem"
 				| "upgradeItem"
 				| "sendItem"
-				| "extractSkill";
+				| "extractSkill"
+				| "rerollItem";
 			tileId: string;
 			bulk?: boolean;
 	  }

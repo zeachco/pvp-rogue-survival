@@ -97,6 +97,7 @@ import {
 	isEquippedTile,
 	occupiedInventorySlots,
 	purgeFromInventory,
+	rerollFromInventory,
 	sellFromInventory,
 	sendFromInventory,
 	upgradeCosts,
@@ -116,6 +117,7 @@ import {
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
+	rerollItem,
 	starterClub,
 } from "../common/items";
 import {
@@ -555,7 +557,40 @@ describe("equipment requirements", () => {
 			).get("Frost resist"),
 		).toBe("Immune");
 	});
-	test("permits under-requirement equipment and scales item output by missing stat plus one", () => {
+	test("caps every generated and upgraded requirement at 100 per stat", () => {
+		const generated = [
+			...Array.from({ length: 500 }, (_, seed) =>
+				generateItem(50, "epic", seed),
+			),
+			...Array.from({ length: 500 }, (_, seed) =>
+				generateItem(50, "epic", seed, { allowedClasses: ["scepter"] }),
+			),
+			...Array.from({ length: 500 }, (_, seed) =>
+				generateBuckler(50, "epic", seed),
+			),
+			...Array.from({ length: 500 }, (_, seed) =>
+				generateAccessory(50, "epic", seed),
+			),
+		];
+		expect(
+			generated.every((item) =>
+				Object.values(item.requirements).every(
+					(value) => value >= 0 && value <= 100,
+				),
+			),
+		).toBeTrue();
+		const upgraded = levelUpItem(generateItem(50, "epic", 19), 999);
+		expect(
+			Object.values(upgraded.requirements).every((value) => value <= 100),
+		).toBeTrue();
+		expect(
+			itemRequirementMultiplier(
+				{ ...starterClub(), requirements: { strength: 100 } },
+				ZERO_STATS,
+			),
+		).toBe(0.1);
+	});
+	test("permits under-requirement equipment and scales item output by one tenth of the missing stat", () => {
 		const state = progress();
 		state.level = 100;
 		const sword = {
@@ -570,9 +605,9 @@ describe("equipment requirements", () => {
 			item: sword,
 			quantity: 1,
 		});
-		expect(itemRequirementMultiplier(sword, state.stats)).toBeCloseTo(1 / 3);
+		expect(itemRequirementMultiplier(sword, state.stats)).toBeCloseTo(1 / 1.2);
 		expect(equipFromInventory(state, "penalized").changed).toBeTrue();
-		expect(equippedPerks(state.stats, sword).defense).toBeCloseTo(3);
+		expect(equippedPerks(state.stats, sword).defense).toBeCloseTo(7.5);
 	});
 	test("never reduces weapon damage below that weapon's level-zero value", () => {
 		const sword = {
@@ -904,6 +939,95 @@ describe("permanent inventory", () => {
 		);
 		expect(upgraded?.quantity).toBe(1);
 		expect(isEquippedTile(state, upgraded!)).toBeTrue();
+		expect(
+			state.inventoryTiles.some((candidate) => candidate.id === tile.id),
+		).toBeFalse();
+	});
+	test("rerolls a similar item of the same level, rarity, and class with new attributes", () => {
+		const item = generateItem(12, "rare", 501, { allowedClasses: ["axe"] });
+		const rerolled = rerollItem(item, 502);
+		expect(rerolled.itemKind).toBe(item.itemKind);
+		expect(rerolled.definitionId).toBe(item.definitionId);
+		expect(rerolled.level).toBe(item.level);
+		expect(rerolled.rarity).toBe(item.rarity);
+		expect(rerolled.id).not.toBe(item.id);
+		const keys = new Set(
+			Array.from({ length: 100 }, (_, seed) =>
+				itemStackKey(rerollItem(item, 2000 + seed)),
+			),
+		);
+		expect(keys.size).toBeGreaterThan(5);
+		const buckler = generateBuckler(8, "epic", 503);
+		const rerolledBuckler = rerollItem(buckler, 504);
+		expect(rerolledBuckler.itemKind).toBe("buckler");
+		expect(rerolledBuckler.level).toBe(8);
+		expect(rerolledBuckler.rarity).toBe("epic");
+	});
+	test("rerolls a spare inventory copy into a new stack at no cost", () => {
+		const state = progress();
+		const item = {
+			...generateItem(4, "rare", 81, { allowedClasses: ["sword"] }),
+			requirements: {},
+		};
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		collectIntoInventory(
+			state,
+			{ ...item, id: "copy" },
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles[0];
+		const souls = state.souls;
+		const result = rerollFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 505,
+		);
+		expect(result.changed).toBeTrue();
+		expect(state.souls).toBe(souls);
+		expect(state.inventoryTiles.length).toBe(2);
+		expect(
+			state.inventoryTiles.reduce(
+				(sum, candidate) => sum + candidate.quantity,
+				0,
+			),
+		).toBe(2);
+		expect(state.inventoryTiles[1].key).not.toBe(tile.key);
+		expect(state.inventoryTiles[0].quantity).toBe(1);
+	});
+	test("rerolls a lone equipped copy in place without freeing an extra slot", () => {
+		const state = progress();
+		const item = { ...generateItem(1, "common", 141), requirements: {} };
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles[0];
+		expect(equipFromInventory(state, tile.id).changed).toBeTrue();
+		const result = rerollFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 507,
+		);
+		expect(result.changed).toBeTrue();
+		expect(state.mainHand?.level).toBe(item.level);
+		expect(state.mainHand?.rarity).toBe(item.rarity);
+		expect(itemStackKey(state.mainHand!)).toBe(
+			itemStackKey(
+				state.inventoryTiles.find((candidate) =>
+					isEquippedTile(state, candidate),
+				)!.item,
+			),
+		);
 		expect(
 			state.inventoryTiles.some((candidate) => candidate.id === tile.id),
 		).toBeFalse();

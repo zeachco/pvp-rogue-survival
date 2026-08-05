@@ -140,6 +140,8 @@ export class Game {
 				this.socket.send({ type: "sendItem", tileId, bulk }),
 			onExtract: (tileId, bulk) =>
 				this.socket.send({ type: "extractSkill", tileId, bulk }),
+			onReroll: (tileId, bulk) =>
+				this.socket.send({ type: "rerollItem", tileId, bulk }),
 			onPromoteScrap: (target, bulk) =>
 				this.socket.send({ type: "promoteScrap", target, bulk }),
 			onSetRarityAction: (rarity, action) =>

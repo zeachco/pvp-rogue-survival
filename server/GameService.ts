@@ -11,6 +11,7 @@ import {
 	purgeFromInventory,
 	purgeYield,
 	removeEmptyInventoryTiles,
+	rerollFromInventory,
 	sellFromInventory,
 	sendFromInventory,
 	upgradeFromInventory,
@@ -294,6 +295,15 @@ export class GameService {
 				case "extractSkill":
 					return this.applyInventoryAction(player, message.bulk, () =>
 						extractFromInventory(player.progress, message.tileId),
+					);
+				case "rerollItem":
+					return this.applyInventoryAction(player, message.bulk, () =>
+						rerollFromInventory(
+							player.progress,
+							message.tileId,
+							() => this.createId(),
+							() => this.seed(),
+						),
 					);
 				case "sendItem":
 					return this.sendItem(player, message.tileId, message.bulk);

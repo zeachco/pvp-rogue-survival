@@ -2,6 +2,7 @@ import {
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
+	rerollItem,
 	type ItemInstance,
 	type Rarity,
 	type SkillId,
@@ -18,6 +19,7 @@ export interface InventoryResult {
 }
 export const sellYield = (item: ItemInstance): number => item.sellValue * 10;
 export const SCRAP_PROMOTION_COST = 100;
+export const REROLL_SOUL_COST = 0;
 export interface ScrapPromotionResult {
 	changed: boolean;
 	promotions: number;
@@ -313,6 +315,74 @@ export function upgradeFromInventory(
 	return {
 		changed: true,
 		reason: `Upgraded ${tile.item.name} to level ${created.level}.`,
+		created,
+	};
+}
+
+export function rerollFromInventory(
+	progress: PlayerProgress,
+	tileId: string,
+	nextId: () => string,
+	nextSeed: () => number,
+): InventoryResult {
+	const tile = findTile(progress, tileId);
+	if (!tile || tile.quantity <= 0) return missing();
+	if (progress.souls < REROLL_SOUL_COST)
+		return {
+			changed: false,
+			reason: `Rerolling costs ${REROLL_SOUL_COST} Soul.`,
+		};
+	const created = rerollItem(tile.item, nextSeed());
+	const existing = progress.inventoryTiles.find(
+		(candidate) => candidate.key === itemStackKey(created),
+	);
+	const outputOccupiesSlot = !existing || existing.quantity === 0;
+	const sourceFreesSlot = tile.quantity === 1;
+	if (
+		occupiedInventorySlots(progress) -
+			Number(sourceFreesSlot) +
+			Number(outputOccupiesSlot) >
+		inventoryCapacity(progress.level)
+	)
+		return {
+			changed: false,
+			reason: "No inventory slot is available for the rerolled item.",
+		};
+	const rerollsEquippedCopy = tile.quantity <= equippedCopies(progress, tile);
+	const rerollsMainHand =
+		rerollsEquippedCopy &&
+		Boolean(progress.mainHand && itemStackKey(progress.mainHand) === tile.key);
+	const rerollsOffHand =
+		rerollsEquippedCopy &&
+		Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key);
+	const rerollsAmulet =
+		rerollsEquippedCopy &&
+		Boolean(progress.amulet && itemStackKey(progress.amulet) === tile.key);
+	const rerollsCharm =
+		rerollsEquippedCopy &&
+		Boolean(progress.charm && itemStackKey(progress.charm) === tile.key);
+	progress.souls -= REROLL_SOUL_COST;
+	tile.quantity -= 1;
+	if (existing) existing.quantity += 1;
+	else
+		progress.inventoryTiles.push({
+			id: nextId(),
+			key: itemStackKey(created),
+			item: created,
+			quantity: 1,
+		});
+	if (rerollsMainHand)
+		progress.mainHand = { ...created, id: `${created.id}-equipped` };
+	if (rerollsOffHand)
+		progress.offHand = { ...created, id: `${created.id}-equipped` };
+	if (rerollsAmulet)
+		progress.amulet = { ...created, id: `${created.id}-equipped` };
+	if (rerollsCharm)
+		progress.charm = { ...created, id: `${created.id}-equipped` };
+	removeEmptyInventoryTiles(progress);
+	return {
+		changed: true,
+		reason: `Rerolled ${tile.item.name} into ${created.name}.`,
 		created,
 	};
 }

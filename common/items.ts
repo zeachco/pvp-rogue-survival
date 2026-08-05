@@ -107,6 +107,7 @@ export const MAX_ITEM_LEVEL: Record<Rarity, number> = {
 	rare: 30,
 	epic: 50,
 };
+export const MAX_ITEM_REQUIREMENT = 100;
 export const nextRarity = (rarity: Rarity): Rarity | undefined =>
 	RARITIES[RARITIES.indexOf(rarity) + 1];
 export const weaponLevelScale = (level: number): number =>
@@ -303,7 +304,12 @@ export function generateBuckler(
 			weight: 0,
 			affixes: [],
 			requirements: level
-				? { strength: Math.max(1, Math.floor(level * 0.35 * power)) }
+				? {
+						strength: Math.min(
+							MAX_ITEM_REQUIREMENT,
+							Math.max(1, Math.floor(level * 0.35 * power)),
+						),
+					}
 				: {},
 			statBonuses: {},
 			modifiers: {
@@ -390,7 +396,12 @@ export function generateRelic(
 			weight: 0,
 			affixes: [],
 			requirements: level
-				? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) }
+				? {
+						spirit: Math.min(
+							MAX_ITEM_REQUIREMENT,
+							Math.max(1, Math.floor(level * 0.35 * power)),
+						),
+					}
 				: {},
 			statBonuses: { spirit: Math.max(1, Math.round(power)) },
 			modifiers,
@@ -528,9 +539,9 @@ export function generateAccessory(
 			affixes: [],
 			requirements: level
 				? {
-						spirit: Math.max(
-							1,
-							Math.floor(level * 0.25 * RARITY_POWER[rarity]),
+						spirit: Math.min(
+							MAX_ITEM_REQUIREMENT,
+							Math.max(1, Math.floor(level * 0.25 * RARITY_POWER[rarity])),
 						),
 					}
 				: {},
@@ -614,6 +625,27 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
 	return preserveRolledTraits(base, next);
 }
 
+export function rerollItem(item: ItemInstance, seed: number): ItemInstance {
+	if (item.definitionId === "scepter")
+		return buildWeapon(
+			"scepter",
+			item.level,
+			item.rarity,
+			seed,
+			[],
+			seed % 1e8,
+		);
+	if (item.itemKind === "buckler")
+		return generateBuckler(item.level, item.rarity, seed);
+	if (item.itemKind === "relic")
+		return generateRelic(item.level, item.rarity, seed);
+	if (item.itemKind === "amulet" || item.itemKind === "charm")
+		return generateAccessory(item.level, item.rarity, seed, item.itemKind);
+	return generateItem(item.level, item.rarity, seed, {
+		allowedClasses: [item.definitionId as WeaponClass],
+	});
+}
+
 export function changeItemRarity(
 	base: ItemInstance,
 	rarity: Rarity,
@@ -687,7 +719,12 @@ function buildWeapon(
 				weight: 0,
 				affixes: [],
 				requirements: level
-					? { spirit: Math.max(1, Math.floor(level * 0.35 * power)) }
+					? {
+							spirit: Math.min(
+								MAX_ITEM_REQUIREMENT,
+								Math.max(1, Math.floor(level * 0.35 * power)),
+							),
+						}
 					: {},
 				statBonuses: {
 					spirit: Math.max(1, Math.round(power * (1 + level * 0.04))),
@@ -729,9 +766,9 @@ function buildWeapon(
 		modifiers[key] *= levelScale;
 	const requirements: Partial<Record<StatKey, number>> = {};
 	if (data.requirement && level > 0)
-		requirements[data.requirement] = Math.max(
-			1,
-			Math.floor(level * 0.6 * power),
+		requirements[data.requirement] = Math.min(
+			MAX_ITEM_REQUIREMENT,
+			Math.max(1, Math.floor(level * 0.6 * power)),
 		);
 	return {
 		id: `item-${seed}-${suffix}`,
@@ -798,7 +835,7 @@ export function itemRequirementMultiplier(
 		0.1,
 		Object.entries(item.requirements).reduce((multiplier, [key, required]) => {
 			const delta = Math.max(0, (required ?? 0) - stats[key as StatKey]);
-			return multiplier / (delta + 1);
+			return multiplier / (1 + 0.1 * delta);
 		}, 1),
 	);
 }
@@ -999,7 +1036,10 @@ function preserveRolledTraits(
 	const requirements = Object.fromEntries(
 		Object.entries(base.requirements).map(([key, value]) => [
 			key,
-			Math.max(value ?? 0, Math.ceil((value ?? 0) * levelRatio)),
+			Math.min(
+				MAX_ITEM_REQUIREMENT,
+				Math.max(value ?? 0, Math.ceil((value ?? 0) * levelRatio)),
+			),
 		]),
 	) as Partial<Record<StatKey, number>>;
 	return {
@@ -1064,7 +1104,10 @@ function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 		else perks[key] = max[key] * factor;
 		const need = Math.ceil((5 * item.level * factor) / attrs[key].length);
 		for (const attr of attrs[key])
-			requirements[attr] = Math.max(requirements[attr] ?? 0, need);
+			requirements[attr] = Math.min(
+				MAX_ITEM_REQUIREMENT,
+				Math.max(requirements[attr] ?? 0, need),
+			);
 	}
 	return ensureUpgradableAttribute(
 		{ ...item, perks, immunities, requirements },
