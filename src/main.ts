@@ -9,4 +9,8 @@ if (!canvas || !hudRoot) {
 }
 
 const game = new Game(canvas, hudRoot);
-game.start();
+void game.start().catch((error: unknown) => {
+	const message = error instanceof Error ? error.message : String(error);
+	hudRoot.textContent = `Unable to start the game: ${message}`;
+	console.error(error);
+});

@@ -216,7 +216,8 @@ export class Game {
 		pad.addEventListener("pointercancel", release);
 	}
 
-	start(): void {
+	async start(): Promise<void> {
+		await this.renderer.init();
 		this.resize();
 		window.addEventListener("contextmenu", (event) => event.preventDefault());
 		window.addEventListener("resize", () => this.resize());

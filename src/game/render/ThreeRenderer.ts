@@ -116,6 +116,10 @@ export class ThreeRenderer {
 		this.updateCameraTransform();
 	}
 
+	async init(): Promise<void> {
+		// Kept asynchronous for a future WebGPU retry once loaded models are compatible.
+	}
+
 	resize(w: number, h: number): void {
 		this.width = w;
 		this.height = h;
