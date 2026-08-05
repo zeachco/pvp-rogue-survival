@@ -192,6 +192,7 @@ export class Hero extends Unit {
 		this.reflectiveSurgeCooldown = 0;
 		this.reflectiveSurgeCooldownMax = 0;
 		this.lastHitDodged = false;
+		this.immunityRemaining = 0;
 	}
 
 	move(

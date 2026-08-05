@@ -29,6 +29,7 @@ export function extractButtonStatus(
 	if (tile.quantity <= equippedCopies) return "equipped-only";
 	if (
 		tile.item.rarity !== "epic" &&
+		tile.item.rarity !== "unique" &&
 		skills.some((skill) => !progress.learnedSkills.includes(skill))
 	)
 		return "unlearned-skill";

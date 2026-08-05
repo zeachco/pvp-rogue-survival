@@ -123,6 +123,7 @@ export class Game {
 		this.renderer = new ThreeRenderer(this.canvas);
 		this.renderer.scene.add(this.map.mesh);
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
+		this.attachRadialReflect(this.hero);
 		this.hud = new Hud(hudRoot, {
 			onJoin: (name) => this.join(name),
 			onAllocation: (allocation) =>
@@ -565,6 +566,7 @@ export class Game {
 		}
 		this.waveMode = wave.mode;
 		enqueueWave(this.arena, wave, performance.now());
+		this.hero.currentWave = wave.waveNumber;
 		if (this.player) {
 			this.player.waveNumber = wave.waveNumber;
 			this.hud.setPlayer(this.player);
@@ -652,7 +654,7 @@ export class Game {
 			swamp.update(deltaSeconds, this.creeps);
 		for (const creep of this.creeps) {
 			if (!creep.active) continue;
-			creep.castHealing(this.creeps, this.arena.spellEffects);
+			creep.castHealing(this.creeps, this.arena.spellEffects, this.hero);
 			const attack = creep.pursue(
 				this.hero.position,
 				deltaSeconds,
@@ -942,7 +944,25 @@ export class Game {
 			this.waveMode === "training" ? 0.5 : 1,
 		);
 		creep.onCombatText = (text) => this.arena.addCombatText(text);
+		creep.radialReflect = (reflected, random, kind) => {
+			if (
+				!this.hero.active ||
+				distance(creep.position, this.hero.position) > 300
+			)
+				return;
+			this.hero.receiveDamage(reflected, random, creep, false, false, { kind });
+		};
 		this.creeps.push(creep);
+	}
+	private attachRadialReflect(hero: Hero): void {
+		hero.radialReflect = (reflected, random, kind) => {
+			if (!hero.active) return;
+			for (const creep of this.creeps)
+				if (creep.active && distance(hero.position, creep.position) <= 300)
+					creep.receiveDamage(reflected, random, hero, false, false, {
+						kind,
+					});
+		};
 	}
 	private handleDefeat(): void {
 		if (this.waveMode === "training") return;
@@ -965,6 +985,7 @@ export class Game {
 		this.auraSystem.reset();
 		this.hero = new Hero(this.map.center);
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
+		this.attachRadialReflect(this.hero);
 		this.hero.applyProgress(this.player!.progress);
 		this.clearInspection();
 		this.socket.send({ type: "requestWave" });

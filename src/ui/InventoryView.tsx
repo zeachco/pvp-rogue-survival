@@ -148,18 +148,26 @@ export function itemTile(
 	const upgradeButton = buttons[2] as HTMLButtonElement | undefined;
 	if (
 		upgradeButton &&
-		item.rarity === "epic" &&
-		item.level >= MAX_ITEM_LEVEL.epic
+		((item.rarity === "epic" && item.level >= MAX_ITEM_LEVEL.epic) ||
+			(item.rarity === "unique" && item.level >= MAX_ITEM_LEVEL.unique))
 	) {
 		upgradeButton.disabled = true;
-		upgradeButton.title = "Maximum Epic level reached";
+		upgradeButton.title =
+			item.rarity === "unique"
+				? "Maximum Unique level reached"
+				: "Maximum Epic level reached";
 	}
 	if (
 		upgradeButton &&
-		(progress.gold < costs.gold || progress.scraps[item.rarity] < costs.scraps)
+		(progress.gold < costs.gold ||
+			progress.scraps[item.rarity] < costs.scraps ||
+			progress.souls < costs.souls)
 	) {
 		upgradeButton.disabled = true;
-		upgradeButton.title = `Requires ${costs.gold} gold and ${costs.scraps} ${item.rarity} scraps`;
+		upgradeButton.title =
+			costs.souls > 0
+				? `Requires ${costs.souls} Soul`
+				: `Requires ${costs.gold} gold and ${costs.scraps} ${item.rarity} scraps`;
 	}
 	const bindBulk = (
 		index: number,
@@ -248,13 +256,13 @@ export function itemTile(
 	upgradePreview?.addEventListener("mouseleave", () =>
 		previewUpgradeCard(false),
 	);
-	bindActionPreview(
-		2,
-		{ gold: -costs.gold, [item.rarity]: -costs.scraps },
-		() => {
-			if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade");
-		},
-	);
+	const upgradeCurrency: CurrencyPreview =
+		costs.souls > 0
+			? { souls: -costs.souls }
+			: { gold: -costs.gold, [item.rarity]: -costs.scraps };
+	bindActionPreview(2, upgradeCurrency, () => {
+		if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade");
+	});
 	bindActionPreview(3);
 	bindActionPreview(4);
 	bindActionPreview(5, { gold: -extractCost }, () => {

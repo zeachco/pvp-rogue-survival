@@ -4,4 +4,6 @@
 
 **Effect:** the cast creates one stationary swamp for 8 seconds. Its radius scales linearly from 4 m at level 1 to 10 m at level 99. Creeps inside have their movement speed multiplied by 0.5, stacking multiplicatively with existing aura movement slow. Each creep tracks continuous time inside a particular swamp; every completed second adds one independent standard Poison stack from the caster (24 seconds, `0.2 + 0.02 * caster Spirit` damage per second, amplified by Voodoo when present). Leaving the swamp resets that swamp's occupancy timer for that creep. A swamp does not directly deal hit damage, affect heroes, slow attacks, or move units.
 
+**Unique variant (Unique Voodoo Doll relic):** the gooey swamp is cast centered on the caster instead of at the closest enemy, follows the caster for its full 8-second duration, and its radius is 4× the normal effective radius (16 m at level 1 to 40 m at level 99). Poison, slow, occupancy tracking, and duration are otherwise unchanged.
+
 **Presentation:** render the swamp as a large dark, irregular oval on the arena ground, before drops, creeps, attacks, projectiles, and units. It is distinct from the hero-centered aura fields and remains at its cast position.

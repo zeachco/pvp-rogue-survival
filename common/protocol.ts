@@ -179,7 +179,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("deferDrop"), dropId: z.string().min(1) }),
 	z.object({
 		type: z.literal("promoteScrap"),
-		target: z.enum(["common", "uncommon", "rare", "epic"]),
+		target: z.enum(["common", "uncommon", "rare", "epic", "unique"]),
 		bulk: z.boolean().optional(),
 	}),
 	tileCommand("equipItem"),
@@ -221,7 +221,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	}),
 	z.object({
 		type: z.literal("setRarityAction"),
-		rarity: z.enum(["common", "uncommon", "rare", "epic"]),
+		rarity: z.enum(["common", "uncommon", "rare", "epic", "unique"]),
 		action: z.enum(["keep", "auto-sell", "auto-purge", "auto-send"]),
 	}),
 	z.object({ type: z.literal("chat"), text: z.string().min(1).max(200) }),

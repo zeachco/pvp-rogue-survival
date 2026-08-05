@@ -634,7 +634,11 @@ export class Creep extends Unit {
 		return undefined;
 	}
 
-	castHealing(allies: readonly Creep[], effects: SpellEffect[]): boolean {
+	castHealing(
+		allies: readonly Creep[],
+		effects: SpellEffect[],
+		enemy?: Unit,
+	): boolean {
 		const level = this.skillLevels.get("healing") ?? 0;
 		if (
 			!this.active ||
@@ -653,6 +657,7 @@ export class Creep extends Unit {
 		);
 		if (cast.restoredHp <= 0 || this.mana < cast.manaCost) return false;
 		this.spendMana(cast.manaCost);
+		const hpBeforeHeal = this.hp;
 		const radius = healingRadius(level);
 		for (const ally of allies)
 			if (ally.active && distance(this.position, ally.position) <= radius) {
@@ -661,6 +666,17 @@ export class Creep extends Unit {
 						.restoredHp,
 				);
 			}
+		const restored = this.hp - hpBeforeHeal;
+		if (
+			restored > 0 &&
+			enemy?.active &&
+			this.mainHand?.definitionId === "mace" &&
+			this.mainHand.rarity === "unique" &&
+			distance(this.position, enemy.position) <= radius
+		)
+			enemy.receiveDamage(restored * 0.25, this.random, this, false, false, {
+				kind: "magic",
+			});
 		effects.push(new SpellEffect("healing", this.position, 0, radius));
 		this.healingCooldown = healingCooldown(level);
 		return true;

@@ -82,6 +82,7 @@ export class Projectile extends GameObject {
 	private orbiting = false;
 	private orbitAngularDrift = 0;
 	private orbitCenter?: Vector2;
+	private followSource = false;
 	private spikeTimer = 0;
 	private readonly hitTargets = new Set<string>();
 	private boomerang = false;
@@ -337,6 +338,7 @@ export class Projectile extends GameObject {
 		presentation: DamagePresentation,
 		angularDrift = 0,
 		lifetime = 2.4,
+		followSource = false,
 	): Projectile {
 		const projectile = new Projectile(
 			source.position,
@@ -355,6 +357,7 @@ export class Projectile extends GameObject {
 		projectile.orbitAngularDrift = angularDrift;
 		projectile.orbitAge = 0;
 		projectile.lifetime = lifetime;
+		projectile.followSource = followSource;
 		projectile.position.x = source.position.x + Math.cos(angle) * 28;
 		projectile.position.y = source.position.y + Math.sin(angle) * 28;
 		return projectile;
@@ -430,6 +433,10 @@ export class Projectile extends GameObject {
 
 	update(deltaSeconds: number): void {
 		if (this.orbiting && this.orbitCenter) {
+			if (this.followSource && this.source) {
+				this.orbitCenter.x = this.source.position.x;
+				this.orbitCenter.y = this.source.position.y;
+			}
 			this.orbitAge += deltaSeconds;
 			this.orbitAngle += deltaSeconds * (5.2 + this.orbitAngularDrift);
 			const radius = 28 + Math.min(1, this.orbitAge / 2.4) * 162;

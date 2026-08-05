@@ -322,6 +322,7 @@ const DROP_RARITY_COLORS: Record<Rarity, string> = {
 	uncommon: "#62e88a",
 	rare: "#6ca8ff",
 	epic: "#ca75ff",
+	unique: "#e3b52c",
 };
 export function dropRarityColor(rarity: Rarity): string {
 	return DROP_RARITY_COLORS[rarity] ?? DROP_RARITY_COLORS.common;

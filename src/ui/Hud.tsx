@@ -222,6 +222,7 @@ export class Hud {
 				{currencyCell("Uncommon", 0, "uncommon")}
 				{currencyCell("Rare", 0, "rare")}
 				{currencyCell("Epic", 0, "epic")}
+				{currencyCell("Unique", 0, "unique")}
 			</div>
 			{this.loadoutNode}
 			{this.inventoryCount}
@@ -478,7 +479,7 @@ export class Hud {
 			if (this.player) this.renderInventory(this.player.progress);
 		};
 		this.rarityFilterNode.prepend(slotFilter);
-		for (const target of ["uncommon", "rare", "epic"] as const) {
+		for (const target of ["uncommon", "rare", "epic", "unique"] as const) {
 			this.bindScrapPromotion(target);
 		}
 		this.characterToggle.onclick = () =>
@@ -2123,7 +2124,7 @@ export class Hud {
 		const canSend = Boolean(this.realm);
 		ordered.forEach((tile, index) => {
 			const costs = upgradeCosts(tile.item);
-			const upgradeAvailability = `${Number(progress.gold >= costs.gold)}:${Number(progress.scraps[tile.item.rarity] >= costs.scraps)}`;
+			const upgradeAvailability = `${Number(progress.gold >= costs.gold)}:${Number(progress.scraps[tile.item.rarity] >= costs.scraps)}:${Number(progress.souls >= costs.souls)}`;
 			const signature = `${tile.key}:${tile.quantity}:${Number(equippedKeys.has(tile.key))}:${statsSignature}:${Number(canSend)}:${extractButtonStatus(tile, progress)}:${upgradeAvailability}`;
 			let node = existing.get(tile.id);
 			if (!node || node.dataset.renderSignature !== signature) {

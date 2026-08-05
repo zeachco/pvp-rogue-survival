@@ -12,12 +12,19 @@ export class GroundSwamp extends GameObject {
 	readonly position: Vector2;
 	readonly radius: number;
 	private readonly source: Hero;
+	private readonly followSource: boolean;
 
-	constructor(position: Vector2, radius: number, source: Hero) {
+	constructor(
+		position: Vector2,
+		radius: number,
+		source: Hero,
+		followSource = false,
+	) {
 		super();
 		this.position = { ...position };
 		this.radius = radius;
 		this.source = source;
+		this.followSource = followSource;
 
 		const mainShape = new THREE.Mesh(
 			new THREE.CircleGeometry(radius, 32),
@@ -82,6 +89,10 @@ export class GroundSwamp extends GameObject {
 		if (this.remaining <= 0) {
 			this.active = false;
 			return;
+		}
+		if (this.followSource && this.source.active) {
+			this.position.x = this.source.position.x;
+			this.position.y = this.source.position.y;
 		}
 		for (const creep of creeps) {
 			if (

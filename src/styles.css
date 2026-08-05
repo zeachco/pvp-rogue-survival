@@ -1909,6 +1909,10 @@ input {
 	--rarity-rgb: 202, 117, 255;
 	border-color: #ca75ff;
 }
+.rarity-unique {
+	--rarity-rgb: 227, 181, 44;
+	border-color: #e3b52c;
+}
 .item-menu {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);

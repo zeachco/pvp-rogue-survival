@@ -3,7 +3,7 @@ import { BALANCE } from "../common/balance";
 import { emptyScraps, upgradeCosts } from "../common/inventory";
 import { generateBuckler, generateItem, itemStackKey } from "../common/items";
 import { cumulativeXpForLevel } from "../common/progression";
-import type { PlayerId, ServerMessage } from "../common/protocol";
+import type { PlayerId, ServerMessage, UnitBuild } from "../common/protocol";
 import type { RandomSource } from "../common/random";
 import { InMemoryPlayerRepository } from "../server/domain";
 import { GameService } from "../server/GameService";
@@ -396,6 +396,78 @@ describe("realm game service", () => {
 		expect(boss?.skillLevels?.healing).toBe(4);
 		expect(boss?.skillLevels?.arcaneBolt).toBe(1);
 	});
+	test("converts a boss's Epic equipment drop into a Unique with a 1% chance", () => {
+		const random = new SequenceRandom();
+		const { game } = harness(random);
+		const player = game.join("UniqueBoss");
+		player.progress.stats = {
+			agility: 7,
+			strength: 6,
+			magic: 5,
+			spirit: 4,
+			intelligence: 3,
+		};
+		const epic = generateItem(4, "epic", 811, {
+			allowedClasses: ["staff"],
+		});
+		const boss: UnitBuild = {
+			id: "boss-unit",
+			name: "Rival boss",
+			kind: "rival",
+			level: 4,
+			stats: player.progress.stats,
+			mainHand: epic,
+			isRival: true,
+			enemyRole: "boss",
+			xpReward: 37,
+			goldReward: 4,
+			seed: 5,
+			carried: [],
+		};
+		player.issuedUnits.set(boss.id, { build: boss, mode: "competitive" });
+		random.set(0.9, 0.1, 0.9, 0.001);
+		game.handle(player.id, { type: "creepDefeated", unitId: "boss-unit" });
+		const drop = [...player.groundDrops.values()][0];
+		expect(drop?.kind).toBe("item");
+		if (drop?.kind === "item") {
+			expect(drop.item.rarity).toBe("unique");
+			expect(drop.item.definitionId).toBe("staff");
+		}
+	});
+	test("never converts a regular creep's Epic drop into a Unique", () => {
+		const random = new SequenceRandom();
+		const { game } = harness(random);
+		const player = game.join("CreepEpic");
+		player.progress.stats = {
+			agility: 7,
+			strength: 6,
+			magic: 5,
+			spirit: 4,
+			intelligence: 3,
+		};
+		const epic = generateItem(4, "epic", 821, {
+			allowedClasses: ["axe"],
+		});
+		const creep: UnitBuild = {
+			id: "creep-unit",
+			name: "Regular",
+			kind: "creep",
+			level: 4,
+			stats: player.progress.stats,
+			mainHand: epic,
+			isRival: false,
+			xpReward: 14,
+			goldReward: 1,
+			seed: 6,
+			carried: [],
+		};
+		player.issuedUnits.set(creep.id, { build: creep, mode: "competitive" });
+		random.set(0.9, 0.1, 0.9, 0.001);
+		game.handle(player.id, { type: "creepDefeated", unitId: "creep-unit" });
+		const drop = [...player.groundDrops.values()][0];
+		expect(drop?.kind).toBe("item");
+		if (drop?.kind === "item") expect(drop.item.rarity).toBe("epic");
+	});
 	test("shows the lobby player as their own neighbor and sends to a future training carrier", () => {
 		const { game, messages } = harness();
 		const player = game.join("Mirror");
@@ -475,6 +547,7 @@ describe("realm game service", () => {
 			uncommon: 3,
 			rare: 0,
 			epic: 0,
+			unique: 0,
 		});
 		player.progress.scraps.rare = 1002;
 		player.progress.scraps.epic = 5;

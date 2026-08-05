@@ -34,6 +34,7 @@ import {
 	whirlwindRadius,
 } from "../../../common/combat";
 import {
+	equippedSkillLevelContribution,
 	itemCooldownReduction,
 	itemKillRestoration,
 	itemRequirementMultiplier,
@@ -184,10 +185,28 @@ export class HeroCombatSystem {
 		) {
 			const level = effectiveSkillLevel(progress, "healing");
 			hero.spendMana(healingManaCost);
+			const hpBeforeHeal = hero.hp;
 			hero.heal(healing.restoredHp);
+			const restored = hero.hp - hpBeforeHeal;
 			state.spellEffects.push(
 				new SpellEffect("healing", hero.position, 0, healingRadius(level)),
 			);
+			if (
+				item?.definitionId === "mace" &&
+				item.rarity === "unique" &&
+				restored > 0
+			) {
+				const radius = healingRadius(level);
+				const healDamage = restored * 0.25;
+				for (const creep of state.creeps)
+					if (
+						creep.active &&
+						distance(hero.position, creep.position) <= radius + creep.radius
+					)
+						creep.receiveDamage(healDamage, random, hero, false, false, {
+							kind: "magic",
+						});
+			}
 			this.healingCooldown = healingCooldown(level);
 			this.healingCooldownMax = this.healingCooldown;
 			if (this.manualSkill === "healing") this.manualSkill = undefined;
@@ -474,6 +493,8 @@ export class HeroCombatSystem {
 		if (activeSkill?.id === "orbitingHammers") {
 			const sequence = this.orbitCastSequence++;
 			const lifetime = orbitingHammerDuration(activeSkill.level);
+			const followSource =
+				item?.definitionId === "hammer" && item.rarity === "unique";
 			for (let index = 0; index < 3; index += 1) {
 				const drift = (((sequence * 3 + index) % 7) - 3) * 0.035;
 				state.projectiles.push(
@@ -484,6 +505,7 @@ export class HeroCombatSystem {
 						{ kind: "magic", critical: strike.critical },
 						drift,
 						lifetime,
+						followSource,
 					),
 				);
 			}
@@ -511,11 +533,14 @@ export class HeroCombatSystem {
 					item,
 				),
 			);
-		else if (activeSkill?.id === "swamp")
-			state.swamps.push(
-				new GroundSwamp(facingTarget, swampRadius(activeSkill.level), hero),
-			);
-		else if (activeSkill?.id === "gravityPull" && item)
+		else if (activeSkill?.id === "swamp") {
+			const gooey =
+				progress.offHand?.itemKind === "relic" &&
+				progress.offHand.rarity === "unique";
+			const radius = swampRadius(activeSkill.level) * (gooey ? 4 : 1);
+			const center = gooey ? { ...hero.position } : facingTarget;
+			state.swamps.push(new GroundSwamp(center, radius, hero, gooey));
+		} else if (activeSkill?.id === "gravityPull" && item)
 			castForceField(state, hero, activeSkill.level, random);
 		else if (activeSkill?.id === "reflectiveSurge")
 			hero.reflectiveSurgeRemaining = reflectiveSurgeDuration(
@@ -1180,11 +1205,10 @@ export function actualSkillLevel(
 	const learned =
 		progress.learnedSkillLevels[skill] ??
 		(progress.learnedSkills.includes(skill) ? 1 : 0);
-	const equipped =
-		progress.mainHand?.skills.includes(skill) ||
-		accessories(progress).some((item) => item?.skills.includes(skill))
-			? 1
-			: 0;
+	const equipped = equippedSkillLevelContribution(
+		[progress.mainHand, ...accessories(progress)],
+		skill,
+	);
 	const stats = statsWithItemBonuses(
 		progress.stats,
 		progress.mainHand,

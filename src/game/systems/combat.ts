@@ -9,7 +9,10 @@ import type { Hero } from "../Hero";
 import type { Unit } from "../Unit";
 import { damageStatusDuration, distance } from "../types";
 import { applyImpactForce } from "../ImpactForce";
-import { RENDING_THROW_BLEED_DURATION } from "../../../common/combat";
+import {
+	RENDING_THROW_BLEED_DURATION,
+	spellPower,
+} from "../../../common/combat";
 
 export function resolveCombat(
 	state: ArenaState,
@@ -23,6 +26,17 @@ export function resolveCombat(
 		if (!attack.shouldResolve()) continue;
 		attack.markResolved();
 		if (attack.owner === "hero") {
+			if (
+				(attack.skill === "cleave" || attack.skill === "bash") &&
+				attack.weapon?.rarity === "unique"
+			)
+				for (const projectile of state.projectiles)
+					if (
+						projectile.active &&
+						projectile.owner === "creep" &&
+						attack.contains(projectile.position, 0)
+					)
+						projectile.active = false;
 			for (const creep of state.creeps)
 				if (creep.active && attack.contains(creep.position, creep.radius)) {
 					const source = attack.source as Unit | undefined;
@@ -195,6 +209,35 @@ export function resolveCombat(
 						applyImpactForce(hit, projectile.force);
 						if (!projectile.skill)
 							projectile.source?.restoreRage(weapon?.rageCost ?? 1);
+					}
+					if (
+						projectile.skill === "arcaneBolt" &&
+						weapon?.definitionId === "staff" &&
+						weapon.rarity === "unique"
+					) {
+						const radius = 200 + 2 * projectile.skillLevel;
+						const explosion = 0.5 * spellPower(projectile.skillLevel);
+						for (const enemy of state.creeps)
+							if (
+								enemy.active &&
+								distance(projectile.position, enemy.position) <=
+									radius + enemy.radius
+							) {
+								enemy.receiveDamage(
+									explosion,
+									random,
+									projectile.source,
+									false,
+									false,
+									{ kind: "magic" },
+								);
+								enemy.addStatus({
+									kind: "freeze",
+									remaining: 2,
+									damagePerSecond: 0,
+									source: projectile.source,
+								});
+							}
 					}
 					if (
 						projectile.skill !== "orbitingHammers" &&

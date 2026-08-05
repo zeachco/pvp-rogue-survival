@@ -18,7 +18,7 @@ export type EquipmentDefinitionId =
 	| "relic"
 	| "amulet"
 	| "charm";
-export type Rarity = "common" | "uncommon" | "rare" | "epic";
+export type Rarity = "common" | "uncommon" | "rare" | "epic" | "unique";
 export type SkillId =
 	| "bash"
 	| "sweep"
@@ -84,7 +84,14 @@ export const ITEM_PERKS: ItemPerkId[] = [
 	"bleedResist",
 	"dodgeChance",
 ];
-export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic"];
+export const RARITIES: Rarity[] = [
+	"common",
+	"uncommon",
+	"rare",
+	"epic",
+	"unique",
+];
+export const PROMOTION_ORDER: Rarity[] = ["common", "uncommon", "rare", "epic"];
 export const AURA_SKILLS: SkillId[] = [
 	"slowAura",
 	"hinderingAura",
@@ -100,16 +107,30 @@ export const RARITY_POWER: Record<Rarity, number> = {
 	uncommon: 1.25,
 	rare: 1.6,
 	epic: 2.1,
+	unique: 2.7,
 };
 export const MAX_ITEM_LEVEL: Record<Rarity, number> = {
 	common: 10,
 	uncommon: 15,
 	rare: 30,
 	epic: 50,
+	unique: 100,
 };
 export const MAX_ITEM_REQUIREMENT = 100;
-export const nextRarity = (rarity: Rarity): Rarity | undefined =>
-	RARITIES[RARITIES.indexOf(rarity) + 1];
+export const nextRarity = (rarity: Rarity): Rarity | undefined => {
+	const index = PROMOTION_ORDER.indexOf(rarity);
+	return index < 0 || index >= PROMOTION_ORDER.length - 1
+		? undefined
+		: PROMOTION_ORDER[index + 1];
+};
+export function equippedSkillLevelContribution(
+	equipment: Array<ItemInstance | undefined>,
+	skill: SkillId,
+): number {
+	const contributors = equipment.filter((item) => item?.skills.includes(skill));
+	if (!contributors.length) return 0;
+	return contributors.some((item) => item?.rarity === "unique") ? 3 : 1;
+}
 export const weaponLevelScale = (level: number): number =>
 	1 + Math.max(0, level) * 0.025;
 export const weaponSkillLevelScale = (level: number): number =>
@@ -248,7 +269,13 @@ export function generateItem(
 	const affixes: AffixId[] = [];
 	const rolls = filters.fewerAffixes
 		? 1
-		: { common: 1, uncommon: 2, rare: 3, epic: 4 }[rarity];
+		: {
+				common: 1,
+				uncommon: 2,
+				rare: 3,
+				epic: 4,
+				unique: 5,
+			}[rarity];
 	const pool = Object.values(AFFIXES)
 		.filter((affix) => affix.compatibleWeapons.includes(weaponClass))
 		.map((affix) => affix.id);
@@ -277,8 +304,9 @@ export function generateBuckler(
 ): ItemInstance {
 	level = Math.min(level, MAX_ITEM_LEVEL[rarity]);
 	const source = new SeededRandom(seed);
-	const spiked = source.next() < 0.25;
-	const componentCount = rarity === "epic" ? 3 : rarity === "rare" ? 2 : 1;
+	const spiked = rarity === "unique" || source.next() < 0.25;
+	const componentCount =
+		rarity === "unique" || rarity === "epic" ? 3 : rarity === "rare" ? 2 : 1;
 	const pool: ReflectionComponent[] = ["flat", "strength", "return"];
 	const reflectionComponents: ReflectionComponent[] = [];
 	while (spiked && reflectionComponents.length < componentCount)
@@ -319,7 +347,8 @@ export function generateBuckler(
 			},
 			skills: [
 				"blocking",
-				...(spiked && (rarity === "rare" || rarity === "epic")
+				...(spiked &&
+				(rarity === "rare" || rarity === "epic" || rarity === "unique")
 					? ["thorns" as const, "reflectiveSurge" as const]
 					: []),
 				...(holy ? [auraSkillForSeed(seed, 5)] : []),
@@ -427,7 +456,13 @@ export function generateAccessory(
 	const source = new SeededRandom(seed);
 	const itemKind = kind ?? (source.next() < 0.5 ? "amulet" : "charm");
 	const [minimum, maximum] = (
-		{ common: [1, 2], uncommon: [1, 3], rare: [2, 4], epic: [4, 6] } as const
+		{
+			common: [1, 2],
+			uncommon: [1, 3],
+			rare: [2, 4],
+			epic: [4, 6],
+			unique: [5, 8],
+		} as const
 	)[rarity];
 	const rollCount =
 		minimum + Math.floor(source.next() * (maximum - minimum + 1));
@@ -788,13 +823,15 @@ function buildWeapon(
 			? [
 					data.skill,
 					...(weaponClass === "staff" &&
-					(rarity === "rare" || rarity === "epic")
+					(rarity === "rare" || rarity === "epic" || rarity === "unique")
 						? ["frostOrb" as const]
 						: []),
-					...(weaponClass === "mace" && (rarity === "rare" || rarity === "epic")
+					...(weaponClass === "mace" &&
+					(rarity === "rare" || rarity === "epic" || rarity === "unique")
 						? ["healing" as const]
 						: []),
-					...(weaponClass === "axe" && (rarity === "rare" || rarity === "epic")
+					...(weaponClass === "axe" &&
+					(rarity === "rare" || rarity === "epic" || rarity === "unique")
 						? ["whirlwind" as const]
 						: []),
 				]
@@ -1060,9 +1097,9 @@ function preserveRolledTraits(
 }
 function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 	const source = new SeededRandom(seed + 7919);
-	const count = ({ common: 1, uncommon: 2, rare: 3, epic: 4 } as const)[
-		item.rarity
-	];
+	const count = (
+		{ common: 1, uncommon: 2, rare: 3, epic: 4, unique: 5 } as const
+	)[item.rarity];
 	const pool = [...ITEM_PERKS];
 	const perks: Partial<Record<ItemPerkId, number>> = {};
 	const immunities: ItemImmunity[] = [];

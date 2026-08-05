@@ -74,6 +74,14 @@ export abstract class Unit extends GameObject {
 	presentationAttackDuration = 0.5;
 	presentationHitVersion = 0;
 	damageSlowRemaining = 0;
+	immunityRemaining = 0;
+	currentWave = 0;
+	deathPreventionWaveUsed?: number;
+	radialReflect?: (
+		reflected: number,
+		random: RandomSource,
+		kind: DamagePresentation["kind"],
+	) => void;
 
 	protected constructor(
 		position: Vector2,
@@ -169,6 +177,7 @@ export abstract class Unit extends GameObject {
 		invulnerable = false,
 		presentation: DamagePresentation = { kind: "physical" },
 	): number {
+		if (this.immunityRemaining > 0) return 0;
 		this.lastHitDodged = false;
 		let critical = presentation.critical ?? false;
 		let incomingAmount = amount;
@@ -311,18 +320,36 @@ export abstract class Unit extends GameObject {
 				(blockReflection + passiveReflection) *
 					(this.reflectiveSurgeRemaining > 0 ? 2 : 1) +
 				surgeBonus;
-			if (reflected > 0)
-				source.receiveDamage(reflected, random, this, false, false, {
-					kind: presentation.kind,
-				});
+			if (reflected > 0) {
+				const radial =
+					buckler?.itemKind === "buckler" && buckler.rarity === "unique";
+				if (radial && this.radialReflect)
+					this.radialReflect(reflected, random, presentation.kind);
+				else
+					source.receiveDamage(reflected, random, this, false, false, {
+						kind: presentation.kind,
+					});
+			}
 		}
 		if (source && "build" in source)
 			this.lastDamageSourceId = (
 				source as Unit & { build: { id: string } }
 			).build.id;
-		if (invulnerable || this.damageFloorOne)
+		remaining *= 1 - voodooDamageReduction(this);
+		if (invulnerable || this.damageFloorOne) {
 			this.hp = Math.max(1, this.hp - remaining);
-		else this.takeDamage(remaining);
+		} else if (
+			reflectable &&
+			this.amulet?.rarity === "unique" &&
+			this.hp - remaining <= 0 &&
+			this.deathPreventionWaveUsed !== this.currentWave
+		) {
+			this.hp = 1;
+			this.immunityRemaining = 1;
+			this.deathPreventionWaveUsed = this.currentWave;
+		} else {
+			this.takeDamage(remaining);
+		}
 		if (remaining > 0)
 			this.emitCombatText(remaining, presentation.kind, critical);
 		const damageDealt = Math.max(0, hpBefore - this.hp);
@@ -402,6 +429,7 @@ export abstract class Unit extends GameObject {
 			0,
 			this.damageSlowRemaining - deltaSeconds,
 		);
+		this.immunityRemaining = Math.max(0, this.immunityRemaining - deltaSeconds);
 		if (this.mana <= 0) this.suspendedUpkeep.add("mana");
 		if (this.rage <= 0) this.suspendedUpkeep.add("rage");
 		this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
@@ -673,4 +701,12 @@ function approach(value: number, target: number, change: number): number {
 	return value < target
 		? Math.min(target, value + change)
 		: Math.max(target, value - change);
+}
+
+function voodooDamageReduction(unit: Unit): number {
+	return unit.offHand?.itemKind === "relic" &&
+		unit.offHand.rarity === "unique" &&
+		unit.isSkillOperational("voodoo")
+		? 0.2
+		: 0;
 }

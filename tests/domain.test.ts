@@ -107,6 +107,7 @@ import {
 	AURA_SKILLS,
 	equippedImmunities,
 	equippedPerks,
+	equippedSkillLevelContribution,
 	generateAccessory,
 	generateBuckler,
 	generateItem,
@@ -117,6 +118,7 @@ import {
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
+	nextRarity,
 	rerollItem,
 	starterClub,
 } from "../common/items";
@@ -906,11 +908,101 @@ describe("permanent inventory", () => {
 		expect(upgradeCosts(plain)).toEqual({
 			gold: Math.ceil(plain.sellValue * 1.5 * 1.1),
 			scraps: 5,
+			souls: 0,
 		});
 		expect(upgradeCosts(attributed)).toEqual({
 			gold: Math.ceil(plain.sellValue * 1.5 * 1.3),
 			scraps: 6,
+			souls: 0,
 		});
+	});
+	test("unique items upgrade for one Soul per level with no Gold or Scrap", () => {
+		const item = { ...generateItem(40, "unique", 41), requirements: {} };
+		expect(upgradeCosts(item)).toEqual({ gold: 0, scraps: 0, souls: 1 });
+		const state = progress();
+		state.souls = 1;
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles.find(
+			(candidate) => candidate.key === itemStackKey(item),
+		)!;
+		const result = upgradeFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 155,
+		);
+		expect(result.changed).toBeTrue();
+		expect(state.souls).toBe(0);
+		expect(state.gold).toBe(1000);
+	});
+	test("unique level 100 is final and cannot be upgraded", () => {
+		const item = { ...generateItem(100, "unique", 42), requirements: {} };
+		const state = progress();
+		state.souls = 10;
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const tile = state.inventoryTiles.find(
+			(candidate) => candidate.key === itemStackKey(item),
+		)!;
+		const result = upgradeFromInventory(
+			state,
+			tile.id,
+			() => `tile-${++id}`,
+			() => 155,
+		);
+		expect(result.changed).toBeFalse();
+		expect(state.souls).toBe(10);
+	});
+	test("no Upgrade or promotion path produces Unique", () => {
+		expect(nextRarity("epic")).toBeUndefined();
+		expect(nextRarity("unique")).toBeUndefined();
+		const epic = generateItem(50, "epic", 43);
+		expect(levelUpItem(epic, 44).rarity).toBe("epic");
+	});
+	test("unique weapons and bucklers carry their epic-plus configuration", () => {
+		const staff = generateItem(40, "unique", 45, {
+			allowedClasses: ["staff"],
+		});
+		expect(staff.skills).toContain("arcaneBolt");
+		expect(staff.skills).toContain("frostOrb");
+		const mace = generateItem(40, "unique", 46, {
+			allowedClasses: ["mace"],
+		});
+		expect(mace.skills).toContain("shockwave");
+		expect(mace.skills).toContain("healing");
+		const axe = generateItem(40, "unique", 47, {
+			allowedClasses: ["axe"],
+		});
+		expect(axe.skills).toContain("cleave");
+		expect(axe.skills).toContain("whirlwind");
+		const buckler = generateBuckler(40, "unique", 48);
+		expect([...buckler.reflectionComponents].sort()).toEqual([
+			"flat",
+			"return",
+			"strength",
+		]);
+	});
+	test("unique equipment contributes three temporary skill levels", () => {
+		const unique = {
+			...generateItem(40, "unique", 49, { allowedClasses: ["axe"] }),
+			requirements: {},
+		};
+		const epic = {
+			...generateItem(40, "epic", 50, { allowedClasses: ["axe"] }),
+			requirements: {},
+		};
+		expect(equippedSkillLevelContribution([unique], "cleave")).toBe(3);
+		expect(equippedSkillLevelContribution([epic], "cleave")).toBe(1);
+		expect(equippedSkillLevelContribution([unique, epic], "cleave")).toBe(3);
 	});
 	test("upgrades a lone equipped copy in place when resources are sufficient", () => {
 		const state = progress();

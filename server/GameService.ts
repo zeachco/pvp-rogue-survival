@@ -23,6 +23,7 @@ import {
 	generateBuckler,
 	generateItem,
 	generateRelic,
+	equippedSkillLevelContribution,
 	itemRequirementMultiplier,
 	itemSkillLevelBonus,
 	itemStackKey,
@@ -107,6 +108,7 @@ const XP_SEND_MULTIPLIERS = {
 	uncommon: 1.5,
 	rare: 2,
 	epic: 3,
+	unique: 5,
 } as const;
 
 export class GameService {
@@ -317,13 +319,15 @@ export class GameService {
 				case "toggleSkillAutoFire":
 					return this.toggleSkillAutoFire(player, message.skillId);
 				case "setRarityAction": {
-					if (!player.progress.rarityActions)
+					if (!player.progress.rarityActions) {
 						player.progress.rarityActions = {
 							common: "keep",
 							uncommon: "keep",
 							rare: "keep",
 							epic: "keep",
+							unique: "keep",
 						};
+					}
 					player.progress.rarityActions[message.rarity] = message.action;
 					return this.sendProgress(
 						player,
@@ -1058,7 +1062,13 @@ export class GameService {
 				player.groundDrops.set(id, drop);
 				return drop;
 			}
-			const dropped = { ...promoted, id: `${promoted.id}-drop-${id}` };
+			const droppedItem =
+				build.enemyRole === "boss" &&
+				promoted.rarity === "epic" &&
+				this.options.random.next() < 0.01
+					? changeItemRarity(promoted, "unique", this.seed())
+					: promoted;
+			const dropped = { ...droppedItem, id: `${promoted.id}-drop-${id}` };
 			const drop: GroundDrop = { id, kind: "item", item: dropped };
 			player.groundDrops.set(id, drop);
 			return drop;
@@ -1798,7 +1808,9 @@ function bossSkillLevels(
 			const learned =
 				progress.learnedSkillLevels[skill] ??
 				(progress.learnedSkills.includes(skill) ? 1 : 0);
-			const equipped = equippedSkills.has(skill) ? 1 : 0;
+			const equipped = equippedSkills.has(skill)
+				? equippedSkillLevelContribution(equipment, skill)
+				: 0;
 			const accessoryBonus = [
 				progress.offHand,
 				progress.amulet,

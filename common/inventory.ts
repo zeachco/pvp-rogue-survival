@@ -28,7 +28,9 @@ export interface ScrapPromotionResult {
 export function upgradeCosts(item: ItemInstance): {
 	gold: number;
 	scraps: number;
+	souls: number;
 } {
+	if (item.rarity === "unique") return { gold: 0, scraps: 0, souls: 1 };
 	const attributePoints = Object.values(item.statBonuses).reduce(
 		(sum, value) => sum + Math.max(0, value ?? 0),
 		0,
@@ -37,6 +39,7 @@ export function upgradeCosts(item: ItemInstance): {
 	return {
 		gold: Math.ceil(item.sellValue * 1.5 * factor),
 		scraps: Math.ceil(2 * (item.level + 1) * factor),
+		souls: 0,
 	};
 }
 export const inventoryCapacity = (level: number): number =>
@@ -252,16 +255,26 @@ export function upgradeFromInventory(
 ): InventoryResult {
 	const tile = findTile(progress, tileId);
 	if (!tile || tile.quantity <= 0) return missing();
-	if (tile.item.rarity === "epic" && tile.item.level >= MAX_ITEM_LEVEL.epic)
+	if (
+		(tile.item.rarity === "epic" && tile.item.level >= MAX_ITEM_LEVEL.epic) ||
+		(tile.item.rarity === "unique" && tile.item.level >= MAX_ITEM_LEVEL.unique)
+	)
 		return {
 			changed: false,
-			reason: "Epic equipment is already at the maximum level.",
+			reason: `${tile.item.rarity === "unique" ? "Unique" : "Epic"} equipment is already at the maximum level.`,
 		};
-	const { gold, scraps } = upgradeCosts(tile.item);
-	if (progress.gold < gold || progress.scraps[tile.item.rarity] < scraps)
+	const { gold, scraps, souls } = upgradeCosts(tile.item);
+	if (
+		progress.gold < gold ||
+		progress.scraps[tile.item.rarity] < scraps ||
+		progress.souls < souls
+	)
 		return {
 			changed: false,
-			reason: `Requires ${gold} gold and ${scraps} ${tile.item.rarity} scraps.`,
+			reason:
+				souls > 0
+					? `Requires ${souls} Soul.`
+					: `Requires ${gold} gold and ${scraps} ${tile.item.rarity} scraps.`,
 		};
 	const created = levelUpItem(tile.item, nextSeed());
 	const existing = progress.inventoryTiles.find(
@@ -295,6 +308,7 @@ export function upgradeFromInventory(
 	tile.quantity -= 1;
 	progress.gold -= gold;
 	progress.scraps[tile.item.rarity] -= scraps;
+	progress.souls -= souls;
 	if (existing) existing.quantity += 1;
 	else
 		progress.inventoryTiles.push({
@@ -396,7 +410,8 @@ export function extractFromInventory(
 	const carriedSkills = extractableSkills(tile.item);
 	if (!carriedSkills.length)
 		return { changed: false, reason: "That item has no extractable skill." };
-	const universal = tile.item.rarity === "epic";
+	const universal =
+		tile.item.rarity === "epic" || tile.item.rarity === "unique";
 	const skills = universal
 		? carriedSkills
 		: carriedSkills.filter((skill) => progress.learnedSkills.includes(skill));
@@ -439,7 +454,7 @@ export function promoteScraps(
 	target: Rarity,
 	bulk = false,
 ): ScrapPromotionResult {
-	const rarities: Rarity[] = ["common", "uncommon", "rare", "epic"];
+	const rarities: Rarity[] = ["common", "uncommon", "rare", "epic", "unique"];
 	const source = rarities[rarities.indexOf(target) - 1];
 	if (!source)
 		return {
@@ -543,5 +558,5 @@ function learnSkill(
 		progress.universalSkills.push(skill);
 }
 export function emptyScraps(): Record<Rarity, number> {
-	return { common: 0, uncommon: 0, rare: 0, epic: 0 };
+	return { common: 0, uncommon: 0, rare: 0, epic: 0, unique: 0 };
 }

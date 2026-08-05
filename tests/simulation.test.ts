@@ -21,7 +21,13 @@ import {
 } from "../src/game/systems/lifecycle";
 import { correctArenaBoundary } from "../src/game/bounds";
 import { Hero } from "../src/game/Hero";
-import { generateAccessory, generateBuckler } from "../common/items";
+import {
+	generateAccessory,
+	generateBuckler,
+	generateItem,
+	generateRelic,
+	type ItemInstance,
+} from "../common/items";
 import { combatTextScale, type CombatText } from "../src/game/CombatText";
 import {
 	healingAuraOpacity,
@@ -39,9 +45,15 @@ import {
 	HEALING_MAX_RADIUS,
 	healingCast,
 	healingRadius,
+	spellPower,
+	swampRadius,
 	weaponAttackSpeed,
 } from "../common/combat";
-import { DEFAULT_ALLOCATION, ZERO_STATS } from "../common/progression";
+import {
+	DEFAULT_ALLOCATION,
+	ZERO_STATS,
+	type Stats,
+} from "../common/progression";
 import { emptyScraps } from "../common/inventory";
 import {
 	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
@@ -54,6 +66,7 @@ import {
 	cancelHostileProjectiles,
 	castForceField,
 	castForceFieldTargets,
+	effectiveSkillLevel,
 	forceField,
 	HeroCombatSystem,
 	pointAlongFacing,
@@ -75,7 +88,7 @@ import {
 	MAP_Z,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
-import { damageStatusDuration } from "../src/game/types";
+import { damageStatusDuration, type Vector2 } from "../src/game/types";
 
 describe("animated 3D characters", () => {
 	test("maps semantic animation aliases case-insensitively", () => {
@@ -2224,5 +2237,368 @@ describe("arena systems", () => {
 		expect(effect.active).toBeTrue();
 		effect.update(0.5);
 		expect(effect.active).toBeFalse();
+	});
+});
+
+function makeCreep(
+	id: string,
+	position: Vector2,
+	mainHand: ItemInstance = starterClub(),
+	stats: Stats = {
+		...ZERO_STATS,
+		strength: 100,
+		spirit: 100,
+		intelligence: 100,
+	},
+): Creep {
+	return new Creep(
+		{
+			id,
+			name: id,
+			kind: "melee",
+			level: 1,
+			stats,
+			mainHand,
+			carried: [],
+			isRival: false,
+			xpReward: 0,
+			goldReward: 0,
+			seed: 1,
+		},
+		"neutral",
+		"neutral",
+		position,
+		BALANCE,
+		new SeededRandom(1),
+	);
+}
+
+describe("Unique rarity arena effects", () => {
+	test("a Unique staff's Arcane Bolt explodes for a portion of spell power", () => {
+		const uniqueStaff = generateItem(4, "unique", 1001, {
+			allowedClasses: ["staff"],
+		});
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(ZERO_STATS, undefined, uniqueStaff);
+		const state = new ArenaState();
+		const direct = makeCreep("direct", { x: 100, y: 0 });
+		const nearby = makeCreep("nearby", { x: 115, y: 0 });
+		state.creeps.push(direct, nearby);
+		const projectile = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 100, y: 0 },
+			10,
+			"hero",
+			"arcaneBolt",
+			hero,
+			{ kind: "magic" },
+			uniqueStaff,
+			false,
+			1,
+		);
+		projectile.position = { x: 100, y: 0 };
+		state.projectiles.push(projectile);
+		const directBefore = direct.hp;
+		const nearbyBefore = nearby.hp;
+		resolveCombat(state, hero, uniqueStaff, 500, 500, new SeededRandom(1));
+		const explosion = spellPower(1) * 0.5;
+		expect(direct.hp).toBeCloseTo(directBefore - (10 + explosion));
+		expect(nearby.hp).toBeCloseTo(nearbyBefore - explosion);
+		expect(projectile.active).toBeFalse();
+		expect(
+			nearby.statuses.filter((status) => status.kind === "freeze"),
+		).toHaveLength(1);
+	});
+	test("Cleave and Bash from Unique weapons destroy enemy projectiles in their area", () => {
+		for (const [skill, weaponClass, seed] of [
+			["cleave", "axe", 1002],
+			["bash", "club", 1004],
+		] as const) {
+			const uniqueWeapon = generateItem(4, "unique", seed, {
+				allowedClasses: [weaponClass],
+			});
+			const hero = new Hero({ x: 0, y: 0 });
+			hero.configureStats(ZERO_STATS, undefined, uniqueWeapon);
+			const state = new ArenaState();
+			const nearProjectile = new Projectile(
+				{ x: 50, y: 0 },
+				{ x: 50, y: 0 },
+				5,
+				"creep",
+			);
+			const farProjectile = new Projectile(
+				{ x: 900, y: 0 },
+				{ x: 900, y: 0 },
+				5,
+				"creep",
+			);
+			state.projectiles.push(nearProjectile, farProjectile);
+			const attack = new AttackArea(
+				"hero",
+				{ x: 0, y: 0 },
+				0,
+				200,
+				Math.PI / 4,
+				0,
+				0.3,
+				5,
+				hero,
+				skill,
+				uniqueWeapon,
+			);
+			state.attacks.push(attack);
+			resolveCombat(state, hero, uniqueWeapon, 500, 500, new SeededRandom(1));
+			expect(nearProjectile.active).toBeFalse();
+			expect(farProjectile.active).toBeTrue();
+		}
+	});
+	test("orbiting hammers follow the caster when wielded as a Unique hammer", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		hero.configureStats(
+			{ ...ZERO_STATS, magic: 100 },
+			undefined,
+			starterClub(),
+		);
+		const hammer = Projectile.orbitingHammer(
+			hero,
+			0,
+			5,
+			{ kind: "magic" },
+			0,
+			2.4,
+			true,
+		);
+		expect(hammer.position.x).toBeCloseTo(78);
+		expect(hammer.position.y).toBeCloseTo(50);
+		hero.position = { x: 120, y: 30 };
+		hammer.update(0.1);
+		const radius = 28 + (0.1 / 2.4) * 162;
+		const angle = 0.1 * 5.2;
+		expect(hammer.position.x).toBeCloseTo(120 + Math.cos(angle) * radius);
+		expect(hammer.position.y).toBeCloseTo(30 + Math.sin(angle) * radius);
+	});
+	test("a Unique mace's auto Healing damages enemies by a quarter of the HP restored", () => {
+		const uniqueMace = generateItem(4, "unique", 1003, {
+			allowedClasses: ["mace"],
+		});
+		const hero = new Hero({ x: 50, y: 50 });
+		hero.configureStats(
+			{ ...ZERO_STATS, strength: 100, intelligence: 100 },
+			undefined,
+			uniqueMace,
+		);
+		hero.hp = hero.maxHp * 0.3;
+		const state = new ArenaState();
+		const near = makeCreep("near", { x: 210, y: 50 });
+		const far = makeCreep("far", { x: 800, y: 50 });
+		state.creeps.push(near, far);
+		const restored = healingCast(
+			hero.hp,
+			hero.maxHp,
+			hero.rage,
+			hero.maxRage,
+			1,
+		).restoredHp;
+		const nearBefore = near.hp;
+		const farBefore = far.hp;
+		const progress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS, strength: 100, intelligence: 100 },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			mainHand: uniqueMace,
+			inventoryTiles: [],
+			learnedSkills: ["healing"],
+			learnedSkillLevels: { healing: 1 },
+			universalSkills: [],
+			equippedSkills: ["healing"],
+			autoFireSkills: ["healing"],
+		};
+		const combat = new HeroCombatSystem();
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			state,
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(nearBefore - near.hp).toBeCloseTo(restored * 0.25);
+		expect(far.hp).toBe(farBefore);
+	});
+	test("a Unique mace enemy's Healing damages the hero by a quarter of the HP restored", () => {
+		const uniqueMace = generateItem(4, "unique", 1003, {
+			allowedClasses: ["mace"],
+		});
+		const creep = makeCreep("healer", { x: 50, y: 50 }, uniqueMace);
+		creep.knownSkills.add("healing");
+		creep.skillLevels.set("healing", 1);
+		creep.hp = creep.maxHp * 0.3;
+		const hero = new Hero({ x: 80, y: 50 });
+		hero.configureStats({ ...ZERO_STATS, strength: 100 });
+		const hpBefore = creep.hp;
+		const heroBefore = hero.hp;
+		expect(creep.castHealing([creep], [], hero)).toBeTrue();
+		const restored = creep.hp - hpBefore;
+		expect(restored).toBeGreaterThan(0);
+		expect(heroBefore - hero.hp).toBeCloseTo(restored * 0.25);
+	});
+	test("a Unique buckler radiates reflection and Thorns damage to every enemy nearby", () => {
+		const uniqueBuckler = generateBuckler(4, "unique", 1005);
+		expect(uniqueBuckler.reflectionComponents.length).toBeGreaterThan(0);
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(
+			{
+				...ZERO_STATS,
+				strength: 100,
+				agility: 100,
+				intelligence: 100,
+				spirit: 100,
+			},
+			uniqueBuckler,
+		);
+		hero.rage = 0;
+		hero.reflectiveSurgeAutomatic = false;
+		const reflected: number[] = [];
+		hero.radialReflect = (amount) => reflected.push(amount);
+		const attacker = new Hero({ x: 10, y: 0 });
+		attacker.configureStats(ZERO_STATS);
+		const before = hero.hp;
+		hero.receiveDamage(20, { next: () => 1 }, attacker, true, false, {
+			kind: "physical",
+		});
+		expect(reflected).toHaveLength(1);
+		expect(reflected[0]).toBeCloseTo(1);
+		expect(attacker.hp).toBe(attacker.maxHp);
+		expect(before - hero.hp).toBeLessThan(20);
+	});
+	test("a Unique Voodoo Doll relic casts a 4x-radius swamp centered on and following the caster", () => {
+		const uniqueVoodoo = generateRelic(4, "unique", 1001);
+		expect(uniqueVoodoo.skills).toContain("voodoo");
+		const hero = new Hero({ x: 50, y: 50 });
+		hero.configureStats({ ...ZERO_STATS, magic: 100 }, uniqueVoodoo);
+		const state = new ArenaState();
+		const target = makeCreep("target", { x: 100, y: 50 });
+		state.creeps.push(target);
+		const progress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS, magic: 100 },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			mainHand: starterClub(),
+			offHand: uniqueVoodoo,
+			inventoryTiles: [],
+			learnedSkills: [],
+			learnedSkillLevels: {},
+			universalSkills: [],
+			equippedSkills: ["swamp"],
+			autoFireSkills: ["swamp"],
+		};
+		const combat = new HeroCombatSystem();
+		combat.update(
+			1,
+			{ x: 0, y: 0 },
+			hero,
+			state,
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		combat.update(
+			1,
+			{ x: 0, y: 0 },
+			hero,
+			state,
+			progress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(state.swamps).toHaveLength(1);
+		const swamp = state.swamps[0];
+		expect(swamp.radius).toBeCloseTo(
+			swampRadius(effectiveSkillLevel(progress, "swamp")) * 4,
+		);
+		expect(swamp.position.x).toBeCloseTo(50);
+		expect(swamp.position.y).toBeCloseTo(50);
+		hero.position = { x: 250, y: 250 };
+		swamp.update(1 / 60, state.creeps);
+		expect(swamp.position.x).toBeCloseTo(250);
+		expect(swamp.position.y).toBeCloseTo(250);
+	});
+	test("a Unique Voodoo Doll relic reduces incoming direct damage by 20% while Voodoo is active", () => {
+		const uniqueVoodoo = generateRelic(4, "unique", 1001);
+		const stats = {
+			...ZERO_STATS,
+			strength: 100,
+			agility: 100,
+			magic: 100,
+			spirit: 100,
+			intelligence: 100,
+		};
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(stats, uniqueVoodoo);
+		hero.rage = 0;
+		hero.reflectiveSurgeAutomatic = false;
+		const control = new Hero({ x: 0, y: 0 });
+		control.configureStats(stats, {
+			...uniqueVoodoo,
+			skills: uniqueVoodoo.skills.filter((skill) => skill !== "voodoo"),
+		});
+		control.rage = 0;
+		control.reflectiveSurgeAutomatic = false;
+		const attacker = new Hero({ x: 10, y: 0 });
+		attacker.configureStats(ZERO_STATS);
+		const heroBefore = hero.hp;
+		hero.receiveDamage(20, { next: () => 1 }, attacker, true, false, {
+			kind: "physical",
+		});
+		const heroDamage = heroBefore - hero.hp;
+		const controlBefore = control.hp;
+		control.receiveDamage(20, { next: () => 1 }, attacker, true, false, {
+			kind: "physical",
+		});
+		const controlDamage = controlBefore - control.hp;
+		expect(controlDamage).toBeGreaterThan(0);
+		expect(heroDamage).toBeCloseTo(controlDamage * 0.8);
+	});
+	test("a Unique amulet saves the first lethal direct hit each wave and grants immunity", () => {
+		const uniqueAmulet = generateAccessory(4, "unique", 1007, "amulet");
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(
+			{ ...ZERO_STATS, strength: 100, spirit: 100 },
+			undefined,
+			starterClub(),
+			uniqueAmulet,
+		);
+		hero.rage = 0;
+		hero.reflectiveSurgeAutomatic = false;
+		hero.currentWave = 5;
+		const attacker = new Hero({ x: 10, y: 0 });
+		attacker.configureStats(ZERO_STATS);
+		const maxHp = hero.hp;
+		hero.receiveDamage(maxHp + 50, { next: () => 1 }, attacker, true, false, {
+			kind: "physical",
+		});
+		expect(hero.hp).toBe(1);
+		expect(hero.immunityRemaining).toBe(1);
+		expect(hero.deathPreventionWaveUsed).toBe(5);
+		hero.receiveDamage(50, { next: () => 1 }, attacker, true, false, {
+			kind: "physical",
+		});
+		expect(hero.hp).toBe(1);
+		hero.updateResources(1);
+		expect(hero.immunityRemaining).toBe(0);
+		hero.receiveDamage(50, { next: () => 1 }, attacker, true, false, {
+			kind: "physical",
+		});
+		expect(hero.hp).toBe(0);
+		expect(hero.active).toBeFalse();
 	});
 });
