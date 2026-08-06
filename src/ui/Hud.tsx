@@ -2600,8 +2600,11 @@ export class Hud {
 		if (signature === this.realmSignature) return;
 		this.realmSignature = signature;
 		const action = (
-			<button type="button">
-				{r.mode === "training" ? "Start" : "Leave to Lobby"}
+			<button
+				class={r.mode === "training" ? "training-control enter-realm" : ""}
+				type="button"
+			>
+				{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}
 			</button>
 		) as HTMLButtonElement;
 		action.onclick =
@@ -2612,10 +2615,16 @@ export class Hud {
 					}
 				: this.callbacks.onLeaveRealm;
 		action.disabled = r.mode !== "training" && !r.canLeave;
-		const logout = (<button type="button">Logout</button>) as HTMLButtonElement;
+		const logout = (
+			<button class="training-control" type="button">
+				Logout
+			</button>
+		) as HTMLButtonElement;
 		logout.onclick = this.callbacks.onLogout;
 		const options = (
-			<button type="button">Options</button>
+			<button class="training-control" type="button">
+				Options
+			</button>
 		) as HTMLButtonElement;
 		options.onclick = () =>
 			this.graphicsOptionsModal.classList.remove("is-hidden");

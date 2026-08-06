@@ -1455,6 +1455,30 @@ input {
 	color: #dffeff;
 	background: #15312f;
 }
+.realm-panel .training-control {
+	box-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
+	cursor: pointer;
+	transform: translateY(0);
+	transition:
+		transform 90ms ease,
+		box-shadow 90ms ease,
+		filter 90ms ease;
+}
+.realm-panel .training-control:hover {
+	box-shadow: 0 5px 0 rgba(0, 0, 0, 0.55);
+	filter: brightness(1.15);
+	transform: translateY(-3px);
+}
+.realm-panel .training-control:active {
+	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+	filter: brightness(0.95);
+	transform: translateY(2px);
+}
+.realm-panel .enter-realm {
+	border-color: #ff6575;
+	color: #fff3f5;
+	background: #8f1f2f;
+}
 .realm-panel button:disabled {
 	border-color: #59666a;
 	color: #7d898c;
