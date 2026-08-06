@@ -4,9 +4,11 @@ For each categories under, chose one easy to implement task, do it and remove th
 
 ## ux
 
-- add a clickable mask behind the options panel and clicking the mask closes options
-- change how char and inventory panels are rendered: they should be floating panels (with gaps on sides above and bellow from the page, not attacked to the edges) ; when appearing, they slide with a css animation from opacity 0 to 1 and transform 3D with a slight tilt like if they came from the sides for dramatic effects, very subtle 3D effect remains once open
+- panels for char and inventory don't displace other UI elements anymore, player level is centered middle, chat isn't displaced either, perspective is now
+  transform: perspective(100px) translateX(0) rotateY(+/- 0.5deg);
 
 ## Fixes
 
 - preview stats when overing stats allocator doesn't show char stats properly. it should also be renamed
+- when disconnected from a server, show in the logs that the servers closed the connexion on their side
+- in options panel, the settings for lights, make the `all` the default and make it pre selected by the radio button, then store to the local storage the value, not on the player

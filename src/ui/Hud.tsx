@@ -3038,12 +3038,11 @@ export class Hud {
 			`${collapsed ? "Expand" : "Collapse"} ${kind === "character" ? "character sheet" : "inventory"}`,
 		);
 		toggle.title = panelToggleTooltip(kind, collapsed);
-		document.documentElement.style.setProperty(
-			kind === "character"
-				? "--character-panel-width"
-				: "--inventory-panel-width",
-			collapsed ? "30px" : kind === "character" ? "320px" : "640px",
-		);
+		if (kind === "inventory")
+			document.documentElement.style.setProperty(
+				"--inventory-panel-preview-width",
+				collapsed ? "0px" : "640px",
+			);
 	}
 	private updateVisibility(): void {
 		const joined = Boolean(this.player);

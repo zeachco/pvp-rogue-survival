@@ -23,11 +23,9 @@
 :root {
 	--character-panel-width: 320px;
 	--inventory-panel-width: 640px;
+	--inventory-panel-preview-width: 640px;
+	--build-panel-inset: 16px;
 	--ground-item-preview-gap: 6px;
-	--build-panel-width: calc(
-		var(--character-panel-width) +
-		var(--inventory-panel-width)
-	);
 	--game-header-height: 52px;
 	font-family:
 		Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
@@ -106,7 +104,11 @@ input {
 	position: fixed;
 	z-index: 30;
 	top: 16px;
-	right: calc(var(--inventory-panel-width) + var(--ground-item-preview-gap));
+	right: calc(
+		var(--inventory-panel-preview-width) +
+		var(--build-panel-inset) +
+		var(--ground-item-preview-gap)
+	);
 	width: min(320px, calc(100vw - 32px));
 	max-height: calc(100vh - 32px);
 	overflow: hidden;
@@ -161,8 +163,8 @@ input {
 	position: absolute;
 	z-index: 5;
 	top: 0;
-	left: calc(var(--character-panel-width) + 16px);
-	right: calc(var(--inventory-panel-width) + 16px);
+	left: 16px;
+	right: 16px;
 	height: var(--game-header-height);
 	border-bottom: 1px solid rgba(138, 216, 255, 0.28);
 	background: #101418;
@@ -181,8 +183,8 @@ input {
 	position: absolute;
 	z-index: 4;
 	top: var(--game-header-height);
-	left: calc(var(--character-panel-width) + 16px);
-	right: calc(var(--inventory-panel-width) + 16px);
+	left: 16px;
+	right: 16px;
 	height: 0;
 	overflow: visible;
 	pointer-events: none;
@@ -191,7 +193,7 @@ input {
 .spell-bar {
 	position: absolute;
 	bottom: 72px;
-	left: calc(var(--character-panel-width) + 14px);
+	left: 14px;
 	display: flex;
 	flex-direction: row;
 	width: auto;
@@ -1192,20 +1194,8 @@ input {
 	position: absolute;
 	z-index: 4;
 	top: 50%;
-	left: calc(
-		var(--character-panel-width) +
-		(100vw - var(--character-panel-width) - var(--inventory-panel-width)) /
-		2
-	);
-	max-width: min(
-		420px,
-		calc(
-			100vw -
-			var(--character-panel-width) -
-			var(--inventory-panel-width) -
-			32px
-		)
-	);
+	left: 50%;
+	max-width: min(420px, calc(100vw - 32px));
 	border: 1px solid rgba(58, 255, 212, 0.5);
 	padding: 12px 18px;
 	color: #e8f9ff;
@@ -1232,19 +1222,11 @@ input {
 	position: absolute;
 	z-index: 5;
 	top: 52px;
-	left: calc(var(--character-panel-width) + 16px);
+	left: 16px;
 	display: flex;
 	gap: 16px;
 	align-items: center;
-	width: min(
-		620px,
-		calc(
-			100vw -
-			var(--character-panel-width) -
-			var(--inventory-panel-width) -
-			32px
-		)
-	);
+	width: min(620px, calc(100vw - 32px));
 	border: 1px solid rgba(58, 255, 212, 0.65);
 	border-radius: 5px;
 	padding: 12px 14px;
@@ -1361,17 +1343,20 @@ input {
 
 .character-panel {
 	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: 0;
+	z-index: 8;
+	top: var(--build-panel-inset);
+	bottom: var(--build-panel-inset);
+	left: var(--build-panel-inset);
 	display: grid;
 	align-content: start;
 	width: var(--character-panel-width);
 	gap: 8px;
 	padding: 10px;
 	overflow-y: auto;
+	border-radius: 10px;
 	pointer-events: auto;
-	transition: width 160ms ease;
+	transform: perspective(100px) translateX(0) rotateY(0.5deg);
+	transform-origin: left center;
 }
 .public-character-panel {
 	left: auto;
@@ -1380,9 +1365,10 @@ input {
 }
 .inventory-column {
 	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 16px;
+	z-index: 8;
+	top: var(--build-panel-inset);
+	right: var(--build-panel-inset);
+	bottom: var(--build-panel-inset);
 	display: grid;
 	grid-template-rows: auto minmax(0, 1fr);
 	width: var(--inventory-panel-width);
@@ -1391,22 +1377,65 @@ input {
 	padding: 10px;
 	overflow: hidden;
 	border: 1px solid rgba(138, 216, 255, 0.35);
+	border-radius: 10px;
 	background: rgba(13, 20, 24, 0.9);
 	pointer-events: auto;
-	transition: width 160ms ease;
+	transform: perspective(100px) translateX(0) rotateY(-0.5deg);
+	transform-origin: right center;
+}
+
+.game-hud > .character-panel:not(.is-collapsed) {
+	animation: character-panel-enter 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.game-hud > .inventory-column:not(.is-collapsed) {
+	animation: inventory-panel-enter 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes character-panel-enter {
+	from {
+		opacity: 0;
+		transform: perspective(100px) translateX(-24px) rotateY(8deg);
+	}
+	to {
+		opacity: 1;
+		transform: perspective(100px) translateX(0) rotateY(0.5deg);
+	}
+}
+
+@keyframes inventory-panel-enter {
+	from {
+		opacity: 0;
+		transform: perspective(100px) translateX(24px) rotateY(-8deg);
+	}
+	to {
+		opacity: 1;
+		transform: perspective(100px) translateX(0) rotateY(-0.5deg);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.game-hud > .character-panel:not(.is-collapsed),
+	.game-hud > .inventory-column:not(.is-collapsed) {
+		animation: none;
+	}
 }
 .character-panel.is-collapsed,
 .inventory-column.is-collapsed {
-	padding: 4px 3px;
-	overflow: hidden;
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+	backdrop-filter: none;
+	pointer-events: none;
 }
 .character-panel.is-collapsed > :not(.panel-toggle),
 .inventory-column.is-collapsed > :not(.panel-toggle) {
 	display: none;
 }
 .panel-toggle {
-	position: relative;
-	z-index: 2;
+	position: fixed;
+	z-index: 9;
+	bottom: 20px;
 	width: 22px;
 	height: 28px;
 	justify-self: start;
@@ -1420,7 +1449,10 @@ input {
 	line-height: 1;
 }
 .character-panel > .panel-toggle {
-	justify-self: end;
+	left: 20px;
+}
+.inventory-column > .panel-toggle {
+	right: 20px;
 }
 .inventory-content {
 	display: grid;
@@ -2178,7 +2210,7 @@ input {
 .spell-bar {
 	right: auto;
 	bottom: 72px;
-	left: calc(var(--character-panel-width) + 14px);
+	left: 14px;
 	flex-direction: row;
 	width: auto;
 	max-width: none;
@@ -2211,16 +2243,8 @@ input {
 	position: absolute;
 	z-index: 3;
 	bottom: 76px;
-	right: calc(var(--inventory-panel-width) + 16px);
-	width: min(
-		320px,
-		calc(
-			100vw -
-			var(--character-panel-width) -
-			var(--inventory-panel-width) -
-			32px
-		)
-	);
+	right: 16px;
+	width: min(320px, calc(100vw - 32px));
 	pointer-events: none;
 	display: block;
 	gap: 4px;
@@ -2305,9 +2329,9 @@ input {
 .resource-dock {
 	position: absolute;
 	z-index: 2;
-	right: calc(var(--inventory-panel-width) + 32px);
+	right: 16px;
 	bottom: 14px;
-	left: calc(var(--character-panel-width) + 16px);
+	left: 16px;
 	display: grid;
 	grid-template-columns: minmax(180px, 260px) 92px minmax(180px, 260px);
 	justify-content: center;
@@ -2667,9 +2691,6 @@ input {
 }
 
 @media (max-width: 1099px) {
-	:root {
-		--build-panel-width: 60px;
-	}
 	#game-canvas {
 		width: 100vw;
 		height: 100vh;
@@ -2682,17 +2703,13 @@ input {
 		z-index: 8;
 		width: min(640px, calc(100vw - 40px));
 	}
-	.character-panel.is-collapsed,
-	.inventory-column.is-collapsed {
-		width: 30px;
-	}
 }
 
 @media (max-width: 720px) {
 	.hud-top,
 	.hud-bottom {
-		left: calc(var(--character-panel-width) + 8px);
-		right: calc(var(--inventory-panel-width) + 8px);
+		left: 8px;
+		right: 8px;
 		flex-direction: column;
 	}
 
