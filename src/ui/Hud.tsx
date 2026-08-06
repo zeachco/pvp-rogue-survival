@@ -3254,6 +3254,8 @@ interface ResourceBar {
 	regen: HTMLElement;
 	fill: HTMLElement;
 	loss: HTMLElement;
+	overflow?: HTMLElement;
+	overflowFill?: HTMLElement;
 	previous?: number;
 	lossTimer?: ReturnType<typeof setTimeout>;
 }
@@ -3262,6 +3264,15 @@ function resourceBar(label: string, kind: "health" | "mana"): ResourceBar {
 	const regen = (<span class="resource-regen" />) as HTMLElement;
 	const loss = (<span class="resource-loss" />) as HTMLElement;
 	const fill = (<span class="resource-fill" />) as HTMLElement;
+	const overflowFill =
+		kind === "mana"
+			? ((<span class="resource-overfill" />) as HTMLElement)
+			: undefined;
+	const overflow = overflowFill
+		? ((
+				<div class="resource-overfill-track">{overflowFill}</div>
+			) as HTMLElement)
+		: undefined;
 	const node = (
 		<div
 			class={`resource-bar resource-${kind}`}
@@ -3276,13 +3287,14 @@ function resourceBar(label: string, kind: "health" | "mana"): ResourceBar {
 					{regen}
 				</span>
 			</div>
+			{overflow}
 			<div class="resource-bar-track">
 				{loss}
 				{fill}
 			</div>
 		</div>
 	) as HTMLElement;
-	return { node, value, regen, fill, loss };
+	return { node, value, regen, fill, loss, overflow, overflowFill };
 }
 function updateResourceBar(
 	bar: ResourceBar,
@@ -3291,14 +3303,26 @@ function updateResourceBar(
 	regen: number,
 ): void {
 	const safeMaximum = Math.max(0, maximum);
-	const safeCurrent = Math.max(0, Math.min(current, safeMaximum));
-	const ratio = resourceRatio(safeCurrent, safeMaximum);
+	const currentCap = bar.overflow ? safeMaximum * 3 : safeMaximum;
+	const safeCurrent = Math.max(0, Math.min(current, currentCap));
+	const ratio = resourceRatio(Math.min(safeCurrent, safeMaximum), safeMaximum);
 	const previous = bar.previous;
 	bar.node.setAttribute("aria-valuemax", String(safeMaximum));
 	bar.node.setAttribute("aria-valuenow", String(safeCurrent));
 	setText(bar.value, `${fmt(safeCurrent)} / ${fmt(safeMaximum)}`);
 	setText(bar.regen, `+${fmt(Math.max(0, regen))}/s`);
 	bar.fill.style.width = `${ratio * 100}%`;
+	if (bar.overflow && bar.overflowFill) {
+		const overfillRatio =
+			safeMaximum > 0
+				? Math.max(
+						0,
+						Math.min(1, (safeCurrent - safeMaximum) / (safeMaximum * 2)),
+					)
+				: 0;
+		bar.overflow.classList.toggle("is-visible", overfillRatio > 0);
+		bar.overflowFill.style.width = `${overfillRatio * 100}%`;
+	}
 	if (previous === undefined || safeCurrent >= previous) {
 		if (bar.lossTimer) clearTimeout(bar.lossTimer);
 		bar.lossTimer = undefined;

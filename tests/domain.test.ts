@@ -12,6 +12,8 @@ import {
 } from "../src/game/render/ThreeRenderer";
 import {
 	AIM_RANGE_OPACITY,
+	AIM_LINE_RANGE_MULTIPLIER,
+	aimGuideCenter,
 	aimGuideDimensions,
 	HERO_TURN_SPEED,
 	turnAngleTowards,
@@ -230,13 +232,19 @@ describe("third-person camera", () => {
 		expect(cameraFacingAngle(Math.PI / 2)).toBeCloseTo(0);
 		expect(cameraFacingAngle(-Math.PI / 2)).toBeCloseTo(Math.PI);
 	});
-	test("uses the equipped weapon range for both aiming ground guides", () => {
+	test("extends the aim line five times beyond the true weapon range", () => {
 		expect(aimGuideDimensions(210)).toEqual({
-			lineLength: 210,
-			lineCenter: 105,
+			lineLength: 1_050,
+			lineCenter: 525,
 			ringRadius: 210,
 		});
+		expect(AIM_LINE_RANGE_MULTIPLIER).toBe(5);
 		expect(AIM_RANGE_OPACITY).toBe(0.25);
+		expect(aimGuideCenter(210, Math.PI / 2)).toEqual({
+			x: expect.any(Number),
+			y: 525,
+		});
+		expect(aimGuideCenter(210, Math.PI / 2).x).toBeCloseTo(0);
 	});
 	test("starts at the former maximum distance and zooms out fifty percent farther", () => {
 		expect(DEFAULT_CAMERA_ZOOM).toBe(0.65);

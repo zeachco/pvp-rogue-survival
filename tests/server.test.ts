@@ -821,6 +821,33 @@ describe("realm game service", () => {
 		expect(sender.progress.xp).toBe(75);
 		expect(sender.xpSendBuffs).toEqual([]);
 	});
+	test("extends an active matching XP buff immediately without delaying queued time", () => {
+		const { game } = harness(new FixedRandom(0), () => 1_000);
+		const sender = game.join("BuffExtender");
+		const target = game.join("BuffTarget");
+		enterPair(game, sender, target);
+		const firstRare = generateItem(2, "rare", 180);
+		const epic = generateItem(1, "epic", 181);
+		const secondRare = generateItem(3, "rare", 182);
+		for (const [id, item] of [
+			["first-rare", firstRare],
+			["queued-epic", epic],
+			["second-rare", secondRare],
+		] as const)
+			sender.progress.inventoryTiles.push({
+				id,
+				key: itemStackKey(item),
+				item,
+				quantity: 1,
+			});
+		game.handle(sender.id, { type: "sendItem", tileId: "first-rare" });
+		game.handle(sender.id, { type: "sendItem", tileId: "queued-epic" });
+		game.handle(sender.id, { type: "sendItem", tileId: "second-rare" });
+		expect(sender.xpSendBuffs).toEqual([
+			{ multiplier: 2, expiresAt: 31_000 },
+			{ multiplier: 3, expiresAt: 43_000 },
+		]);
+	});
 	test("shift bulk sell returns ten times base value and purge multiplies rewards across the stack", () => {
 		const { game } = harness();
 		const player = game.join("Merchant");

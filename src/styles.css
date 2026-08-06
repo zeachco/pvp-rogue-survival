@@ -1003,6 +1003,28 @@ input {
 	background: rgba(0, 0, 0, 0.6);
 }
 
+.resource-overfill-track {
+	position: relative;
+	display: none;
+	width: 100%;
+	height: 5px;
+	margin-bottom: 2px;
+	overflow: hidden;
+	border: 1px solid rgba(226, 250, 255, 0.66);
+	border-radius: 1px;
+	background: rgba(0, 0, 0, 0.6);
+}
+.resource-overfill-track.is-visible {
+	display: block;
+}
+.resource-overfill {
+	display: block;
+	height: 100%;
+	background: linear-gradient(90deg, #55cfee, #d8faff);
+	box-shadow: 0 0 7px rgba(190, 245, 255, 0.72);
+	transition: width 100ms linear;
+}
+
 .resource-bar-track > span {
 	position: absolute;
 	inset: 0 auto 0 0;

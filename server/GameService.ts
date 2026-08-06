@@ -1590,10 +1590,16 @@ export class GameService {
 	}
 	private enqueueXpSendBuff(player: Player, item: ItemInstance): void {
 		const buffs = this.xpSendBuffs(player);
+		const multiplier = XP_SEND_MULTIPLIERS[item.rarity];
+		const duration = (10 + item.level * 2) * 1_000;
+		if (buffs[0]?.multiplier === multiplier) {
+			for (const buff of buffs) buff.expiresAt += duration;
+			return;
+		}
 		const startsAt = Math.max(this.now(), buffs.at(-1)?.expiresAt ?? 0);
 		buffs.push({
-			multiplier: XP_SEND_MULTIPLIERS[item.rarity],
-			expiresAt: startsAt + (10 + item.level * 2) * 1_000,
+			multiplier,
+			expiresAt: startsAt + duration,
 		});
 	}
 	private xpSendBuffs(player: Player): XpSendBuff[] {

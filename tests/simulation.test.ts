@@ -740,6 +740,24 @@ describe("arena systems", () => {
 		expect(source.mana).toBe(0);
 		expect(target.hp).toBe(hp - 20);
 	});
+	test("Spirit Wounds overfills Mana to three times maximum and preserves it", () => {
+		const source = new Hero({ x: 0, y: 0 });
+		source.configureStats(ZERO_STATS);
+		source.knownSkills.add("manaDrain");
+		source.skillLevels.set("manaDrain", 99);
+		source.mana = source.maxMana;
+		const target = new Hero({ x: 10, y: 0 });
+		target.configureStats({ ...ZERO_STATS, strength: 1_000 });
+		target.receiveDamage(100, { next: () => 1 }, source, false, false, {
+			kind: "magic",
+			critical: true,
+		});
+		expect(source.mana).toBe(source.maxMana * 3);
+		source.compileState(1);
+		source.updateResources(1);
+		source.restoreMana(10);
+		expect(source.mana).toBe(source.maxMana * 3);
+	});
 	test("chains rotating skill casts while basic attacks run on their own cooldown", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const weapon = starterClub();

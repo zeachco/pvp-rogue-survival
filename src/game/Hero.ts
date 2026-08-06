@@ -18,12 +18,14 @@ import {
 	RAGE_GAIN_ON_DODGE,
 	STARTING_RAGE,
 } from "../../common/combat";
+import { MANA_OVERFILL_MULTIPLIER } from "./Unit";
 
 export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(
 	BASE_HERO_TURN_SPEED_DEGREES,
 );
 
 export const AIM_RANGE_OPACITY = 0.25;
+export const AIM_LINE_RANGE_MULTIPLIER = 5;
 const AIM_LINE_WIDTH = 3;
 
 export function aimGuideDimensions(range: number): {
@@ -33,10 +35,18 @@ export function aimGuideDimensions(range: number): {
 } {
 	const safeRange = Math.max(0, range);
 	return {
-		lineLength: safeRange,
-		lineCenter: safeRange / 2,
+		lineLength: safeRange * AIM_LINE_RANGE_MULTIPLIER,
+		lineCenter: (safeRange * AIM_LINE_RANGE_MULTIPLIER) / 2,
 		ringRadius: safeRange,
 	};
+}
+
+export function aimGuideCenter(
+	range: number,
+	facing: number,
+): { x: number; y: number } {
+	const center = aimGuideDimensions(range).lineCenter;
+	return { x: Math.cos(facing) * center, y: Math.sin(facing) * center };
 }
 
 export function turnAngleTowards(
@@ -127,15 +137,28 @@ export class Hero extends Unit {
 		this.facingMesh.renderOrder = Z_HERO + 0.02;
 		this.mesh.add(this.facingMesh);
 
-		const aimMaterial = new THREE.MeshBasicMaterial({
-			color: 0x3affd4,
+		const aimLineMaterial = new THREE.ShaderMaterial({
 			transparent: true,
 			depthWrite: false,
 			side: THREE.DoubleSide,
+			vertexShader: `
+				varying vec2 vUv;
+				void main() {
+					vUv = uv;
+					gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+				}
+			`,
+			fragmentShader: `
+				varying vec2 vUv;
+				void main() {
+					float alpha = 1.0 - smoothstep(0.0, 1.0, vUv.x);
+					gl_FragColor = vec4(0.227, 1.0, 0.831, alpha);
+				}
+			`,
 		});
 		this.aimDirectionMesh = new THREE.Mesh(
 			new THREE.PlaneGeometry(1, AIM_LINE_WIDTH),
-			aimMaterial,
+			aimLineMaterial,
 		);
 		this.aimDirectionMesh.position.z = 0.08;
 		this.aimDirectionMesh.renderOrder = Z_ATTACK + 0.02;
@@ -144,10 +167,14 @@ export class Hero extends Unit {
 
 		this.aimRangeMesh = new THREE.Mesh(
 			new THREE.RingGeometry(0.995, 1, 96),
-			aimMaterial.clone(),
+			new THREE.MeshBasicMaterial({
+				color: 0x3affd4,
+				transparent: true,
+				opacity: AIM_RANGE_OPACITY,
+				depthWrite: false,
+				side: THREE.DoubleSide,
+			}),
 		);
-		(this.aimRangeMesh.material as THREE.MeshBasicMaterial).opacity =
-			AIM_RANGE_OPACITY;
 		this.aimRangeMesh.position.z = 0.07;
 		this.aimRangeMesh.renderOrder = Z_ATTACK + 0.01;
 		this.aimRangeMesh.visible = false;
@@ -213,7 +240,10 @@ export class Hero extends Unit {
 		);
 		this.hp = Math.max(0, this.maxHp * ratio);
 		if (preserveRatio) {
-			this.mana = Math.max(0, Math.min(this.maxMana, mana));
+			this.mana = Math.max(
+				0,
+				Math.min(this.maxMana * MANA_OVERFILL_MULTIPLIER, mana),
+			);
 			this.rage = Math.max(0, Math.min(this.maxRage, rage));
 		} else this.rage = Math.min(STARTING_RAGE, this.maxRage);
 	}
@@ -301,7 +331,8 @@ export class Hero extends Unit {
 		this.aimRangeMesh.visible = visible;
 		if (!visible) return;
 		const dimensions = aimGuideDimensions(weaponRange);
-		this.aimDirectionMesh.position.x = dimensions.lineCenter;
+		const center = aimGuideCenter(weaponRange, this.facing);
+		this.aimDirectionMesh.position.set(center.x, center.y, 0.08);
 		this.aimDirectionMesh.scale.x = dimensions.lineLength;
 		this.aimDirectionMesh.rotation.z = this.facing;
 		this.aimRangeMesh.scale.setScalar(dimensions.ringRadius);

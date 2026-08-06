@@ -37,6 +37,8 @@ export interface StatusEffect extends StatusEffectSnapshot {
 	effectSequence?: number;
 }
 
+export const MANA_OVERFILL_MULTIPLIER = 3;
+
 class StatusUnitEffect extends UnitEffect {
 	readonly type: string;
 	readonly priorityOrder = 999;
@@ -189,7 +191,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		this.maxMana = this.state.maxMana;
 		this.maxRage = this.state.maxRage;
 		this.hp = Math.min(this.hp, this.maxHp);
-		this.mana = Math.min(this.mana, this.maxMana);
+		this.mana = Math.min(this.mana, this.maxMana * MANA_OVERFILL_MULTIPLIER);
 		this.rage = Math.min(this.rage, this.maxRage);
 		return this.state;
 	}
@@ -484,7 +486,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 				spiritWoundsConversionFraction(
 					source.skillLevels.get("manaDrain") ?? 1,
 				);
-			source.restoreMana(spiritDamage);
+			source.restoreMana(spiritDamage, MANA_OVERFILL_MULTIPLIER);
 			if (this.active && spiritDamage > 0)
 				this.receiveDamage(spiritDamage, random, source, false, false, {
 					kind: "cold",
@@ -501,10 +503,13 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		const restored = this.hp - before;
 		if (restored > 0) this.emitCombatText(restored, "healing", false);
 	}
-	restoreMana(amount: number): void {
+	restoreMana(amount: number, maximumMultiplier = 1): void {
 		this.mana = Math.max(
-			0,
-			Math.min(this.maxMana, this.mana + Math.max(0, amount)),
+			this.mana,
+			Math.min(
+				this.maxMana * Math.max(1, maximumMultiplier),
+				this.mana + Math.max(0, amount),
+			),
 		);
 	}
 	restoreRage(amount: number): void {
@@ -572,10 +577,11 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			0,
 			Math.min(this.maxHp, this.hp + this.state.healthRegen * deltaSeconds),
 		);
-		this.mana = Math.max(
-			0,
-			Math.min(this.maxMana, this.mana + this.state.manaRegen * deltaSeconds),
-		);
+		if (this.mana < this.maxMana)
+			this.mana = Math.max(
+				0,
+				Math.min(this.maxMana, this.mana + this.state.manaRegen * deltaSeconds),
+			);
 		this.updateRageResource(deltaSeconds, derived.rageRegen);
 		this.updateSkillUpkeep(deltaSeconds);
 	}
