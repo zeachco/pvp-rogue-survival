@@ -53,6 +53,7 @@ import {
 } from "../../../common/items";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
+import { derivedStats } from "../../../common/progression";
 import type { SpellSlot } from "../../ui/types";
 import { AttackArea } from "../AttackArea";
 import type { ArenaState } from "../ArenaState";
@@ -321,6 +322,7 @@ export class HeroCombatSystem {
 				targetDistance > skillRangeFor(skill) + target.radius
 			)
 				return false;
+			if (procSkill?.id === skill.id) return true;
 			const definition = SKILLS[skill.id];
 			if (definition.resource === "mana")
 				return (
@@ -342,6 +344,7 @@ export class HeroCombatSystem {
 			: undefined;
 		if (this.casting && !castingCandidate) this.casting = undefined;
 		const candidate = castingCandidate ?? rotatedSkills.find(usable);
+		const candidateIsProc = candidate?.id === procSkill?.id;
 		const manaCost = candidate
 			? skillManaCost(candidate.id, candidate.level) * (1 - manaReduction)
 			: 0;
@@ -352,17 +355,18 @@ export class HeroCombatSystem {
 		const magicSkill = Boolean(
 			candidate &&
 				SKILLS[candidate.id].resource === "mana" &&
-				hero.mana >= manaCost,
+				(candidateIsProc || hero.mana >= manaCost),
 		);
 		const physicalSkill = Boolean(
 			candidate &&
 				SKILLS[candidate.id].resource === "rage" &&
-				hero.rage >= rageSkillCost,
+				(candidateIsProc || hero.rage >= rageSkillCost),
 		);
 		const lifeSkill = Boolean(
 			candidate &&
 				SKILLS[candidate.id].resource === "life" &&
-				skillHealthRequirementMet(candidate.id, hero.hp, hero.maxHp),
+				(candidateIsProc ||
+					skillHealthRequirementMet(candidate.id, hero.hp, hero.maxHp)),
 		);
 		const activeSkill =
 			magicSkill || physicalSkill || lifeSkill ? candidate : undefined;
@@ -374,7 +378,7 @@ export class HeroCombatSystem {
 				activeSkill.id === "frostOrb"
 			: profile.projectile;
 		const rageCost =
-			magicSkill || lifeSkill
+			candidateIsProc || magicSkill || lifeSkill
 				? 0
 				: physicalSkill
 					? rageSkillCost
@@ -441,11 +445,11 @@ export class HeroCombatSystem {
 			this.casting = undefined;
 		}
 		const lifeCost =
-			lifeSkill && candidate
+			lifeSkill && candidate && !candidateIsProc
 				? bloodSkillLifeCost(candidate.id, hero.hp, lifeReduction)
 				: 0;
 		hero.spendRage(rageCost);
-		if (magicSkill) hero.spendMana(manaCost);
+		if (magicSkill && !candidateIsProc) hero.spendMana(manaCost);
 		if (lifeCost > 0) hero.spendLife(lifeCost);
 		const strike =
 			activeSkill?.id === "swamp"
@@ -731,7 +735,7 @@ export class HeroCombatSystem {
 	spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
 		const equipped = equippedActiveSkillIds(progress);
 		const autoFire = new Set(autoFireSkillIds(progress));
-		return orderedSkillIds(progress).map((id) => {
+		const ordinarySlots = orderedSkillIds(progress).map((id) => {
 			const cooldown = this.skillCooldowns.get(id);
 			return {
 				id,
@@ -772,6 +776,23 @@ export class HeroCombatSystem {
 					: ("geared" as const),
 			};
 		});
+		const procSlots = weaponProcSkills(progress).map(({ id, level }) => ({
+			id,
+			label: skillLabel(id),
+			level,
+			actualLevel: level,
+			cooldown: 0,
+			cooldownMax: 0,
+			affordable: true,
+			resource: SKILLS[id].resource,
+			costLabel: "Free attack proc",
+			active: true,
+			passive: true,
+			procChancesOnAttacks: weaponProcTriggerChance(progress, id, level),
+			autoFire: false,
+			bar: "geared" as const,
+		}));
+		return [...ordinarySlots, ...procSlots];
 	}
 
 	get attackProgress(): number {
@@ -1156,6 +1177,25 @@ export function weaponProcSkills(
 				),
 			};
 		});
+}
+export function weaponProcTriggerChance(
+	progress: PlayerProgress,
+	skill: SkillId,
+	level: number,
+): number {
+	const stats = statsWithItemBonuses(
+		progress.stats,
+		progress.mainHand,
+		...accessories(progress),
+	);
+	const reduction = Math.min(
+		0.6,
+		derivedStats(stats).cooldownReduction +
+			itemCooldownReduction(...accessories(progress)),
+	);
+	return weaponSkillTriggerChance(
+		effectiveSkillCooldown(skill, progress.mainHand, stats, level, reduction),
+	);
 }
 export function gearedSkillIds(progress: PlayerProgress): SkillId[] {
 	const learned = new Set(learnedSkillIds(progress));

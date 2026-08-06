@@ -1,9 +1,11 @@
 /** @jsx h */
 import {
 	bucklerBlockCost,
+	effectiveSkillCooldown,
 	skillStatBonusDescription,
 	weaponAttackSpeed,
 	weaponDamage,
+	weaponSkillTriggerChance,
 } from "../../common/combat";
 import { SKILLS } from "../../common/content";
 import {
@@ -13,7 +15,7 @@ import {
 	type ItemInstance,
 	type SkillId,
 } from "../../common/items";
-import { STAT_KEYS, type Stats } from "../../common/progression";
+import { derivedStats, STAT_KEYS, type Stats } from "../../common/progression";
 import { pixelsToMeters } from "../../common/units";
 import { h } from "./dom";
 import { formatProjectedValue, previewTone, type PreviewTone } from "./preview";
@@ -112,7 +114,12 @@ export function itemDetails(
 			{item.skills.length ? (
 				<span class="equipment-detail-wide">
 					<small>Skills</small>
-					{skillList(baselineItem?.skills ?? item.skills, item.skills)}
+					{skillList(
+						baselineItem ?? item,
+						item,
+						baselineDisplayStats,
+						displayStats,
+					)}
 				</span>
 			) : null}
 			{requirements.length ? (
@@ -353,19 +360,27 @@ function effectList(
 		</ul>
 	) as HTMLElement;
 }
-function skillList(current: SkillId[], projected: SkillId[]): HTMLElement {
-	const baseline = current.map((skill) => SKILLS[skill].label);
+function skillList(
+	currentItem: ItemInstance,
+	projectedItem: ItemInstance,
+	currentStats: Stats,
+	projectedStats: Stats,
+): HTMLElement {
+	const baseline = currentItem.skills.map((skill) =>
+		itemSkillLabel(currentItem, skill, currentStats),
+	);
 	return (
 		<ul class="item-effect-list item-skill-list">
-			{projected.map((skill, index) => {
+			{projectedItem.skills.map((skill, index) => {
 				const row = itemSkillDescription(skill);
+				const label = itemSkillLabel(projectedItem, skill, projectedStats);
 				return (
 					<li
-						class={baseline[index] !== row.label ? "is-gain-preview" : ""}
+						class={baseline[index] !== label ? "is-gain-preview" : ""}
 						data-skill-id={skill}
 						tabindex="0"
 					>
-						<span>{row.label}</span>
+						<span>{label}</span>
 						<span class="tile-text-tooltip item-skill-tooltip" role="tooltip">
 							<b>{row.label}</b>
 							<span>{row.description}</span>
@@ -376,6 +391,22 @@ function skillList(current: SkillId[], projected: SkillId[]): HTMLElement {
 			})}
 		</ul>
 	) as HTMLElement;
+}
+export function itemSkillLabel(
+	item: ItemInstance,
+	skill: SkillId,
+	stats: Stats,
+): string {
+	const label = SKILLS[skill].label;
+	if (item.itemKind !== "weapon" || SKILLS[skill].passive) return label;
+	const cooldown = effectiveSkillCooldown(
+		skill,
+		item,
+		stats,
+		1,
+		derivedStats(stats).cooldownReduction,
+	);
+	return `${label} (${Math.round(weaponSkillTriggerChance(cooldown) * 100)}%)`;
 }
 export function itemSkillDescription(skill: SkillId): {
 	label: string;

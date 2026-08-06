@@ -435,12 +435,12 @@ export class GameService {
 				mainHand: starterSword,
 				offHand: starterBuckler,
 				inventoryTiles,
-				learnedSkills: ["healing"],
-				learnedSkillLevels: { healing: 1 },
-				universalSkills: ["healing"],
+				learnedSkills: ["frostOrb", "attraction"],
+				learnedSkillLevels: { frostOrb: 1, attraction: 1 },
+				universalSkills: ["frostOrb", "attraction"],
 				disabledSkills: [],
-				equippedSkills: ["healing"],
-				autoFireSkills: ["healing"],
+				equippedSkills: ["frostOrb"],
+				autoFireSkills: ["frostOrb"],
 			},
 		};
 		this.options.repository.save(player);

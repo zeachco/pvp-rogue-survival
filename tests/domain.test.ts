@@ -181,6 +181,7 @@ import { gameSocketUrl } from "../src/net/SocketClient";
 import {
 	itemRequirementRows,
 	itemSkillDescription,
+	itemSkillLabel,
 	requirementDisplayStats,
 	requirementMetStats,
 	statBonusDeltaRows,
@@ -2488,6 +2489,17 @@ test("item skill rows reuse the skillbar descriptions", () => {
 		description: SKILLS.reflectiveSurge.description,
 		statBonuses: skillStatBonusDescription("reflectiveSurge"),
 	});
+});
+test("weapon skill rows show attack-trigger chance while passive rows do not", () => {
+	const weapon = {
+		...starterClub(),
+		level: 1,
+		skills: ["arcaneBolt", "thorns"] as const,
+	};
+	expect(itemSkillLabel(weapon, "arcaneBolt", DEFAULT_ALLOCATION)).toBe(
+		"Arcane Bolt (20%)",
+	);
+	expect(itemSkillLabel(weapon, "thorns", DEFAULT_ALLOCATION)).toBe("Thorns");
 });
 test("scales Gooey Swamp exactly from its level-one to level-ninety-nine endpoints", () => {
 	expect(swampRadius(1)).toBe(200);

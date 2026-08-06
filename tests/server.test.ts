@@ -56,7 +56,7 @@ function enterPair(
 }
 
 describe("realm game service", () => {
-	test("starts new players at level one with a sword, buckler, spell staff, and Healing bound", () => {
+	test("starts new players with Frozen Orb active and Attraction passive", () => {
 		const { game, messages } = harness();
 		const player = game.join("Starter");
 		expect(player.progress.level).toBe(1);
@@ -87,7 +87,14 @@ describe("realm game service", () => {
 		)?.item;
 		expect(staff?.hands).toBe(2);
 		expect(staff?.skills).toContain("arcaneBolt");
-		expect(player.progress.universalSkills).toEqual(["healing"]);
+		expect(player.progress.learnedSkills).toEqual(["frostOrb", "attraction"]);
+		expect(player.progress.learnedSkillLevels).toEqual({
+			frostOrb: 1,
+			attraction: 1,
+		});
+		expect(player.progress.universalSkills).toEqual(["frostOrb", "attraction"]);
+		expect(player.progress.equippedSkills).toEqual(["frostOrb"]);
+		expect(player.progress.autoFireSkills).toEqual(["frostOrb"]);
 		expect(player.panelTriggers).toEqual({
 			character: true,
 			inventory: true,
@@ -101,12 +108,12 @@ describe("realm game service", () => {
 		const player = game.join("Toggle");
 		game.handle(player.id, {
 			type: "toggleSkillAutoFire",
-			skillId: "healing",
+			skillId: "frostOrb",
 		});
 		expect(player.progress.autoFireSkills).toEqual([]);
 		game.handle(player.id, {
 			type: "setSkillEquipped",
-			skillId: "healing",
+			skillId: "frostOrb",
 			equipped: false,
 		});
 		expect(player.progress.equippedSkills).toEqual([]);
@@ -117,16 +124,16 @@ describe("realm game service", () => {
 		player.progress.learnedSkills.push("bash", "cleave");
 		player.progress.learnedSkillLevels.bash = 1;
 		player.progress.learnedSkillLevels.cleave = 1;
-		player.progress.equippedSkills = ["healing", "bash"];
-		player.progress.autoFireSkills = ["healing", "bash"];
+		player.progress.equippedSkills = ["frostOrb", "bash"];
+		player.progress.autoFireSkills = ["frostOrb", "bash"];
 		game.handle(player.id, {
 			type: "setSkillEquipped",
 			skillId: "cleave",
 			equipped: true,
 			slot: 2,
 		});
-		expect(player.progress.equippedSkills).toEqual(["healing", "cleave"]);
-		expect(player.progress.autoFireSkills).toEqual(["healing", "cleave"]);
+		expect(player.progress.equippedSkills).toEqual(["frostOrb", "cleave"]);
+		expect(player.progress.autoFireSkills).toEqual(["frostOrb", "cleave"]);
 	});
 	test("allows loadout assignment without a minimum hero level", () => {
 		const { game } = harness();
@@ -390,7 +397,7 @@ describe("realm game service", () => {
 		source.progress.mainHand = generateItem(4, "rare", 811, {
 			allowedClasses: ["staff"],
 		});
-		source.progress.learnedSkillLevels.healing = 99;
+		source.progress.learnedSkillLevels.frostOrb = 99;
 		target.waveNumber = 10;
 		game.handle(target.id, { type: "requestWave" });
 		const boss = [...target.issuedUnits.values()]
@@ -404,7 +411,7 @@ describe("realm game service", () => {
 			mainHand: source.progress.mainHand,
 			xpReward: 37,
 		});
-		expect(boss?.skillLevels?.healing).toBe(4);
+		expect(boss?.skillLevels?.frostOrb).toBe(4);
 		expect(boss?.skillLevels?.arcaneBolt).toBe(1);
 	});
 	test("converts a boss's Epic equipment drop into a Unique with a 1% chance", () => {

@@ -1045,6 +1045,59 @@ describe("arena systems", () => {
 		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
 		expect(hero.rage).toBe(BASIC_ATTACK_RAGE_GAIN);
 	});
+	test("attack-triggered weapon skills ignore resource costs", () => {
+		const staff = generateItem(1, "common", 103, {
+			allowedClasses: ["staff"],
+		});
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(ZERO_STATS, undefined, staff);
+		hero.mana = 0;
+		const state = new ArenaState();
+		state.creeps.push(makeCreep("proc-target", { x: 100, y: 0 }));
+		const progress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			mainHand: staff,
+			inventoryTiles: [],
+			learnedSkills: [],
+			learnedSkillLevels: {},
+			universalSkills: [],
+			equippedSkills: [],
+			autoFireSkills: [],
+		};
+		const combat = new HeroCombatSystem();
+		const alwaysTrigger = { next: () => 0 };
+		for (let index = 0; index < 8; index += 1)
+			combat.update(
+				0.5,
+				{ x: 0, y: 0 },
+				hero,
+				state,
+				progress,
+				BALANCE,
+				alwaysTrigger,
+			);
+		expect(
+			state.projectiles.some((projectile) => projectile.skill === "arcaneBolt"),
+		).toBeTrue();
+		expect(hero.mana).toBe(0);
+		const procSlot = combat
+			.spellSlots(progress, hero)
+			.find((slot) => slot.id === "arcaneBolt");
+		expect(procSlot).toMatchObject({
+			active: true,
+			passive: true,
+			affordable: true,
+			bar: "geared",
+			costLabel: "Free attack proc",
+		});
+		expect(procSlot?.procChancesOnAttacks).toBeGreaterThan(0);
+	});
 	test("restores resources and clears transient combat state for a new realm", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.configureStats(ZERO_STATS);

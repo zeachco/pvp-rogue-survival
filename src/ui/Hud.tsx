@@ -78,6 +78,7 @@ import {
 	timeHarvestCooldownReduction,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
+	weaponSkillTriggerChance,
 	type SkillDamagePreview,
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
@@ -1341,7 +1342,12 @@ export class Hud {
 			.sort((a, b) => (b.shortcut ?? 0) - (a.shortcut ?? 0));
 		const passiveSpells = spells
 			.filter((spell) => spell.passive && spell.active)
-			.sort((a, b) => a.label.localeCompare(b.label));
+			.sort(
+				(a, b) =>
+					Number(b.procChancesOnAttacks !== undefined) -
+						Number(a.procChancesOnAttacks !== undefined) ||
+					a.label.localeCompare(b.label),
+			);
 		const visible = [...passiveSpells, ...activeSpells];
 		const hasHiddenExtractPreview =
 			this.spellPreviewKind === "extract" &&
@@ -1365,8 +1371,9 @@ export class Hud {
 					passive,
 					autoFire,
 					shortcut,
+					procChancesOnAttacks,
 				}) =>
-					`${bar}:${id}:${label}:${level}:${resource}:${active}:${passive}:${autoFire}:${shortcut ?? ""}:${preview?.get(id) ?? ""}`,
+					`${bar}:${id}:${label}:${level}:${resource}:${active}:${passive}:${autoFire}:${shortcut ?? ""}:${procChancesOnAttacks ?? ""}:${preview?.get(id) ?? ""}`,
 			),
 		].join("|");
 		if (structure !== this.spellStructureSignature) {
@@ -1516,11 +1523,13 @@ export class Hud {
 				<b>{skill.label}</b>
 				<span class="spell-tooltip-description">{skill.description}</span>
 				<span class="spell-tooltip-description">
-					{spell.passive
-						? "Passive — always active while available."
-						: spell.active
-							? `Equipped as ${spell.shortcut}. Press ${spell.shortcut} to cast; right-click toggles auto-fire.`
-							: "Click to equip this spell (maximum 6)."}
+					{spell.procChancesOnAttacks !== undefined
+						? "Passive weapon proc — may trigger from each basic attack."
+						: spell.passive
+							? "Passive — always active while available."
+							: spell.active
+								? `Equipped as ${spell.shortcut}. Press ${spell.shortcut} to cast; right-click toggles auto-fire.`
+								: "Click to equip this spell (maximum 6)."}
 				</span>
 				{skillStatBonusDescription(spell.id) ? (
 					<span class="spell-tooltip-description">
@@ -1606,6 +1615,44 @@ export class Hud {
 			spell.id === "blocking" && progress && stats
 				? `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`
 				: spell.costLabel;
+		if (spell.procChancesOnAttacks !== undefined) {
+			const procChance = weaponSkillTriggerChance(cooldownSeconds);
+			return (
+				<span class="spell-tooltip-property-column">
+					<b>{heading}</b>
+					<span class="spell-tooltip-stats">
+						<span>
+							<small>Level</small>
+							<strong>{shownLevel}</strong>
+						</span>
+						<span>
+							<small>Activation</small>
+							<strong>Attack proc</strong>
+						</span>
+						<span>
+							<small>Proc chance on attacks</small>
+							<strong>{fmt(procChance * 100)}%</strong>
+						</span>
+						{damage ? (
+							<span>
+								<small>Damage</small>
+								<strong>{formatSkillDamage(damage)}</strong>
+							</span>
+						) : null}
+						<span>
+							<small>Cooldown</small>
+							<strong>{fmt(cooldownSeconds)}s</strong>
+						</span>
+						<span>
+							<small>Range</small>
+							<strong>
+								{range ? `${fmt(pixelsToMeters(range))} m` : "Self"}
+							</strong>
+						</span>
+					</span>
+				</span>
+			) as HTMLElement;
+		}
 		if (skill.passive) {
 			const upkeep =
 				skill.upkeep && progress && stats

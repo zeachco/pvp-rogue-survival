@@ -43,6 +43,7 @@ export interface SpellSlot {
 	costLabel: string;
 	active: boolean;
 	passive: boolean;
+	procChancesOnAttacks?: number;
 	autoFire: boolean;
 	shortcut?: number;
 	bar: "learned" | "geared";
