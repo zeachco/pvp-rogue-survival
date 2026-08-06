@@ -112,7 +112,7 @@ import {
 	MAP_LAYER_STEP,
 	MAP_Z,
 	SCENE_LIGHTING,
-	setSceneLocalLightsEnabled,
+	applySceneLightingMode,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
@@ -138,7 +138,7 @@ describe("animated 3D characters", () => {
 	test("uses a dark global baseline and short-radius role lights", () => {
 		expect(SCENE_LIGHTING).toEqual({
 			clearColor: 0x05080c,
-			ambientIntensity: 0.65,
+			ambientIntensity: { off: 1.1, hero: 0.25, all: 0.05 },
 			keyIntensity: 0.95,
 		});
 		const hero = new Hero({ x: 10, y: 20 });
@@ -168,28 +168,39 @@ describe("animated 3D characters", () => {
 		expect(enemyRoleLight("invader")).toBeUndefined();
 	});
 
-	test("keeps only global scene lights when local lighting is disabled", () => {
+	test("applies ambient-only, hero-only, and all lighting modes", () => {
 		const scene = new THREE.Scene();
 		const ambient = new THREE.AmbientLight();
 		const directional = new THREE.DirectionalLight();
-		const localGroup = new THREE.Group();
-		const point = new THREE.PointLight();
-		localGroup.add(point);
-		scene.add(ambient, directional, localGroup);
-		const globals = new Set<THREE.Light>([ambient, directional]);
+		const heroRoot = new THREE.Group();
+		const heroLight = new THREE.SpotLight();
+		const effectLight = new THREE.PointLight();
+		heroRoot.add(heroLight);
+		scene.add(ambient, directional, heroRoot, effectLight);
 
-		setSceneLocalLightsEnabled(scene, globals, false);
+		applySceneLightingMode(scene, ambient, directional, heroRoot, "off");
+		expect(ambient.intensity).toBe(1.1);
 		expect(ambient.visible).toBeTrue();
-		expect(directional.visible).toBeTrue();
-		expect(point.visible).toBeFalse();
+		expect(directional.visible).toBeFalse();
+		expect(heroLight.visible).toBeFalse();
+		expect(effectLight.visible).toBeFalse();
+
+		applySceneLightingMode(scene, ambient, directional, heroRoot, "hero");
+		expect(ambient.intensity).toBe(0.25);
+		expect(directional.visible).toBeFalse();
+		expect(heroLight.visible).toBeTrue();
+		expect(effectLight.visible).toBeFalse();
 
 		const futureEffectLight = new THREE.SpotLight();
 		scene.add(futureEffectLight);
-		setSceneLocalLightsEnabled(scene, globals, false);
+		applySceneLightingMode(scene, ambient, directional, heroRoot, "hero");
 		expect(futureEffectLight.visible).toBeFalse();
 
-		setSceneLocalLightsEnabled(scene, globals, true);
-		expect(point.visible).toBeTrue();
+		applySceneLightingMode(scene, ambient, directional, heroRoot, "all");
+		expect(ambient.intensity).toBe(0.05);
+		expect(directional.visible).toBeTrue();
+		expect(heroLight.visible).toBeTrue();
+		expect(effectLight.visible).toBeTrue();
 		expect(futureEffectLight.visible).toBeTrue();
 	});
 

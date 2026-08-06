@@ -17,10 +17,9 @@ export interface HudCallbacks {
 	onSetRarityAction(rarity: Rarity, action: RarityAction): void;
 	onLeaveRealm(): void;
 	onEnterRealm(): void;
-	onKillPlayer(): void;
 	onBack(): void;
 	onLogout(): void;
-	onSetLightsEnabled(enabled: boolean): void;
+	onSetLightingMode(mode: "off" | "hero" | "all"): void;
 	onInspectHero(heroId: string): void;
 	onSetSkillEquipped(skillId: SkillId, equipped: boolean, slot?: number): void;
 	onToggleSkillAutoFire(skillId: SkillId): void;

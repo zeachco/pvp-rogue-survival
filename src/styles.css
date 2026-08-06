@@ -751,23 +751,42 @@ input {
 	cursor: pointer;
 }
 
-.graphics-option-row {
-	display: grid;
-	grid-template-columns: 1fr auto auto;
-	gap: 12px;
-	align-items: center;
+.graphics-option-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 18px;
+	margin: 14px 0 0;
 	border: 1px solid rgba(104, 213, 238, 0.3);
 	border-radius: 6px;
 	padding: 12px;
 }
 
-.graphics-option-row span {
-	display: grid;
-	gap: 3px;
+.graphics-option-group legend {
+	padding: 0 5px;
+	font-weight: 800;
 }
 
-.graphics-option-row small {
-	color: #a9c3ca;
+.graphics-option-group label {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	cursor: pointer;
+}
+
+.graphics-option-group input {
+	accent-color: #3affd4;
+}
+
+.graphics-option-group.is-unimplemented {
+	border-color: rgba(255, 101, 117, 0.35);
+	opacity: 0.58;
+}
+
+.graphics-option-group.is-unimplemented legend small {
+	margin-left: 6px;
+	color: #ff8592;
+	font-size: 10px;
+	letter-spacing: 0.06em;
 }
 
 .spell-cooldown {
@@ -1455,7 +1474,7 @@ input {
 	color: #dffeff;
 	background: #15312f;
 }
-.realm-panel .training-control {
+.realm-panel .header-control {
 	box-shadow: 0 2px 0 rgba(0, 0, 0, 0.65);
 	cursor: pointer;
 	transform: translateY(0);
@@ -1464,12 +1483,12 @@ input {
 		box-shadow 90ms ease,
 		filter 90ms ease;
 }
-.realm-panel .training-control:hover {
+.realm-panel .header-control:hover {
 	box-shadow: 0 5px 0 rgba(0, 0, 0, 0.55);
 	filter: brightness(1.15);
 	transform: translateY(-3px);
 }
-.realm-panel .training-control:active {
+.realm-panel .header-control:active {
 	box-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
 	filter: brightness(0.95);
 	transform: translateY(2px);
@@ -1498,11 +1517,6 @@ input {
 .realm-panel .realm-member:focus-visible {
 	color: #fff;
 	background: #17443f;
-}
-.realm-panel .kill-player {
-	border-color: #ff6575;
-	color: #ffd9de;
-	background: #401820;
 }
 .ranked-name {
 	display: inline-flex;

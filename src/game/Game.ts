@@ -155,18 +155,9 @@ export class Game {
 				this.socket.send({ type: "setRarityAction", rarity, action }),
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
 			onEnterRealm: () => this.enterRealm(),
-			onKillPlayer: () => {
-				if (
-					window.confirm(
-						"Kill this hero? Death progression and currency penalties will apply.",
-					)
-				)
-					this.socket.send({ type: "suicide" });
-			},
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
-			onSetLightsEnabled: (enabled) =>
-				this.renderer.setLocalLightsEnabled(enabled),
+			onSetLightingMode: (mode) => this.renderer.setLightingMode(mode),
 			onInspectHero: (heroId) =>
 				this.socket.send({ type: "inspectHero", heroId }),
 			onSetSkillEquipped: (skillId, equipped, slot) =>

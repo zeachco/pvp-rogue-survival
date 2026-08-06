@@ -42,18 +42,47 @@ const Z_THREAT = 96;
 
 export const SCENE_LIGHTING = {
 	clearColor: 0x05080c,
-	ambientIntensity: 0.65,
+	ambientIntensity: {
+		off: 1.1,
+		hero: 0.25,
+		all: 0.05,
+	},
 	keyIntensity: 0.95,
 } as const;
 
-export function setSceneLocalLightsEnabled(
+export type LightingMode = "off" | "hero" | "all";
+
+function isDescendantOf(
+	object: THREE.Object3D,
+	root?: THREE.Object3D,
+): boolean {
+	for (
+		let current: THREE.Object3D | null = object;
+		current;
+		current = current.parent
+	)
+		if (current === root) return true;
+	return false;
+}
+
+export function applySceneLightingMode(
 	scene: THREE.Scene,
-	globalLights: ReadonlySet<THREE.Light>,
-	enabled: boolean,
+	ambientLight: THREE.AmbientLight,
+	directionalLight: THREE.DirectionalLight,
+	heroRoot: THREE.Object3D | undefined,
+	mode: LightingMode,
 ): void {
+	ambientLight.intensity = SCENE_LIGHTING.ambientIntensity[mode];
+	ambientLight.visible = true;
+	directionalLight.visible = mode === "all";
 	scene.traverse((object) => {
-		if (object instanceof THREE.Light && !globalLights.has(object))
-			object.visible = enabled;
+		if (
+			object instanceof THREE.Light &&
+			object !== ambientLight &&
+			object !== directionalLight
+		)
+			object.visible =
+				mode === "all" || (mode === "hero" && isDescendantOf(object, heroRoot));
 	});
 }
 
@@ -121,8 +150,8 @@ export class ThreeRenderer {
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 	private readonly ambientLight: THREE.AmbientLight;
 	private readonly keyLight: THREE.DirectionalLight;
-	private readonly globalLights: ReadonlySet<THREE.Light>;
-	private localLightsEnabled = true;
+	private lightingMode: LightingMode = "all";
+	private heroLightRoot?: THREE.Object3D;
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -132,14 +161,13 @@ export class ThreeRenderer {
 		this.scene = new THREE.Scene();
 		this.ambientLight = new THREE.AmbientLight(
 			0xbfe8ff,
-			SCENE_LIGHTING.ambientIntensity,
+			SCENE_LIGHTING.ambientIntensity.all,
 		);
 		this.keyLight = new THREE.DirectionalLight(
 			0xffffff,
 			SCENE_LIGHTING.keyIntensity,
 		);
 		this.keyLight.position.set(-80, -120, 220);
-		this.globalLights = new Set([this.ambientLight, this.keyLight]);
 		this.scene.add(this.ambientLight, this.keyLight);
 		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
 		this.updateCameraTransform();
@@ -149,9 +177,15 @@ export class ThreeRenderer {
 		// Kept asynchronous for a future WebGPU retry once loaded models are compatible.
 	}
 
-	setLocalLightsEnabled(enabled: boolean): void {
-		this.localLightsEnabled = enabled;
-		setSceneLocalLightsEnabled(this.scene, this.globalLights, enabled);
+	setLightingMode(mode: LightingMode): void {
+		this.lightingMode = mode;
+		applySceneLightingMode(
+			this.scene,
+			this.ambientLight,
+			this.keyLight,
+			this.heroLightRoot,
+			mode,
+		);
 	}
 
 	resize(w: number, h: number): void {
@@ -310,10 +344,13 @@ export class ThreeRenderer {
 				this.tracked.add(obj);
 			}
 		}
-		setSceneLocalLightsEnabled(
+		this.heroLightRoot = hero.mesh;
+		applySceneLightingMode(
 			this.scene,
-			this.globalLights,
-			this.localLightsEnabled,
+			this.ambientLight,
+			this.keyLight,
+			this.heroLightRoot,
+			this.lightingMode,
 		);
 
 		hero.updateVisuals(time);

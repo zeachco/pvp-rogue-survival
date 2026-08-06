@@ -190,10 +190,29 @@ export class Hud {
 			[Training Grounds - No Rewards]
 		</div>
 	) as HTMLElement;
-	private readonly lightsToggle = (
-		<input type="checkbox" checked />
-	) as HTMLInputElement;
-	private readonly lightsToggleState = (<strong>On</strong>) as HTMLElement;
+	private readonly lightingRadios = (["off", "hero", "all"] as const).map(
+		(mode) =>
+			(
+				<input
+					type="radio"
+					name="graphics-lighting"
+					value={mode}
+					checked={mode === "all"}
+				/>
+			) as HTMLInputElement,
+	);
+	private readonly shadowRadios = (["off", "static", "dynamic"] as const).map(
+		(mode) =>
+			(
+				<input
+					type="radio"
+					name="graphics-shadows"
+					value={mode}
+					checked={mode === "off"}
+					disabled
+				/>
+			) as HTMLInputElement,
+	);
 	private readonly graphicsOptionsModal = (
 		<section
 			class="graphics-options-modal is-hidden"
@@ -207,14 +226,26 @@ export class Hud {
 				×
 			</button>
 			<h2>Graphics Options</h2>
-			<label class="graphics-option-row">
-				<span>
-					<b>Lights</b>
-					<small>Hero, enemy, spell, projectile, and effect lights</small>
-				</span>
-				{this.lightsToggle}
-				{this.lightsToggleState}
-			</label>
+			<fieldset class="graphics-option-group">
+				<legend>Lights</legend>
+				{this.lightingRadios.map((radio, index) => (
+					<label>
+						{radio}
+						<span>{["Off", "Hero only", "All"][index]}</span>
+					</label>
+				))}
+			</fieldset>
+			<fieldset class="graphics-option-group is-unimplemented" disabled>
+				<legend>
+					Shadow <small>NON_IMPLEMENTED</small>
+				</legend>
+				{this.shadowRadios.map((radio, index) => (
+					<label>
+						{radio}
+						<span>{["Off", "Static", "Dynamic"][index]}</span>
+					</label>
+				))}
+			</fieldset>
 		</section>
 	) as HTMLElement;
 	private readonly aimReticle = (
@@ -584,10 +615,13 @@ export class Hud {
 		) as HTMLButtonElement;
 		graphicsClose.onclick = () =>
 			this.graphicsOptionsModal.classList.add("is-hidden");
-		this.lightsToggle.onchange = () => {
-			this.setLightsEnabled(this.lightsToggle.checked);
-			this.callbacks.onSetLightsEnabled(this.lightsToggle.checked);
-		};
+		for (const radio of this.lightingRadios)
+			radio.onchange = () => {
+				if (!radio.checked) return;
+				const mode = radio.value as "off" | "hero" | "all";
+				this.setLightingMode(mode);
+				this.callbacks.onSetLightingMode(mode);
+			};
 		this.gameHud = (
 			<div class="game-hud">
 				<header class="game-status-bar">
@@ -620,9 +654,9 @@ export class Hud {
 	setJoinName(name: string): void {
 		this.nameInput.value = name;
 	}
-	setLightsEnabled(enabled: boolean): void {
-		this.lightsToggle.checked = enabled;
-		this.lightsToggleState.textContent = enabled ? "On" : "Off";
+	setLightingMode(mode: "off" | "hero" | "all"): void {
+		for (const radio of this.lightingRadios)
+			radio.checked = radio.value === mode;
 	}
 	setNotice(notice: string): void {
 		for (const node of [this.noticeNode, this.joinNoticeNode]) {
@@ -2601,7 +2635,11 @@ export class Hud {
 		this.realmSignature = signature;
 		const action = (
 			<button
-				class={r.mode === "training" ? "training-control enter-realm" : ""}
+				class={
+					r.mode === "training"
+						? "header-control enter-realm"
+						: "header-control"
+				}
 				type="button"
 			>
 				{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}
@@ -2616,24 +2654,18 @@ export class Hud {
 				: this.callbacks.onLeaveRealm;
 		action.disabled = r.mode !== "training" && !r.canLeave;
 		const logout = (
-			<button class="training-control" type="button">
+			<button class="header-control" type="button">
 				Logout
 			</button>
 		) as HTMLButtonElement;
 		logout.onclick = this.callbacks.onLogout;
 		const options = (
-			<button class="training-control" type="button">
+			<button class="header-control" type="button">
 				Options
 			</button>
 		) as HTMLButtonElement;
 		options.onclick = () =>
 			this.graphicsOptionsModal.classList.remove("is-hidden");
-		const kill = (
-			<button class="kill-player" type="button">
-				Kill Player
-			</button>
-		) as HTMLButtonElement;
-		kill.onclick = this.callbacks.onKillPlayer;
 		const title =
 			r.mode === "waiting"
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
@@ -2675,8 +2707,8 @@ export class Hud {
 			<span>
 				Queues {r.outgoingQueued} out / {r.incomingQueued} in
 			</span>,
+			options,
 			action,
-			kill,
 		);
 	}
 	private renderAllocation(): void {
