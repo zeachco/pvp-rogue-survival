@@ -185,8 +185,37 @@ export class Hud {
 		multiplayer: false,
 	};
 	private readonly realmPanel = (<div class="realm-panel" />) as HTMLElement;
-	private readonly realmLobbyModal = (
-		<section class="realm-lobby-modal is-hidden" aria-label="Enter realm" />
+	private readonly trainingModeStatus = (
+		<div class="training-mode-status is-hidden">
+			[Training Grounds - No Rewards]
+		</div>
+	) as HTMLElement;
+	private readonly lightsToggle = (
+		<input type="checkbox" checked />
+	) as HTMLInputElement;
+	private readonly lightsToggleState = (<strong>On</strong>) as HTMLElement;
+	private readonly graphicsOptionsModal = (
+		<section
+			class="graphics-options-modal is-hidden"
+			aria-label="Graphics options"
+		>
+			<button
+				class="graphics-options-close"
+				type="button"
+				aria-label="Close graphics options"
+			>
+				×
+			</button>
+			<h2>Graphics Options</h2>
+			<label class="graphics-option-row">
+				<span>
+					<b>Lights</b>
+					<small>Hero, enemy, spell, projectile, and effect lights</small>
+				</span>
+				{this.lightsToggle}
+				{this.lightsToggleState}
+			</label>
+		</section>
 	) as HTMLElement;
 	private readonly aimReticle = (
 		<div class="aim-reticle is-hidden" aria-hidden="true">
@@ -534,6 +563,7 @@ export class Hud {
 				<div class="xp-cluster">
 					{this.xpToast}
 					{this.timedEffects}
+					{this.trainingModeStatus}
 					{this.xpBadge}
 				</div>
 			) as HTMLElement,
@@ -549,6 +579,15 @@ export class Hud {
 			this.callbacks.onDismissPanelTrigger("multiplayer");
 		};
 		this.multiplayerIntro.append(dismissMultiplayer);
+		const graphicsClose = this.graphicsOptionsModal.querySelector(
+			".graphics-options-close",
+		) as HTMLButtonElement;
+		graphicsClose.onclick = () =>
+			this.graphicsOptionsModal.classList.add("is-hidden");
+		this.lightsToggle.onchange = () => {
+			this.setLightsEnabled(this.lightsToggle.checked);
+			this.callbacks.onSetLightsEnabled(this.lightsToggle.checked);
+		};
 		this.gameHud = (
 			<div class="game-hud">
 				<header class="game-status-bar">
@@ -564,7 +603,7 @@ export class Hud {
 				{this.aimReticle}
 				{this.spellBar}
 				{this.spellCatalog}
-				{this.realmLobbyModal}
+				{this.graphicsOptionsModal}
 				<section class="chat-area">
 					{this.chatLog}
 					{this.chatInput}
@@ -580,6 +619,10 @@ export class Hud {
 	}
 	setJoinName(name: string): void {
 		this.nameInput.value = name;
+	}
+	setLightsEnabled(enabled: boolean): void {
+		this.lightsToggle.checked = enabled;
+		this.lightsToggleState.textContent = enabled ? "On" : "Off";
 	}
 	setNotice(notice: string): void {
 		for (const node of [this.noticeNode, this.joinNoticeNode]) {
@@ -2558,7 +2601,7 @@ export class Hud {
 		this.realmSignature = signature;
 		const action = (
 			<button type="button">
-				{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}
+				{r.mode === "training" ? "Start" : "Leave to Lobby"}
 			</button>
 		) as HTMLButtonElement;
 		action.onclick =
@@ -2571,6 +2614,11 @@ export class Hud {
 		action.disabled = r.mode !== "training" && !r.canLeave;
 		const logout = (<button type="button">Logout</button>) as HTMLButtonElement;
 		logout.onclick = this.callbacks.onLogout;
+		const options = (
+			<button type="button">Options</button>
+		) as HTMLButtonElement;
+		options.onclick = () =>
+			this.graphicsOptionsModal.classList.remove("is-hidden");
 		const kill = (
 			<button class="kill-player" type="button">
 				Kill Player
@@ -2578,11 +2626,9 @@ export class Hud {
 		) as HTMLButtonElement;
 		kill.onclick = this.callbacks.onKillPlayer;
 		const title =
-			r.mode === "training"
-				? `Wave ${this.player?.waveNumber ?? "—"} · Halls of Realms`
-				: r.mode === "waiting"
-					? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
-					: `Wave ${this.player?.waveNumber ?? "—"}`;
+			r.mode === "waiting"
+				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
+				: `Wave ${this.player?.waveNumber ?? "—"}`;
 		const members = (values: RealmState["guards"]) =>
 			values.length
 				? (values
@@ -2604,15 +2650,14 @@ export class Hud {
 		guards.append(...members(r.guards));
 		const attackers = (<span>Attacker: </span>) as HTMLElement;
 		attackers.append(...members(r.attackers));
-		this.realmPanel.classList.toggle("is-hidden", r.mode === "training");
-		this.realmLobbyModal.classList.toggle("is-hidden", r.mode !== "training");
+		this.realmPanel.classList.remove("is-hidden");
+		this.trainingModeStatus.classList.toggle(
+			"is-hidden",
+			r.mode !== "training",
+		);
 		if (r.mode === "training") {
-			this.realmLobbyModal.replaceChildren(
-				<h2>Halls of Realms</h2>,
-				<p>Enter matchmaking when you are ready to defend your realm.</p>,
-				action,
-				logout,
-			);
+			this.realmPanel.replaceChildren(action, options, logout);
+			return;
 		}
 		this.realmPanel.replaceChildren(
 			<strong>{title}</strong>,
@@ -2621,7 +2666,8 @@ export class Hud {
 			<span>
 				Queues {r.outgoingQueued} out / {r.incomingQueued} in
 			</span>,
-			...(r.mode === "training" ? [] : [action, kill]),
+			action,
+			kill,
 		);
 	}
 	private renderAllocation(): void {

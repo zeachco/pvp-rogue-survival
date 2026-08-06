@@ -42,9 +42,20 @@ const Z_THREAT = 96;
 
 export const SCENE_LIGHTING = {
 	clearColor: 0x05080c,
-	hemisphereIntensity: 0.65,
+	ambientIntensity: 0.65,
 	keyIntensity: 0.95,
 } as const;
+
+export function setSceneLocalLightsEnabled(
+	scene: THREE.Scene,
+	globalLights: ReadonlySet<THREE.Light>,
+	enabled: boolean,
+): void {
+	scene.traverse((object) => {
+		if (object instanceof THREE.Light && !globalLights.has(object))
+			object.visible = enabled;
+	});
+}
 
 export function adjustedCameraTilt(
 	current: number,
@@ -108,6 +119,10 @@ export class ThreeRenderer {
 	private focusY = 0;
 	private readonly pointerRay = new THREE.Raycaster();
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+	private readonly ambientLight: THREE.AmbientLight;
+	private readonly keyLight: THREE.DirectionalLight;
+	private readonly globalLights: ReadonlySet<THREE.Light>;
+	private localLightsEnabled = true;
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
@@ -115,25 +130,28 @@ export class ThreeRenderer {
 		this.renderer.setClearColor(SCENE_LIGHTING.clearColor);
 		this.renderer.setPixelRatio(devicePixelRatio);
 		this.scene = new THREE.Scene();
-		this.scene.add(
-			new THREE.HemisphereLight(
-				0xbfe8ff,
-				0x080c10,
-				SCENE_LIGHTING.hemisphereIntensity,
-			),
+		this.ambientLight = new THREE.AmbientLight(
+			0xbfe8ff,
+			SCENE_LIGHTING.ambientIntensity,
 		);
-		const keyLight = new THREE.DirectionalLight(
+		this.keyLight = new THREE.DirectionalLight(
 			0xffffff,
 			SCENE_LIGHTING.keyIntensity,
 		);
-		keyLight.position.set(-80, -120, 220);
-		this.scene.add(keyLight);
+		this.keyLight.position.set(-80, -120, 220);
+		this.globalLights = new Set([this.ambientLight, this.keyLight]);
+		this.scene.add(this.ambientLight, this.keyLight);
 		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
 		this.updateCameraTransform();
 	}
 
 	async init(): Promise<void> {
 		// Kept asynchronous for a future WebGPU retry once loaded models are compatible.
+	}
+
+	setLocalLightsEnabled(enabled: boolean): void {
+		this.localLightsEnabled = enabled;
+		setSceneLocalLightsEnabled(this.scene, this.globalLights, enabled);
 	}
 
 	resize(w: number, h: number): void {
@@ -292,6 +310,11 @@ export class ThreeRenderer {
 				this.tracked.add(obj);
 			}
 		}
+		setSceneLocalLightsEnabled(
+			this.scene,
+			this.globalLights,
+			this.localLightsEnabled,
+		);
 
 		hero.updateVisuals(time);
 		hero.faceCamera(this.camera.quaternion);

@@ -20,6 +20,7 @@ export interface HudCallbacks {
 	onKillPlayer(): void;
 	onBack(): void;
 	onLogout(): void;
+	onSetLightsEnabled(enabled: boolean): void;
 	onInspectHero(heroId: string): void;
 	onSetSkillEquipped(skillId: SkillId, equipped: boolean, slot?: number): void;
 	onToggleSkillAutoFire(skillId: SkillId): void;

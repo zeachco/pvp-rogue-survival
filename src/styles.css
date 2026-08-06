@@ -443,7 +443,7 @@ input {
 }
 
 .spell-catalog,
-.realm-lobby-modal {
+.graphics-options-modal {
 	position: fixed;
 	top: 50%;
 	left: 50%;
@@ -520,16 +520,16 @@ input {
 	cursor: pointer;
 }
 
-.realm-lobby-modal {
+.graphics-options-modal {
 	overflow-y: auto;
 }
 
 .spell-catalog > h2,
-.realm-lobby-modal > h2 {
+.graphics-options-modal > h2 {
 	margin: 0 0 6px;
 }
 .spell-catalog > p,
-.realm-lobby-modal > p {
+.graphics-options-modal > p {
 	margin: 0 0 18px;
 	color: #a9c3ca;
 }
@@ -736,14 +736,38 @@ input {
 	}
 }
 
-.realm-lobby-modal {
+.graphics-options-modal {
 	width: min(430px, calc(100vw - 32px));
-	text-align: center;
 }
 
-.realm-lobby-modal button {
-	margin: 4px;
-	padding: 10px 18px;
+.graphics-options-close {
+	position: absolute;
+	top: 10px;
+	right: 12px;
+	border: 0;
+	color: #e8f9ff;
+	font-size: 26px;
+	background: transparent;
+	cursor: pointer;
+}
+
+.graphics-option-row {
+	display: grid;
+	grid-template-columns: 1fr auto auto;
+	gap: 12px;
+	align-items: center;
+	border: 1px solid rgba(104, 213, 238, 0.3);
+	border-radius: 6px;
+	padding: 12px;
+}
+
+.graphics-option-row span {
+	display: grid;
+	gap: 3px;
+}
+
+.graphics-option-row small {
+	color: #a9c3ca;
 }
 
 .spell-cooldown {
@@ -1175,6 +1199,23 @@ input {
 
 .xp-cluster {
 	position: relative;
+}
+
+.training-mode-status {
+	position: absolute;
+	bottom: calc(100% + 9px);
+	left: 50%;
+	width: max-content;
+	color: #c8e8ef;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	transform: translateX(-50%);
+}
+
+.timed-effects:has(+ .training-mode-status:not(.is-hidden)) {
+	bottom: calc(100% + 31px);
 }
 
 .timed-effects {

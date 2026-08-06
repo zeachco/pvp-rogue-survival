@@ -112,6 +112,7 @@ import {
 	MAP_LAYER_STEP,
 	MAP_Z,
 	SCENE_LIGHTING,
+	setSceneLocalLightsEnabled,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
@@ -137,7 +138,7 @@ describe("animated 3D characters", () => {
 	test("uses a dark global baseline and short-radius role lights", () => {
 		expect(SCENE_LIGHTING).toEqual({
 			clearColor: 0x05080c,
-			hemisphereIntensity: 0.65,
+			ambientIntensity: 0.65,
 			keyIntensity: 0.95,
 		});
 		const hero = new Hero({ x: 10, y: 20 });
@@ -165,6 +166,31 @@ describe("animated 3D characters", () => {
 		}
 		expect(enemyRoleLight("creep")).toBeUndefined();
 		expect(enemyRoleLight("invader")).toBeUndefined();
+	});
+
+	test("keeps only global scene lights when local lighting is disabled", () => {
+		const scene = new THREE.Scene();
+		const ambient = new THREE.AmbientLight();
+		const directional = new THREE.DirectionalLight();
+		const localGroup = new THREE.Group();
+		const point = new THREE.PointLight();
+		localGroup.add(point);
+		scene.add(ambient, directional, localGroup);
+		const globals = new Set<THREE.Light>([ambient, directional]);
+
+		setSceneLocalLightsEnabled(scene, globals, false);
+		expect(ambient.visible).toBeTrue();
+		expect(directional.visible).toBeTrue();
+		expect(point.visible).toBeFalse();
+
+		const futureEffectLight = new THREE.SpotLight();
+		scene.add(futureEffectLight);
+		setSceneLocalLightsEnabled(scene, globals, false);
+		expect(futureEffectLight.visible).toBeFalse();
+
+		setSceneLocalLightsEnabled(scene, globals, true);
+		expect(point.visible).toBeTrue();
+		expect(futureEffectLight.visible).toBeTrue();
 	});
 
 	test("centers fallback unit sprites above the zero-height floor", () => {

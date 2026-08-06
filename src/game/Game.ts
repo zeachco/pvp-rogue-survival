@@ -165,6 +165,8 @@ export class Game {
 			},
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
+			onSetLightsEnabled: (enabled) =>
+				this.renderer.setLocalLightsEnabled(enabled),
 			onInspectHero: (heroId) =>
 				this.socket.send({ type: "inspectHero", heroId }),
 			onSetSkillEquipped: (skillId, equipped, slot) =>

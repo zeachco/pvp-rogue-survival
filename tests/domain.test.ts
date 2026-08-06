@@ -943,7 +943,10 @@ describe("permanent inventory", () => {
 			quantity: 1,
 		};
 		state.inventoryTiles.push(tile);
-		state.gold = 0;
+		state.gold = 10_000;
+		const previousLevels = Object.fromEntries(
+			item.skills.map((skill) => [skill, state.learnedSkillLevels[skill] ?? 0]),
+		);
 		expect(extractButtonStatus(tile, state)).toBe("available");
 		expect(extractionLearnsNewSkill(tile, state)).toBe(true);
 		expect(extractFromInventory(state, tile.id)).toMatchObject({
@@ -952,7 +955,7 @@ describe("permanent inventory", () => {
 		for (const skill of item.skills) {
 			expect(state.learnedSkills).toContain(skill);
 			expect(state.universalSkills).toContain(skill);
-			expect(state.learnedSkillLevels[skill]).toBe(1);
+			expect(state.learnedSkillLevels[skill]).toBe(previousLevels[skill] + 1);
 		}
 		expect(extractionLearnsNewSkill(tile, state)).toBe(false);
 	});
@@ -1161,7 +1164,7 @@ describe("permanent inventory", () => {
 			allowedClasses: ["staff"],
 		});
 		expect(staff.skills).toContain("arcaneBolt");
-		expect(staff.skills).toContain("frostOrb");
+		expect(staff.skills).toHaveLength(5);
 		const mace = generateItem(40, "unique", 46, {
 			allowedClasses: ["mace"],
 		});
@@ -1178,6 +1181,31 @@ describe("permanent inventory", () => {
 			"return",
 			"strength",
 		]);
+	});
+	test("rolls rarity-sized skill sets on generated two-handed weapons", () => {
+		const expectedRanges = {
+			common: [1, 2],
+			uncommon: [2, 3],
+			rare: [3, 4],
+			epic: [5, 5],
+			unique: [5, 5],
+		} as const;
+		for (const [rarity, [minimum, maximum]] of Object.entries(expectedRanges)) {
+			for (let seed = 1; seed <= 30; seed += 1) {
+				const staff = generateItem(
+					20,
+					rarity as keyof typeof expectedRanges,
+					seed,
+					{
+						allowedClasses: ["staff"],
+					},
+				);
+				expect(staff.skills[0]).toBe("arcaneBolt");
+				expect(new Set(staff.skills).size).toBe(staff.skills.length);
+				expect(staff.skills.length).toBeGreaterThanOrEqual(minimum);
+				expect(staff.skills.length).toBeLessThanOrEqual(maximum);
+			}
+		}
 	});
 	test("unique equipment contributes three temporary skill levels", () => {
 		const unique = {
@@ -1777,9 +1805,12 @@ describe("Epic skill extraction", () => {
 		}
 		expect(extractFromInventory(epicState, "epic").changed).toBeTrue();
 		expect(epicState.universalSkills).toEqual(
-			expect.arrayContaining(["arcaneBolt", "frostOrb"]),
+			expect.arrayContaining(epic.skills),
 		);
-		const upgrade = generateItem(1, "rare", 17, { allowedClasses: ["staff"] });
+		const upgrade = {
+			...generateItem(1, "rare", 17, { allowedClasses: ["staff"] }),
+			skills: ["arcaneBolt" as const],
+		};
 		epicState.inventoryTiles.push({
 			id: "upgrade",
 			key: itemStackKey(upgrade),
@@ -2016,9 +2047,9 @@ describe("extractable offhand and staff skills", () => {
 		expect(buckler.skills).toEqual(
 			expect.arrayContaining(["blocking", "thorns", "reflectiveSurge"]),
 		);
-		expect(staff.skills).toEqual(
-			expect.arrayContaining(["arcaneBolt", "frostOrb"]),
-		);
+		expect(staff.skills[0]).toBe("arcaneBolt");
+		expect(staff.skills.length).toBeGreaterThanOrEqual(3);
+		expect(staff.skills.length).toBeLessThanOrEqual(4);
 		const epic = Array.from({ length: 50 }, (_, seed) =>
 			generateRelic(1, "epic", seed),
 		).find((item) => item.attractionSpeed > 0)!;

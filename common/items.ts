@@ -100,6 +100,33 @@ export const AURA_SKILLS: SkillId[] = [
 	"sunburnAura",
 	"thunderAura",
 ];
+const TWO_HANDED_SKILL_COUNTS: Record<Rarity, readonly [number, number]> = {
+	common: [1, 2],
+	uncommon: [2, 3],
+	rare: [3, 4],
+	epic: [5, 5],
+	unique: [5, 5],
+};
+const STAFF_SKILL_POOL: readonly SkillId[] = [
+	"arcaneBolt",
+	"frostOrb",
+	"blizzard",
+	"fireBreath",
+	"gravityPull",
+	"healing",
+	"swamp",
+	"rapidRegen",
+];
+const GENERIC_TWO_HANDED_SKILL_POOL: readonly SkillId[] = [
+	"bash",
+	"sweep",
+	"flurry",
+	"shockwave",
+	"cleave",
+	"whirlwind",
+	"rendingThrow",
+	"orbitingHammers",
+];
 export function auraSkillForSeed(seed: number, divisor = 1): SkillId {
 	return AURA_SKILLS[Math.abs(Math.floor(seed / divisor)) % AURA_SKILLS.length];
 }
@@ -818,6 +845,10 @@ function buildWeapon(
 			MAX_ITEM_REQUIREMENT,
 			Math.max(1, Math.floor(level * 0.6 * power)),
 		);
+	const hands = weaponClass === "staff" ? 2 : 1;
+	const skills = data.skill
+		? weaponSkills(weaponClass, data.skill, rarity, seed, hands)
+		: [];
 	return {
 		id: `item-${seed}-${suffix}`,
 		itemKind: "weapon",
@@ -826,33 +857,13 @@ function buildWeapon(
 		level,
 		rarity,
 		seed,
-		hands: weaponClass === "staff" ? 2 : 1,
+		hands,
 		weight: data.weight,
 		affixes,
 		requirements,
 		statBonuses: {},
 		modifiers,
-		skills: data.skill
-			? [
-					data.skill,
-					...(weaponClass === "staff" &&
-					(rarity === "rare" || rarity === "epic" || rarity === "unique")
-						? ["frostOrb" as const]
-						: []),
-					...(weaponClass === "staff" &&
-					(rarity === "rare" || rarity === "epic" || rarity === "unique")
-						? ["blizzard" as const]
-						: []),
-					...(weaponClass === "mace" &&
-					(rarity === "rare" || rarity === "epic" || rarity === "unique")
-						? ["healing" as const]
-						: []),
-					...(weaponClass === "axe" &&
-					(rarity === "rare" || rarity === "epic" || rarity === "unique")
-						? ["whirlwind" as const]
-						: []),
-				]
-			: [],
+		skills,
 		rageCost: data.rage * levelScale,
 		dropChance: Math.min(0.3, 0.04 + power * 0.06),
 		sellValue: Math.max(
@@ -864,6 +875,41 @@ function buildWeapon(
 		attractionSpeed: weaponClass === "staff" && seed % 4 === 0 ? 35 : 0,
 		pendingRerollSeed: rerollPendingSeed(seed),
 	};
+}
+
+function weaponSkills(
+	weaponClass: WeaponClass,
+	signature: SkillId,
+	rarity: Rarity,
+	seed: number,
+	hands: 1 | 2,
+): SkillId[] {
+	if (hands !== 2) {
+		return [
+			signature,
+			...(weaponClass === "mace" &&
+			(rarity === "rare" || rarity === "epic" || rarity === "unique")
+				? (["healing"] as const)
+				: []),
+			...(weaponClass === "axe" &&
+			(rarity === "rare" || rarity === "epic" || rarity === "unique")
+				? (["whirlwind"] as const)
+				: []),
+		];
+	}
+	const random = new SeededRandom(seed ^ 0x5f3759df);
+	const [minimum, maximum] = TWO_HANDED_SKILL_COUNTS[rarity];
+	const count = minimum + Math.floor(random.next() * (maximum - minimum + 1));
+	const pool = [
+		...(weaponClass === "staff"
+			? STAFF_SKILL_POOL
+			: GENERIC_TWO_HANDED_SKILL_POOL),
+	].filter((skill) => skill !== signature);
+	for (let index = pool.length - 1; index > 0; index -= 1) {
+		const target = Math.floor(random.next() * (index + 1));
+		[pool[index], pool[target]] = [pool[target], pool[index]];
+	}
+	return [signature, ...pool.slice(0, count - 1)];
 }
 
 export function rollRarity(seed: number): Rarity {

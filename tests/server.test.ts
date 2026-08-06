@@ -56,7 +56,7 @@ function enterPair(
 }
 
 describe("realm game service", () => {
-	test("starts new players with Frozen Orb active and Attraction passive", () => {
+	test("starts new players with Frozen Orb on the Staff and Attraction learned", () => {
 		const { game, messages } = harness();
 		const player = game.join("Starter");
 		expect(player.progress.level).toBe(1);
@@ -86,15 +86,12 @@ describe("realm game service", () => {
 			(tile) => tile.item.definitionId === "staff",
 		)?.item;
 		expect(staff?.hands).toBe(2);
-		expect(staff?.skills).toContain("arcaneBolt");
-		expect(player.progress.learnedSkills).toEqual(["frostOrb", "attraction"]);
-		expect(player.progress.learnedSkillLevels).toEqual({
-			frostOrb: 1,
-			attraction: 1,
-		});
-		expect(player.progress.universalSkills).toEqual(["frostOrb", "attraction"]);
-		expect(player.progress.equippedSkills).toEqual(["frostOrb"]);
-		expect(player.progress.autoFireSkills).toEqual(["frostOrb"]);
+		expect(staff?.skills).toEqual(["arcaneBolt", "frostOrb"]);
+		expect(player.progress.learnedSkills).toEqual(["attraction"]);
+		expect(player.progress.learnedSkillLevels).toEqual({ attraction: 1 });
+		expect(player.progress.universalSkills).toEqual(["attraction"]);
+		expect(player.progress.equippedSkills).toEqual([]);
+		expect(player.progress.autoFireSkills).toEqual([]);
 		expect(player.panelTriggers).toEqual({
 			character: true,
 			inventory: true,
@@ -124,16 +121,16 @@ describe("realm game service", () => {
 		player.progress.learnedSkills.push("bash", "cleave");
 		player.progress.learnedSkillLevels.bash = 1;
 		player.progress.learnedSkillLevels.cleave = 1;
-		player.progress.equippedSkills = ["frostOrb", "bash"];
-		player.progress.autoFireSkills = ["frostOrb", "bash"];
+		player.progress.equippedSkills = ["bash", "sweep"];
+		player.progress.autoFireSkills = ["bash", "sweep"];
 		game.handle(player.id, {
 			type: "setSkillEquipped",
 			skillId: "cleave",
 			equipped: true,
 			slot: 2,
 		});
-		expect(player.progress.equippedSkills).toEqual(["frostOrb", "cleave"]);
-		expect(player.progress.autoFireSkills).toEqual(["frostOrb", "cleave"]);
+		expect(player.progress.equippedSkills).toEqual(["bash", "cleave"]);
+		expect(player.progress.autoFireSkills).toEqual(["bash", "cleave"]);
 	});
 	test("allows loadout assignment without a minimum hero level", () => {
 		const { game } = harness();
@@ -397,6 +394,8 @@ describe("realm game service", () => {
 		source.progress.mainHand = generateItem(4, "rare", 811, {
 			allowedClasses: ["staff"],
 		});
+		source.progress.learnedSkills.push("frostOrb");
+		source.progress.universalSkills.push("frostOrb");
 		source.progress.learnedSkillLevels.frostOrb = 99;
 		target.waveNumber = 10;
 		game.handle(target.id, { type: "requestWave" });

@@ -391,6 +391,7 @@ export class GameService {
 		const starterStaff = generateItem(1, "common", 103, {
 			allowedClasses: ["staff"],
 		});
+		starterStaff.skills = ["arcaneBolt", "frostOrb"];
 		const starterItems = [starterSword, starterBuckler, starterStaff];
 		const inventoryTiles: Player["progress"]["inventoryTiles"] = [];
 		for (const item of starterItems) {
@@ -435,12 +436,12 @@ export class GameService {
 				mainHand: starterSword,
 				offHand: starterBuckler,
 				inventoryTiles,
-				learnedSkills: ["frostOrb", "attraction"],
-				learnedSkillLevels: { frostOrb: 1, attraction: 1 },
-				universalSkills: ["frostOrb", "attraction"],
+				learnedSkills: ["attraction"],
+				learnedSkillLevels: { attraction: 1 },
+				universalSkills: ["attraction"],
 				disabledSkills: [],
-				equippedSkills: ["frostOrb"],
-				autoFireSkills: ["frostOrb"],
+				equippedSkills: [],
+				autoFireSkills: [],
 			},
 		};
 		this.options.repository.save(player);
