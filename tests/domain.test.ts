@@ -8,6 +8,7 @@ import {
 	DEFAULT_CAMERA_ZOOM,
 	MAX_CAMERA_TILT_RADIANS,
 	MIN_CAMERA_TILT_RADIANS,
+	MIN_ZOOM,
 } from "../src/game/render/ThreeRenderer";
 import {
 	AIM_RANGE_OPACITY,
@@ -237,8 +238,9 @@ describe("third-person camera", () => {
 		});
 		expect(AIM_RANGE_OPACITY).toBe(0.25);
 	});
-	test("starts at a close RPG chase distance", () => {
-		expect(DEFAULT_CAMERA_ZOOM).toBe(0.9);
+	test("starts at the former maximum distance and zooms out fifty percent farther", () => {
+		expect(DEFAULT_CAMERA_ZOOM).toBe(0.65);
+		expect(0.65 / MIN_ZOOM).toBeCloseTo(1.5);
 	});
 	test("places the chase camera behind and above the hero", () => {
 		expect(adjustedCameraTilt(0, 100)).toBe(MIN_CAMERA_TILT_RADIANS);

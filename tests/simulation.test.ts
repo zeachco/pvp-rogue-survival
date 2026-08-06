@@ -4,6 +4,7 @@ import { SeededRandom } from "../common/random";
 import { AttackArea } from "../src/game/AttackArea";
 import { ArenaState } from "../src/game/ArenaState";
 import {
+	arenaObstacleShape,
 	GameMap,
 	generateArenaColumns,
 	resolveColumnCollision,
@@ -1932,6 +1933,14 @@ describe("arena systems", () => {
 		const second = generateArenaColumns(1600, 1000, 10, new SeededRandom(42));
 		expect(first).toEqual(second);
 		expect(first).toHaveLength(10);
+		expect(
+			first.every((column) =>
+				["cube", "cylinder", "cone"].includes(column.shape),
+			),
+		).toBeTrue();
+		expect(arenaObstacleShape(0)).toBe("cube");
+		expect(arenaObstacleShape(0.5)).toBe("cylinder");
+		expect(arenaObstacleShape(0.99)).toBe("cone");
 		expect(
 			first.every(
 				(column) => Math.hypot(column.x - 800, column.y - 500) >= 180,

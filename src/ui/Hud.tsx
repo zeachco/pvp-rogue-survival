@@ -454,9 +454,6 @@ export class Hud {
 			"auto-send": "Auto-send",
 		};
 		for (const rarity of RARITIES) {
-			const label = (
-				<small class="rarity-filter-label">{rarity}</small>
-			) as HTMLElement;
 			const select = (
 				<select class={`rarity-filter-select rarity-${rarity}`}>
 					{rarityActions.map((a) => (
@@ -466,11 +463,17 @@ export class Hud {
 			) as HTMLSelectElement;
 			select.onchange = () =>
 				callbacks.onSetRarityAction(rarity, select.value as RarityAction);
-			this.rarityFilterNode.append(label, select);
+			const field = (
+				<label class="inventory-filter-field">
+					<small class="rarity-filter-label">{rarity}</small>
+					{select}
+				</label>
+			) as HTMLLabelElement;
+			this.rarityFilterNode.append(field);
 		}
 		const slotFilter = (
-			<label class="inventory-slot-filter">
-				<span>Slots</span>
+			<label class="inventory-filter-field inventory-slot-filter">
+				<small>Slots</small>
 				<select>
 					<option value="all">All</option>
 					<option value="mainhand">Main hand</option>

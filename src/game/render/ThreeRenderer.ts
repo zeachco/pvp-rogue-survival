@@ -11,9 +11,10 @@ import {
 } from "../CombatText";
 import { clamp } from "../types";
 
-const MIN_ZOOM = 0.65;
+const FORMER_MIN_ZOOM = 0.65;
+export const MIN_ZOOM = FORMER_MIN_ZOOM / 1.5;
 const MAX_ZOOM = 1.8;
-export const DEFAULT_CAMERA_ZOOM = 0.9;
+export const DEFAULT_CAMERA_ZOOM = FORMER_MIN_ZOOM;
 const ZOOM_SPEED = 0.0012;
 export const MIN_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(8);
 export const MAX_CAMERA_TILT_RADIANS = THREE.MathUtils.degToRad(85);

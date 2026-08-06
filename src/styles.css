@@ -1,17 +1,5 @@
 .inventory-slot-filter {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	width: 100%;
 	color: #b9d1d6;
-}
-.inventory-slot-filter select {
-	border: 1px solid #74858a;
-	border-radius: 3px;
-	padding: 2px 4px;
-	color: #e4f5f8;
-	font-size: 10px;
-	background: rgba(8, 14, 17, 0.75);
 }
 .spell-catalog-source {
 	color: #d6b85a;
@@ -1606,17 +1594,34 @@ input {
 	overscroll-behavior: contain;
 }
 .rarity-filter {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px 8px;
-	align-items: center;
-	padding: 4px 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+	gap: 6px;
+	padding: 6px 0;
+}
+.inventory-filter-field {
+	display: grid;
+	min-width: 0;
+	gap: 3px;
+	border: 1px solid rgba(138, 216, 255, 0.16);
+	border-radius: 4px;
+	padding: 5px;
+	background: rgba(8, 14, 17, 0.48);
+}
+.inventory-filter-field > small {
+	overflow: hidden;
+	font-size: 10px;
+	line-height: 1.2;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .rarity-filter-label {
 	text-transform: capitalize;
-	opacity: 0.7;
+	opacity: 0.82;
 }
-.rarity-filter-select {
+.rarity-filter select {
+	width: 100%;
+	min-width: 0;
 	background: rgba(8, 14, 17, 0.75);
 	color: #e4f5f8;
 	border: 1px solid #74858a;

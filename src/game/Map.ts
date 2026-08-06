@@ -6,6 +6,15 @@ import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
 
 export interface ArenaColumn extends Vector2 {
 	radius: number;
+	shape: ArenaObstacleShape;
+}
+
+export type ArenaObstacleShape = "cube" | "cylinder" | "cone";
+
+export function arenaObstacleShape(value: number): ArenaObstacleShape {
+	if (value < 1 / 3) return "cube";
+	if (value < 2 / 3) return "cylinder";
+	return "cone";
 }
 
 export interface ColumnCollider {
@@ -43,14 +52,14 @@ export function generateArenaColumns(
 			)
 		)
 			continue;
-		columns.push(candidate);
+		columns.push({ ...candidate, shape: arenaObstacleShape(random.next()) });
 	}
 	return columns;
 }
 
 export function resolveColumnCollision(
 	object: ColumnCollider,
-	columns: readonly ArenaColumn[],
+	columns: readonly Pick<ArenaColumn, "x" | "y" | "radius">[],
 ): boolean {
 	let collided = false;
 	for (const column of columns) {
@@ -78,7 +87,7 @@ export function resolveColumnCollision(
 
 export function touchesColumn(
 	object: Pick<ColumnCollider, "position" | "radius">,
-	columns: readonly ArenaColumn[],
+	columns: readonly Pick<ArenaColumn, "x" | "y" | "radius">[],
 ): boolean {
 	return columns.some(
 		(column) =>
@@ -227,15 +236,30 @@ export class GameMap {
 	private buildColumns(): void {
 		for (const [index, column] of this.columns.entries()) {
 			const height = 100 + (index % 3) * 18;
+			const geometry =
+				column.shape === "cube"
+					? new THREE.BoxGeometry(
+							column.radius * Math.SQRT2,
+							column.radius * Math.SQRT2,
+							height,
+						)
+					: column.shape === "cone"
+						? new THREE.ConeGeometry(column.radius, height, 10)
+						: new THREE.CylinderGeometry(
+								column.radius,
+								column.radius,
+								height,
+								10,
+							);
 			const body = new THREE.Mesh(
-				new THREE.CylinderGeometry(column.radius, column.radius, height, 10),
+				geometry,
 				new THREE.MeshStandardMaterial({
 					color: 0x173c45,
 					roughness: 0.55,
 					metalness: 0.35,
 				}),
 			);
-			body.rotation.x = Math.PI / 2;
+			if (column.shape !== "cube") body.rotation.x = Math.PI / 2;
 			body.position.set(column.x, column.y, height / 2);
 			this.mesh.add(body);
 		}
