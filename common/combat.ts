@@ -13,6 +13,8 @@ import { auraRadius, sunburnFraction, thunderDamage } from "./auras";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
+export const STAFF_BASIC_HALF_ARC = Math.PI / 3;
+
 export function rollWeaponDamage(
 	item: ItemInstance,
 	stats: Stats,

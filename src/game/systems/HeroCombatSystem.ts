@@ -28,6 +28,7 @@ import {
 	skillRange,
 	skillUpkeepPerSecond,
 	spellPower,
+	STAFF_BASIC_HALF_ARC,
 	swampRadius,
 	timeHarvestCooldownReduction,
 	timeHarvestItemSkillBonus,
@@ -113,6 +114,7 @@ export class HeroCombatSystem {
 		balance: BalanceConfig,
 		random: RandomSource,
 		aimFacing?: number,
+		targetIsVisible: (creep: Creep) => boolean = () => true,
 	): void {
 		this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds);
 		this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds);
@@ -242,12 +244,14 @@ export class HeroCombatSystem {
 			});
 			if (this.manualSkill === "rapidRegen") this.manualSkill = undefined;
 		}
-		const target = closestTarget(hero, state.creeps);
-		const movementSpeed = Math.hypot(hero.velocity.x, hero.velocity.y);
+		const target = closestTarget(hero, state.creeps, targetIsVisible);
 		if (aimFacing !== undefined) hero.facing = aimFacing;
-		else if (movementSpeed > 0.01)
+		else if (target)
 			hero.turnTowards(
-				Math.atan2(hero.velocity.y, hero.velocity.x),
+				Math.atan2(
+					target.position.y - hero.position.y,
+					target.position.x - hero.position.x,
+				),
 				deltaSeconds,
 			);
 		if (!target) {
@@ -337,14 +341,6 @@ export class HeroCombatSystem {
 			: undefined;
 		if (this.casting && !castingCandidate) this.casting = undefined;
 		const candidate = castingCandidate ?? rotatedSkills.find(usable);
-		if (aimFacing === undefined && movementSpeed <= 0.01 && candidate)
-			hero.turnTowards(
-				Math.atan2(
-					target.position.y - hero.position.y,
-					target.position.x - hero.position.x,
-				),
-				deltaSeconds,
-			);
 		const manaCost = candidate
 			? skillManaCost(candidate.id, candidate.level) * (1 - manaReduction)
 			: 0;
@@ -906,12 +902,13 @@ export class HeroCombatSystem {
 					origin,
 					hero.facing,
 					profile.range,
-					item?.definitionId === "staff" ||
-						item?.definitionId === "mace" ||
-						item?.definitionId === "club" ||
-						item?.definitionId === "hammer"
-						? Math.PI
-						: 0.72,
+					item?.definitionId === "staff"
+						? STAFF_BASIC_HALF_ARC
+						: item?.definitionId === "mace" ||
+								item?.definitionId === "club" ||
+								item?.definitionId === "hammer"
+							? Math.PI
+							: 0.72,
 					0.18,
 					0.13,
 					strike.damage,
@@ -939,11 +936,15 @@ export function pointAlongFacing(
 	};
 }
 
-function closestTarget(hero: Hero, creeps: Creep[]): Creep | undefined {
+function closestTarget(
+	hero: Hero,
+	creeps: Creep[],
+	targetIsVisible: (creep: Creep) => boolean,
+): Creep | undefined {
 	let target: Creep | undefined;
 	let closest = Infinity;
 	for (const creep of creeps)
-		if (creep.active) {
+		if (creep.active && targetIsVisible(creep)) {
 			const current = distance(hero.position, creep.position);
 			if (current < closest) {
 				target = creep;

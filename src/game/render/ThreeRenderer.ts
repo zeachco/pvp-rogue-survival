@@ -164,6 +164,20 @@ export class ThreeRenderer {
 		return cameraFacingAngle(this.yaw);
 	}
 
+	isWorldPositionInView(position: { x: number; y: number }): boolean {
+		const projected = new THREE.Vector3(position.x, position.y, 0).project(
+			this.camera,
+		);
+		return (
+			projected.z >= -1 &&
+			projected.z <= 1 &&
+			projected.x >= -1 &&
+			projected.x <= 1 &&
+			projected.y >= -1 &&
+			projected.y <= 1
+		);
+	}
+
 	aimAt(
 		source: { x: number; y: number },
 		target: { x: number; y: number },

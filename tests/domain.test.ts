@@ -70,6 +70,7 @@ import {
 	skillStatBonusDescription,
 	skillUpkeepPerSecond,
 	spellCooldownFloor,
+	STAFF_BASIC_HALF_ARC,
 	timeHarvestCooldownReduction,
 	timeHarvestItemSkillBonus,
 	swampCooldown,
@@ -527,12 +528,22 @@ describe("attack timing", () => {
 			intelligence: 0,
 		});
 	});
-	test("uses a wide area profile for staff basics while preserving its spell", () => {
-		const staff = generateItem(1, "common", 20, {
-			allowedClasses: ["staff"],
-		});
+	test("keeps staff basics at one meter while preserving its spell", () => {
+		const staff = {
+			...generateItem(1, "common", 20, { allowedClasses: ["staff"] }),
+			requirements: {},
+		};
+		const leveledStaff = {
+			...generateItem(20, "common", 20, { allowedClasses: ["staff"] }),
+			requirements: {},
+		};
 		expect(weaponUsesProjectile(staff)).toBeFalse();
-		expect(weaponRange(staff)).toBe(330);
+		expect(weaponRange(staff)).toBe(50);
+		expect(weaponRange(leveledStaff)).toBe(50);
+		expect(STAFF_BASIC_HALF_ARC * 2).toBeCloseTo((120 * Math.PI) / 180);
+		expect(weaponDamage(leveledStaff, ZERO_STATS)).toBeGreaterThan(
+			weaponDamage(staff, ZERO_STATS),
+		);
 		expect(staff.skills).toContain("arcaneBolt");
 	});
 });

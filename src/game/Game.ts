@@ -6,6 +6,7 @@ import {
 	attractionSpeedMultiplier,
 	rollAttackStrike,
 	spellPower,
+	STAFF_BASIC_HALF_ARC,
 } from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type {
@@ -656,6 +657,7 @@ export class Game {
 			this.balance,
 			systemRandom,
 			this.aimingHero ? this.renderer.cameraFacing() : undefined,
+			(creep) => this.renderer.isWorldPositionInView(creep.position),
 		);
 		this.auraSystem.update(
 			deltaSeconds,
@@ -706,7 +708,9 @@ export class Game {
 						attack.origin,
 						attack.angle,
 						70,
-						Math.PI,
+						creep.build.mainHand?.definitionId === "staff"
+							? STAFF_BASIC_HALF_ARC
+							: Math.PI,
 						attack.windup,
 						0.14,
 						strike.damage,

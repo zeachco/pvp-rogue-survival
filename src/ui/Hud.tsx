@@ -641,14 +641,30 @@ export class Hud {
   }
   configurePanelTriggers(triggers: PanelTriggers): void {
     this.panelTriggers = { ...triggers };
-    if (triggers.character)
+    const newlyCreated =
+      triggers.character && triggers.inventory && triggers.multiplayer;
+    if (newlyCreated) {
+      this.setPanelCollapsed(
+        this.characterPanel,
+        this.characterToggle,
+        "character",
+        false,
+      );
+      this.setPanelCollapsed(
+        this.inventoryPanel,
+        this.inventoryToggle,
+        "inventory",
+        false,
+      );
+      this.spellCatalog.classList.remove("is-hidden");
+    } else if (triggers.character)
       this.setPanelCollapsed(
         this.characterPanel,
         this.characterToggle,
         "character",
         true,
       );
-    if (triggers.inventory)
+    if (!newlyCreated && triggers.inventory)
       this.setPanelCollapsed(
         this.inventoryPanel,
         this.inventoryToggle,
@@ -2488,7 +2504,10 @@ export class Hud {
     ) as HTMLButtonElement;
     action.onclick =
       r.mode === "training"
-        ? this.callbacks.onEnterRealm
+        ? () => {
+            this.closeGameplayPanels();
+            this.callbacks.onEnterRealm();
+          }
         : this.callbacks.onLeaveRealm;
     action.disabled = r.mode !== "training" && !r.canLeave;
     const logout = (<button type="button">Logout</button>) as HTMLButtonElement;
@@ -2759,6 +2778,21 @@ export class Hud {
       kind,
       !panel.classList.contains("is-collapsed"),
     );
+  }
+  private closeGameplayPanels(): void {
+    this.setPanelCollapsed(
+      this.characterPanel,
+      this.characterToggle,
+      "character",
+      true,
+    );
+    this.setPanelCollapsed(
+      this.inventoryPanel,
+      this.inventoryToggle,
+      "inventory",
+      true,
+    );
+    this.spellCatalog.classList.add("is-hidden");
   }
   private setPanelCollapsed(
     panel: HTMLElement,

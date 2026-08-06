@@ -845,7 +845,7 @@ describe("arena systems", () => {
 		).toHaveLength(1);
 		expect(hero.hp).toBeLessThan(hpBeforeRent);
 	});
-	test("stationary auto-facing requires an affordable spell in range", () => {
+	test("auto-faces the closest visible enemy while moving regardless of spell affordability", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const weapon = starterClub();
 		hero.configureStats(ZERO_STATS, undefined, weapon);
@@ -890,26 +890,30 @@ describe("arena systems", () => {
 		};
 		const combat = new HeroCombatSystem();
 		hero.rage = 0;
+		hero.velocity = { x: 0, y: 100 };
 		combat.update(
 			1 / 60,
-			{ x: 0, y: 0 },
+			{ x: 0, y: 1 },
 			hero,
 			state,
 			progress,
 			BALANCE,
 			new SeededRandom(1),
+			undefined,
+			() => false,
 		);
 		expect(hero.facing).toBe(Math.PI / 2);
 
-		hero.rage = hero.maxRage;
 		combat.update(
 			1 / 60,
-			{ x: 0, y: 0 },
+			{ x: 0, y: 1 },
 			hero,
 			state,
 			progress,
 			BALANCE,
 			new SeededRandom(1),
+			undefined,
+			() => true,
 		);
 		expect(hero.facing).toBeLessThan(Math.PI / 2);
 	});
