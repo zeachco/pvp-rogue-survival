@@ -12,6 +12,7 @@ export class Blizzard extends GameObject {
 	private remaining: number;
 	private untilNextImpact = 0;
 	private readonly icicles: { mesh: THREE.Mesh; remaining: number }[] = [];
+	private readonly spellLight: THREE.SpotLight;
 
 	constructor(
 		readonly position: Vector2,
@@ -35,7 +36,18 @@ export class Blizzard extends GameObject {
 			}),
 		);
 		area.position.z = 0.5;
-		this.mesh.add(area);
+		const lightHeight = Math.max(160, radius * 0.9);
+		this.spellLight = new THREE.SpotLight(
+			0x8de7ff,
+			80,
+			Math.hypot(lightHeight, radius * 2) + 20,
+			Math.atan((radius * 2) / lightHeight),
+			0.55,
+			1,
+		);
+		this.spellLight.position.z = lightHeight;
+		this.spellLight.target.position.set(0, 0, 0);
+		this.mesh.add(area, this.spellLight, this.spellLight.target);
 	}
 
 	update(
@@ -65,6 +77,7 @@ export class Blizzard extends GameObject {
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
 		this.mesh.position.set(this.position.x, this.position.y, 0);
+		this.spellLight.intensity = 68 + 24 * (0.5 + 0.5 * Math.sin(time * 6.5));
 	}
 
 	private spawnIcicle(): void {

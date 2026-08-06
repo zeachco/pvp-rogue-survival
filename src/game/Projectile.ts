@@ -39,6 +39,27 @@ export function orbitingHammerRotation(
 const PROJECTILE_GROUND_CLEARANCE = 2;
 export const VAMPIRIC_BOOMERANG_COLLISION_INTERVAL = 0.5;
 
+export function projectileSpellLightColor(
+	skill: ProjectileSkill | undefined,
+): number | undefined {
+	if (skill === "arcaneBolt") return 0x73d7ff;
+	if (skill === "frostOrb") return 0x67c9ed;
+	if (skill === "vampiricBoomerang") return 0xff3152;
+	if (skill === "rendingThrow") return 0xff4c55;
+	if (skill === "orbitingHammers") return 0xffd76a;
+	return undefined;
+}
+
+export function projectileSpellLightRadius(
+	skill: ProjectileSkill | undefined,
+): number {
+	if (skill === "frostOrb") return 22;
+	if (skill === "vampiricBoomerang") return 48;
+	if (skill === "rendingThrow") return 18;
+	if (skill === "orbitingHammers") return 190;
+	return 11;
+}
+
 export function projectilePresentationCenter(
 	skill?: ProjectileSkill,
 	weaponDefinitionId?: string,
@@ -106,6 +127,7 @@ export class Projectile extends GameObject {
 	private readonly billboardGroup = new THREE.Group();
 	private readonly hammerModelRoot = new THREE.Group();
 	private hammerModelLoaded = false;
+	private readonly spellLight?: THREE.PointLight;
 
 	constructor(
 		start: Vector2,
@@ -118,6 +140,7 @@ export class Projectile extends GameObject {
 		weapon?: ItemInstance,
 		force = true,
 		readonly skillLevel = 1,
+		emitsSpellLight = true,
 	) {
 		super();
 		this.owner = owner;
@@ -163,6 +186,22 @@ export class Projectile extends GameObject {
 			weapon?.definitionId,
 		);
 		this.mesh.add(this.billboardGroup);
+		const lightColor = emitsSpellLight
+			? projectileSpellLightColor(skill)
+			: undefined;
+		if (lightColor !== undefined) {
+			this.spellLight = new THREE.PointLight(
+				lightColor,
+				20,
+				projectileSpellLightRadius(skill) * 2,
+				1,
+			);
+			this.spellLight.position.z = projectilePresentationCenter(
+				skill,
+				weapon?.definitionId,
+			);
+			this.mesh.add(this.spellLight);
+		}
 		if (skill === "orbitingHammers" && typeof document !== "undefined")
 			void this.loadHammerModel();
 		this.mesh.renderOrder = Z_PROJECTILE;
@@ -341,6 +380,7 @@ export class Projectile extends GameObject {
 		angularDrift = 0,
 		lifetime = 2.4,
 		followSource = false,
+		emitsSpellLight = true,
 	): Projectile {
 		const projectile = new Projectile(
 			source.position,
@@ -352,6 +392,8 @@ export class Projectile extends GameObject {
 			presentation,
 			undefined,
 			false,
+			1,
+			emitsSpellLight,
 		);
 		projectile.orbiting = true;
 		projectile.orbitCenter = { ...source.position };
@@ -492,6 +534,8 @@ export class Projectile extends GameObject {
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
 		this.mesh.position.set(this.position.x, this.position.y, 0);
+		if (this.spellLight)
+			this.spellLight.intensity = 17 + 6 * (0.5 + 0.5 * Math.sin(time * 8));
 
 		if (this.skill === "frostOrb") {
 			this.bodyMesh.children[0].rotation.z = time * 1.4;

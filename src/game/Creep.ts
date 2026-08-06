@@ -39,6 +39,26 @@ export const CREEP_RESOURCE_BAR_CAMERA_OFFSET = 2;
 export const creepResourceBarAnchorY = (presentationHeight: number): number =>
 	presentationHeight + 8;
 
+export const ENEMY_ROLE_LIGHTS = {
+	champion: { color: 0xffd43b, intensity: 15, distance: 115, decay: 1 },
+	boss: { color: 0xff293d, intensity: 18, distance: 125, decay: 1 },
+	clone: { color: 0xb05cff, intensity: 14, distance: 110, decay: 1 },
+} as const;
+
+export function enemyRoleLight(role: EnemyRole): THREE.PointLight | undefined {
+	if (role !== "champion" && role !== "boss" && role !== "clone")
+		return undefined;
+	const light = ENEMY_ROLE_LIGHTS[role];
+	const pointLight = new THREE.PointLight(
+		light.color,
+		light.intensity,
+		light.distance,
+		light.decay,
+	);
+	pointLight.position.z = 22;
+	return pointLight;
+}
+
 export function resourceBarWidth(
 	current: number,
 	max: number,
@@ -271,6 +291,11 @@ export class Creep extends Unit {
 		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
 		this.spriteGroup.add(this.bodyMesh);
 		const role = enemyRole(build);
+		const characterLight = enemyRoleLight(role);
+		if (characterLight) {
+			characterLight.position.z = this.spriteCenterHeight;
+			this.mesh.add(characterLight);
+		}
 		const modelKind: CharacterModelKind | undefined =
 			role === "boss"
 				? "boss"

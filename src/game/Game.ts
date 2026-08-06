@@ -757,7 +757,7 @@ export class Game {
 					),
 				);
 				this.arena.spellEffects.push(
-					new SpellEffect("fireBreath", attack.origin, attack.angle),
+					new SpellEffect("fireBreath", attack.origin, attack.angle, 150),
 				);
 			}
 			if (attack?.type === "forceField") {
@@ -766,7 +766,12 @@ export class Game {
 				pushDrops(this.drops, creep.position, forceFieldRange(level));
 				cancelHostileProjectiles(this.projectiles, creep, "creep", level);
 				this.arena.spellEffects.push(
-					new SpellEffect("gravityPull", creep.position),
+					new SpellEffect(
+						"gravityPull",
+						creep.position,
+						0,
+						forceFieldRange(level),
+					),
 				);
 			}
 		}

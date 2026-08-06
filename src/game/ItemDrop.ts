@@ -17,6 +17,24 @@ export const COIN_BOB_AMPLITUDE = 2;
 export const COIN_BOB_SPEED = 2.5;
 export const COIN_SPIN_SPEED = 2.8;
 
+export const GOLD_COIN_DENOMINATIONS = [
+	{ value: 625, color: 0x42bff5 },
+	{ value: 25, color: 0xf4cf42 },
+	{ value: 5, color: 0xc4cbd2 },
+	{ value: 1, color: 0x8b5a2b },
+] as const;
+
+export function goldCoinDenominations(amount: number): number[] {
+	const coins: number[] = [];
+	let remainder = Math.max(0, Math.floor(amount));
+	for (const denomination of GOLD_COIN_DENOMINATIONS) {
+		const count = Math.floor(remainder / denomination.value);
+		for (let index = 0; index < count; index++) coins.push(denomination.value);
+		remainder %= denomination.value;
+	}
+	return coins;
+}
+
 export function coinPresentationOffset(time: number): number {
 	return Math.sin(time * COIN_BOB_SPEED) * COIN_BOB_AMPLITUDE;
 }
@@ -37,6 +55,7 @@ export class ItemDrop extends GameObject {
 	private readonly bodyMesh: THREE.Object3D;
 	private readonly glowMesh?: THREE.Mesh;
 	private readonly coins: THREE.Mesh[] = [];
+	private readonly coinMaterials: THREE.MeshPhysicalMaterial[] = [];
 	private readonly resourceMesh?: THREE.Group;
 	private visualStartedAt?: number;
 
@@ -47,8 +66,11 @@ export class ItemDrop extends GameObject {
 
 		if (drop.kind === "gold") {
 			const cluster = new THREE.Group();
-			const coinCount = 1 + Math.floor(drop.amount / 10);
-			for (let index = 0; index < coinCount; index++) {
+			const denominations = goldCoinDenominations(drop.amount);
+			for (const [index, value] of denominations.entries()) {
+				const denomination = GOLD_COIN_DENOMINATIONS.find(
+					(candidate) => candidate.value === value,
+				);
 				const geometry = new THREE.CylinderGeometry(
 					COIN_RADIUS,
 					COIN_RADIUS,
@@ -58,11 +80,18 @@ export class ItemDrop extends GameObject {
 				geometry.rotateZ(Math.PI / 2);
 				const coin = new THREE.Mesh(
 					geometry,
-					new THREE.MeshBasicMaterial({
-						color: 0xf4cf42,
+					new THREE.MeshPhysicalMaterial({
+						color: denomination?.color ?? 0x8b5a2b,
+						emissive: denomination?.color ?? 0x8b5a2b,
+						emissiveIntensity: 0.08,
+						metalness: 1,
+						roughness: 0.16,
+						clearcoat: 1,
+						clearcoatRoughness: 0.08,
 						side: THREE.DoubleSide,
 					}),
 				);
+				coin.userData.goldValue = value;
 				coin.userData.displacementAngle =
 					deterministicFraction(drop.id, index) * Math.PI * 2;
 				coin.userData.displacementSpeed =
@@ -71,6 +100,7 @@ export class ItemDrop extends GameObject {
 					deterministicFraction(drop.id, index + 211) * Math.PI * 2;
 				coin.renderOrder = Z_DROP;
 				this.coins.push(coin);
+				this.coinMaterials.push(coin.material);
 				cluster.add(coin);
 			}
 			this.bodyMesh = cluster;
@@ -183,6 +213,9 @@ export class ItemDrop extends GameObject {
 				);
 				coin.rotation.y = time * COIN_SPIN_SPEED + phase;
 			}
+			for (const [index, material] of this.coinMaterials.entries())
+				material.emissiveIntensity =
+					0.06 + 0.08 * (0.5 + 0.5 * Math.sin(time * 4 + index * 1.7));
 		}
 		if (this.glowMesh) {
 			const pulse = 0.3 + Math.sin(time * 3) * 0.1;

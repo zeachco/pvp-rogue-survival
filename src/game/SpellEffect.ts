@@ -4,8 +4,54 @@ import type { SkillId } from "../../common/items";
 import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
 import { Z_EFFECT } from "./render/ThreeRenderer";
+import { CHARACTER_MODEL_MANIFESTS } from "./render/AnimatedCharacter";
 
 export type SpellEffectKind = Exclude<SkillId, "healing"> | "healing";
+
+export const ELBO_HEIGHT = 0.8;
+
+export function elbowHeight(modelHeight: number): number {
+	return Math.max(0, modelHeight) * ELBO_HEIGHT;
+}
+
+export function rentSlashAngle(progress: number): number {
+	return Math.PI / 4 - Math.max(0, Math.min(1, progress)) * Math.PI * 2;
+}
+
+export function spellEffectLightColor(
+	kind: SpellEffectKind,
+): number | undefined {
+	if (
+		kind === "arcaneBolt" ||
+		kind === "frostOrb" ||
+		kind === "orbitingHammers" ||
+		kind === "rendingThrow" ||
+		kind === "vampiricBoomerang" ||
+		kind === "swamp" ||
+		kind === "blizzard"
+	)
+		return undefined;
+	if (kind === "rent") return 0xff2448;
+	if (kind === "healing" || kind === "rapidRegen") return 0x68ff9c;
+	if (kind === "fireBreath") return 0xff5a24;
+	if (kind === "gravityPull") return 0xb98cff;
+	if (kind === "reflectiveSurge") return 0xffe46b;
+	if (kind === "whirlwind") return 0xd8f4ff;
+	if (kind === "flurry") return 0xd9c2ff;
+	if (kind === "sweep") return 0xbafcff;
+	if (kind === "cleave") return 0xffcf76;
+	if (kind === "bash" || kind === "shockwave") return 0xe7c889;
+	return 0xddeeff;
+}
+
+export function spellEffectLightDistance(
+	kind: SpellEffectKind,
+	radius: number,
+): number {
+	const presentationRadius =
+		radius > 0 ? radius : kind === "rapidRegen" ? 55 : HEALING_MIN_RADIUS;
+	return presentationRadius * 2;
+}
 
 export class SpellEffect extends GameObject {
 	private age = 0;
@@ -17,6 +63,7 @@ export class SpellEffect extends GameObject {
 	private readonly source?: { position: Vector2 };
 
 	private readonly effectGroup: THREE.Group;
+	private readonly spellLight?: THREE.PointLight;
 
 	constructor(
 		kind: SpellEffectKind,
@@ -42,11 +89,28 @@ export class SpellEffect extends GameObject {
 						? 0.8
 						: kind === "rent"
 							? 0.7
-							: 0.55);
+							: kind === "gravityPull"
+								? 0.9
+								: 0.55);
 
 		this.effectGroup = new THREE.Group();
+		if (kind === "rent")
+			this.effectGroup.position.z = elbowHeight(
+				CHARACTER_MODEL_MANIFESTS.hero.footprint,
+			);
 		this.effectGroup.renderOrder = Z_EFFECT;
 		this.mesh.add(this.effectGroup);
+		const lightColor = spellEffectLightColor(kind);
+		if (lightColor !== undefined) {
+			this.spellLight = new THREE.PointLight(
+				lightColor,
+				kind === "gravityPull" ? 45 : 20,
+				spellEffectLightDistance(kind, range),
+				1,
+			);
+			this.spellLight.position.z = 18;
+			this.mesh.add(this.spellLight);
+		}
 		this.mesh.renderOrder = Z_EFFECT;
 	}
 
@@ -62,6 +126,12 @@ export class SpellEffect extends GameObject {
 	override updateVisuals(_time: number): void {
 		super.updateVisuals(_time);
 		const progress = Math.min(1, this.age / this.lifetime);
+		if (this.spellLight) {
+			const persistent = this.source !== undefined;
+			this.spellLight.intensity = persistent
+				? 16 + 6 * (0.5 + 0.5 * Math.sin(_time * 7))
+				: (this.kind === "gravityPull" ? 45 : 20) * (1 - progress);
+		}
 
 		while (this.effectGroup.children.length > 0) {
 			const child = this.effectGroup.children[0];
@@ -75,11 +145,7 @@ export class SpellEffect extends GameObject {
 		}
 
 		this.mesh.position.set(this.position.x, this.position.y, 0);
-		if (this.kind === "rent") {
-			this.mesh.rotation.z = progress * Math.PI * 5;
-		} else {
-			this.mesh.rotation.z = this.facing;
-		}
+		this.mesh.rotation.z = this.facing;
 
 		if (this.kind === "bash") {
 			impact(this.effectGroup, progress, "#e7c889", 76, 8);
@@ -454,25 +520,108 @@ function fireBreath(group: THREE.Group, progress: number): void {
 	}
 }
 
-function rentEdge(group: THREE.Group, _progress: number, range: number): void {
-	const colors = [0xc91532, 0xfff7ee, 0xc91532];
-	for (let index = 0; index < colors.length; index += 1) {
-		const rx = Math.max(20, range - 4 + index * 4);
-		const ry = Math.max(14, range * 0.62 - 4 + index * 4);
-		const ellipse = new THREE.Mesh(
-			new THREE.RingGeometry(Math.min(rx, ry) - 1, Math.max(rx, ry) + 1, 32),
-			new THREE.MeshBasicMaterial({
-				color: colors[index],
-				side: THREE.DoubleSide,
-				transparent: true,
-				opacity: 0.8,
-				depthWrite: false,
-			}),
-		);
-		ellipse.scale.set(rx / Math.max(rx, ry), ry / Math.max(rx, ry), 1);
-		ellipse.renderOrder = Z_EFFECT + index * 0.001;
-		group.add(ellipse);
+function rentEdge(group: THREE.Group, progress: number, range: number): void {
+	const radius = Math.max(36, range * 0.82);
+	const headAngle = rentSlashAngle(progress);
+	const trailLength = Math.PI * (0.35 + 1.05 * Math.sin(progress * Math.PI));
+	const segments = 36;
+	const positions: number[] = [];
+	const uvs: number[] = [];
+	const indices: number[] = [];
+
+	for (let index = 0; index <= segments; index += 1) {
+		const tailProgress = index / segments;
+		const angle = headAngle + tailProgress * trailLength;
+		const radialWave = Math.sin(tailProgress * Math.PI * 3) * 2.5;
+		const sectionRadius = radius + radialWave;
+		const halfHeight = 11 * (1 - tailProgress) + 1.5;
+		for (const edge of [-1, 1]) {
+			positions.push(
+				Math.cos(angle) * sectionRadius,
+				Math.sin(angle) * sectionRadius,
+				edge * halfHeight,
+			);
+			uvs.push(tailProgress, edge < 0 ? 0 : 1);
+		}
+		if (index < segments) {
+			const offset = index * 2;
+			indices.push(
+				offset,
+				offset + 1,
+				offset + 2,
+				offset + 1,
+				offset + 3,
+				offset + 2,
+			);
+		}
 	}
+
+	const trailGeometry = new THREE.BufferGeometry();
+	trailGeometry.setAttribute(
+		"position",
+		new THREE.Float32BufferAttribute(positions, 3),
+	);
+	trailGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+	trailGeometry.setIndex(indices);
+	const trail = new THREE.Mesh(
+		trailGeometry,
+		new THREE.ShaderMaterial({
+			transparent: true,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+			blending: THREE.AdditiveBlending,
+			uniforms: {
+				uOpacity: { value: Math.sin(progress * Math.PI) },
+				uPhase: { value: progress * Math.PI * 8 },
+			},
+			vertexShader: `
+				varying vec2 vUv;
+				uniform float uPhase;
+				void main() {
+					vUv = uv;
+					vec3 displaced = position;
+					float taper = 1.0 - uv.x;
+					displaced.z += sin(uv.x * 18.0 + uPhase) * 3.0 * taper;
+					gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+				}
+			`,
+			fragmentShader: `
+				varying vec2 vUv;
+				uniform float uOpacity;
+				void main() {
+					float edge = 1.0 - abs(vUv.y * 2.0 - 1.0);
+					float alpha = pow(1.0 - vUv.x, 1.35) * (0.35 + edge * 0.65) * uOpacity;
+					vec3 color = mix(vec3(0.48, 0.005, 0.025), vec3(1.0, 0.16, 0.28), edge);
+					gl_FragColor = vec4(color, alpha);
+				}
+			`,
+		}),
+	);
+	trail.name = "rent-slash-trail";
+	trail.renderOrder = Z_EFFECT;
+	group.add(trail);
+
+	const swordDistance = radius - 17;
+	const sword = new THREE.Mesh(
+		new THREE.ConeGeometry(6, 42, 4),
+		new THREE.MeshStandardMaterial({
+			color: 0xff183d,
+			emissive: 0xff0828,
+			emissiveIntensity: 5,
+			metalness: 0.72,
+			roughness: 0.18,
+		}),
+	);
+	sword.name = "rent-magic-sword";
+	sword.position.set(
+		Math.cos(headAngle) * swordDistance,
+		Math.sin(headAngle) * swordDistance,
+		0,
+	);
+	sword.rotation.z = headAngle - Math.PI / 2;
+	sword.scale.setScalar(0.75 + Math.sin(progress * Math.PI) * 0.25);
+	sword.renderOrder = Z_EFFECT + 0.002;
+	group.add(sword);
 }
 
 function whirlwind(group: THREE.Group, progress: number, range: number): void {

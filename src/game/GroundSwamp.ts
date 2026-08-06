@@ -9,6 +9,7 @@ import { MovementMultiplierEffect } from "../../common/unitState";
 export class GroundSwamp extends GameObject {
 	private remaining = 8;
 	private readonly occupancy = new Map<Creep, number>();
+	private readonly spellLight: THREE.PointLight;
 
 	readonly position: Vector2;
 	readonly radius: number;
@@ -26,6 +27,9 @@ export class GroundSwamp extends GameObject {
 		this.radius = radius;
 		this.source = source;
 		this.followSource = followSource;
+		this.spellLight = new THREE.PointLight(0x486f3b, 14, radius * 2, 1);
+		this.spellLight.position.z = 16;
+		this.mesh.add(this.spellLight);
 
 		const mainShape = new THREE.Mesh(
 			new THREE.CircleGeometry(radius, 32),
@@ -128,6 +132,7 @@ export class GroundSwamp extends GameObject {
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
 		this.mesh.position.set(this.position.x, this.position.y, 0);
+		this.spellLight.intensity = 11 + 5 * (0.5 + 0.5 * Math.sin(time * 4.2));
 	}
 
 	private applyPoison(creep: Creep): void {

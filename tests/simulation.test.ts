@@ -4,6 +4,8 @@ import { SeededRandom } from "../common/random";
 import { AttackArea } from "../src/game/AttackArea";
 import { ArenaState } from "../src/game/ArenaState";
 import {
+	arenaFloorMaterial,
+	arenaObstacleMaterial,
 	arenaObstacleShape,
 	GameMap,
 	generateArenaColumns,
@@ -14,6 +16,7 @@ import {
 	ORBITING_HAMMER_MODEL,
 	orbitingHammerRotation,
 	projectilePresentationCenter,
+	projectileSpellLightRadius,
 	Projectile,
 	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
 } from "../src/game/Projectile";
@@ -22,7 +25,7 @@ import {
 	removeInactive,
 } from "../src/game/systems/lifecycle";
 import { correctArenaBoundary } from "../src/game/bounds";
-import { Hero } from "../src/game/Hero";
+import { HERO_LIGHT, Hero } from "../src/game/Hero";
 import {
 	generateAccessory,
 	generateBuckler,
@@ -32,8 +35,12 @@ import {
 } from "../common/items";
 import { combatTextScale, type CombatText } from "../src/game/CombatText";
 import {
+	ELBO_HEIGHT,
+	elbowHeight,
+	rentSlashAngle,
 	healingAuraOpacity,
 	healingPlusOpacity,
+	spellEffectLightDistance,
 	SpellEffect,
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
@@ -43,8 +50,10 @@ import {
 	COIN_BOB_SPEED,
 	COIN_SPIN_SPEED,
 	DROP_MAX_SPEED,
+	GOLD_COIN_DENOMINATIONS,
 	coinPresentationOffset,
 	dropRarityColor,
+	goldCoinDenominations,
 	groundDropPresentationCenter,
 	ItemDrop,
 } from "../src/game/ItemDrop";
@@ -68,7 +77,9 @@ import { emptyScraps } from "../common/inventory";
 import {
 	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
 	Creep,
+	ENEMY_ROLE_LIGHTS,
 	creepResourceBarAnchorY,
+	enemyRoleLight,
 	resourceBarWidth,
 } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
@@ -97,6 +108,7 @@ import {
 import {
 	MAP_LAYER_STEP,
 	MAP_Z,
+	SCENE_LIGHTING,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
@@ -117,6 +129,36 @@ describe("animated 3D characters", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.facingOffset).toBe(Math.PI / 2);
+	});
+
+	test("uses a dark global baseline and short-radius role lights", () => {
+		expect(SCENE_LIGHTING).toEqual({
+			clearColor: 0x05080c,
+			hemisphereIntensity: 0.65,
+			keyIntensity: 0.95,
+		});
+		const hero = new Hero({ x: 10, y: 20 });
+		const heroLights = hero.mesh.getObjectsByProperty(
+			"type",
+			"PointLight",
+		) as THREE.PointLight[];
+		expect(heroLights).toHaveLength(1);
+		expect(heroLights[0].color.getHex()).toBe(HERO_LIGHT.color);
+		expect(heroLights[0].distance).toBe(HERO_LIGHT.distance);
+		expect(heroLights[0].intensity).toBe(34);
+		expect(heroLights[0].position.z).toBe(HERO_LIGHT.height);
+		expect(heroLights[0].distance).toBeGreaterThan(
+			heroLights[0].position.z * 4,
+		);
+
+		for (const role of ["champion", "boss", "clone"] as const) {
+			const light = enemyRoleLight(role);
+			expect(light?.color.getHex()).toBe(ENEMY_ROLE_LIGHTS[role].color);
+			expect(light?.distance).toBe(ENEMY_ROLE_LIGHTS[role].distance);
+			expect(light?.position.z).toBeGreaterThan(0);
+		}
+		expect(enemyRoleLight("creep")).toBeUndefined();
+		expect(enemyRoleLight("invader")).toBeUndefined();
 	});
 
 	test("centers fallback unit sprites above the zero-height floor", () => {
@@ -1124,6 +1166,95 @@ describe("arena systems", () => {
 		);
 		expect(orbMeshes[0].rotation.z).toBeCloseTo(1.4);
 		expect(orbMeshes[1].rotation.z).toBeCloseTo(-2.1);
+		expect(orb.mesh.getObjectsByProperty("type", "PointLight")).toHaveLength(1);
+		const orbLight = orb.mesh.getObjectByProperty(
+			"type",
+			"PointLight",
+		) as THREE.PointLight;
+		expect(orbLight.position.z).toBeGreaterThan(0);
+		expect(orbLight.distance).toBe(projectileSpellLightRadius("frostOrb") * 2);
+		expect(spike.mesh.getObjectsByProperty("type", "PointLight")).toHaveLength(
+			0,
+		);
+	});
+	test("gives each spell source at most one matching point light", () => {
+		const hero = new Hero({ x: 0, y: 0 });
+		const hammers = [0, 1, 2].map((index) =>
+			Projectile.orbitingHammer(
+				hero,
+				(index * Math.PI * 2) / 3,
+				1,
+				{ kind: "magic" },
+				0,
+				2.4,
+				false,
+				index === 0,
+			),
+		);
+		expect(
+			hammers.flatMap((hammer) =>
+				hammer.mesh.getObjectsByProperty("type", "PointLight"),
+			),
+		).toHaveLength(1);
+
+		const rent = new SpellEffect("rent", hero.position);
+		const rentLights = rent.mesh.getObjectsByProperty(
+			"type",
+			"PointLight",
+		) as THREE.PointLight[];
+		expect(rentLights).toHaveLength(1);
+		expect(rentLights[0].color.getHex()).toBe(0xff2448);
+		expect(rentLights[0].position.z).toBeGreaterThan(0);
+		expect(ELBO_HEIGHT).toBe(0.8);
+		expect(elbowHeight(CHARACTER_MODEL_MANIFESTS.hero.footprint)).toBe(40);
+		expect(rent.mesh.children[0].position.z).toBe(40);
+		expect(rentSlashAngle(0)).toBeCloseTo(Math.PI / 4);
+		expect(rentSlashAngle(0.25)).toBeCloseTo(-Math.PI / 4);
+		expect(rentSlashAngle(0.5)).toBeCloseTo((-3 * Math.PI) / 4);
+		expect(rentSlashAngle(0.75)).toBeCloseTo((-5 * Math.PI) / 4);
+		expect(rentLights[0].distance).toBe(spellEffectLightDistance("rent", 0));
+		rent.update(0.35);
+		rent.updateVisuals(0.35);
+		const rentVisuals = rent.mesh.children[0] as THREE.Group;
+		expect(rentVisuals.getObjectByName("rent-slash-trail")).toBeInstanceOf(
+			THREE.Mesh,
+		);
+		expect(rentVisuals.getObjectByName("rent-magic-sword")).toBeInstanceOf(
+			THREE.Mesh,
+		);
+		expect(rentLights[0].intensity).toBeCloseTo(10);
+
+		const forceField = new SpellEffect("gravityPull", hero.position, 0, 320);
+		const forceFieldLights = forceField.mesh.getObjectsByProperty(
+			"type",
+			"PointLight",
+		) as THREE.PointLight[];
+		expect(forceFieldLights).toHaveLength(1);
+		expect(forceFieldLights[0].color.getHex()).toBe(0xb98cff);
+		expect(forceFieldLights[0].intensity).toBe(45);
+		expect(forceFieldLights[0].distance).toBe(640);
+		expect(forceFieldLights[0].distance).toBe(
+			spellEffectLightDistance("gravityPull", 320),
+		);
+
+		for (const kind of [
+			"bash",
+			"sweep",
+			"flurry",
+			"shockwave",
+			"cleave",
+			"reflectiveSurge",
+			"fireBreath",
+			"whirlwind",
+			"healing",
+			"rapidRegen",
+		] as const)
+			expect(
+				new SpellEffect(kind, hero.position).mesh.getObjectsByProperty(
+					"type",
+					"PointLight",
+				),
+			).toHaveLength(1);
 	});
 	test("bottom-aligns every projectile silhouette above the ground", () => {
 		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);
@@ -1385,6 +1516,17 @@ describe("arena systems", () => {
 		);
 		const hpBefore = creep.hp;
 		const blizzard = new Blizzard({ x: 0, y: 0 }, 100, 5, 1, 13, hero, false);
+		const stormLights = blizzard.mesh.getObjectsByProperty(
+			"type",
+			"SpotLight",
+		) as THREE.SpotLight[];
+		expect(stormLights).toHaveLength(1);
+		expect(
+			blizzard.mesh.getObjectsByProperty("type", "PointLight"),
+		).toHaveLength(0);
+		expect(stormLights[0].position.z).toBeGreaterThan(0);
+		expect(stormLights[0].angle).toBeCloseTo(Math.atan(200 / 160));
+		expect(stormLights[0].distance).toBeCloseTo(Math.hypot(160, 200) + 20);
 		blizzard.update(0.36, [creep], new SeededRandom(2));
 		expect(creep.hp).toBeLessThan(hpBefore);
 		expect(creep.statuses).toMatchObject([
@@ -1628,13 +1770,13 @@ describe("arena systems", () => {
 		expect(groundDropPresentationCenter(drops[2].drop)).toBe(20);
 		expect(groundDropPresentationCenter(drops[3].drop)).toBe(20);
 	});
-	test("renders thick spinning coin clusters with one coin per ten Gold", () => {
+	test("renders exact Gold amounts as distinct denomination-colored coins", () => {
 		const coin = new ItemDrop(
-			{ id: "animated-coin", kind: "gold", amount: 2 },
+			{ id: "animated-coin", kind: "gold", amount: 1 },
 			{ x: 1, y: 2 },
 		);
 		const cluster = new ItemDrop(
-			{ id: "coin-cluster", kind: "gold", amount: 20 },
+			{ id: "coin-cluster", kind: "gold", amount: 24 },
 			{ x: 1, y: 2 },
 		);
 		coin.updateVisuals(0);
@@ -1646,7 +1788,38 @@ describe("arena systems", () => {
 		const singleCoins = coin.mesh.children[0].children as THREE.Mesh[];
 		const clusteredCoins = cluster.mesh.children[0].children as THREE.Mesh[];
 		expect(singleCoins).toHaveLength(1);
-		expect(clusteredCoins).toHaveLength(3);
+		expect(clusteredCoins).toHaveLength(8);
+		expect(goldCoinDenominations(24)).toEqual([5, 5, 5, 5, 1, 1, 1, 1]);
+		expect(goldCoinDenominations(25)).toEqual([25]);
+		expect(goldCoinDenominations(625)).toEqual([625]);
+		expect(clusteredCoins.map((child) => child.userData.goldValue)).toEqual([
+			5, 5, 5, 5, 1, 1, 1, 1,
+		]);
+		expect(
+			GOLD_COIN_DENOMINATIONS.map(({ value, color }) => {
+				const denominationDrop = new ItemDrop(
+					{ id: `gold-${value}`, kind: "gold", amount: value },
+					{ x: 0, y: 0 },
+				);
+				const denominationCoin = denominationDrop.mesh.children[0]
+					.children[0] as THREE.Mesh;
+				return [
+					denominationCoin.userData.goldValue,
+					(
+						denominationCoin.material as THREE.MeshPhysicalMaterial
+					).color.getHex(),
+				];
+			}),
+		).toEqual(
+			GOLD_COIN_DENOMINATIONS.map(({ value, color }) => [value, color]),
+		);
+		for (const clusteredCoin of clusteredCoins) {
+			const material = clusteredCoin.material as THREE.MeshPhysicalMaterial;
+			expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+			expect(material.metalness).toBe(1);
+			expect(material.roughness).toBe(0.16);
+			expect(material.clearcoat).toBe(1);
+		}
 		expect(
 			clusteredCoins.every(
 				(child) => child.geometry.type === "CylinderGeometry",
@@ -1655,7 +1828,8 @@ describe("arena systems", () => {
 		expect(
 			clusteredCoins.every(
 				(child) =>
-					(child.material as THREE.MeshBasicMaterial).side === THREE.DoubleSide,
+					(child.material as THREE.MeshPhysicalMaterial).side ===
+					THREE.DoubleSide,
 			),
 		).toBeTrue();
 		expect(singleCoins[0].rotation.y).not.toBe(0);
@@ -1959,6 +2133,23 @@ describe("arena systems", () => {
 		expect(arenaObstacleShape(0)).toBe("cube");
 		expect(arenaObstacleShape(0.5)).toBe("cylinder");
 		expect(arenaObstacleShape(0.99)).toBe("cone");
+		const obstacleMaterial = arenaObstacleMaterial();
+		expect(obstacleMaterial).toBeInstanceOf(THREE.MeshStandardMaterial);
+		expect(obstacleMaterial.roughness).toBe(0.55);
+		expect(obstacleMaterial.metalness).toBe(0.35);
+		const floorMaterial = arenaFloorMaterial();
+		expect(floorMaterial).toBeInstanceOf(THREE.MeshStandardMaterial);
+		expect(floorMaterial.map).toBeNull();
+		const map = new GameMap(new SeededRandom(42));
+		map.buildMeshes();
+		expect(
+			map.mesh.children.some(
+				(child) =>
+					child instanceof THREE.Mesh &&
+					child.material instanceof THREE.MeshBasicMaterial &&
+					child.material.map instanceof THREE.CanvasTexture,
+			),
+		).toBeFalse();
 		expect(
 			first.every(
 				(column) => Math.hypot(column.x - 800, column.y - 500) >= 180,

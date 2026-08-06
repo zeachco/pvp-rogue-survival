@@ -28,6 +28,14 @@ export const AIM_RANGE_OPACITY = 0.25;
 export const AIM_LINE_RANGE_MULTIPLIER = 5;
 const AIM_LINE_WIDTH = 3;
 
+export const HERO_LIGHT = {
+	color: 0xffe8c2,
+	intensity: 34,
+	distance: 230,
+	decay: 1,
+	height: 46,
+} as const;
+
 export function aimGuideDimensions(range: number): {
 	lineLength: number;
 	lineCenter: number;
@@ -88,10 +96,19 @@ export class Hero extends Unit {
 	private readonly animatedCharacter: AnimatedCharacter;
 	private readonly bleedDots: THREE.Mesh[] = [];
 	private readonly stunRays: THREE.Line[] = [];
+	private readonly characterLight: THREE.PointLight;
 
 	constructor(position: Vector2) {
 		super(position, 18, 100);
 		this.enteredArena = true;
+		this.characterLight = new THREE.PointLight(
+			HERO_LIGHT.color,
+			HERO_LIGHT.intensity,
+			HERO_LIGHT.distance,
+			HERO_LIGHT.decay,
+		);
+		this.characterLight.position.z = HERO_LIGHT.height;
+		this.mesh.add(this.characterLight);
 
 		const texture = loadHeroTexture();
 		const bodyGeo = texture

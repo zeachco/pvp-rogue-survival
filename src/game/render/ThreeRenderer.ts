@@ -40,6 +40,12 @@ const Z_TEXT = 90;
 const Z_SELECTION = 95;
 const Z_THREAT = 96;
 
+export const SCENE_LIGHTING = {
+	clearColor: 0x05080c,
+	hemisphereIntensity: 0.65,
+	keyIntensity: 0.95,
+} as const;
+
 export function adjustedCameraTilt(
 	current: number,
 	wheelDelta: number,
@@ -106,11 +112,20 @@ export class ThreeRenderer {
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
 		this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-		this.renderer.setClearColor(0x0b1116);
+		this.renderer.setClearColor(SCENE_LIGHTING.clearColor);
 		this.renderer.setPixelRatio(devicePixelRatio);
 		this.scene = new THREE.Scene();
-		this.scene.add(new THREE.HemisphereLight(0xbfe8ff, 0x111820, 1.8));
-		const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+		this.scene.add(
+			new THREE.HemisphereLight(
+				0xbfe8ff,
+				0x080c10,
+				SCENE_LIGHTING.hemisphereIntensity,
+			),
+		);
+		const keyLight = new THREE.DirectionalLight(
+			0xffffff,
+			SCENE_LIGHTING.keyIntensity,
+		);
 		keyLight.position.set(-80, -120, 220);
 		this.scene.add(keyLight);
 		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);

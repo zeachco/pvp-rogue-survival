@@ -509,6 +509,7 @@ export class HeroCombatSystem {
 						drift,
 						lifetime,
 						followSource,
+						index === 0,
 					),
 				);
 			}

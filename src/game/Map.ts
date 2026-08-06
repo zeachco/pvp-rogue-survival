@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { systemRandom, type RandomSource } from "../../common/random";
-import { canvas2dContext } from "../platform/Canvas";
 import type { Vector2 } from "./types";
 import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
 
@@ -15,6 +14,22 @@ export function arenaObstacleShape(value: number): ArenaObstacleShape {
 	if (value < 1 / 3) return "cube";
 	if (value < 2 / 3) return "cylinder";
 	return "cone";
+}
+
+export function arenaObstacleMaterial(): THREE.MeshStandardMaterial {
+	return new THREE.MeshStandardMaterial({
+		color: 0x173c45,
+		roughness: 0.55,
+		metalness: 0.35,
+	});
+}
+
+export function arenaFloorMaterial(): THREE.MeshStandardMaterial {
+	return new THREE.MeshStandardMaterial({
+		color: 0x0b1116,
+		roughness: 0.9,
+		metalness: 0.08,
+	});
 }
 
 export interface ColumnCollider {
@@ -132,7 +147,7 @@ export class GameMap {
 
 		const bg = new THREE.Mesh(
 			new THREE.PlaneGeometry(this.width, this.height),
-			new THREE.MeshBasicMaterial({ color: 0x0b1116 }),
+			arenaFloorMaterial(),
 		);
 		bg.position.set(this.width / 2, this.height / 2, MAP_Z);
 		bg.renderOrder = 0;
@@ -176,32 +191,6 @@ export class GameMap {
 
 		this.buildMajorGrid();
 		this.buildColumns();
-
-		const glowCanvas = document.createElement("canvas");
-		glowCanvas.width = 512;
-		glowCanvas.height = 512;
-		const gctx = canvas2dContext(glowCanvas);
-		const glow = gctx.createRadialGradient(256, 256, 10, 256, 256, 256);
-		glow.addColorStop(0, "rgba(40,255,205,.07)");
-		glow.addColorStop(1, "rgba(40,255,205,0)");
-		gctx.fillStyle = glow;
-		gctx.fillRect(0, 0, 512, 512);
-		const glowTex = new THREE.CanvasTexture(glowCanvas);
-		const glowMesh = new THREE.Mesh(
-			new THREE.PlaneGeometry(this.width, this.height),
-			new THREE.MeshBasicMaterial({
-				map: glowTex,
-				transparent: true,
-				depthWrite: false,
-			}),
-		);
-		glowMesh.position.set(
-			this.width / 2,
-			this.height / 2,
-			MAP_Z + MAP_LAYER_STEP * 2,
-		);
-		glowMesh.renderOrder = 2;
-		this.mesh.add(glowMesh);
 
 		const borderVerts = new Float32Array([
 			0,
@@ -251,14 +240,7 @@ export class GameMap {
 								height,
 								10,
 							);
-			const body = new THREE.Mesh(
-				geometry,
-				new THREE.MeshStandardMaterial({
-					color: 0x173c45,
-					roughness: 0.55,
-					metalness: 0.35,
-				}),
-			);
+			const body = new THREE.Mesh(geometry, arenaObstacleMaterial());
 			if (column.shape !== "cube") body.rotation.x = Math.PI / 2;
 			body.position.set(column.x, column.y, height / 2);
 			this.mesh.add(body);
