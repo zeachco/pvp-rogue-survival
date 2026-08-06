@@ -224,6 +224,10 @@ The current client intentionally uses the proven legacy Three.js WebGL renderer 
 
 ## 13. Development Process
 
+- The Lights `Off` option disables lighting and renders every mesh with an unlit material so its authored color remains readable. This applies recursively to existing and subsequently added meshes and supersedes the earlier ambient-only Off description.
+- SIGINT begins immediate graceful shutdown. Superseding the earlier immediate-SIGTERM description, SIGTERM for managed redeployments first broadcasts a realm system message to every joined player that the server will restart and disconnect them in 30 seconds, keeps the server available during that countdown, and then begins the same graceful shutdown. The deployment termination window must exceed 30 seconds; SIGKILL itself cannot be observed or delayed by an application.
+- `bun run reset` transactionally deletes local heroes, checkpoints the SQLite write-ahead log, and verifies that zero heroes remain while preserving the schema.
+
 - `specs/SPEC.md`, `specs/MECHANICS_SPEC.md`, and `specs/PROGRESSION_SPEC.md` are the source-of-truth specification set. Update the relevant spec before implementing behavior not already covered.
 - Keep filenames, runtime choices, protocols, mechanics, progression rules, and UX synchronized with implementation.
 - Use Bun for project scripts and tooling.

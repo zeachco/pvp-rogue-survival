@@ -175,17 +175,39 @@ describe("animated 3D characters", () => {
 		const heroRoot = new THREE.Group();
 		const heroLight = new THREE.SpotLight();
 		const effectLight = new THREE.PointLight();
+		const mesh = new THREE.Mesh(
+			new THREE.BoxGeometry(),
+			new THREE.MeshStandardMaterial({ color: 0xff8844 }),
+		);
+		const litMaterial = mesh.material;
+		const shaderMaterial = new THREE.ShaderMaterial({
+			uniforms: { tint: { value: new THREE.Color(0x55ccff) } },
+			vertexShader:
+				"void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+			fragmentShader:
+				"void main() { gl_FragColor = vec4(0.2, 0.8, 1.0, 0.5); }",
+			transparent: true,
+		});
+		const shaderMesh = new THREE.Mesh(
+			new THREE.PlaneGeometry(),
+			shaderMaterial,
+		);
 		heroRoot.add(heroLight);
-		scene.add(ambient, directional, heroRoot, effectLight);
+		scene.add(ambient, directional, heroRoot, effectLight, mesh, shaderMesh);
 
 		applySceneLightingMode(scene, ambient, directional, heroRoot, "off");
 		expect(ambient.intensity).toBe(1.1);
-		expect(ambient.visible).toBeTrue();
+		expect(ambient.visible).toBeFalse();
 		expect(directional.visible).toBeFalse();
 		expect(heroLight.visible).toBeFalse();
 		expect(effectLight.visible).toBeFalse();
+		expect(mesh.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+		expect(mesh.material.color.getHex()).toBe(0xff8844);
+		const firstUnlitMaterial = mesh.material;
+		expect(shaderMesh.material).toBe(shaderMaterial);
 
 		applySceneLightingMode(scene, ambient, directional, heroRoot, "hero");
+		expect(mesh.material).toBe(litMaterial);
 		expect(ambient.intensity).toBe(0.25);
 		expect(directional.visible).toBeFalse();
 		expect(heroLight.visible).toBeTrue();
@@ -195,6 +217,10 @@ describe("animated 3D characters", () => {
 		scene.add(futureEffectLight);
 		applySceneLightingMode(scene, ambient, directional, heroRoot, "hero");
 		expect(futureEffectLight.visible).toBeFalse();
+
+		applySceneLightingMode(scene, ambient, directional, heroRoot, "off");
+		expect(mesh.material).toBe(firstUnlitMaterial);
+		expect(shaderMesh.material).toBe(shaderMaterial);
 
 		applySceneLightingMode(scene, ambient, directional, heroRoot, "all");
 		expect(ambient.intensity).toBe(0.05);
@@ -1761,6 +1787,16 @@ describe("arena systems", () => {
 		expect(drop.position).toEqual({ x: 100, y: 0 });
 		expect(drop.velocity.x).toBeGreaterThan(0);
 		expect(drop.velocity.x).toBeLessThanOrEqual(DROP_MAX_SPEED);
+	});
+	test("Force Field launches targets with twice the former base force", () => {
+		const state = new ArenaState();
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(ZERO_STATS);
+		const creep = makeCreep("double-force", { x: 1, y: 0 });
+		state.creeps.push(creep);
+		castForceField(state, hero, 1, new SeededRandom(1));
+		expect(creep.velocity.x).toBeCloseTo(358.2);
+		expect(creep.velocity.y).toBe(0);
 	});
 	test("Force Field cancels hostile projectiles in its radius without affecting friendly projectiles", () => {
 		const hero = new Hero({ x: 0, y: 0 });

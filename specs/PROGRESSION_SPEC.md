@@ -27,6 +27,8 @@ Healing is the only spell globally bound to a newly created hero. Extraction upg
 
 ## Items and Skills
 
+- Force Field uses twice its former base push: its outward launch is up to 7.2 m/s and diminishes linearly to zero at its level-scaled radius. Pushed enemies remain constrained inside the arena.
+
 - Spells have no minimum hero-level requirements. Once learned permanently or supplied by equipment, a spell can be equipped, assigned, active, and cast immediately. Spells that formerly required a hero level instead convert that old threshold into a higher authored Mana cost equal to the hero's maximum Mana at matching Intelligence, using `5 + 2 * Intelligence`: Orbiting Hammers costs 25 Mana (former level 10), Frozen Orb costs 45 Mana (former level 20), and Blizzard starts at 55 Mana (former level 25) before its skill-level scaling.
 
 Per-spell behavior is specified in `specs/spells/<skill-id>.md`. These files own a spell's identity, source, activation, cost, targeting, effect, scaling, status behavior, and presentation. This file owns the shared extraction, effective-level, cooldown, range, and HUD rules that those contracts reference. Item-applied slow effects have one file per effect in `specs/item-effects/`; there are currently no such effects. Do not add an item slow without first adding its contract there. Attack wind-up/recovery slow and Freeze are simulation mechanics, not item slows, and remain in `specs/MECHANICS_SPEC.md`.

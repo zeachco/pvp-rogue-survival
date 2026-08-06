@@ -52,6 +52,60 @@ export const SCENE_LIGHTING = {
 
 export type LightingMode = "off" | "hero" | "all";
 
+const unlitMaterialByOriginal = new WeakMap<
+	THREE.Material,
+	THREE.MeshBasicMaterial
+>();
+const originalMaterialByUnlit = new WeakMap<
+	THREE.MeshBasicMaterial,
+	THREE.Material
+>();
+
+function isLitMeshMaterial(
+	material: THREE.Material,
+): material is
+	| THREE.MeshLambertMaterial
+	| THREE.MeshPhongMaterial
+	| THREE.MeshStandardMaterial
+	| THREE.MeshToonMaterial {
+	return (
+		material instanceof THREE.MeshLambertMaterial ||
+		material instanceof THREE.MeshPhongMaterial ||
+		material instanceof THREE.MeshStandardMaterial ||
+		material instanceof THREE.MeshToonMaterial
+	);
+}
+
+function lightingMaterial(material: THREE.Material, mode: LightingMode) {
+	const original =
+		material instanceof THREE.MeshBasicMaterial
+			? originalMaterialByUnlit.get(material)
+			: undefined;
+	if (mode !== "off") return original ?? material;
+	const source = original ?? material;
+	if (!isLitMeshMaterial(source)) return material;
+	const unlit =
+		(original && material instanceof THREE.MeshBasicMaterial
+			? material
+			: unlitMaterialByOriginal.get(source)) ?? new THREE.MeshBasicMaterial();
+	unlit.setValues({
+		color: source.color,
+		map: source.map ?? null,
+		alphaMap: source.alphaMap ?? null,
+		transparent: source.transparent,
+		opacity: source.opacity,
+		side: source.side,
+		depthTest: source.depthTest,
+		depthWrite: source.depthWrite,
+		blending: source.blending,
+		vertexColors: source.vertexColors,
+		visible: source.visible,
+	});
+	unlitMaterialByOriginal.set(source, unlit);
+	originalMaterialByUnlit.set(unlit, source);
+	return unlit;
+}
+
 function isDescendantOf(
 	object: THREE.Object3D,
 	root?: THREE.Object3D,
@@ -73,9 +127,13 @@ export function applySceneLightingMode(
 	mode: LightingMode,
 ): void {
 	ambientLight.intensity = SCENE_LIGHTING.ambientIntensity[mode];
-	ambientLight.visible = true;
+	ambientLight.visible = mode !== "off";
 	directionalLight.visible = mode === "all";
 	scene.traverse((object) => {
+		if (object instanceof THREE.Mesh)
+			object.material = Array.isArray(object.material)
+				? object.material.map((material) => lightingMaterial(material, mode))
+				: lightingMaterial(object.material, mode);
 		if (
 			object instanceof THREE.Light &&
 			object !== ambientLight &&

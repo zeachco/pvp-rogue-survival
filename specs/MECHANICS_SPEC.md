@@ -45,6 +45,8 @@ Attacking, winding up an attack, and casting do not reduce movement speed. When 
 
 ## Arena and Movement
 
+- When lighting is Off, every mesh uses an unlit material and keeps its authored color instead of being darkened by absent lights.
+
 - The hero and creeps use velocity-based movement rather than waypoint movement.
 - A desired movement direction is converted into velocity using acceleration and capped by maximum speed for self-propelled movement. External impulses may temporarily exceed that movement speed.
 - Direction changes occur over successive fixed updates, producing turn/steering response instead of instantaneous full-speed changes. Creep velocity approaches its desired movement velocity over time; the same response acts as friction when steering stops and gradually dissipates external impulses.

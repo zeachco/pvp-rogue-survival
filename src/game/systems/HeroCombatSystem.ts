@@ -1139,7 +1139,7 @@ export function castForceFieldTargets(
 				damagePerSecond: transferred.damagePerSecond,
 				source,
 			});
-		if (dealt > 0) forceField(target, source.position, 180 * falloff);
+		if (dealt > 0) forceField(target, source.position, 360 * falloff);
 	}
 }
 export function learnedSkillIds(progress: PlayerProgress): SkillId[] {

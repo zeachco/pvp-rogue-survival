@@ -14,12 +14,17 @@ if (databaseUrl && !/^postgres(?:ql)?:\/\//.test(databaseUrl))
 	);
 const app = await createApp({ root, databaseUrl });
 let shuttingDown = false;
-const shutdown = async (signal: NodeJS.Signals) => {
+const shutdown = async (signal: NodeJS.Signals, restart = false) => {
 	if (shuttingDown) return;
 	shuttingDown = true;
-	console.log(`[MLH][server] ${signal} received; flushing player state.`);
+	console.log(
+		restart
+			? `[MLH][server] ${signal} received; restarting in 30 seconds.`
+			: `[MLH][server] ${signal} received; flushing player state.`,
+	);
 	try {
-		await app.close();
+		if (restart) await app.restart();
+		else await app.close();
 		process.exit(0);
 	} catch (error) {
 		console.error(
@@ -33,7 +38,7 @@ process.on("SIGINT", () => {
 	void shutdown("SIGINT");
 });
 process.on("SIGTERM", () => {
-	void shutdown("SIGTERM");
+	void shutdown("SIGTERM", true);
 });
 
 app.server.listen(port, host, () =>

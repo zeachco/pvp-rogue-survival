@@ -29,6 +29,9 @@ export interface AppOptions {
 	databaseUrl?: string | false;
 }
 const PERSIST_INTERVAL_MS = 60_000;
+export const RESTART_COUNTDOWN_MS = 30_000;
+export const RESTART_NOTICE =
+	"Server restart in 30 seconds. You will be disconnected when the restart begins.";
 
 export async function createApp(options: AppOptions) {
 	const publicRoot = existsSync(join(options.root, "dist"))
@@ -37,6 +40,7 @@ export async function createApp(options: AppOptions) {
 	const sockets = new Map<string, PlayerSocket>();
 	let closing = false;
 	let closePromise: Promise<void> | undefined;
+	let restartPromise: Promise<void> | undefined;
 	let repository: PlayerRepository;
 	if (options.databaseUrl === false)
 		repository = new InMemoryPlayerRepository();
@@ -209,7 +213,29 @@ export async function createApp(options: AppOptions) {
 			for (const socket of sockets.values()) socket.terminate();
 			await closeServer(server);
 		})());
-	return { server, game, repository, close };
+	const restart = (countdownMs = RESTART_COUNTDOWN_MS): Promise<void> =>
+		(restartPromise ??= (async () => {
+			broadcastRestartNotice(sockets.values());
+			await new Promise<void>((resolve) => setTimeout(resolve, countdownMs));
+			await close();
+		})());
+	return { server, game, repository, close, restart };
+}
+
+export function broadcastRestartNotice(
+	sockets: Iterable<Pick<PlayerSocket, "playerId" | "readyState" | "send">>,
+): void {
+	for (const socket of sockets)
+		if (socket.playerId && socket.readyState === WebSocket.OPEN)
+			socket.send(
+				JSON.stringify({
+					type: "chatMessage",
+					senderId: "",
+					senderName: "",
+					text: RESTART_NOTICE,
+					kind: "system",
+				} satisfies ServerMessage),
+			);
 }
 
 function sendSocket(socket: PlayerSocket, message: ServerMessage): void {
