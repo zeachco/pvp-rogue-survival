@@ -94,7 +94,7 @@ export class SpellEffect extends GameObject {
 								: 0.55);
 
 		this.effectGroup = new THREE.Group();
-		if (kind === "rent")
+		if (kind === "rent" || kind === "whirlwind")
 			this.effectGroup.position.z = elbowHeight(
 				CHARACTER_MODEL_MANIFESTS.hero.footprint,
 			);
@@ -172,7 +172,7 @@ export class SpellEffect extends GameObject {
 		} else if (this.kind === "rent") {
 			rentEdge(this.effectGroup, progress, this.range);
 		} else if (this.kind === "whirlwind") {
-			whirlwind(this.effectGroup, progress, this.range);
+			whirlwind(this.effectGroup, progress, this.range, _time);
 		} else {
 			healing(this.effectGroup, progress, this.range || HEALING_MIN_RADIUS);
 		}
@@ -624,23 +624,128 @@ function rentEdge(group: THREE.Group, progress: number, range: number): void {
 	group.add(sword);
 }
 
-function whirlwind(group: THREE.Group, progress: number, range: number): void {
-	for (let edge = 0; edge < 6; edge += 1) {
-		const angle = progress * Math.PI * 20 + (edge * Math.PI) / 3;
-		const arcColor = edge % 2 ? 0xfff1dc : 0xdb3d2f;
-		const r = range - (edge % 3) * 7;
-		const arc = new THREE.Mesh(
-			new THREE.RingGeometry(r - 1.5, r + 1.5, 16, 1, -0.42, 0.84),
-			new THREE.MeshBasicMaterial({
-				color: arcColor,
-				side: THREE.DoubleSide,
-				transparent: true,
-				opacity: 0.9,
-				depthWrite: false,
-			}),
+export const WHIRLWIND_RADIANS_PER_SECOND = Math.PI * 9;
+
+function whirlwind(
+	group: THREE.Group,
+	progress: number,
+	range: number,
+	time: number,
+): void {
+	const radius = Math.max(42, range * 0.86);
+	const headAngle = time * WHIRLWIND_RADIANS_PER_SECOND;
+	const effectFade = Math.min(1, progress * 8, (1 - progress) * 8);
+	for (let layer = 0; layer < 4; layer += 1) {
+		whirlwindTrail(
+			group,
+			headAngle - layer * 0.22,
+			radius - layer * 2.2,
+			layer,
+			effectFade,
 		);
-		arc.rotation.z = angle;
-		arc.renderOrder = Z_EFFECT + edge * 0.001;
-		group.add(arc);
 	}
+
+	const sword = new THREE.Mesh(
+		new THREE.ConeGeometry(5.5, 40, 4),
+		new THREE.MeshStandardMaterial({
+			color: 0xfff0df,
+			emissive: 0xff2746,
+			emissiveIntensity: 3.5,
+			metalness: 0.85,
+			roughness: 0.12,
+		}),
+	);
+	sword.name = "whirlwind-magic-sword";
+	sword.position.set(
+		Math.cos(headAngle) * (radius - 16),
+		Math.sin(headAngle) * (radius - 16),
+		0,
+	);
+	sword.rotation.z = headAngle - Math.PI / 2;
+	sword.renderOrder = Z_EFFECT + 0.01;
+	group.add(sword);
+}
+
+function whirlwindTrail(
+	group: THREE.Group,
+	headAngle: number,
+	radius: number,
+	layer: number,
+	opacity: number,
+): void {
+	const segments = 64;
+	const trailLength = Math.PI * (1.65 + layer * 0.06);
+	const positions: number[] = [];
+	const uvs: number[] = [];
+	const indices: number[] = [];
+	for (let index = 0; index <= segments; index += 1) {
+		const tailProgress = index / segments;
+		const angle = headAngle - tailProgress * trailLength;
+		const displacedRadius =
+			radius + Math.sin(tailProgress * Math.PI * 5 + layer) * 2;
+		const halfHeight = 7.5 * (1 - tailProgress * 0.7);
+		for (const edge of [-1, 1]) {
+			positions.push(
+				Math.cos(angle) * displacedRadius,
+				Math.sin(angle) * displacedRadius,
+				edge * halfHeight,
+			);
+			uvs.push(tailProgress, edge < 0 ? 0 : 1);
+		}
+		if (index < segments) {
+			const offset = index * 2;
+			indices.push(
+				offset,
+				offset + 1,
+				offset + 2,
+				offset + 1,
+				offset + 3,
+				offset + 2,
+			);
+		}
+	}
+
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute(
+		"position",
+		new THREE.Float32BufferAttribute(positions, 3),
+	);
+	geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+	geometry.setIndex(indices);
+	const trail = new THREE.Mesh(
+		geometry,
+		new THREE.ShaderMaterial({
+			transparent: true,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+			blending: THREE.AdditiveBlending,
+			uniforms: {
+				uLayer: { value: layer },
+				uOpacity: { value: opacity * (0.34 - layer * 0.045) },
+			},
+			vertexShader: `
+				varying vec2 vUv;
+				uniform float uLayer;
+				void main() {
+					vUv = uv;
+					vec3 displaced = position;
+					displaced.z += sin(uv.x * 24.0 + uLayer * 1.7) * 2.5 * (1.0 - uv.x);
+					gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+				}
+			`,
+			fragmentShader: `
+				varying vec2 vUv;
+				uniform float uOpacity;
+				void main() {
+					float core = 1.0 - abs(vUv.y * 2.0 - 1.0);
+					float tail = pow(1.0 - vUv.x, 0.55);
+					vec3 color = mix(vec3(0.72, 0.035, 0.07), vec3(1.0, 0.91, 0.78), core);
+					gl_FragColor = vec4(color, (0.25 + core * 0.75) * tail * uOpacity);
+				}
+			`,
+		}),
+	);
+	trail.name = `whirlwind-blur-trail-${layer}`;
+	trail.renderOrder = Z_EFFECT + layer * 0.001;
+	group.add(trail);
 }

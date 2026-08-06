@@ -42,6 +42,7 @@ import {
 	healingPlusOpacity,
 	spellEffectLightDistance,
 	SpellEffect,
+	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import { Blizzard } from "../src/game/Blizzard";
@@ -1236,6 +1237,35 @@ describe("arena systems", () => {
 		expect(forceFieldLights[0].distance).toBe(
 			spellEffectLightDistance("gravityPull", 320),
 		);
+
+		const whirlwind = new SpellEffect(
+			"whirlwind",
+			hero.position,
+			0,
+			120,
+			3,
+			hero,
+		);
+		whirlwind.update(0.2);
+		whirlwind.updateVisuals(1);
+		const whirlwindVisuals = whirlwind.mesh.children[0] as THREE.Group;
+		expect(WHIRLWIND_RADIANS_PER_SECOND).toBeCloseTo(Math.PI * 9);
+		expect(whirlwindVisuals.position.z).toBe(40);
+		expect(
+			whirlwindVisuals.children.filter((child) =>
+				child.name.startsWith("whirlwind-blur-trail-"),
+			),
+		).toHaveLength(4);
+		expect(
+			whirlwindVisuals.getObjectByName("whirlwind-magic-sword"),
+		).toBeInstanceOf(THREE.Mesh);
+		expect(
+			whirlwindVisuals.children.filter(
+				(child) =>
+					child instanceof THREE.Mesh &&
+					child.material instanceof THREE.ShaderMaterial,
+			),
+		).toHaveLength(4);
 
 		for (const kind of [
 			"bash",
