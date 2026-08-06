@@ -217,6 +217,8 @@ export class Hud {
 	private readonly graphicsOptionsModal = (
 		<section
 			class="graphics-options-modal is-hidden"
+			role="dialog"
+			aria-modal="true"
 			aria-label="Graphics options"
 		>
 			<button
@@ -258,6 +260,17 @@ export class Hud {
 			</section>
 		</section>
 	) as HTMLElement;
+	private readonly graphicsOptionsMask = (
+		<div class="graphics-options-mask is-hidden" aria-hidden="true" />
+	) as HTMLElement;
+	private closeGraphicsOptions(): void {
+		this.graphicsOptionsMask.classList.add("is-hidden");
+		this.graphicsOptionsModal.classList.add("is-hidden");
+	}
+	private openGraphicsOptions(): void {
+		this.graphicsOptionsMask.classList.remove("is-hidden");
+		this.graphicsOptionsModal.classList.remove("is-hidden");
+	}
 	private readonly aimReticle = (
 		<div class="aim-reticle is-hidden" aria-hidden="true">
 			<span />
@@ -625,8 +638,8 @@ export class Hud {
 		const graphicsClose = this.graphicsOptionsModal.querySelector(
 			".graphics-options-close",
 		) as HTMLButtonElement;
-		graphicsClose.onclick = () =>
-			this.graphicsOptionsModal.classList.add("is-hidden");
+		graphicsClose.onclick = () => this.closeGraphicsOptions();
+		this.graphicsOptionsMask.onclick = () => this.closeGraphicsOptions();
 		const devlogOpen = this.graphicsOptionsModal.querySelector(
 			".graphics-devlog-open",
 		) as HTMLButtonElement;
@@ -658,6 +671,7 @@ export class Hud {
 				{this.aimReticle}
 				{this.spellBar}
 				{this.spellCatalog}
+				{this.graphicsOptionsMask}
 				{this.graphicsOptionsModal}
 				<section class="chat-area">
 					{this.chatLog}
@@ -2686,8 +2700,7 @@ export class Hud {
 				Options
 			</button>
 		) as HTMLButtonElement;
-		options.onclick = () =>
-			this.graphicsOptionsModal.classList.remove("is-hidden");
+		options.onclick = () => this.openGraphicsOptions();
 		const title =
 			r.mode === "waiting"
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`

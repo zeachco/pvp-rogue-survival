@@ -524,6 +524,14 @@ input {
 	overflow-y: auto;
 }
 
+.graphics-options-mask {
+	position: fixed;
+	inset: 0;
+	z-index: 34;
+	background: rgba(0, 0, 0, 0.48);
+	pointer-events: auto;
+}
+
 .spell-catalog > h2,
 .graphics-options-modal > h2 {
 	margin: 0 0 6px;
