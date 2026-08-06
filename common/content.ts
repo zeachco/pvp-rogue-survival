@@ -231,7 +231,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 330,
 		resource: "mana",
 		description:
-			"A long-ranged magical projectile that applies a 4-second Freeze while its knockback keeps the target sliding.",
+			"A long-ranged magical projectile that explodes on impact, dealing area damage in a radius that scales from 1 to 4 meters.",
 	},
 	gravityPull: {
 		id: "gravityPull",

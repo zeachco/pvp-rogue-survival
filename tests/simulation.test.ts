@@ -61,6 +61,7 @@ import {
 } from "../src/game/ItemDrop";
 import { starterClub } from "../common/items";
 import {
+	arcaneBoltExplosionRadius,
 	BASIC_ATTACK_RAGE_GAIN,
 	HEALING_MAX_RADIUS,
 	healingCast,
@@ -2037,7 +2038,7 @@ describe("arena systems", () => {
 		hero.addStatus({ kind: "bleed", remaining: 4, damagePerSecond: 1 });
 		expect(hero.statuses).toHaveLength(0);
 	});
-	test("Arcane Bolt adds Frost while preserving its impact push", () => {
+	test("Arcane Bolt explodes on impact while preserving its direct impact push", () => {
 		const state = new ArenaState();
 		const hero = new Hero({ x: 0, y: 0 });
 		hero.configureStats({ ...ZERO_STATS, strength: 10 });
@@ -2061,23 +2062,54 @@ describe("arena systems", () => {
 			BALANCE,
 			new SeededRandom(1),
 		);
-		state.creeps.push(creep);
-		state.projectiles.push(
-			new Projectile(
-				hero.position,
-				creep.position,
-				1,
-				"hero",
-				"arcaneBolt",
-				hero,
-				{ kind: "magic" },
-				starterClub(),
-			),
+		const nearby = new Creep(
+			{
+				id: "arcane-nearby",
+				name: "Nearby",
+				kind: "melee",
+				level: 0,
+				stats: { ...ZERO_STATS },
+				mainHand: starterClub(),
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 2,
+			},
+			"neutral",
+			"neutral",
+			{ x: 80, y: 0 },
+			BALANCE,
+			new SeededRandom(2),
 		);
+		state.creeps.push(creep, nearby);
+		const nearbyBefore = nearby.hp;
+		const projectile = new Projectile(
+			hero.position,
+			creep.position,
+			1,
+			"hero",
+			"arcaneBolt",
+			hero,
+			{ kind: "magic" },
+			starterClub(),
+		);
+		projectile.position = { ...creep.position };
+		state.projectiles.push(projectile);
 		resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
-		expect(creep.statuses).toMatchObject([
-			{ kind: "freeze", remaining: 4, damagePerSecond: 0, source: hero },
-		]);
+		expect(creep.statuses).toHaveLength(0);
+		expect(nearby.hp).toBeLessThan(nearbyBefore);
+		expect(state.spellEffects).toHaveLength(1);
+		const explosionEffect = state.spellEffects[0];
+		expect(explosionEffect.kind).toBe("arcaneBoltExplosion");
+		expect(
+			explosionEffect.mesh.getObjectsByProperty("type", "PointLight"),
+		).toHaveLength(1);
+		explosionEffect.updateVisuals(0);
+		expect(
+			explosionEffect.mesh.getObjectByProperty("type", "PointLight")?.position
+				.z,
+		).toBeGreaterThan(0);
 		expect(creep.velocity.x).toBeGreaterThan(0);
 		const before = creep.position.x;
 		creep.pursue(hero.position, 1 / 60, 500, 500);
@@ -2752,7 +2784,7 @@ function makeCreep(
 }
 
 describe("Unique rarity arena effects", () => {
-	test("a Unique staff's Arcane Bolt explodes for a portion of spell power", () => {
+	test("a Unique staff doubles Arcane Bolt's explosion radius and applies Freeze", () => {
 		const uniqueStaff = generateItem(4, "unique", 1001, {
 			allowedClasses: ["staff"],
 		});
@@ -2760,8 +2792,9 @@ describe("Unique rarity arena effects", () => {
 		hero.configureStats(ZERO_STATS, undefined, uniqueStaff);
 		const state = new ArenaState();
 		const direct = makeCreep("direct", { x: 100, y: 0 });
-		const nearby = makeCreep("nearby", { x: 115, y: 0 });
-		state.creeps.push(direct, nearby);
+		const nearby = makeCreep("nearby", { x: 180, y: 0 });
+		const outside = makeCreep("outside", { x: 225, y: 0 });
+		state.creeps.push(direct, nearby, outside);
 		const projectile = new Projectile(
 			{ x: 0, y: 0 },
 			{ x: 100, y: 0 },
@@ -2778,14 +2811,21 @@ describe("Unique rarity arena effects", () => {
 		state.projectiles.push(projectile);
 		const directBefore = direct.hp;
 		const nearbyBefore = nearby.hp;
+		const outsideBefore = outside.hp;
 		resolveCombat(state, hero, uniqueStaff, 500, 500, new SeededRandom(1));
 		const explosion = spellPower(1) * 0.5;
 		expect(direct.hp).toBeCloseTo(directBefore - (10 + explosion));
 		expect(nearby.hp).toBeCloseTo(nearbyBefore - explosion);
+		expect(outside.hp).toBe(outsideBefore);
 		expect(projectile.active).toBeFalse();
+		expect(state.spellEffects[0].kind).toBe("arcaneBoltExplosion");
 		expect(
 			nearby.statuses.filter((status) => status.kind === "freeze"),
 		).toHaveLength(1);
+		expect(nearby.statuses[0].remaining).toBe(4);
+		expect(outside.statuses).toHaveLength(0);
+		expect(arcaneBoltExplosionRadius(1)).toBe(50);
+		expect(arcaneBoltExplosionRadius(99)).toBe(200);
 	});
 	test("Cleave and Bash from Unique weapons destroy enemy projectiles in their area", () => {
 		for (const [skill, weaponClass, seed] of [

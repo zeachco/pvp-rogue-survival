@@ -6,7 +6,10 @@ import type { Vector2 } from "./types";
 import { Z_EFFECT } from "./render/ThreeRenderer";
 import { CHARACTER_MODEL_MANIFESTS } from "./render/AnimatedCharacter";
 
-export type SpellEffectKind = Exclude<SkillId, "healing"> | "healing";
+export type SpellEffectKind =
+	| Exclude<SkillId, "healing">
+	| "healing"
+	| "arcaneBoltExplosion";
 
 export const ELBO_HEIGHT = 0.8;
 
@@ -31,6 +34,7 @@ export function spellEffectLightColor(
 		kind === "blizzard"
 	)
 		return undefined;
+	if (kind === "arcaneBoltExplosion") return 0x73d7ff;
 	if (kind === "rent") return 0xff2448;
 	if (kind === "healing" || kind === "rapidRegen") return 0x68ff9c;
 	if (kind === "fireBreath") return 0xff5a24;
@@ -83,7 +87,7 @@ export class SpellEffect extends GameObject {
 			lifetime ??
 			(kind === "healing"
 				? 1
-				: kind === "arcaneBolt"
+				: kind === "arcaneBolt" || kind === "arcaneBoltExplosion"
 					? 0.65
 					: kind === "orbitingHammers"
 						? 0.8
@@ -104,7 +108,7 @@ export class SpellEffect extends GameObject {
 		if (lightColor !== undefined) {
 			this.spellLight = new THREE.PointLight(
 				lightColor,
-				kind === "gravityPull" ? 45 : 20,
+				kind === "arcaneBoltExplosion" ? 90 : kind === "gravityPull" ? 45 : 20,
 				spellEffectLightDistance(kind, range),
 				1,
 			);
@@ -130,7 +134,12 @@ export class SpellEffect extends GameObject {
 			const persistent = this.source !== undefined;
 			this.spellLight.intensity = persistent
 				? 16 + 6 * (0.5 + 0.5 * Math.sin(_time * 7))
-				: (this.kind === "gravityPull" ? 45 : 20) * (1 - progress);
+				: (this.kind === "arcaneBoltExplosion"
+						? 90
+						: this.kind === "gravityPull"
+							? 45
+							: 20) *
+					(1 - progress);
 		}
 
 		while (this.effectGroup.children.length > 0) {
@@ -161,6 +170,8 @@ export class SpellEffect extends GameObject {
 			hammerCast(this.effectGroup, progress);
 		} else if (this.kind === "arcaneBolt") {
 			arcane(this.effectGroup, progress);
+		} else if (this.kind === "arcaneBoltExplosion") {
+			impact(this.effectGroup, progress, "#73d7ff", this.range, 18);
 		} else if (this.kind === "gravityPull") {
 			impact(this.effectGroup, progress, "#b98cff", 180, 12);
 		} else if (this.kind === "frostOrb") {

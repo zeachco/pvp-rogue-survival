@@ -318,6 +318,10 @@ export function cleaveRange(level: number): number {
 	return 50 + (450 * (cappedSkillLevel(level) - 1)) / 98;
 }
 
+export function arcaneBoltExplosionRadius(level: number): number {
+	return 50 + (150 * (cappedSkillLevel(level) - 1)) / 98;
+}
+
 function blizzardLevelProgress(level: number): number {
 	return (cappedSkillLevel(level) - 1) / 98;
 }

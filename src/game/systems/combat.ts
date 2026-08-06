@@ -10,10 +10,12 @@ import type { Unit } from "../Unit";
 import { damageStatusDuration, distance } from "../types";
 import { applyImpactForce } from "../ImpactForce";
 import {
+	arcaneBoltExplosionRadius,
 	RENDING_THROW_BLEED_DURATION,
 	spellPower,
 } from "../../../common/combat";
 import { pushDrops } from "../ItemDrop";
+import { SpellEffect } from "../SpellEffect";
 
 export function resolveCombat(
 	state: ArenaState,
@@ -188,10 +190,7 @@ export function resolveCombat(
 							projectile.presentation.kind === "physical",
 							random,
 						);
-						if (
-							projectile.skill === "arcaneBolt" ||
-							projectile.skill === "frostSpike"
-						)
+						if (projectile.skill === "frostSpike")
 							hit.addStatus({
 								kind: "freeze",
 								remaining: 4,
@@ -209,13 +208,21 @@ export function resolveCombat(
 					if (dealt > 0) {
 						applyImpactForce(hit, projectile.force);
 					}
-					if (
-						projectile.skill === "arcaneBolt" &&
-						weapon?.definitionId === "staff" &&
-						weapon.rarity === "unique"
-					) {
-						const radius = 200 + 2 * projectile.skillLevel;
+					if (projectile.skill === "arcaneBolt") {
+						const unique =
+							weapon?.definitionId === "staff" && weapon.rarity === "unique";
+						const baseRadius = arcaneBoltExplosionRadius(projectile.skillLevel);
+						const radius = baseRadius * (unique ? 2 : 1);
 						const explosion = 0.5 * spellPower(projectile.skillLevel);
+						state.spellEffects.push(
+							new SpellEffect(
+								"arcaneBoltExplosion",
+								projectile.position,
+								0,
+								radius,
+								0.65,
+							),
+						);
 						for (const enemy of state.creeps)
 							if (
 								enemy.active &&
@@ -230,12 +237,13 @@ export function resolveCombat(
 									false,
 									{ kind: "magic" },
 								);
-								enemy.addStatus({
-									kind: "freeze",
-									remaining: 2,
-									damagePerSecond: 0,
-									source: projectile.source,
-								});
+								if (unique)
+									enemy.addStatus({
+										kind: "freeze",
+										remaining: 4,
+										damagePerSecond: 0,
+										source: projectile.source,
+									});
 							}
 					}
 					if (

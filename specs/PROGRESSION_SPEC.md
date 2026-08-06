@@ -86,7 +86,7 @@ Per-spell behavior is specified in `specs/spells/<skill-id>.md`. These files own
 
 | Equipment class | Unique effect |
 | --- | --- |
-| Staff | **Exploding Arcane Bolt:** on a successful direct hit, the bolt explodes. Every enemy within `2 + 0.02 * effectiveSkillLevel` meters takes `0.5 * spellPower(level)` additional magic damage and a 2-second Freeze. The direct target still takes the standard bolt impact and 4-second Freeze. |
+| Staff | **Freezing Arcane Explosion:** Arcane Bolt's standard 1-to-4-meter impact explosion has twice its normal radius, and every enemy in the blast receives a 4-second Freeze. The Unique variant adds no separate explosion damage. |
 | Axe | **Cleave destroys projectiles:** the Cleave strike destroys every enemy projectile whose center lies within its attack sector and effective range at the moment of impact, removing it without dealing its damage or effects. |
 | Club | **Bash destroys projectiles:** the Bash full-circle hit destroys every enemy projectile within its effective range at the moment of impact. |
 | Hammer | **Orbiting Hammers follow the hero:** the hammers orbit the hero and follow its position for the full active duration instead of orbiting a fixed point. |
