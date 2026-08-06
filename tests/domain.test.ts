@@ -147,6 +147,7 @@ import {
 	heroTurnSpeedDegrees,
 	lerpXpDisplay,
 	levelForXp,
+	scaledStats,
 	STAT_KEYS,
 	xpForNextLevel,
 	ZERO_STATS,
@@ -408,6 +409,21 @@ test("makes learned spells available without minimum hero levels", () => {
 	expect(isSkillAvailable(state, "orbitingHammers")).toBeTrue();
 	expect(isSkillAvailable(state, "frostOrb")).toBeTrue();
 	expect(isSkillAvailable(state, "blizzard")).toBeTrue();
+});
+
+test("projects a retroactive allocation across every current level", () => {
+	expect(
+		scaledStats(
+			{ agility: 0, strength: 2, magic: 1, spirit: 1, intelligence: 1 },
+			7,
+		),
+	).toEqual({
+		agility: 0,
+		strength: 14,
+		magic: 7,
+		spirit: 7,
+		intelligence: 7,
+	});
 });
 
 describe("hero auto-facing", () => {

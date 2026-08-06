@@ -789,6 +789,48 @@ input {
 	letter-spacing: 0.06em;
 }
 
+.graphics-devlog {
+	display: flex;
+	gap: 14px;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 14px;
+	border: 1px solid rgba(240, 206, 114, 0.38);
+	border-radius: 6px;
+	padding: 12px;
+	background: rgba(240, 206, 114, 0.05);
+}
+
+.graphics-devlog > div {
+	display: grid;
+	gap: 3px;
+}
+
+.graphics-devlog small {
+	color: #9fb8bf;
+}
+
+.graphics-devlog-open {
+	flex: 0 0 auto;
+	border: 1px solid #f0ce72;
+	border-radius: 5px;
+	padding: 7px 10px;
+	color: #fff3c4;
+	background: #302916;
+	cursor: pointer;
+}
+
+.graphics-devlog-open:hover {
+	background: #45391b;
+}
+
+@media (max-width: 480px) {
+	.graphics-devlog {
+		align-items: stretch;
+		flex-direction: column;
+	}
+}
+
 .spell-cooldown {
 	position: absolute;
 	inset: -1px;

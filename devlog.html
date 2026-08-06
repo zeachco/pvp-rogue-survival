@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="dark" />
+		<title>Multi-Line Hero Devlog</title>
+	</head>
+	<body>
+		<main>
+			<header>
+				<h1>Devlog</h1>
+				<p>
+					What changed behind the arena, written for players who enjoy the
+					technical details.
+				</p>
+			</header>
+			<section class="calendar-panel" aria-label="Development calendar">
+				<div class="calendar-heading">
+					<strong>Change history</strong>
+					<small>Darker months were quieter. Select one to read its log.</small>
+				</div>
+				<div id="calendar" class="calendar-grid"></div>
+			</section>
+			<section id="month" aria-live="polite"></section>
+		</main>
+		<script type="module" src="/src/devlog.ts"></script>
+	</body>
+</html>
