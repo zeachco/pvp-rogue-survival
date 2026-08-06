@@ -8,6 +8,7 @@ import {
 	rollAttackStrike,
 	spellPower,
 	STAFF_BASIC_HALF_ARC,
+	weaponRange,
 } from "../../common/combat";
 import { systemRandom } from "../../common/random";
 import type {
@@ -1138,6 +1139,10 @@ export class Game {
 		);
 	}
 	private render(): void {
+		this.hero.setAimGuide(
+			this.aimingHero,
+			this.hero.mainHand ? weaponRange(this.hero.mainHand) : undefined,
+		);
 		this.renderer.syncScene(
 			this.hero,
 			this.arena,

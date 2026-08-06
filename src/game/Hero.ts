@@ -3,7 +3,7 @@ import { Unit } from "./Unit";
 import { normalize, type Vector2 } from "./types";
 import type { PlayerProgress } from "../../common/protocol";
 import type { RandomSource } from "../../common/random";
-import { Z_HERO, Z_AURA } from "./render/ThreeRenderer";
+import { Z_HERO, Z_AURA, Z_ATTACK } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
 import { auraRadius } from "../../common/auras";
 import { AnimatedCharacter } from "./render/AnimatedCharacter";
@@ -22,6 +22,22 @@ import {
 export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(
 	BASE_HERO_TURN_SPEED_DEGREES,
 );
+
+export const AIM_RANGE_OPACITY = 0.25;
+const AIM_LINE_WIDTH = 3;
+
+export function aimGuideDimensions(range: number): {
+	lineLength: number;
+	lineCenter: number;
+	ringRadius: number;
+} {
+	const safeRange = Math.max(0, range);
+	return {
+		lineLength: safeRange,
+		lineCenter: safeRange / 2,
+		ringRadius: safeRange,
+	};
+}
 
 export function turnAngleTowards(
 	current: number,
@@ -56,6 +72,8 @@ export class Hero extends Unit {
 
 	private readonly bodyMesh: THREE.Mesh;
 	private readonly facingMesh: THREE.Mesh;
+	private readonly aimDirectionMesh: THREE.Mesh;
+	private readonly aimRangeMesh: THREE.Mesh;
 	private readonly statusTint: THREE.Mesh;
 	private readonly animatedCharacter: AnimatedCharacter;
 	private readonly bleedDots: THREE.Mesh[] = [];
@@ -108,6 +126,32 @@ export class Hero extends Unit {
 		this.facingMesh = new THREE.Mesh(facingGeo, facingMat);
 		this.facingMesh.renderOrder = Z_HERO + 0.02;
 		this.mesh.add(this.facingMesh);
+
+		const aimMaterial = new THREE.MeshBasicMaterial({
+			color: 0x3affd4,
+			transparent: true,
+			depthWrite: false,
+			side: THREE.DoubleSide,
+		});
+		this.aimDirectionMesh = new THREE.Mesh(
+			new THREE.PlaneGeometry(1, AIM_LINE_WIDTH),
+			aimMaterial,
+		);
+		this.aimDirectionMesh.position.z = 0.08;
+		this.aimDirectionMesh.renderOrder = Z_ATTACK + 0.02;
+		this.aimDirectionMesh.visible = false;
+		this.mesh.add(this.aimDirectionMesh);
+
+		this.aimRangeMesh = new THREE.Mesh(
+			new THREE.RingGeometry(0.995, 1, 96),
+			aimMaterial.clone(),
+		);
+		(this.aimRangeMesh.material as THREE.MeshBasicMaterial).opacity =
+			AIM_RANGE_OPACITY;
+		this.aimRangeMesh.position.z = 0.07;
+		this.aimRangeMesh.renderOrder = Z_ATTACK + 0.01;
+		this.aimRangeMesh.visible = false;
+		this.mesh.add(this.aimRangeMesh);
 
 		const tintGeo = new THREE.CircleGeometry(18, 24);
 		const tintMat = new THREE.MeshBasicMaterial({
@@ -249,6 +293,18 @@ export class Hero extends Unit {
 			THREE.MathUtils.degToRad(heroTurnSpeedDegrees(this.stats.agility)) *
 				deltaSeconds,
 		);
+	}
+
+	setAimGuide(aiming: boolean, weaponRange?: number): void {
+		const visible = aiming && weaponRange !== undefined && weaponRange > 0;
+		this.aimDirectionMesh.visible = visible;
+		this.aimRangeMesh.visible = visible;
+		if (!visible) return;
+		const dimensions = aimGuideDimensions(weaponRange);
+		this.aimDirectionMesh.position.x = dimensions.lineCenter;
+		this.aimDirectionMesh.scale.x = dimensions.lineLength;
+		this.aimDirectionMesh.rotation.z = this.facing;
+		this.aimRangeMesh.scale.setScalar(dimensions.ringRadius);
 	}
 
 	update(deltaSeconds: number, random?: RandomSource, training = false): void {

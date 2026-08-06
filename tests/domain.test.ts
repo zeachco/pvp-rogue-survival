@@ -9,7 +9,12 @@ import {
 	MAX_CAMERA_TILT_RADIANS,
 	MIN_CAMERA_TILT_RADIANS,
 } from "../src/game/render/ThreeRenderer";
-import { HERO_TURN_SPEED, turnAngleTowards } from "../src/game/Hero";
+import {
+	AIM_RANGE_OPACITY,
+	aimGuideDimensions,
+	HERO_TURN_SPEED,
+	turnAngleTowards,
+} from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
 import { panelShortcut, panelToggleTooltip } from "../src/ui/Hud";
 
@@ -223,6 +228,14 @@ describe("third-person camera", () => {
 		expect(cameraFacingAngle(0)).toBeCloseTo(Math.PI / 2);
 		expect(cameraFacingAngle(Math.PI / 2)).toBeCloseTo(0);
 		expect(cameraFacingAngle(-Math.PI / 2)).toBeCloseTo(Math.PI);
+	});
+	test("uses the equipped weapon range for both aiming ground guides", () => {
+		expect(aimGuideDimensions(210)).toEqual({
+			lineLength: 210,
+			lineCenter: 105,
+			ringRadius: 210,
+		});
+		expect(AIM_RANGE_OPACITY).toBe(0.25);
 	});
 	test("starts at a close RPG chase distance", () => {
 		expect(DEFAULT_CAMERA_ZOOM).toBe(0.9);
