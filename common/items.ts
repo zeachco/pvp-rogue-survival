@@ -1038,6 +1038,7 @@ export function statsWithItemBonuses(
 					(sum, item) =>
 						sum +
 						(item?.statBonuses[key] ?? 0) *
+							(item?.hands === 2 ? 2 : 1) *
 							(item ? itemRequirementMultiplier(item, stats) : 1),
 					0,
 				),

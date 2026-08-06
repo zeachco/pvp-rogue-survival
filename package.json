@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"test": "bun test",
+		"reset": "bun server/resetLocalDatabase.ts",
 		"dev": "bun run --watch --parallel client server",
 		"client": "bunx vite --host 0.0.0.0",
 		"server": "bun --watch server/server.ts",

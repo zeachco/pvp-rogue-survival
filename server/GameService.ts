@@ -41,11 +41,11 @@ import {
 	timeHarvestItemSkillBonus,
 } from "../common/combat.ts";
 import {
+	cumulativeXpForLevel,
 	DEFAULT_ALLOCATION,
 	levelForXp,
 	STAT_KEYS,
 	validAllocation,
-	ZERO_STATS,
 	type Stats,
 } from "../common/progression.ts";
 import {
@@ -384,17 +384,14 @@ export class GameService {
 		}
 		if (!/^[A-Za-z0-9_-]{1,20}$/.test(trimmed))
 			throw new Error("Invalid username.");
-		const starterItems = Array.from({ length: 3 }, () => {
-			const seed = this.seed();
-			const roll = this.options.random.next();
-			return roll < 0.6
-				? generateItem(0, "common", seed)
-				: roll < 0.75
-					? generateBuckler(0, "common", seed)
-					: roll < 0.9
-						? generateRelic(0, "common", seed)
-						: generateAccessory(0, "common", seed);
+		const starterSword = generateItem(1, "common", 101, {
+			allowedClasses: ["sword"],
 		});
+		const starterBuckler = generateBuckler(1, "common", 102);
+		const starterStaff = generateItem(1, "common", 103, {
+			allowedClasses: ["staff"],
+		});
+		const starterItems = [starterSword, starterBuckler, starterStaff];
 		const inventoryTiles: Player["progress"]["inventoryTiles"] = [];
 		for (const item of starterItems) {
 			const key = itemStackKey(item);
@@ -428,15 +425,15 @@ export class GameService {
 			xpSendBuffs: [],
 			panelTriggers: { character: true, inventory: true, multiplayer: true },
 			progress: {
-				level: 0,
-				xp: 0,
-				stats: { ...ZERO_STATS },
+				level: 1,
+				xp: cumulativeXpForLevel(1),
+				stats: { ...DEFAULT_ALLOCATION },
 				allocation: { ...DEFAULT_ALLOCATION },
 				gold: 0,
 				souls: 0,
 				scraps: emptyScraps(),
-				mainHand: undefined,
-				offHand: undefined,
+				mainHand: starterSword,
+				offHand: starterBuckler,
 				inventoryTiles,
 				learnedSkills: ["healing"],
 				learnedSkillLevels: { healing: 1 },
@@ -1266,9 +1263,9 @@ export class GameService {
 				`Defeat spoils: gained ${lostGold} Gold and ${lostSouls} Souls.`,
 			);
 		}
-		player.progress.xp = 0;
-		player.progress.level = 0;
-		player.progress.stats = { ...ZERO_STATS };
+		player.progress.xp = cumulativeXpForLevel(1);
+		player.progress.level = 1;
+		player.progress.stats = { ...DEFAULT_ALLOCATION };
 		player.waveNumber = 1;
 		player.issuedUnits.clear();
 		player.groundDrops.clear();

@@ -530,11 +530,12 @@ export class Creep extends Unit {
 			return undefined;
 		}
 
-		const attackRange = ranged
-			? profile.range
-			: this.build.mainHand
-				? movement.attackRange
-				: profile.range;
+		const attackRange =
+			ranged || this.build.mainHand?.definitionId === "staff"
+				? profile.range
+				: this.build.mainHand
+					? movement.attackRange
+					: profile.range;
 		if (
 			this.knownSkills.has("fireBreath") &&
 			this.bonusSkillCooldown === 0 &&

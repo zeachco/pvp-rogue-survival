@@ -225,4 +225,5 @@ The current client intentionally uses the proven legacy Three.js WebGL renderer 
 - `specs/SPEC.md`, `specs/MECHANICS_SPEC.md`, and `specs/PROGRESSION_SPEC.md` are the source-of-truth specification set. Update the relevant spec before implementing behavior not already covered.
 - Keep filenames, runtime choices, protocols, mechanics, progression rules, and UX synchronized with implementation.
 - Use Bun for project scripts and tooling.
+- `bun run reset` deletes every hero from the local development SQLite database at `server-data/players.sqlite` while preserving its schema. Stop the local server before resetting so its in-memory players cannot be persisted back into the database. The reset command never uses `DATABASE_URL` and therefore cannot target production.
 - Debug builds may expose `window.__mltDebug` and concise `[MLH][player]` logs for socket, wave, spawn, combat, defeat, and score events.

@@ -128,6 +128,7 @@ import {
 	rerollItem,
 	rerollPendingSeed,
 	starterClub,
+	statsWithItemBonuses,
 	type ItemInstance,
 } from "../common/items";
 import {
@@ -511,6 +512,28 @@ describe("attack timing", () => {
 		expect(
 			weaponAttackSpeed(staff, { ...ZERO_STATS, agility: 1_000 }),
 		).toBeCloseTo(10 / 16);
+	});
+	test("doubles direct attributes from two-handed weapons", () => {
+		const staff = {
+			...generateItem(1, "common", 19, { allowedClasses: ["staff"] }),
+			statBonuses: { strength: 2, magic: 3 },
+			requirements: {},
+		};
+		expect(statsWithItemBonuses(ZERO_STATS, staff)).toEqual({
+			agility: 0,
+			strength: 4,
+			magic: 6,
+			spirit: 0,
+			intelligence: 0,
+		});
+	});
+	test("uses a wide area profile for staff basics while preserving its spell", () => {
+		const staff = generateItem(1, "common", 20, {
+			allowedClasses: ["staff"],
+		});
+		expect(weaponUsesProjectile(staff)).toBeFalse();
+		expect(weaponRange(staff)).toBe(330);
+		expect(staff.skills).toContain("arcaneBolt");
 	});
 });
 test("accelerates skill casts with Agility and level while capping them at two attack intervals", () => {

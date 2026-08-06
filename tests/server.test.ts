@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { BALANCE } from "../common/balance";
 import { emptyScraps, upgradeCosts } from "../common/inventory";
-import { generateBuckler, generateItem, itemStackKey } from "../common/items";
+import {
+	generateBuckler,
+	generateItem,
+	itemStackKey,
+	nextRarity,
+} from "../common/items";
 import { cumulativeXpForLevel } from "../common/progression";
 import type { PlayerId, ServerMessage, UnitBuild } from "../common/protocol";
 import type { RandomSource } from "../common/random";
@@ -51,12 +56,21 @@ function enterPair(
 }
 
 describe("realm game service", () => {
-	test("starts new players empty-handed with three random backpack items and only Healing bound", () => {
+	test("starts new players at level one with a sword, buckler, spell staff, and Healing bound", () => {
 		const { game } = harness();
 		const player = game.join("Starter");
-		expect(player.progress.mainHand).toBeUndefined();
+		expect(player.progress.level).toBe(1);
+		expect(player.progress.xp).toBe(cumulativeXpForLevel(1));
+		expect(player.progress.stats).toEqual({
+			agility: 1,
+			strength: 1,
+			magic: 1,
+			spirit: 1,
+			intelligence: 1,
+		});
+		expect(player.progress.mainHand?.definitionId).toBe("sword");
 		expect(player.waveNumber).toBe(1);
-		expect(player.progress.offHand).toBeUndefined();
+		expect(player.progress.offHand?.itemKind).toBe("buckler");
 		expect(
 			player.progress.inventoryTiles.reduce(
 				(sum, tile) => sum + tile.quantity,
@@ -65,9 +79,14 @@ describe("realm game service", () => {
 		).toBe(3);
 		expect(
 			player.progress.inventoryTiles.every(
-				(tile) => tile.item.level === 0 && tile.item.rarity === "common",
+				(tile) => tile.item.level === 1 && tile.item.rarity === "common",
 			),
 		).toBeTrue();
+		const staff = player.progress.inventoryTiles.find(
+			(tile) => tile.item.definitionId === "staff",
+		)?.item;
+		expect(staff?.hands).toBe(2);
+		expect(staff?.skills).toContain("arcaneBolt");
 		expect(player.progress.universalSkills).toEqual(["healing"]);
 		expect(player.panelTriggers).toEqual({
 			character: true,
@@ -147,7 +166,7 @@ describe("realm game service", () => {
 		}
 		expect(player.progress.gold).toBe(gold);
 	});
-	test("publishes empty-handed build profiles and the lifetime best wave without currencies or inventory", () => {
+	test("publishes equipped build profiles and the lifetime best wave without currencies or inventory", () => {
 		const { game } = harness();
 		const player = game.join("Public");
 		player.progress.level = 4;
@@ -156,7 +175,7 @@ describe("realm game service", () => {
 		const profile = game.publicHeroProfile(player.id)!;
 		expect(profile.level).toBe(4);
 		expect(profile.maxWaveReached).toBe(7);
-		expect(profile.mainHand).toBeUndefined();
+		expect(profile.mainHand?.definitionId).toBe("sword");
 		expect("gold" in profile).toBeFalse();
 		expect("inventoryTiles" in profile).toBeFalse();
 	});
@@ -262,7 +281,7 @@ describe("realm game service", () => {
 		)?.[0];
 		expect(unitId).toBeDefined();
 		game.handle(player.id, { type: "creepDefeated", unitId: unitId! });
-		expect(player.progress.xp).toBe(5);
+		expect(player.progress.xp).toBe(20);
 		expect(player.score).toBe(2);
 	});
 	test("restarts realm entry at wave one after death and keeps the best wave", () => {
@@ -304,7 +323,7 @@ describe("realm game service", () => {
 		expect(issued.build.level).toBe(4);
 		expect(issued.build.xpReward).toBe(37);
 		game.handle(player.id, { type: "creepDefeated", unitId });
-		expect(player.progress.xp).toBe(18);
+		expect(player.progress.xp).toBe(33);
 	});
 	test("reserves generated Scepter auras for post-intro champions", () => {
 		const { game } = harness(new FixedRandom(0.25));
@@ -498,7 +517,7 @@ describe("realm game service", () => {
 		const unitId = one.issuedUnits.keys().next().value as string;
 		game.handle(one.id, { type: "creepDefeated", unitId });
 		expect(one.score).toBe(2);
-		expect(one.progress.xp).toBe(10);
+		expect(one.progress.xp).toBe(25);
 		expect(one.groundDrops.size).toBe(1);
 		const drop = [...one.groundDrops.values()][0];
 		expect(drop.kind).toBe("gold");
@@ -584,12 +603,12 @@ describe("realm game service", () => {
 		const [unitId, issued] = [...one.issuedUnits.entries()].find(
 			([, value]) => !value.build.isRival,
 		)!;
-		random.set(0.3, 0, 0);
+		random.set(0.3, 0, 0, 0, 0, 0, 0, 0);
 		game.handle(one.id, { type: "creepDefeated", unitId });
 		const drop = [...one.groundDrops.values()][0];
 		expect(drop.kind).toBe("scrap");
 		if (drop.kind === "scrap") {
-			expect(drop.rarity).toBe(issued.build.mainHand.rarity);
+			expect(drop.rarity).toBe(nextRarity(issued.build.mainHand.rarity));
 			expect(drop.amount).toBe(
 				Math.max(1, Math.ceil(issued.build.mainHand.level / 3)),
 			);
@@ -790,16 +809,16 @@ describe("realm game service", () => {
 		]);
 		const firstUnit = sender.issuedUnits.keys().next().value as string;
 		game.handle(sender.id, { type: "creepDefeated", unitId: firstUnit });
-		expect(sender.progress.xp).toBe(20);
+		expect(sender.progress.xp).toBe(35);
 		now = 15_000;
 		const secondUnit = [...sender.issuedUnits.keys()][0]!;
 		game.handle(sender.id, { type: "creepDefeated", unitId: secondUnit });
-		expect(sender.progress.xp).toBe(50);
+		expect(sender.progress.xp).toBe(65);
 		expect(sender.xpSendBuffs).toEqual([{ multiplier: 3, expiresAt: 27_000 }]);
 		now = 27_000;
 		const thirdUnit = [...sender.issuedUnits.keys()][0]!;
 		game.handle(sender.id, { type: "creepDefeated", unitId: thirdUnit });
-		expect(sender.progress.xp).toBe(60);
+		expect(sender.progress.xp).toBe(75);
 		expect(sender.xpSendBuffs).toEqual([]);
 	});
 	test("shift bulk sell returns ten times base value and purge multiplies rewards across the stack", () => {
@@ -977,7 +996,15 @@ describe("realm game service", () => {
 		const weapon = generateItem(4, "rare", 123);
 		victim.progress.mainHand = weapon;
 		game.handle(victim.id, { type: "suicide" });
-		expect(victim.progress.level).toBe(0);
+		expect(victim.progress.level).toBe(1);
+		expect(victim.progress.xp).toBe(cumulativeXpForLevel(1));
+		expect(victim.progress.stats).toEqual({
+			agility: 1,
+			strength: 1,
+			magic: 1,
+			spirit: 1,
+			intelligence: 1,
+		});
 		expect(victim.progress.gold).toBe(6);
 		expect(victim.progress.mainHand).toEqual(weapon);
 		expect(sovereign.deathEchoes).toHaveLength(1);
@@ -1026,7 +1053,7 @@ describe("realm game service", () => {
 		const unitId = player.issuedUnits.keys().next().value as string;
 		game.handle(player.id, { type: "creepDefeated", unitId });
 		expect(player.score).toBe(0);
-		expect(player.progress.xp).toBe(0);
+		expect(player.progress.xp).toBe(cumulativeXpForLevel(1));
 		expect(player.progress.scraps).toEqual(emptyScraps());
 	});
 	test("keeps waves one through eight melee-only and begins bonus spells at wave nine", () => {

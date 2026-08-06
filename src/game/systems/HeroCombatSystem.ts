@@ -906,7 +906,8 @@ export class HeroCombatSystem {
 					origin,
 					hero.facing,
 					profile.range,
-					item?.definitionId === "mace" ||
+					item?.definitionId === "staff" ||
+						item?.definitionId === "mace" ||
 						item?.definitionId === "club" ||
 						item?.definitionId === "hammer"
 						? Math.PI

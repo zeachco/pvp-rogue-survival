@@ -118,7 +118,6 @@ export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
 		requirement: "magic",
 		skill: "arcaneBolt",
 		range: 330,
-		projectile: true,
 	},
 	scepter: {
 		id: "scepter",
