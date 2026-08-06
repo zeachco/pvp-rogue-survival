@@ -5,12 +5,11 @@ import {
 	type PlayerId,
 	type UnitBuild,
 } from "../../common/protocol";
-import { statsWithItemBonuses, type SkillId } from "../../common/items";
+import { type SkillId } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
 import type { RandomSource } from "../../common/random";
 import { ENEMY_ARCHETYPES } from "../../common/content";
 import {
-	attackProfile,
 	forceFieldRange,
 	healingAutoCastThresholdMet,
 	healingCast,
@@ -99,9 +98,6 @@ export class Creep extends Unit {
 	private damageFlash = false;
 	private bonusSkillCooldown = 1.5;
 	private healingCooldown = 0;
-	private auraMovementMultiplier = 1;
-	private auraAttackMultiplier = 1;
-	private groundMovementMultiplier = 1;
 	readonly build: UnitBuild;
 
 	readonly healthBarGroup: THREE.Group;
@@ -139,7 +135,7 @@ export class Creep extends Unit {
 		readonly emitterId: PlayerId | "neutral",
 		readonly emitterName: string,
 		position: Vector2,
-		private readonly balance: BalanceConfig,
+		balance: BalanceConfig,
 		private readonly random: RandomSource,
 		readonly movementMultiplier = 1,
 	) {
@@ -148,13 +144,7 @@ export class Creep extends Unit {
 		this.cooldown = 0.5 + random.next() * 0.4;
 		this.kind = build.kind;
 		this.configureStats(
-			statsWithItemBonuses(
-				build.stats,
-				build.mainHand,
-				build.offHand,
-				build.amulet,
-				build.charm,
-			),
+			build.stats,
 			build.offHand,
 			build.mainHand,
 			build.amulet,
@@ -502,19 +492,15 @@ export class Creep extends Unit {
 			movement.maxSpeed *
 			(1 + this.stats.agility * 0.01) *
 			this.movementMultiplier *
-			this.auraMovementMultiplier *
-			this.groundMovementMultiplier *
+			this.state.movementSpeedMultiplier *
 			this.freezeMovementMultiplier *
 			this.damageMovementMultiplier;
 		const acceleration = movement.acceleration;
-		const profile = attackProfile(
-			this.build.mainHand,
-			this.stats,
-			this.balance,
-		);
+		const profile = this.state.attack;
 		const ranged = profile.projectile;
 		const heroDistance = distance(this.position, hero);
-		const attackSpeed = profile.attacksPerSecond * this.auraAttackMultiplier;
+		const attackSpeed =
+			profile.attacksPerSecond * this.state.attackSpeedMultiplier;
 		this.cooldown = Math.max(0, this.cooldown - deltaSeconds);
 		this.bonusSkillCooldown = Math.max(
 			0,
@@ -688,13 +674,6 @@ export class Creep extends Unit {
 		this.attackVersion += 1;
 		this.pendingAttack = false;
 		this.windup = 0;
-	}
-	setAuraMultipliers(movement?: number, attack?: number): void {
-		if (movement !== undefined) this.auraMovementMultiplier = movement;
-		if (attack !== undefined) this.auraAttackMultiplier = attack;
-	}
-	setGroundMovementMultiplier(multiplier: number): void {
-		this.groundMovementMultiplier = multiplier;
 	}
 
 	private moveFromVelocity(

@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { Unit } from "./Unit";
 import { normalize, type Vector2 } from "./types";
 import type { PlayerProgress } from "../../common/protocol";
-import { statsWithItemBonuses } from "../../common/items";
 import type { RandomSource } from "../../common/random";
 import { Z_HERO, Z_AURA } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
@@ -162,13 +161,7 @@ export class Hero extends Unit {
 		const mana = this.mana;
 		const rage = this.rage;
 		this.configureStats(
-			statsWithItemBonuses(
-				progress.stats,
-				progress.mainHand,
-				progress.offHand,
-				progress.amulet,
-				progress.charm,
-			),
+			progress.stats,
 			progress.offHand,
 			progress.mainHand,
 			progress.amulet,
@@ -198,6 +191,7 @@ export class Hero extends Unit {
 		this.reflectiveSurgeRemaining = 0;
 		this.reflectiveSurgeCooldown = 0;
 		this.reflectiveSurgeCooldownMax = 0;
+		this.effects.length = 0;
 		this.lastHitDodged = false;
 		this.immunityRemaining = 0;
 	}

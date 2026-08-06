@@ -4,6 +4,7 @@ import { GameObject } from "./GameObject";
 import type { Hero } from "./Hero";
 import type { Creep } from "./Creep";
 import { Z_SWAMP } from "./render/ThreeRenderer";
+import { MovementMultiplierEffect } from "../../common/unitState";
 
 export class GroundSwamp extends GameObject {
 	private remaining = 8;
@@ -102,7 +103,6 @@ export class GroundSwamp extends GameObject {
 				this.occupancy.delete(creep);
 				continue;
 			}
-			creep.setGroundMovementMultiplier(0.5);
 			let elapsed = (this.occupancy.get(creep) ?? 0) + deltaSeconds;
 			while (elapsed >= 1) {
 				this.applyPoison(creep);
@@ -110,6 +110,19 @@ export class GroundSwamp extends GameObject {
 			}
 			this.occupancy.set(creep, elapsed);
 		}
+	}
+
+	collectEffects(creeps: readonly Creep[]): void {
+		if (this.followSource && this.source.active) {
+			this.position.x = this.source.position.x;
+			this.position.y = this.source.position.y;
+		}
+		for (const creep of creeps)
+			if (
+				creep.active &&
+				distance(this.position, creep.position) <= this.radius + creep.radius
+			)
+				creep.addFrameEffect(new MovementMultiplierEffect("groundSwamp", 0.5));
 	}
 
 	override updateVisuals(time: number): void {

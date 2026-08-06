@@ -711,7 +711,9 @@ describe("arena systems", () => {
 			source,
 		});
 		const hp = target.hp;
+		target.compileState(1, { next: () => 0 });
 		target.updateResources(1, { next: () => 0 });
+		target.advanceEffects(1);
 		expect(source.mana).toBeCloseTo(4.25);
 		expect(target.hp).toBeCloseTo(hp - 17 - 2.125 + 0.005);
 	});
@@ -1525,9 +1527,11 @@ describe("arena systems", () => {
 		hero.hp = 1;
 		hero.healthRegenMultiplier = 1.2;
 		hero.healthRegenFlat = 0.1;
+		hero.compileState(1);
 		hero.updateResources(1);
 		expect(hero.hp).toBeCloseTo(1.226);
 		hero.healthRegenMultiplier = 5;
+		hero.compileState(1);
 		hero.updateResources(1);
 		expect(hero.hp).toBeCloseTo(1.851);
 	});
@@ -1990,6 +1994,7 @@ describe("arena systems", () => {
 		const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
 		hero.configureStats({ ...ZERO_STATS, strength: 1 }, buckler);
 		hero.skillLevels.set("blocking", 10);
+		hero.compileState(1 / 60);
 		const rage = hero.rage;
 		hero.receiveDamage(5, { next: () => 0.15 });
 		expect(hero.rage).toBe(rage);
@@ -2016,12 +2021,14 @@ describe("arena systems", () => {
 		const defender = new Hero({ x: 0, y: 0 });
 		const attacker = new Hero({ x: 10, y: 0 });
 		defender.knownSkills.add("thorns");
+		defender.compileState(1 / 60);
 		const random = { next: () => 1 };
 		const before = attacker.hp;
 		defender.receiveDamage(20, random, attacker);
 		expect(attacker.hp).toBe(before - 1);
 		attacker.hp = before;
 		defender.reflectiveSurgeRemaining = 6;
+		defender.compileState(1 / 60);
 		defender.receiveDamage(20, random, attacker);
 		expect(attacker.hp).toBe(before - 2.2);
 	});
@@ -2034,6 +2041,7 @@ describe("arena systems", () => {
 		defender.knownSkills.add("reflectiveSurge");
 		defender.skillLevels.set("reflectiveSurge", 1);
 		defender.rage = 4;
+		defender.compileState(1 / 60);
 		const before = attacker.hp;
 		expect(defender.reflectiveSurgeRemaining).toBe(0);
 		defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, {
@@ -2043,14 +2051,16 @@ describe("arena systems", () => {
 		expect(defender.rage).toBe(3);
 		expect(defender.reflectiveSurgeRemaining).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBeGreaterThan(0);
-		expect(attacker.hp).toBeCloseTo(before - 0.55);
+		expect(attacker.hp).toBeCloseTo(before - 0.25);
 		const cooldown = defender.reflectiveSurgeCooldown;
+		defender.compileState(1 / 60);
 		defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, {
 			kind: "physical",
 			critical: false,
 		});
 		expect(defender.rage).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBe(cooldown);
+		expect(attacker.hp).toBeCloseTo(before - 0.8);
 	});
 
 	test("manually activates Reflective Surge by slot only when auto-fire is off", () => {

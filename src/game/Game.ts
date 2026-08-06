@@ -624,8 +624,21 @@ export class Game {
 		const movementInput = this.renderer.movementForCamera(rawMovementInput);
 		this.heroCombat.syncSkills(this.player.progress, this.hero);
 		this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed;
-		this.hero.healthRegenMultiplier = this.heroCombat.rapidRegenMultiplier;
-		this.hero.healthRegenFlat = this.heroCombat.rapidRegenFlat;
+		this.hero.clearFrameEffects();
+		for (const creep of this.creeps) creep.clearFrameEffects();
+		this.auraSystem.collectEffects(
+			this.hero,
+			this.player.progress,
+			this.creeps,
+		);
+		for (const swamp of this.arena.swamps) swamp.collectEffects(this.creeps);
+		this.hero.compileState(
+			deltaSeconds,
+			systemRandom,
+			this.waveMode === "training",
+		);
+		for (const creep of this.creeps)
+			if (creep.active) creep.compileState(deltaSeconds, systemRandom);
 		this.hero.update(deltaSeconds, systemRandom, this.waveMode === "training");
 		this.hero.move(
 			movementInput,
@@ -651,7 +664,6 @@ export class Game {
 			this.creeps,
 			systemRandom,
 		);
-		for (const creep of this.creeps) creep.setGroundMovementMultiplier(1);
 		for (const swamp of this.arena.swamps)
 			swamp.update(deltaSeconds, this.creeps);
 		for (const blizzard of this.arena.blizzards)
@@ -810,6 +822,8 @@ export class Game {
 			this.map.height,
 			systemRandom,
 		);
+		this.hero.advanceEffects(deltaSeconds);
+		for (const creep of this.creeps) creep.advanceEffects(deltaSeconds);
 		this.auraSystem.resolveDeaths(
 			this.hero,
 			this.player.progress,
@@ -1013,8 +1027,7 @@ export class Game {
 			}),
 		);
 		this.player.reflectiveSurgeRemaining = this.hero.reflectiveSurgeRemaining;
-		this.player.rapidRegenRemaining =
-			this.heroCombat.rapidRegenerationRemaining;
+		this.player.rapidRegenRemaining = this.hero.effectRemaining("rapidRegen");
 		this.player.gold = this.player.progress.gold;
 	}
 

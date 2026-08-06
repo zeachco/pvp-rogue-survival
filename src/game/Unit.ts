@@ -1,24 +1,15 @@
 import { GameObject } from "./GameObject";
 import { clamp, type StatusEffectSnapshot, type Vector2 } from "./types";
-import { derivedStats, type Stats } from "../../common/progression";
+import { type Stats } from "../../common/progression";
 import {
-	equippedImmunities,
-	equippedPerks,
-	itemCooldownReduction,
-	itemRequirementMultiplier,
-	itemResourceCostReduction,
-	RARITY_POWER,
 	type ItemImmunity,
 	type ItemInstance,
 	type SkillId,
 } from "../../common/items";
 import type { RandomSource } from "../../common/random";
-import type { CombatText, DamagePresentation } from "./CombatText";
+import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
 import {
-	bucklerBlockChance,
-	reflectiveSurgeBlockChanceBonus,
 	reflectiveSurgeDuration,
-	bucklerBlockCost,
 	effectiveSkillCooldown,
 	manaConversionFraction,
 	spellCooldownFloor,
@@ -29,13 +20,53 @@ import {
 	RAGE_DECAY_PER_SECOND,
 } from "../../common/combat";
 import { SKILLS } from "../../common/content";
+import {
+	compileUnitState,
+	defaultBaseState,
+	RapidRegenerationEffect,
+	ReflectiveSurgeEffect,
+	ThornsEffect,
+	UnitEffect,
+	type UnitEffectTarget,
+	type UnitState,
+} from "../../common/unitState";
 
 export interface StatusEffect extends StatusEffectSnapshot {
 	tick?: number;
 	source?: Unit;
+	effectSequence?: number;
 }
 
-export abstract class Unit extends GameObject {
+class StatusUnitEffect extends UnitEffect {
+	readonly type: string;
+	readonly priorityOrder = 999;
+
+	constructor(private readonly status: StatusEffect) {
+		super();
+		this.type = status.kind;
+		this.applicationSequence = status.effectSequence ?? 0;
+		this.remaining = status.remaining;
+	}
+
+	handler(
+		target: UnitEffectTarget,
+		_all: readonly UnitEffect[],
+		delta: number,
+	): void {
+		if (this.status.damagePerSecond <= 0) return;
+		this.status.tick = (this.status.tick ?? 0) + delta;
+		while (this.status.tick >= 1) {
+			target.receiveEffectDamage(
+				this.status.damagePerSecond,
+				this.status.kind === "burn" ? "fire" : this.status.kind,
+				this.status.source,
+			);
+			this.status.tick -= 1;
+		}
+	}
+}
+
+export abstract class Unit extends GameObject implements UnitEffectTarget {
 	position: Vector2;
 	velocity: Vector2 = { x: 0, y: 0 };
 	hp: number;
@@ -44,13 +75,21 @@ export abstract class Unit extends GameObject {
 	maxMana = 0;
 	rage = 5;
 	maxRage = MAX_RAGE;
-	stats: Stats = {
+	private baseStats: Stats = {
 		agility: 0,
 		strength: 0,
 		magic: 0,
 		spirit: 0,
 		intelligence: 0,
 	};
+	state!: UnitState;
+	readonly effects: UnitEffect[] = [];
+	private readonly frameEffects: UnitEffect[] = [];
+	private compiledEffects = new Set<UnitEffect>();
+	private compiledStatuses = new Set<StatusEffect>();
+	private nextEffectSequence = 1;
+	private effectRandom?: RandomSource;
+	private effectInvulnerable = false;
 	statuses: StatusEffect[] = [];
 	enteredArena = false;
 	offHand?: ItemInstance;
@@ -94,6 +133,121 @@ export abstract class Unit extends GameObject {
 		this.position = { ...position };
 		this.hp = hp;
 		this.maxHp = hp;
+		this.state = defaultBaseState({ baseStats: this.baseStats });
+	}
+
+	get stats(): Stats {
+		return this.state.attributes;
+	}
+
+	compileState(
+		deltaSeconds: number,
+		random?: RandomSource,
+		invulnerable = false,
+	): UnitState {
+		this.effectRandom = random;
+		this.effectInvulnerable = invulnerable;
+		this.compiledEffects = new Set(this.effects);
+		this.compiledStatuses = new Set(this.statuses);
+		const effects = [...this.effects, ...this.frameEffects];
+		effects.push(
+			...this.statuses.map((status) => new StatusUnitEffect(status)),
+		);
+		if (this.isSkillOperational("thorns")) effects.push(new ThornsEffect());
+		if (this.reflectiveSurgeRemaining > 0)
+			effects.push(
+				new ReflectiveSurgeEffect(
+					this.skillLevels.get("reflectiveSurge") ?? 1,
+					this.reflectiveSurgeRemaining,
+				),
+			);
+		if (this.healthRegenMultiplier !== 1 || this.healthRegenFlat !== 0)
+			effects.push(
+				new RapidRegenerationEffect(
+					this.healthRegenMultiplier,
+					this.healthRegenFlat,
+					Number.POSITIVE_INFINITY,
+				),
+			);
+		this.state = compileUnitState(
+			{
+				baseStats: this.baseStats,
+				mainHand: this.mainHand,
+				offHand: this.offHand,
+				amulet: this.amulet,
+				charm: this.charm,
+				blockingLevel: this.skillLevels.get("blocking") ?? 0,
+				attractionLevel: this.isSkillOperational("attraction")
+					? (this.skillLevels.get("attraction") ?? 1)
+					: 0,
+				effects,
+			},
+			this,
+			deltaSeconds,
+		);
+		this.maxHp = this.state.maxHp;
+		this.maxMana = this.state.maxMana;
+		this.maxRage = this.state.maxRage;
+		this.hp = Math.min(this.hp, this.maxHp);
+		this.mana = Math.min(this.mana, this.maxMana);
+		this.rage = Math.min(this.rage, this.maxRage);
+		return this.state;
+	}
+
+	addEffect(effect: UnitEffect): boolean {
+		const existing = this.effects.find(
+			(candidate) => candidate.stackKey() === effect.stackKey(),
+		);
+		if (existing && effect.stackPolicy !== "stack") {
+			if (effect.stackPolicy === "reject") return false;
+			if (effect.stackPolicy === "refresh") {
+				existing.refreshFrom(effect);
+				return true;
+			}
+			this.effects.splice(this.effects.indexOf(existing), 1);
+		}
+		effect.applicationSequence = this.nextEffectSequence++;
+		this.effects.push(effect);
+		return true;
+	}
+
+	effectRemaining(type: string): number {
+		return this.effects
+			.filter((effect) => effect.type === type)
+			.reduce((maximum, effect) => Math.max(maximum, effect.remaining ?? 0), 0);
+	}
+
+	clearFrameEffects(): void {
+		this.frameEffects.length = 0;
+	}
+
+	addFrameEffect(effect: UnitEffect): boolean {
+		if (
+			effect.stackPolicy !== "stack" &&
+			this.frameEffects.some(
+				(candidate) => candidate.stackKey() === effect.stackKey(),
+			)
+		)
+			return false;
+		effect.applicationSequence = this.nextEffectSequence++;
+		this.frameEffects.push(effect);
+		return true;
+	}
+
+	receiveEffectDamage(amount: number, kind: string, source?: unknown): number {
+		if (!this.effectRandom) {
+			const before = this.hp;
+			this.takeDamage(amount);
+			return Math.max(0, before - this.hp);
+		}
+		return this.receiveDamage(
+			amount,
+			this.effectRandom,
+			source instanceof Unit ? source : undefined,
+			false,
+			this.effectInvulnerable,
+			{ kind: isDamageKind(kind) ? kind : "physical" },
+		);
 	}
 
 	takeDamage(amount: number): void {
@@ -154,12 +308,7 @@ export abstract class Unit extends GameObject {
 			return false;
 		const level = this.skillLevels.get("reflectiveSurge") ?? 1;
 		this.reflectiveSurgeRemaining = reflectiveSurgeDuration(level);
-		const derived = derivedStats(this.stats);
-		const reduction = Math.min(
-			0.6,
-			derived.cooldownReduction +
-				itemCooldownReduction(this.offHand, this.amulet, this.charm),
-		);
+		const reduction = this.state.cooldownReduction;
 		this.reflectiveSurgeCooldownMax = effectiveSkillCooldown(
 			"reflectiveSurge",
 			this.mainHand,
@@ -184,32 +333,10 @@ export abstract class Unit extends GameObject {
 		let critical = presentation.critical ?? false;
 		let incomingAmount = amount;
 		if (presentation.critical === undefined && source) {
-			const sourceDerived = derivedStats(source.stats);
-			critical = random.next() < sourceDerived.critChance;
-			if (critical) incomingAmount *= sourceDerived.critMultiplier;
+			critical = random.next() < source.state.critChance;
+			if (critical) incomingAmount *= source.state.critMultiplier;
 		}
-		const perks = equippedPerks(
-			this.stats,
-			this.mainHand,
-			this.offHand,
-			this.amulet,
-			this.charm,
-		);
-		const immunities = equippedImmunities(
-			this.stats,
-			this.mainHand,
-			this.offHand,
-			this.amulet,
-			this.charm,
-		);
-		if (
-			reflectable &&
-			random.next() <
-				Math.min(
-					0.5,
-					Math.max(0, this.stats.agility) * 0.003 + perks.dodgeChance,
-				)
-		) {
+		if (reflectable && random.next() < this.state.dodgeChance) {
 			this.lastHitDodged = true;
 			this.grantDefensiveRage("dodge");
 			this.emitOutcome("dodge", "DODGE");
@@ -228,7 +355,7 @@ export abstract class Unit extends GameObject {
 							: presentation.kind === "bleed"
 								? "bleed"
 								: "physical";
-		if (immunities.has(immunity)) return 0;
+		if (this.state.immunities.has(immunity)) return 0;
 		const resistKey =
 			presentation.kind === "magic" || presentation.kind === "electric"
 				? "magicResist"
@@ -241,16 +368,27 @@ export abstract class Unit extends GameObject {
 							: presentation.kind === "bleed"
 								? "bleedResist"
 								: "physicalResist";
+		const resistance =
+			resistKey === "magicResist"
+				? this.state.resistances.magic
+				: resistKey === "frostResist"
+					? this.state.resistances.frost
+					: resistKey === "fireResist"
+						? this.state.resistances.fire
+						: resistKey === "poisonResist"
+							? this.state.resistances.poison
+							: resistKey === "bleedResist"
+								? this.state.resistances.bleed
+								: this.state.resistances.physical;
 		let remaining =
-			Math.max(0, incomingAmount - perks.defense) *
-			(1 - Math.min(0.5, perks[resistKey]));
+			Math.max(0, incomingAmount - this.state.flatDefense) * (1 - resistance);
 		let blockReflection = 0;
 		let blocked = false;
 		const buckler = this.offHand;
-		const blockCost = buckler ? bucklerBlockCost(buckler, this.stats) : 0;
-		if (source && incomingAmount > 0 && this.reflectiveSurgeAutomatic) {
-			this.activateReflectiveSurge();
-		}
+		const blockCost = this.state.blockCost;
+		const activateSurgeAfterHit = Boolean(
+			source && incomingAmount > 0 && this.reflectiveSurgeAutomatic,
+		);
 		if (
 			buckler?.itemKind === "buckler" &&
 			this.isSkillOperational("blocking") &&
@@ -258,17 +396,8 @@ export abstract class Unit extends GameObject {
 			this.rage >= blockCost
 		) {
 			const chance = Math.min(
-				this.reflectiveSurgeRemaining > 0 ? 0.95 : 1,
-				bucklerBlockChance(
-					buckler,
-					this.stats,
-					this.skillLevels.get("blocking") ?? 0,
-				) +
-					(this.reflectiveSurgeRemaining > 0
-						? reflectiveSurgeBlockChanceBonus(
-								this.skillLevels.get("reflectiveSurge") ?? 1,
-							)
-						: 0),
+				this.state.blockChanceCap,
+				this.state.blockChance,
 			);
 			if (random.next() < chance) {
 				blocked = true;
@@ -297,35 +426,19 @@ export abstract class Unit extends GameObject {
 							Math.max(0, this.stats.spirit) *
 							manaConversionFraction(this.skillLevels.get("penance") ?? 1),
 					);
-				if (reflectable && source && buckler.reflectionComponents.length) {
-					const power = RARITY_POWER[buckler.rarity];
-					let reflected = 0;
-					if (buckler.reflectionComponents.includes("flat")) reflected += 1;
-					if (buckler.reflectionComponents.includes("strength"))
-						reflected += 0.2 * this.stats.strength;
-					if (buckler.reflectionComponents.includes("return"))
-						reflected += incomingAmount * (0.15 + 0.004 * this.stats.agility);
+				if (reflectable && source)
 					blockReflection =
-						reflected * power * itemRequirementMultiplier(buckler, this.stats);
-				}
+						this.state.reflection.flat +
+						this.state.reflection.strength +
+						incomingAmount * this.state.reflection.incomingFraction;
 			}
 		}
 		if (reflectable && source) {
-			const reflectionEffectiveness =
-				buckler?.itemKind === "buckler"
-					? itemRequirementMultiplier(buckler, this.stats)
-					: 1;
-			const passiveReflection = this.isSkillOperational("thorns")
-				? incomingAmount * 0.05 * reflectionEffectiveness
-				: 0;
-			const surgeBonus =
-				this.reflectiveSurgeRemaining > 0
-					? incomingAmount * 0.01 * reflectionEffectiveness
-					: 0;
 			const reflected =
-				(blockReflection + passiveReflection) *
-					(this.reflectiveSurgeRemaining > 0 ? 2 : 1) +
-				surgeBonus;
+				blockReflection +
+				incomingAmount *
+					(this.state.reflection.thornsFraction +
+						this.state.reflection.surgeFraction);
 			if (reflected > 0) {
 				const radial =
 					buckler?.itemKind === "buckler" && buckler.rarity === "unique";
@@ -378,6 +491,7 @@ export abstract class Unit extends GameObject {
 					critical: false,
 				});
 		}
+		if (activateSurgeAfterHit) this.activateReflectiveSurge();
 		return damageDealt;
 	}
 
@@ -414,7 +528,7 @@ export abstract class Unit extends GameObject {
 		charm?: ItemInstance,
 	): void {
 		const currentRage = this.rage;
-		this.stats = { ...stats };
+		this.baseStats = { ...stats };
 		this.offHand = offHand;
 		this.mainHand = mainHand;
 		this.amulet = amulet;
@@ -426,7 +540,8 @@ export abstract class Unit extends GameObject {
 			...(charm?.skills ?? []),
 		])
 			this.knownSkills.add(skill);
-		const derived = derivedStats(stats);
+		this.compileState(0);
+		const derived = this.state.derived;
 		this.maxHp = derived.maxHp;
 		this.hp = derived.maxHp;
 		this.maxMana = derived.maxMana;
@@ -437,8 +552,8 @@ export abstract class Unit extends GameObject {
 
 	updateResources(
 		deltaSeconds: number,
-		random?: RandomSource,
-		invulnerable = false,
+		_random?: RandomSource,
+		_invulnerable = false,
 	): void {
 		this.damageSlowRemaining = Math.max(
 			0,
@@ -448,60 +563,38 @@ export abstract class Unit extends GameObject {
 		if (this.mana <= 0) this.suspendedUpkeep.add("mana");
 		if (this.rage <= 0) this.suspendedUpkeep.add("rage");
 		this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
-		this.reflectiveSurgeRemaining = Math.max(
-			0,
-			this.reflectiveSurgeRemaining - deltaSeconds,
-		);
 		this.reflectiveSurgeCooldown = Math.max(
 			0,
 			this.reflectiveSurgeCooldown - deltaSeconds,
 		);
-		const derived = derivedStats(this.stats);
-		let periodicDamage = 0;
-		for (const status of this.statuses) {
-			status.remaining -= deltaSeconds;
-			status.tick = (status.tick ?? 0) + deltaSeconds;
-			if (status.tick >= 1) {
-				periodicDamage += status.damagePerSecond;
-				status.tick -= 1;
-				if (random)
-					this.receiveDamage(
-						status.damagePerSecond,
-						random,
-						status.source,
-						false,
-						invulnerable,
-						{
-							kind:
-								status.kind === "poison"
-									? "poison"
-									: status.kind === "burn"
-										? "fire"
-										: "bleed",
-						},
-					);
-			}
-		}
-		this.statuses = this.statuses.filter((status) => status.remaining > 0);
-		if (periodicDamage > 0 && !random) this.takeDamage(periodicDamage);
+		const derived = this.state.derived;
 		this.hp = Math.max(
 			0,
-			Math.min(this.maxHp, this.hp + this.healthRegen * deltaSeconds),
+			Math.min(this.maxHp, this.hp + this.state.healthRegen * deltaSeconds),
 		);
-		const manaMultiplier = this.mainHand
-			? 1 +
-				(this.mainHand.modifiers.manaRegenMultiplier - 1) *
-					itemRequirementMultiplier(this.mainHand, this.stats)
-			: 1;
 		this.mana = Math.max(
 			0,
-			Math.min(
-				this.maxMana,
-				this.mana + derived.manaRegen * manaMultiplier * deltaSeconds,
-			),
+			Math.min(this.maxMana, this.mana + this.state.manaRegen * deltaSeconds),
 		);
 		this.updateRageResource(deltaSeconds, derived.rageRegen);
 		this.updateSkillUpkeep(deltaSeconds);
+	}
+
+	advanceEffects(deltaSeconds: number): void {
+		this.reflectiveSurgeRemaining = Math.max(
+			0,
+			this.reflectiveSurgeRemaining - deltaSeconds,
+		);
+		for (const status of this.statuses)
+			if (this.compiledStatuses.has(status))
+				status.remaining -= Math.max(0, deltaSeconds);
+		this.statuses = this.statuses.filter((status) => status.remaining > 0);
+		for (let index = this.effects.length - 1; index >= 0; index -= 1)
+			if (
+				this.compiledEffects.has(this.effects[index]!) &&
+				!this.effects[index]!.advance(deltaSeconds)
+			)
+				this.effects.splice(index, 1);
 	}
 
 	protected updateRageResource(
@@ -515,16 +608,7 @@ export abstract class Unit extends GameObject {
 	}
 
 	private updateSkillUpkeep(deltaSeconds: number): void {
-		const equipped = [this.offHand, this.amulet, this.charm];
-		const manaReduction = Math.min(
-			0.9,
-			equipped.reduce(
-				(sum, item) =>
-					sum +
-					(item ? itemResourceCostReduction(item, "mana", this.stats) : 0),
-				0,
-			),
-		);
+		const manaReduction = this.state.manaCostReduction;
 		for (const resource of ["mana", "rage"] as const) {
 			const current = resource === "mana" ? this.mana : this.rage;
 			const rate = [...this.knownSkills].reduce((sum, skill) => {
@@ -559,39 +643,10 @@ export abstract class Unit extends GameObject {
 	}
 
 	get healthRegen(): number {
-		const derived = derivedStats(this.stats);
-		const equipped = [
-			this.mainHand,
-			this.offHand,
-			this.amulet,
-			this.charm,
-		].filter(Boolean) as ItemInstance[];
-		const vigorousRegen = equipped.reduce((sum, item) => {
-			const multiplier =
-				(item.modifiers.strengthRegenMultiplier ?? 0) *
-				itemRequirementMultiplier(item, this.stats);
-			return (
-				sum +
-				(multiplier > 0
-					? (0.01 + multiplier * this.stats.strength) *
-						itemRequirementMultiplier(item, this.stats)
-					: 0)
-			);
-		}, 0);
-		return (
-			(derived.hpRegen + vigorousRegen) * this.healthRegenMultiplier +
-			this.healthRegenFlat
-		);
+		return this.state.healthRegen;
 	}
 
 	addStatus(status: StatusEffect): void {
-		const immunities = equippedImmunities(
-			this.stats,
-			this.mainHand,
-			this.offHand,
-			this.amulet,
-			this.charm,
-		);
 		const immunity: ItemImmunity | undefined =
 			status.kind === "freeze"
 				? "frost"
@@ -602,9 +657,10 @@ export abstract class Unit extends GameObject {
 						: status.kind === "bleed"
 							? "bleed"
 							: undefined;
-		if (immunity && immunities.has(immunity)) return;
+		if (immunity && this.state.immunities.has(immunity)) return;
 		if (status.kind === "freeze") this.removeOneStatus("burn");
 		if (status.kind === "burn") this.removeOneStatus("freeze");
+		status.effectSequence ??= this.nextEffectSequence++;
 		this.statuses.push(status);
 		if (status.kind === "freeze" && this.freezeStacks === this.freezeThreshold)
 			this.velocity = { x: 0, y: 0 };
@@ -620,16 +676,7 @@ export abstract class Unit extends GameObject {
 		return this.statuses.filter((status) => status.kind === "freeze").length;
 	}
 	get frostResistance(): number {
-		return Math.min(
-			1,
-			equippedPerks(
-				this.stats,
-				this.mainHand,
-				this.offHand,
-				this.amulet,
-				this.charm,
-			).frostResist,
-		);
+		return this.state.resistances.frost;
 	}
 	get freezeThreshold(): number {
 		return Math.round(3 + 12 * this.frostResistance);
@@ -723,6 +770,18 @@ function approach(value: number, target: number, change: number): number {
 	return value < target
 		? Math.min(target, value + change)
 		: Math.max(target, value - change);
+}
+
+function isDamageKind(kind: string): kind is DamageKind {
+	return [
+		"physical",
+		"magic",
+		"cold",
+		"electric",
+		"poison",
+		"fire",
+		"bleed",
+	].includes(kind);
 }
 
 function voodooDamageReduction(unit: Unit): number {

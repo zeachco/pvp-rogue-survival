@@ -7,7 +7,6 @@ import {
 	thunderDamage,
 	thunderInterval,
 } from "../../../common/auras";
-import { derivedStats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
 import type { SkillId } from "../../../common/items";
@@ -15,11 +14,51 @@ import { effectiveSkillLevel } from "./HeroCombatSystem";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
 import { distance } from "../types";
+import {
+	AttackSpeedMultiplierEffect,
+	MovementMultiplierEffect,
+} from "../../../common/unitState";
 
 export class AuraSystem {
 	private sunburnRemaining = 0;
 	private thunderRemaining = 0;
 	private readonly burst = new WeakSet<Creep>();
+	collectEffects(
+		hero: Hero,
+		progress: PlayerProgress,
+		creeps: readonly Creep[],
+	): void {
+		const levelOf = (skill: SkillId) =>
+			hero.isSkillOperational(skill) ? effectiveSkillLevel(progress, skill) : 0;
+		const slowLevel = levelOf("slowAura");
+		const hinderLevel = levelOf("hinderingAura");
+		for (const creep of creeps) {
+			if (!creep.active) continue;
+			if (
+				slowLevel > 0 &&
+				distance(hero.position, creep.position) <=
+					auraRadius(slowLevel, hero.stats.spirit)
+			)
+				creep.addFrameEffect(
+					new MovementMultiplierEffect(
+						"slowAura",
+						auraSlowMultiplier(slowLevel),
+					),
+				);
+			if (
+				hinderLevel > 0 &&
+				distance(hero.position, creep.position) <=
+					auraRadius(hinderLevel, hero.stats.spirit)
+			)
+				creep.addFrameEffect(
+					new AttackSpeedMultiplierEffect(
+						"hinderingAura",
+						auraSlowMultiplier(hinderLevel),
+					),
+				);
+		}
+	}
+
 	update(
 		delta: number,
 		hero: Hero,
@@ -47,15 +86,6 @@ export class AuraSystem {
 					)
 				: [];
 		};
-		for (const creep of creeps) creep.setAuraMultipliers(1, 1);
-		const slowLevel = levelOf("slowAura");
-		if (slowLevel)
-			for (const creep of nearby("slowAura"))
-				creep.setAuraMultipliers(auraSlowMultiplier(slowLevel), 1);
-		const hinderLevel = levelOf("hinderingAura");
-		if (hinderLevel)
-			for (const creep of nearby("hinderingAura"))
-				creep.setAuraMultipliers(undefined, auraSlowMultiplier(hinderLevel));
 		const stats = hero.stats;
 		const sunLevel = levelOf("sunburnAura");
 		this.sunburnRemaining -= delta;
@@ -78,10 +108,10 @@ export class AuraSystem {
 			const first = targets[Math.floor(random.next() * targets.length)];
 			if (first) {
 				const critical =
-					random.next() < thunderCritChance(derivedStats(stats).critChance);
+					random.next() < thunderCritChance(hero.state.critChance);
 				const damage = thunderDamage(stats.magic);
 				first.receiveDamage(
-					damage * (critical ? derivedStats(stats).critMultiplier : 1),
+					damage * (critical ? hero.state.critMultiplier : 1),
 					random,
 					hero,
 					false,

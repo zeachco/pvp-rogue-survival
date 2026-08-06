@@ -1,14 +1,8 @@
 /** @jsx h */
 import {
-	equippedImmunities,
-	equippedPerks,
 	itemCooldownReduction,
-	itemKillRestoration,
-	itemRequirementMultiplier,
-	itemResourceCostReduction,
 	itemStackKey,
 	RARITIES,
-	RARITY_POWER,
 	statsWithItemBonuses,
 	type ItemInstance,
 	type Rarity,
@@ -19,7 +13,6 @@ import {
 	STAT_KEYS,
 	cumulativeXpForLevel,
 	integerAllocation,
-	heroTurnSpeedDegrees,
 	lerpXpDisplay,
 	levelForXp,
 	xpForNextLevel,
@@ -62,7 +55,6 @@ import {
 	blizzardDuration,
 	blizzardProjectilesPerSecond,
 	blizzardRadius,
-	bucklerBlockChance,
 	bucklerBlockCost,
 	cappedSkillLevel,
 	effectiveSkillCooldown,
@@ -86,7 +78,6 @@ import {
 	timeHarvestCooldownReduction,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
-	RAGE_DECAY_PER_SECOND,
 	type SkillDamagePreview,
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
@@ -115,6 +106,13 @@ import {
 } from "./preview";
 import { extractButtonStatus } from "./inventoryAvailability";
 import { viewportTooltipPosition } from "./tooltipPosition";
+import {
+	projectUnitState,
+	RapidRegenerationEffect,
+	ReflectiveSurgeEffect,
+	ThornsEffect,
+	type UnitEffect,
+} from "../../common/unitState";
 export type { HudCallbacks, SpellSlot } from "./types";
 declare global {
 	namespace JSX {
@@ -1799,39 +1797,24 @@ export class Hud {
 		const into = shownXp - cumulativeXpForLevel(shownLevel);
 		const needed = xpForNextLevel(shownLevel);
 		const xpRatio = needed > 0 ? Math.max(0, Math.min(1, into / needed)) : 0;
-		const effectiveStats = statsWithItemBonuses(
-			p.stats,
-			p.mainHand,
-			p.offHand,
-			p.amulet,
-			p.charm,
-		);
-		const derived = derivedStats(effectiveStats);
-		const equipped = [p.mainHand, p.offHand, p.amulet, p.charm].filter(
-			Boolean,
-		) as ItemInstance[];
-		const vigorousRegen = equipped.reduce((sum, item) => {
-			const effectiveness = itemRequirementMultiplier(item, effectiveStats);
-			const multiplier =
-				(item.modifiers.strengthRegenMultiplier ?? 0) * effectiveness;
-			return (
-				sum +
-				(multiplier > 0
-					? (0.01 + multiplier * effectiveStats.strength) * effectiveness
-					: 0)
-			);
-		}, 0);
-		const healthRegen =
-			this.player.healthRegen || derived.hpRegen + vigorousRegen;
-		const mainEffectiveness = itemRequirementMultiplier(
-			p.mainHand,
-			effectiveStats,
-		);
-		const manaRegen =
-			derived.manaRegen *
-			(1 +
-				((p.mainHand?.modifiers.manaRegenMultiplier ?? 1) - 1) *
-					mainEffectiveness);
+		const compiled = projectUnitState({
+			baseStats: p.stats,
+			mainHand: p.mainHand,
+			offHand: p.offHand,
+			amulet: p.amulet,
+			charm: p.charm,
+			effects: statEffects(
+				activeStatBuffs(this.player, p),
+				hasThornsSkill(p.learnedSkills, [
+					p.mainHand,
+					p.offHand,
+					p.amulet,
+					p.charm,
+				]),
+			),
+		});
+		const healthRegen = this.player.healthRegen || compiled.healthRegen;
+		const manaRegen = compiled.manaRegen;
 		const signature = [
 			this.player.health,
 			this.player.maxHealth,
@@ -2949,6 +2932,30 @@ export function activeStatBuffs(
 	return buffs.reflectiveSurge || buffs.rapidRegen ? buffs : undefined;
 }
 
+function statEffects(
+	buffs: ActiveStatBuffs | undefined,
+	thornsActive: boolean,
+): UnitEffect[] {
+	const effects: UnitEffect[] = [];
+	if (thornsActive) effects.push(new ThornsEffect());
+	if (buffs?.reflectiveSurge)
+		effects.push(
+			new ReflectiveSurgeEffect(
+				buffs.reflectiveSurge.level,
+				Number.POSITIVE_INFINITY,
+			),
+		);
+	if (buffs?.rapidRegen)
+		effects.push(
+			new RapidRegenerationEffect(
+				buffs.rapidRegen.multiplier,
+				buffs.rapidRegen.flat,
+				Number.POSITIVE_INFINITY,
+			),
+		);
+	return effects;
+}
+
 export function effectiveStatRows(
 	main: ItemInstance | undefined,
 	off: ItemInstance | undefined,
@@ -2961,210 +2968,110 @@ export function effectiveStatRows(
 	buffs?: ActiveStatBuffs,
 	thornsActive = false,
 ): Array<[string, string]> {
-	const derived = derivedStats(stats);
-	const items = [main, off].filter(Boolean) as ItemInstance[];
 	const buckler = off?.itemKind === "buckler" ? off : undefined;
-	const profile = attackProfile(main, stats, BALANCE);
-	const perks = equippedPerks(stats, main, off, amulet, charm);
-	const immunities = equippedImmunities(stats, main, off, amulet, charm);
-	const mainEffectiveness = itemRequirementMultiplier(main, stats);
-	const bucklerEffectiveness = buckler
-		? itemRequirementMultiplier(buckler, stats)
-		: 1;
+	const effects = statEffects(buffs, thornsActive);
+	const state = projectUnitState({
+		baseStats: stats,
+		attributesAreEffective: true,
+		mainHand: main,
+		offHand: off,
+		amulet,
+		charm,
+		blockingLevel,
+		attractionLevel,
+		effects,
+	});
+	const reflection = state.reflection;
 	const surge = buffs?.reflectiveSurge;
-	const regenMultiplier = buffs?.rapidRegen?.multiplier ?? 1;
-	const regenFlat = buffs?.rapidRegen?.flat ?? 0;
-	const lifeSteal = items.reduce((sum, item) => {
-		const effectiveness = itemRequirementMultiplier(item, stats);
-		const base = (item.modifiers.lifeStealBase ?? 0) * effectiveness;
-		return sum + (base + (base > 0 ? 0.001 * stats.spirit : 0)) * effectiveness;
-	}, 0);
-	const vigorous = items.reduce((sum, item) => {
-		const effectiveness = itemRequirementMultiplier(item, stats);
-		const multiplier =
-			(item.modifiers.strengthRegenMultiplier ?? 0) * effectiveness;
-		return (
-			sum +
-			(multiplier > 0
-				? (0.01 + multiplier * stats.strength) * effectiveness
-				: 0)
-		);
-	}, 0);
-	const onKill = itemKillRestoration(stats, main, off, amulet, charm);
 	return [
-		["Damage", fmt(profile.damage)],
-		["Attacks/s", fmt(profile.attacksPerSecond)],
-		["Attack cost", `${fmt(profile.rageCost)} rage`],
-		["Attack range", `${fmt(pixelsToMeters(profile.range))} m`],
+		["Damage", fmt(state.attack.damage)],
+		["Attacks/s", fmt(state.attack.attacksPerSecond)],
+		["Attack cost", `${fmt(state.attack.rageCost)} rage`],
+		["Attack range", `${fmt(pixelsToMeters(state.attack.range))} m`],
+		["Crit chance", percent(state.critChance)],
+		["Crit damage", percent(state.critMultiplier)],
+		["Magic amp", percent(Math.max(0, state.magicAmp - 1))],
+		["Cooldown reduction", percent(state.cooldownReduction)],
+		["Turn speed", `${fmt(state.turnSpeedDegrees)}°/s`],
 		[
-			"Crit chance",
-			percent(
-				Math.min(
-					1,
-					derived.critChance +
-						(main?.modifiers.critChance ?? 0) * mainEffectiveness,
-				),
-			),
+			"Spell range/Lv",
+			`+${fmt(pixelsToMeters(0.5 * state.attributes.spirit))} m`,
 		],
-		["Crit damage", percent(derived.critMultiplier)],
-		[
-			"Magic amp",
-			percent(
-				Math.max(
-					0,
-					derived.magicAmp +
-						(main?.modifiers.magicAmp ?? 0) * mainEffectiveness -
-						1,
-				),
-			),
-		],
-		[
-			"Cooldown reduction",
-			percent(
-				Math.min(
-					0.6,
-					derived.cooldownReduction +
-						itemCooldownReduction(off) *
-							(off ? itemRequirementMultiplier(off, stats) : 1),
-				),
-			),
-		],
-		["Turn speed", `${fmt(heroTurnSpeedDegrees(stats.agility))}°/s`],
-		["Spell range/Lv", `+${fmt(pixelsToMeters(0.5 * stats.spirit))} m`],
 		["Spell power/Lv", "+15%"],
-		["Max health", fmt(maxHp ?? derived.maxHp)],
-		["Max rage", fmt(derived.maxRage)],
-		["Max mana", fmt(derived.maxMana)],
-		["Defense", fmt(perks.defense + (buckler ? stats.strength : 0))],
-		[
-			"Dodge chance",
-			percent(Math.min(0.5, stats.agility * 0.003 + perks.dodgeChance)),
-		],
+		["Max health", fmt(maxHp ?? state.maxHp)],
+		["Max rage", fmt(state.maxRage)],
+		["Max mana", fmt(state.maxMana)],
+		["Defense", fmt(state.defense)],
+		["Dodge chance", percent(state.dodgeChance)],
 		[
 			"Physical resist",
-			immunities.has("physical")
+			state.immunities.has("physical")
 				? "Immune"
-				: percent(Math.min(0.5, perks.physicalResist)),
+				: percent(state.resistances.physical),
 		],
 		[
 			"Magic resist",
-			immunities.has("magic")
+			state.immunities.has("magic")
 				? "Immune"
-				: percent(Math.min(0.5, perks.magicResist)),
+				: percent(state.resistances.magic),
 		],
 		[
 			"Fire resist",
-			immunities.has("fire")
-				? "Immune"
-				: percent(Math.min(0.5, perks.fireResist)),
+			state.immunities.has("fire") ? "Immune" : percent(state.resistances.fire),
 		],
 		[
 			"Frost resist",
-			immunities.has("frost")
+			state.immunities.has("frost")
 				? "Immune"
-				: percent(Math.min(0.5, perks.frostResist)),
+				: percent(state.resistances.frost),
 		],
 		[
 			"Poison resist",
-			immunities.has("poison")
+			state.immunities.has("poison")
 				? "Immune"
-				: percent(Math.min(0.5, perks.poisonResist)),
+				: percent(state.resistances.poison),
 		],
 		[
 			"Bleed resist",
-			immunities.has("bleed")
+			state.immunities.has("bleed")
 				? "Immune"
-				: percent(Math.min(0.5, perks.bleedResist)),
+				: percent(state.resistances.bleed),
 		],
-		[
-			"Block chance",
-			percent(
-				Math.min(
-					surge ? 0.95 : 1,
-					bucklerBlockChance(buckler, stats, blockingLevel) +
-						(surge ? reflectiveSurgeBlockChanceBonus(surge.level) : 0),
-				),
-			),
-		],
-		[
-			"Block cost",
-			buckler ? `${fmt(bucklerBlockCost(buckler, stats))} rage` : "0",
-		],
-		[
-			"Health regen",
-			`${fmt((derived.hpRegen + vigorous) * regenMultiplier + regenFlat)}/s`,
-		],
-		[
-			"Mana regen",
-			`${fmt(derived.manaRegen * (1 + ((main?.modifiers.manaRegenMultiplier ?? 1) - 1) * mainEffectiveness))}/s`,
-		],
-		["Rage decay", `−${fmt(RAGE_DECAY_PER_SECOND)}/s`],
-		["HP on kill", fmt(onKill.health)],
-		["Mana on kill", fmt(onKill.mana)],
-		["Life steal", percent(lifeSteal)],
-		[
-			"Mana cost reduction",
-			percent(itemResourceCostReduction(off, "mana", stats)),
-		],
-		[
-			"Life cost reduction",
-			percent(itemResourceCostReduction(off, "life", stats)),
-		],
-		[
-			"Bleed chance",
-			percent((main?.modifiers.bleedChance ?? 0) * mainEffectiveness),
-		],
-		[
-			"Poison chance",
-			percent((main?.modifiers.poisonChance ?? 0) * mainEffectiveness),
-		],
-		[
-			"Stun chance",
-			percent((main?.modifiers.stunChance ?? 0) * mainEffectiveness),
-		],
-		[
-			"Gold gain",
-			percent((buckler?.modifiers.goldGain ?? 0) * bucklerEffectiveness),
-		],
-		[
-			"Rarity boost",
-			percent((buckler?.modifiers.rarityBoost ?? 0) * bucklerEffectiveness),
-		],
-		["Attraction Gold find", percent(attractionFindBonus(attractionLevel))],
-		["Attraction Magic find", percent(attractionFindBonus(attractionLevel))],
-		[
-			"Attraction",
-			`${fmt(
-				pixelsToMeters(
-					Math.max(
-						(main?.attractionSpeed ?? 0) * mainEffectiveness,
-						(off?.attractionSpeed ?? 0) *
-							(off ? itemRequirementMultiplier(off, stats) : 1),
-					) * attractionSpeedMultiplier(attractionLevel),
-				),
-			)} m/s`,
-		],
+		["Block chance", percent(state.blockChance)],
+		["Block cost", buckler ? `${fmt(state.blockCost)} rage` : "0"],
+		["Health regen", `${fmt(state.healthRegen)}/s`],
+		["Mana regen", `${fmt(state.manaRegen)}/s`],
+		["Rage decay", `−${fmt(state.rageDecay)}/s`],
+		["HP on kill", fmt(state.healthOnKill)],
+		["Mana on kill", fmt(state.manaOnKill)],
+		["Life steal", percent(state.lifeSteal)],
+		["Mana cost reduction", percent(state.manaCostReduction)],
+		["Life cost reduction", percent(state.lifeCostReduction)],
+		["Bleed chance", percent(state.bleedChance)],
+		["Poison chance", percent(state.poisonChance)],
+		["Stun chance", percent(state.stunChance)],
+		["Gold gain", percent(state.goldGain)],
+		["Rarity boost", percent(state.rarityBoost)],
+		["Attraction Gold find", percent(state.attractionGoldFind)],
+		["Attraction Magic find", percent(state.attractionMagicFind)],
+		["Attraction", `${fmt(pixelsToMeters(state.attractionSpeed))} m/s`],
 		[
 			"Reflection",
 			buckler?.reflectionComponents.length || thornsActive
 				? (() => {
-						const power = buckler
-							? RARITY_POWER[buckler.rarity] * bucklerEffectiveness
-							: 0;
-						const multiplier = surge ? 2 : 1;
 						const parts: string[] = [];
 						if (buckler?.reflectionComponents.includes("flat"))
-							parts.push(fmt(1 * power * multiplier));
+							parts.push(fmt(reflection.flat));
 						if (buckler?.reflectionComponents.includes("strength"))
-							parts.push(
-								`${fmt(0.2 * stats.strength * power * multiplier)} (20%×STR)`,
-							);
+							parts.push(`${fmt(reflection.strength)} (20%×STR)`);
 						if (buckler?.reflectionComponents.includes("return"))
 							parts.push(
-								`${fmt((0.15 + 0.004 * stats.agility) * power * 100 * multiplier)}% inc. (15%+0.4%×AGI)`,
+								`${fmt(reflection.incomingFraction * 100)}% inc. (15%+0.4%×AGI)`,
 							);
 						if (thornsActive)
-							parts.push(`${fmt(5 * multiplier)}% inc. (Thorns)`);
+							parts.push(
+								`${fmt(reflection.thornsFraction * 100)}% inc. (Thorns)`,
+							);
 						if (surge) parts.push("1% inc. (Surge)");
 						return `Reflect: ${parts.join(" + ")}${surge ? " · 2× Surge" : ""}`;
 					})()

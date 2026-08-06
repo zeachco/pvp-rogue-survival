@@ -50,7 +50,6 @@ import {
 	type ItemInstance,
 	type SkillId,
 } from "../../../common/items";
-import { derivedStats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
 import type { SpellSlot } from "../../ui/types";
@@ -66,6 +65,7 @@ import { GroundSwamp } from "../GroundSwamp";
 import { Blizzard } from "../Blizzard";
 import { SKILLS } from "../../../common/content";
 import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
+import { RapidRegenerationEffect } from "../../../common/unitState";
 
 export function shouldAutoCastHealing(hp: number, maxHp: number): boolean {
 	return healingAutoCastThresholdMet(hp, maxHp);
@@ -89,12 +89,7 @@ export class HeroCombatSystem {
 	private whirlwindRange = 0;
 	private whirlwindHitDamage = 0;
 	private whirlwindSpeed = 1;
-	private rapidRegenRemaining = 0;
-	private rapidRegenMultiplierValue = 1;
 	private readonly pendingWeaponProcs: SkillId[] = [];
-	get rapidRegenerationRemaining(): number {
-		return this.rapidRegenRemaining;
-	}
 	syncSkills(progress: PlayerProgress, hero: Hero): void {
 		hero.knownSkills.clear();
 		hero.skillLevels.clear();
@@ -121,10 +116,6 @@ export class HeroCombatSystem {
 	): void {
 		this.attackCooldown = Math.max(0, this.attackCooldown - deltaSeconds);
 		this.healingCooldown = Math.max(0, this.healingCooldown - deltaSeconds);
-		this.rapidRegenRemaining = Math.max(
-			0,
-			this.rapidRegenRemaining - deltaSeconds,
-		);
 		if (this.casting) this.casting.elapsed += deltaSeconds;
 		for (const cooldown of this.skillCooldowns.values())
 			cooldown.remaining = Math.max(0, cooldown.remaining - deltaSeconds);
@@ -156,14 +147,8 @@ export class HeroCombatSystem {
 			}
 		}
 		const item = progress.mainHand;
-		const effectiveStats = statsWithItemBonuses(
-			progress.stats,
-			item,
-			progress.offHand,
-			progress.amulet,
-			progress.charm,
-		);
-		const derived = derivedStats(effectiveStats);
+		const effectiveStats = hero.state.attributes;
+		const derived = hero.state.derived;
 		this.syncSkills(progress, hero);
 		const healing = healingCast(
 			hero.hp,
@@ -227,22 +212,21 @@ export class HeroCombatSystem {
 			(autoFire.has("rapidRegen") || this.manualSkill === "rapidRegen") &&
 			rapidRegenLevel > 0 &&
 			hero.hp < hero.maxHp &&
-			this.rapidRegenRemaining === 0 &&
+			hero.effectRemaining("rapidRegen") === 0 &&
 			(this.skillCooldowns.get("rapidRegen")?.remaining ?? 0) === 0 &&
 			hero.mana >= rapidRegenCost
 		) {
 			hero.spendMana(rapidRegenCost);
-			this.rapidRegenRemaining = rapidRegenDuration(rapidRegenLevel);
-			this.rapidRegenMultiplierValue = rapidRegenMultiplier(rapidRegenLevel);
-			state.spellEffects.push(
-				new SpellEffect(
-					"rapidRegen",
-					hero.position,
-					0,
-					0,
-					this.rapidRegenRemaining,
-					hero,
+			const rapidDuration = rapidRegenDuration(rapidRegenLevel);
+			hero.addEffect(
+				new RapidRegenerationEffect(
+					rapidRegenMultiplier(rapidRegenLevel),
+					0.1,
+					rapidDuration,
 				),
+			);
+			state.spellEffects.push(
+				new SpellEffect("rapidRegen", hero.position, 0, 0, rapidDuration, hero),
 			);
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 			const duration = effectiveSkillCooldown(
@@ -271,7 +255,7 @@ export class HeroCombatSystem {
 			return;
 		}
 		const targetDistance = distance(hero.position, target.position);
-		const profile = attackProfile(item, effectiveStats, balance);
+		const profile = hero.state.attack;
 		const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 		const procSkills = weaponProcSkills(progress);
 		const castingProc = this.casting
@@ -806,12 +790,6 @@ export class HeroCombatSystem {
 	get whirlwindMovementSpeed(): number {
 		return this.whirlwindActive ? this.whirlwindSpeed : 1;
 	}
-	get rapidRegenMultiplier(): number {
-		return this.rapidRegenRemaining > 0 ? this.rapidRegenMultiplierValue : 1;
-	}
-	get rapidRegenFlat(): number {
-		return this.rapidRegenRemaining > 0 ? 0.1 : 0;
-	}
 	onKill(progress: PlayerProgress, hero: Hero): number {
 		this.syncSkills(progress, hero);
 		const stats = statsWithItemBonuses(
@@ -853,8 +831,6 @@ export class HeroCombatSystem {
 		this.whirlwindRemaining = 0;
 		this.whirlwindPulse = 0;
 		this.whirlwindSpeed = 1;
-		this.rapidRegenRemaining = 0;
-		this.rapidRegenMultiplierValue = 1;
 		this.skillCooldowns.clear();
 		this.pendingWeaponProcs.length = 0;
 	}
