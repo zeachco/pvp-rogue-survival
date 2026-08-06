@@ -2080,14 +2080,16 @@ input {
 	gap: 5px;
 }
 .allocation-panel:hover,
-.allocation-panel:focus-within {
+.allocation-panel:focus-within,
+.allocation-panel.is-previewing {
 	border-color: rgba(138, 216, 255, 0.35);
 	padding: 7px;
 	background: rgba(13, 20, 24, 0.82);
 	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
 }
 .allocation-panel:hover .allocation-controls,
-.allocation-panel:focus-within .allocation-controls {
+.allocation-panel:focus-within .allocation-controls,
+.allocation-panel.is-previewing .allocation-controls {
 	display: grid;
 }
 .allocation-row {

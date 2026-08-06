@@ -114,3 +114,9 @@ export function integerAllocation(stats: Stats): Stats {
 		result[priority[index % priority.length]] += 1;
 	return result;
 }
+
+export function scaledStats(allocation: Stats, level: number): Stats {
+	return Object.fromEntries(
+		STAT_KEYS.map((key) => [key, allocation[key] * level]),
+	) as Stats;
+}

@@ -15,6 +15,7 @@ import {
 	integerAllocation,
 	lerpXpDisplay,
 	levelForXp,
+	scaledStats,
 	xpForNextLevel,
 	type Stats,
 } from "../../common/progression";
@@ -246,6 +247,15 @@ export class Hud {
 					</label>
 				))}
 			</fieldset>
+			<section class="graphics-devlog">
+				<div>
+					<strong>Devlog</strong>
+					<small>See what changed, from fresh fixes to major features.</small>
+				</div>
+				<button type="button" class="graphics-devlog-open">
+					Open devlog ↗
+				</button>
+			</section>
 		</section>
 	) as HTMLElement;
 	private readonly aimReticle = (
@@ -411,6 +421,8 @@ export class Hud {
 	private realmSignature = "";
 	private spellStructureSignature = "";
 	private allocationSignature = "";
+	private allocationPreview?: "next" | "respec";
+	private allocationUpdate?: () => void;
 	private lastWaveNumber?: number;
 	private staticProgress?: PlayerProgress;
 	private staticPlayerName = "";
@@ -615,6 +627,15 @@ export class Hud {
 		) as HTMLButtonElement;
 		graphicsClose.onclick = () =>
 			this.graphicsOptionsModal.classList.add("is-hidden");
+		const devlogOpen = this.graphicsOptionsModal.querySelector(
+			".graphics-devlog-open",
+		) as HTMLButtonElement;
+		devlogOpen.onclick = () =>
+			window.open(
+				new URL("devlog.html", document.baseURI).href,
+				"_blank",
+				"noopener,noreferrer",
+			);
 		for (const radio of this.lightingRadios)
 			radio.onchange = () => {
 				if (!radio.checked) return;
@@ -2236,6 +2257,7 @@ export class Hud {
 			!build,
 		);
 		this.renderAllocation();
+		this.allocationUpdate?.();
 		this.renderInventory(p);
 	}
 	private renderInventory(progress: PlayerProgress): void {
@@ -2722,7 +2744,10 @@ export class Hud {
 		if (signature === this.allocationSignature) return;
 		this.allocationSignature = signature;
 		this.allocationNode.replaceChildren();
+		this.allocationUpdate = undefined;
 		if (!this.player || this.inspected) {
+			this.allocationPreview = undefined;
+			this.allocationNode.classList.remove("is-previewing");
 			this.allocationNode.classList.add("is-hidden");
 			return;
 		}
@@ -2731,7 +2756,6 @@ export class Hud {
 		const valueNodes = new Map<keyof Stats, HTMLElement>();
 		const minusButtons = new Map<keyof Stats, HTMLButtonElement>();
 		const plusButtons = new Map<keyof Stats, HTMLButtonElement>();
-		let preview = false;
 		const rows = STAT_KEYS.map((key) => {
 			const value = (<b>{values[key]}</b>) as HTMLElement;
 			const minus = (
@@ -2783,6 +2807,10 @@ export class Hud {
 		);
 		const currentValues = (): Stats => ({ ...values });
 		const update = () => {
+			this.allocationNode.classList.toggle(
+				"is-previewing",
+				Boolean(this.allocationPreview),
+			);
 			const total = STAT_KEYS.reduce((sum, key) => sum + values[key], 0);
 			budget.textContent = `Budget ${total}/5 · ${5 - total} remaining`;
 			save.disabled = total !== 5;
@@ -2795,9 +2823,12 @@ export class Hud {
 			}
 			const grid = this.sheetNode.querySelector<HTMLElement>(".attribute-grid");
 			const p = this.player!.progress;
-			const projected = Object.fromEntries(
-				STAT_KEYS.map((key) => [key, p.stats[key] + values[key]]),
-			) as Stats;
+			const projected =
+				this.allocationPreview === "respec"
+					? scaledStats(values, p.level)
+					: (Object.fromEntries(
+							STAT_KEYS.map((key) => [key, p.stats[key] + values[key]]),
+						) as Stats);
 			const currentEffective = statsWithItemBonuses(
 				p.stats,
 				p.mainHand,
@@ -2817,21 +2848,24 @@ export class Hud {
 				if (node) {
 					const value = {
 						currentVal: currentEffective[key],
-						newVal: preview ? projectedEffective[key] : currentEffective[key],
+						newVal: this.allocationPreview
+							? projectedEffective[key]
+							: currentEffective[key],
 					};
 					setText(node, formatPreviewValue(value, fmt));
 					applyPreviewClass(node, previewTone(value));
 				}
 			}
 			this.previewEffectiveStats(
-				preview ? projected : p.stats,
+				this.allocationPreview ? projected : p.stats,
 				p.mainHand,
 				p.offHand,
 				p.amulet,
 				p.charm,
-				preview,
+				Boolean(this.allocationPreview),
 			);
 		};
+		this.allocationUpdate = update;
 		for (const key of STAT_KEYS) {
 			minusButtons.get(key)!.onclick = () => {
 				values[key] = Math.max(0, values[key] - 1);
@@ -2851,30 +2885,52 @@ export class Hud {
 			if (!respec.disabled) this.callbacks.onRespec(currentValues());
 		};
 		this.allocationNode.onmouseenter = () => {
-			preview = true;
+			this.allocationPreview ??= "next";
 			update();
 		};
 		this.allocationNode.onmouseleave = () => {
-			if (!this.allocationNode.contains(document.activeElement)) {
-				preview = false;
-				update();
-			}
+			window.setTimeout(() => {
+				if (
+					!this.allocationNode.matches(":hover") &&
+					!this.allocationNode.contains(document.activeElement)
+				) {
+					this.allocationPreview = undefined;
+					update();
+				}
+			});
 		};
 		const focusNode = this.allocationNode as HTMLElement & {
 			onfocusin: (() => void) | null;
 			onfocusout: (() => void) | null;
 		};
 		focusNode.onfocusin = () => {
-			preview = true;
+			this.allocationPreview ??= "next";
 			update();
 		};
 		focusNode.onfocusout = () =>
 			window.setTimeout(() => {
 				if (!this.allocationNode.contains(document.activeElement)) {
-					preview = false;
+					this.allocationPreview = undefined;
 					update();
 				}
 			});
+		const previewRespec = () => {
+			this.allocationPreview = "respec";
+			update();
+		};
+		const restoreNextPreview = () => {
+			if (
+				this.allocationNode.matches(":hover") ||
+				this.allocationNode.contains(document.activeElement)
+			) {
+				this.allocationPreview = "next";
+				update();
+			}
+		};
+		respec.onmouseenter = previewRespec;
+		respec.onfocus = previewRespec;
+		respec.onmouseleave = restoreNextPreview;
+		respec.onblur = restoreNextPreview;
 		this.allocationNode.onsubmit = (event) => {
 			event.preventDefault();
 			if (!save.disabled) this.callbacks.onAllocation(currentValues());

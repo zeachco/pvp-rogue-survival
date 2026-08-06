@@ -44,6 +44,7 @@ import {
 	cumulativeXpForLevel,
 	DEFAULT_ALLOCATION,
 	levelForXp,
+	scaledStats,
 	STAT_KEYS,
 	validAllocation,
 	type Stats,
@@ -1632,9 +1633,7 @@ export class GameService {
 			return this.notice(player, `Respec requires ${cost} gold.`);
 		player.progress.gold -= cost;
 		player.progress.allocation = { ...allocation };
-		player.progress.stats = Object.fromEntries(
-			STAT_KEYS.map((key) => [key, allocation[key] * player.progress.level]),
-		) as Stats;
+		player.progress.stats = scaledStats(allocation, player.progress.level);
 		this.sendProgress(
 			player,
 			`Reapplied the allocation ratio across ${player.progress.level} levels for ${cost} gold.`,
@@ -1746,11 +1745,6 @@ function randomAllocation(seed: number): Stats {
 	const total = values.reduce((sum, value) => sum + value, 0);
 	return Object.fromEntries(
 		STAT_KEYS.map((key, index) => [key, (5 * values[index]) / total]),
-	) as Stats;
-}
-function scaledStats(allocation: Stats, level: number): Stats {
-	return Object.fromEntries(
-		STAT_KEYS.map((key) => [key, allocation[key] * level]),
 	) as Stats;
 }
 function regularCreepStats(stats: Stats): Stats {
