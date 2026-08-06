@@ -49,6 +49,7 @@ import { Blizzard } from "../src/game/Blizzard";
 import {
 	COIN_BOB_AMPLITUDE,
 	COIN_BOB_SPEED,
+	COIN_SCATTER_MULTIPLIER,
 	COIN_SPIN_SPEED,
 	DROP_MAX_SPEED,
 	GOLD_COIN_DENOMINATIONS,
@@ -141,15 +142,18 @@ describe("animated 3D characters", () => {
 		const hero = new Hero({ x: 10, y: 20 });
 		const heroLights = hero.mesh.getObjectsByProperty(
 			"type",
-			"PointLight",
-		) as THREE.PointLight[];
+			"SpotLight",
+		) as THREE.SpotLight[];
 		expect(heroLights).toHaveLength(1);
 		expect(heroLights[0].color.getHex()).toBe(HERO_LIGHT.color);
 		expect(heroLights[0].distance).toBe(HERO_LIGHT.distance);
-		expect(heroLights[0].intensity).toBe(34);
+		expect(heroLights[0].intensity).toBe(180);
 		expect(heroLights[0].position.z).toBe(HERO_LIGHT.height);
-		expect(heroLights[0].distance).toBeGreaterThan(
-			heroLights[0].position.z * 4,
+		expect(heroLights[0].angle).toBe(HERO_LIGHT.angle);
+		expect(heroLights[0].penumbra).toBe(HERO_LIGHT.penumbra);
+		expect(heroLights[0].target.position.z).toBe(0);
+		expect(hero.mesh.getObjectsByProperty("type", "PointLight")).toHaveLength(
+			0,
 		);
 
 		for (const role of ["champion", "boss", "clone"] as const) {
@@ -214,7 +218,7 @@ describe("animated 3D characters", () => {
 		expect(
 			(heroBody.material as unknown as THREE.MeshStandardMaterial).metalness,
 		).toBe(0.9);
-		expect(heroBody.material.color.getHex()).toBe(0x3f4448);
+		expect(heroBody.material.color.getHex()).toBe(0x8a9197);
 
 		const creep = new Creep(
 			{
@@ -257,7 +261,7 @@ describe("animated 3D characters", () => {
 		creep.reflectiveSurgeRemaining = 2;
 		creep.updateVisuals(2 / 60);
 		expect(creepBody?.material.metalness).toBe(0.9);
-		expect(creepBody?.material.color.getHex()).toBe(0x3f4448);
+		expect(creepBody?.material.color.getHex()).toBe(0x8a9197);
 	});
 
 	test("removes render-only boss defeat presentation after 1.2 seconds", () => {
@@ -1863,6 +1867,14 @@ describe("arena systems", () => {
 			),
 		).toBeTrue();
 		expect(singleCoins[0].rotation.y).not.toBe(0);
+		expect(COIN_SCATTER_MULTIPLIER).toBe(3);
+		expect(
+			clusteredCoins.every(
+				(child) =>
+					child.userData.displacementSpeed >= 24 &&
+					child.userData.displacementSpeed < 48,
+			),
+		).toBeTrue();
 		expect(
 			clusteredCoins.some((child) => child.position.length() > 0),
 		).toBeTrue();

@@ -16,6 +16,7 @@ const ATTRACTION_ACCELERATION_MULTIPLIER = 5;
 export const COIN_BOB_AMPLITUDE = 2;
 export const COIN_BOB_SPEED = 2.5;
 export const COIN_SPIN_SPEED = 2.8;
+export const COIN_SCATTER_MULTIPLIER = 3;
 
 export const GOLD_COIN_DENOMINATIONS = [
 	{ value: 625, color: 0x42bff5 },
@@ -95,7 +96,8 @@ export class ItemDrop extends GameObject {
 				coin.userData.displacementAngle =
 					deterministicFraction(drop.id, index) * Math.PI * 2;
 				coin.userData.displacementSpeed =
-					8 + deterministicFraction(drop.id, index + 101) * 8;
+					(8 + deterministicFraction(drop.id, index + 101) * 8) *
+					COIN_SCATTER_MULTIPLIER;
 				coin.userData.phase =
 					deterministicFraction(drop.id, index + 211) * Math.PI * 2;
 				coin.renderOrder = Z_DROP;

@@ -741,7 +741,7 @@ export class Creep extends Unit {
 		const fillColor = flash
 			? 0xffffff
 			: reflective
-				? 0x3f4448
+				? 0x8a9197
 				: (this.bodyMesh.material as THREE.MeshBasicMaterial).map
 					? 0xdddddd
 					: this.build.isRival

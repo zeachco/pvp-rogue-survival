@@ -30,10 +30,12 @@ const AIM_LINE_WIDTH = 3;
 
 export const HERO_LIGHT = {
 	color: 0xffe8c2,
-	intensity: 34,
-	distance: 230,
+	intensity: 180,
+	distance: 280,
 	decay: 1,
-	height: 46,
+	height: 150,
+	angle: THREE.MathUtils.degToRad(38),
+	penumbra: 0.35,
 } as const;
 
 export function aimGuideDimensions(range: number): {
@@ -96,19 +98,22 @@ export class Hero extends Unit {
 	private readonly animatedCharacter: AnimatedCharacter;
 	private readonly bleedDots: THREE.Mesh[] = [];
 	private readonly stunRays: THREE.Line[] = [];
-	private readonly characterLight: THREE.PointLight;
+	private readonly characterLight: THREE.SpotLight;
 
 	constructor(position: Vector2) {
 		super(position, 18, 100);
 		this.enteredArena = true;
-		this.characterLight = new THREE.PointLight(
+		this.characterLight = new THREE.SpotLight(
 			HERO_LIGHT.color,
 			HERO_LIGHT.intensity,
 			HERO_LIGHT.distance,
+			HERO_LIGHT.angle,
+			HERO_LIGHT.penumbra,
 			HERO_LIGHT.decay,
 		);
 		this.characterLight.position.z = HERO_LIGHT.height;
-		this.mesh.add(this.characterLight);
+		this.characterLight.target.position.set(0, 0, 0);
+		this.mesh.add(this.characterLight, this.characterLight.target);
 
 		const texture = loadHeroTexture();
 		const bodyGeo = texture
@@ -383,7 +388,7 @@ export class Hero extends Unit {
 		});
 		const reflective = this.reflectiveSurgeRemaining > 0;
 		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
-		bodyMaterial.color.set(flash ? 0xffffff : reflective ? 0x3f4448 : 0xdffeff);
+		bodyMaterial.color.set(flash ? 0xffffff : reflective ? 0x8a9197 : 0xdffeff);
 		const bodyMap = reflective ? null : (loadHeroTexture() ?? null);
 		if (bodyMaterial.map !== bodyMap) {
 			bodyMaterial.map = bodyMap;

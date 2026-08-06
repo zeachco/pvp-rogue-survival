@@ -305,7 +305,7 @@ export class AnimatedCharacter {
 		);
 		for (const entry of this.materials) {
 			if (flash) entry.material.color.set(0xffffff);
-			else if (reflectiveSurge) entry.material.color.set(0x3f4448);
+			else if (reflectiveSurge) entry.material.color.set(0x8a9197);
 			else entry.material.color.copy(entry.color).multiply(tint);
 			entry.material.emissive.copy(entry.emissive);
 			if (flash) entry.material.emissive.set(0xffffff);
