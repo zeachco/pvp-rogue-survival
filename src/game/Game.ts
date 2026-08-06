@@ -33,6 +33,7 @@ import {
 	removeInactive,
 } from "./systems/lifecycle";
 import { resolveCombat } from "./systems/combat";
+import { resolveUnitCollisions } from "./systems/movement";
 import {
 	cancelHostileProjectiles,
 	castForceFieldTargets,
@@ -768,6 +769,17 @@ export class Game {
 				);
 			}
 		}
+		const activeUnits = [
+			...(this.hero.active ? [this.hero] : []),
+			...this.creeps.filter((creep) => creep.active),
+		];
+		resolveUnitCollisions(activeUnits, (unit) => {
+			resolveColumnCollision(unit, this.map.columns);
+			if (unit === this.hero)
+				this.hero.clampToBounds(this.map.width, this.map.height);
+			else
+				correctArenaBoundary(unit as Creep, this.map.width, this.map.height, 0);
+		});
 		for (const attack of this.attacks) attack.update(deltaSeconds);
 		const emittedProjectiles: Projectile[] = [];
 		for (const projectile of this.projectiles) {

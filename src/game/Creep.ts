@@ -595,13 +595,9 @@ export class Creep extends Unit {
 		const retreatRange = magicRanged
 			? (rangedMovement.retreatRange ?? 0)
 			: Math.max(0, attackRange - 75);
-		const preferredRange = magicRanged
-			? (rangedMovement.preferredRange ?? attackRange)
-			: Math.max(retreatRange, attackRange - 30);
 		if (ranged && heroDistance < retreatRange)
 			direction = { x: -direction.x, y: -direction.y };
-		else if (ranged && heroDistance <= preferredRange)
-			direction = { x: 0, y: 0 };
+		else if (heroDistance <= attackRange) direction = { x: 0, y: 0 };
 		if (direction.x || direction.y)
 			this.facing = Math.atan2(direction.y, direction.x);
 		this.moveFromVelocity(

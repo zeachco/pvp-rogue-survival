@@ -82,6 +82,7 @@ import {
 	skillAffordable,
 } from "../src/game/systems/HeroCombatSystem";
 import { resolveCombat } from "../src/game/systems/combat";
+import { resolveUnitCollisions } from "../src/game/systems/movement";
 import { applyImpactForce, emittedImpactForce } from "../src/game/ImpactForce";
 import {
 	ANIMATION_FRAME_STALE_MS,
@@ -1955,6 +1956,83 @@ describe("arena systems", () => {
 		expect(hero.velocity.y).toBe(10);
 		const projectile = new Projectile({ x: 100, y: 100 }, { x: 200, y: 100 });
 		expect(touchesColumn(projectile, [column])).toBeTrue();
+	});
+
+	test("splits solid-unit overlap and preserves tangential movement", () => {
+		const first = {
+			position: { x: 0, y: 0 },
+			radius: 10,
+			velocity: { x: 10, y: 4 },
+		};
+		const second = {
+			position: { x: 15, y: 0 },
+			radius: 10,
+			velocity: { x: 0, y: -3 },
+		};
+		expect(resolveUnitCollisions([first, second])).toBeTrue();
+		expect(first.position.x).toBeCloseTo(-2.5);
+		expect(second.position.x).toBeCloseTo(17.5);
+		expect(first.velocity.x).toBeCloseTo(5);
+		expect(second.velocity.x).toBeCloseTo(5);
+		expect(first.velocity.y).toBe(4);
+		expect(second.velocity.y).toBe(-3);
+	});
+
+	test("deterministically separates a coincident creep crowd without stacking", () => {
+		const makeCrowd = () =>
+			Array.from({ length: 4 }, () => ({
+				position: { x: 100, y: 100 },
+				radius: 16,
+				velocity: { x: 0, y: 0 },
+			}));
+		const first = makeCrowd();
+		const second = makeCrowd();
+		resolveUnitCollisions(first);
+		resolveUnitCollisions(second);
+		expect(first).toEqual(second);
+		for (let left = 0; left < first.length; left += 1)
+			for (let right = left + 1; right < first.length; right += 1)
+				expect(
+					Math.hypot(
+						first[left].position.x - first[right].position.x,
+						first[left].position.y - first[right].position.y,
+					),
+				).toBeGreaterThanOrEqual(31.99);
+	});
+
+	test("stops melee pursuit in attack range and keeps ranged retreat bands", () => {
+		const hero = { x: 0, y: 0 };
+		const meleeInRange = makeCreep("melee-in-range", { x: 62, y: 0 });
+		meleeInRange.pursue(hero, 0.1, 1_000, 1_000);
+		expect(meleeInRange.position.x).toBe(62);
+		const meleeOutside = makeCreep("melee-outside", { x: 80, y: 0 });
+		meleeOutside.pursue(hero, 0.1, 1_000, 1_000);
+		expect(meleeOutside.position.x).toBeLessThan(80);
+
+		const throwingAxe = generateItem(1, "common", 91, {
+			allowedClasses: ["throwingAxe"],
+		});
+		const rangedTooClose = makeCreep(
+			"ranged-retreat",
+			{ x: 100, y: 0 },
+			throwingAxe,
+		);
+		rangedTooClose.pursue(hero, 0.1, 1_000, 1_000);
+		expect(rangedTooClose.position.x).toBeGreaterThan(100);
+		const rangedInRange = makeCreep(
+			"ranged-stop",
+			{ x: 170, y: 0 },
+			throwingAxe,
+		);
+		rangedInRange.pursue(hero, 0.1, 1_000, 1_000);
+		expect(rangedInRange.position.x).toBe(170);
+		const rangedOutside = makeCreep(
+			"ranged-approach",
+			{ x: 230, y: 0 },
+			throwingAxe,
+		);
+		rangedOutside.pursue(hero, 0.1, 1_000, 1_000);
+		expect(rangedOutside.position.x).toBeLessThan(230);
 	});
 
 	test("cleanup and arena reset remove transient state", () => {
