@@ -38,6 +38,11 @@ import {
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import { Blizzard } from "../src/game/Blizzard";
 import {
+	COIN_BOB_AMPLITUDE,
+	COIN_BOB_SPEED,
+	COIN_SPIN_SPEED,
+	DROP_MAX_SPEED,
+	coinPresentationOffset,
 	dropRarityColor,
 	groundDropPresentationCenter,
 	ItemDrop,
@@ -1366,33 +1371,39 @@ describe("arena systems", () => {
 			{ kind: "freeze", remaining: 4, damagePerSecond: 0, source: hero },
 		]);
 	});
-	test("pulls ground drops toward an attracting hero at a bounded speed", () => {
+	test("accelerates ground drops toward an attracting hero at a bounded speed", () => {
 		const drop = new ItemDrop(
 			{ id: "drop", kind: "item", item: starterClub() },
 			{ x: 100, y: 0 },
 		);
-		drop.pullToward({ x: 0, y: 0 }, 35, 1);
-		expect(drop.position).toEqual({ x: 65, y: 0 });
-		drop.pullToward({ x: 60, y: 0 }, 35, 1);
-		expect(drop.position).toEqual({ x: 60, y: 0 });
+		for (let step = 0; step < 10; step++) {
+			drop.pullToward({ x: 0, y: 0 }, 35, 0.1);
+			expect(Math.hypot(drop.velocity.x, drop.velocity.y)).toBeLessThanOrEqual(
+				35,
+			);
+			drop.move(0.1);
+		}
+		expect(drop.position.x).toBeLessThan(100);
+		expect(drop.position.x).toBeGreaterThan(65);
 	});
-	test("pushes equipment drops beyond the realm without moving Gold", () => {
-		const item = new ItemDrop(
-			{ id: "item", kind: "item", item: starterClub() },
-			{ x: 100, y: 0 },
-		);
-		item.applyPush({ x: 0, y: 0 }, 180);
-		item.move(1);
-		expect(item.position.x).toBe(280);
-		expect(item.escaping).toBeTrue();
-		expect(item.outside(200, 200)).toBeTrue();
-		const gold = new ItemDrop(
-			{ id: "gold", kind: "gold", amount: 1 },
-			{ x: 100, y: 0 },
-		);
-		gold.applyPush({ x: 0, y: 0 }, 180);
-		expect(gold.velocity.x).toBe(0);
-		expect(gold.escaping).toBeFalse();
+	test("caps and rapidly damps push velocity for every drop kind", () => {
+		for (const drop of [
+			new ItemDrop(
+				{ id: "item", kind: "item", item: starterClub() },
+				{ x: 100, y: 0 },
+			),
+			new ItemDrop(
+				{ id: "scrap", kind: "scrap", rarity: "rare", amount: 1 },
+				{ x: 100, y: 0 },
+			),
+			new ItemDrop({ id: "gold", kind: "gold", amount: 1 }, { x: 100, y: 0 }),
+		]) {
+			drop.applyPush({ x: 0, y: 0 }, 180);
+			expect(drop.velocity.x).toBe(DROP_MAX_SPEED);
+			drop.move(0.25);
+			expect(drop.position.x).toBe(122.5);
+			expect(drop.velocity.x).toBeLessThan(DROP_MAX_SPEED / 2);
+		}
 	});
 	test("Force Field moves an inward-rushing creep away on the next simulation frame", () => {
 		const weapon = starterClub();
@@ -1450,7 +1461,7 @@ describe("arena systems", () => {
 			source: creep,
 		});
 	});
-	test("Force Field does not move equipment drops", () => {
+	test("Force Field gives nearby drops a capped outward impulse", () => {
 		const state = new ArenaState();
 		const hero = new Hero({ x: 0, y: 0 });
 		hero.configureStats(ZERO_STATS);
@@ -1461,8 +1472,8 @@ describe("arena systems", () => {
 		state.drops.push(drop);
 		castForceField(state, hero, 1, new SeededRandom(1));
 		expect(drop.position).toEqual({ x: 100, y: 0 });
-		expect(drop.velocity).toEqual({ x: 0, y: 0 });
-		expect(drop.escaping).toBeFalse();
+		expect(drop.velocity.x).toBeGreaterThan(0);
+		expect(drop.velocity.x).toBeLessThanOrEqual(DROP_MAX_SPEED);
 	});
 	test("Force Field cancels hostile projectiles in its radius without affecting friendly projectiles", () => {
 		const hero = new Hero({ x: 0, y: 0 });
@@ -1545,20 +1556,29 @@ describe("arena systems", () => {
 		expect(dropRarityColor("rare")).toBe("#6ca8ff");
 		expect(dropRarityColor("epic")).toBe("#ca75ff");
 	});
-	test("renders Scrap as a hollow diamond outline", () => {
+	test("renders Scrap as a hollow rotating and hovering lozenge", () => {
 		const scrap = new ItemDrop(
 			{ id: "scrap", kind: "scrap", rarity: "rare", amount: 1 },
 			{ x: 0, y: 0 },
 		);
-		const body = scrap.mesh.children.find(
+		const resource = scrap.mesh.children.find(
+			(child) => child.type === "Group",
+		) as THREE.Group;
+		const body = resource.children.find(
 			(child) =>
 				child.type === "Mesh" && child.geometry.type === "PlaneGeometry",
 		);
 
 		expect(body?.material.opacity).toBe(0);
 		expect(
-			scrap.mesh.children.some((child) => child.type === "LineSegments"),
+			resource.children.some((child) => child.type === "LineSegments"),
 		).toBeTrue();
+		const time = Math.PI / (2 * COIN_BOB_SPEED);
+		scrap.updateVisuals(time);
+		expect(scrap.mesh.position.z).toBeCloseTo(
+			groundDropPresentationCenter(scrap.drop) + COIN_BOB_AMPLITUDE,
+		);
+		expect(resource.rotation.y).toBeCloseTo(time * COIN_SPIN_SPEED);
 	});
 	test("grounds the arena and centers pickups at half their presentation height", () => {
 		const drops = [
@@ -1583,10 +1603,45 @@ describe("arena systems", () => {
 			expect(drop.mesh.position.z).toBe(
 				groundDropPresentationCenter(drop.drop),
 			);
-		expect(groundDropPresentationCenter(drops[0].drop)).toBe(11);
-		expect(groundDropPresentationCenter(drops[1].drop)).toBe(16);
+		expect(groundDropPresentationCenter(drops[0].drop)).toBe(10);
+		expect(groundDropPresentationCenter(drops[1].drop)).toBe(10);
 		expect(groundDropPresentationCenter(drops[2].drop)).toBe(20);
 		expect(groundDropPresentationCenter(drops[3].drop)).toBe(20);
+	});
+	test("renders thick spinning coin clusters with one coin per ten Gold", () => {
+		const coin = new ItemDrop(
+			{ id: "animated-coin", kind: "gold", amount: 2 },
+			{ x: 1, y: 2 },
+		);
+		const cluster = new ItemDrop(
+			{ id: "coin-cluster", kind: "gold", amount: 20 },
+			{ x: 1, y: 2 },
+		);
+		coin.updateVisuals(0);
+		cluster.updateVisuals(0);
+		const time = Math.PI / (2 * COIN_BOB_SPEED);
+		coin.updateVisuals(time);
+		cluster.updateVisuals(time);
+		expect(coinPresentationOffset(time)).toBeCloseTo(COIN_BOB_AMPLITUDE);
+		const singleCoins = coin.mesh.children[0].children as THREE.Mesh[];
+		const clusteredCoins = cluster.mesh.children[0].children as THREE.Mesh[];
+		expect(singleCoins).toHaveLength(1);
+		expect(clusteredCoins).toHaveLength(3);
+		expect(
+			clusteredCoins.every(
+				(child) => child.geometry.type === "CylinderGeometry",
+			),
+		).toBeTrue();
+		expect(
+			clusteredCoins.every(
+				(child) =>
+					(child.material as THREE.MeshBasicMaterial).side === THREE.DoubleSide,
+			),
+		).toBeTrue();
+		expect(singleCoins[0].rotation.y).not.toBe(0);
+		expect(
+			clusteredCoins.some((child) => child.position.length() > 0),
+		).toBeTrue();
 	});
 	test("billboards complete pickup presentations toward the camera", () => {
 		const cameraRotation = new THREE.Quaternion().setFromEuler(

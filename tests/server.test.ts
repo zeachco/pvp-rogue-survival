@@ -57,7 +57,7 @@ function enterPair(
 
 describe("realm game service", () => {
 	test("starts new players at level one with a sword, buckler, spell staff, and Healing bound", () => {
-		const { game } = harness();
+		const { game, messages } = harness();
 		const player = game.join("Starter");
 		expect(player.progress.level).toBe(1);
 		expect(player.progress.xp).toBe(cumulativeXpForLevel(1));
@@ -952,7 +952,7 @@ describe("realm game service", () => {
 		expect(messages.get(player.id)?.at(-1)?.type).toBe("serverNotice");
 	});
 	test("credits a sent-carrier realm defeat without player-level XP", () => {
-		const { game } = harness();
+		const { game, messages } = harness();
 		const killer = game.join("Killer");
 		const victim = game.join("Victim");
 		enterPair(game, killer, victim);
@@ -976,7 +976,23 @@ describe("realm game service", () => {
 		expect(killer.progress.xp).toBe(cumulativeXpForLevel(5));
 		expect(killer.progress.level).toBe(5);
 		expect(killer.progress.souls).toBe(1);
+		expect(victim.realmId).toBeUndefined();
 		expect(victim.realmId).not.toBe(oldRealm);
+		expect(victim.realmOptedIn).toBeFalse();
+		const returnedWave = messages
+			.get(victim.id)
+			?.filter((message) => message.type === "incomingWave")
+			.at(-1);
+		expect(
+			returnedWave?.type === "incomingWave"
+				? returnedWave.wave.mode
+				: undefined,
+		).toBe("training");
+		expect(
+			returnedWave?.type === "incomingWave"
+				? returnedWave.wave.waveNumber
+				: undefined,
+		).toBe(1);
 	});
 	test("suicide resets the hero, preserves equipment, and queues its exact death echo until wave nine", () => {
 		const { game, messages } = harness();

@@ -13,6 +13,7 @@ import {
 	RENDING_THROW_BLEED_DURATION,
 	spellPower,
 } from "../../../common/combat";
+import { pushDrops } from "../ItemDrop";
 
 export function resolveCombat(
 	state: ArenaState,
@@ -25,6 +26,8 @@ export function resolveCombat(
 	for (const attack of state.attacks) {
 		if (!attack.shouldResolve()) continue;
 		attack.markResolved();
+		if (attack.skill === "shockwave")
+			pushDrops(state.drops, attack.origin, attack.range);
 		if (attack.owner === "hero") {
 			if (
 				(attack.skill === "cleave" || attack.skill === "bash") &&

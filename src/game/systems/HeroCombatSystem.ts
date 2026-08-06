@@ -64,6 +64,7 @@ import { distance, type Vector2 } from "../types";
 import { SpellEffect } from "../SpellEffect";
 import { GroundSwamp } from "../GroundSwamp";
 import { Blizzard } from "../Blizzard";
+import { pushDrops } from "../ItemDrop";
 import { SKILLS } from "../../../common/content";
 import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
 import { RapidRegenerationEffect } from "../../../common/unitState";
@@ -1081,6 +1082,7 @@ export function castForceField(
 	random: RandomSource,
 ): void {
 	castForceFieldTargets(hero, state.creeps, level, random);
+	pushDrops(state.drops, hero.position, forceFieldRange(level));
 	cancelHostileProjectiles(state.projectiles, hero, "hero", level);
 }
 export function castForceFieldTargets(

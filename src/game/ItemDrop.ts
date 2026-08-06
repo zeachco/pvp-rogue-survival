@@ -4,33 +4,41 @@ import type { GroundDrop } from "../../common/protocol";
 import { GameObject } from "./GameObject";
 import type { Vector2 } from "./types";
 import { Z_DROP } from "./render/ThreeRenderer";
-import { canvas2dContext } from "../platform/Canvas";
 
 const GROUND_PRESENTATION_CLEARANCE = 2;
 const DIAMOND_PRESENTATION_RADIUS = 18;
-const MONEY_BAG_PRESENTATION_SIZE = 28;
-const COIN_PRESENTATION_SIZE = 18;
+const COIN_RADIUS = 8;
+const COIN_THICKNESS = 2.5;
+export const DROP_MAX_SPEED = 90;
+export const DROP_PUSH_IMPULSE = 45;
+const DROP_DRAG_PER_SECOND = 5;
+const ATTRACTION_ACCELERATION_MULTIPLIER = 5;
+export const COIN_BOB_AMPLITUDE = 2;
+export const COIN_BOB_SPEED = 2.5;
+export const COIN_SPIN_SPEED = 2.8;
+
+export function coinPresentationOffset(time: number): number {
+	return Math.sin(time * COIN_BOB_SPEED) * COIN_BOB_AMPLITUDE;
+}
 
 export function groundDropPresentationCenter(drop: GroundDrop): number {
 	if (drop.kind !== "gold")
 		return DIAMOND_PRESENTATION_RADIUS + GROUND_PRESENTATION_CLEARANCE;
-	return (
-		(drop.amount >= 10 ? MONEY_BAG_PRESENTATION_SIZE : COIN_PRESENTATION_SIZE) /
-			2 +
-		GROUND_PRESENTATION_CLEARANCE
-	);
+	return COIN_RADIUS + GROUND_PRESENTATION_CLEARANCE;
 }
 
 export class ItemDrop extends GameObject {
 	readonly radius = 14;
 	enteredArena = false;
 	readonly velocity: Vector2 = { x: 0, y: 0 };
-	escaping = false;
 	readonly drop: GroundDrop;
 	readonly position: Vector2;
 
-	private readonly bodyMesh: THREE.Mesh;
+	private readonly bodyMesh: THREE.Object3D;
 	private readonly glowMesh?: THREE.Mesh;
+	private readonly coins: THREE.Mesh[] = [];
+	private readonly resourceMesh?: THREE.Group;
+	private visualStartedAt?: number;
 
 	constructor(drop: GroundDrop, position: Vector2) {
 		super();
@@ -38,36 +46,35 @@ export class ItemDrop extends GameObject {
 		this.position = { ...position };
 
 		if (drop.kind === "gold") {
-			const sprite = drop.amount >= 10 ? moneyBagSprite() : coinSprite();
-			if (sprite) {
-				this.bodyMesh = sprite;
-				this.mesh.add(this.bodyMesh);
-			} else {
-				const color = 0xf4cf42;
-				this.bodyMesh = new THREE.Mesh(
-					new THREE.CircleGeometry(10, 16),
-					new THREE.MeshBasicMaterial({ color }),
+			const cluster = new THREE.Group();
+			const coinCount = 1 + Math.floor(drop.amount / 10);
+			for (let index = 0; index < coinCount; index++) {
+				const geometry = new THREE.CylinderGeometry(
+					COIN_RADIUS,
+					COIN_RADIUS,
+					COIN_THICKNESS,
+					20,
 				);
-				const stroke = new THREE.Mesh(
-					new THREE.RingGeometry(9, 11, 16),
+				geometry.rotateZ(Math.PI / 2);
+				const coin = new THREE.Mesh(
+					geometry,
 					new THREE.MeshBasicMaterial({
-						color: 0xfff0a0,
+						color: 0xf4cf42,
 						side: THREE.DoubleSide,
 					}),
 				);
-				stroke.renderOrder = 0.001;
-				this.glowMesh = new THREE.Mesh(
-					new THREE.CircleGeometry(16, 16),
-					new THREE.MeshBasicMaterial({
-						color,
-						transparent: true,
-						opacity: 0.35,
-						depthWrite: false,
-					}),
-				);
-				this.glowMesh.renderOrder = -0.001;
-				this.mesh.add(this.glowMesh, this.bodyMesh, stroke);
+				coin.userData.displacementAngle =
+					deterministicFraction(drop.id, index) * Math.PI * 2;
+				coin.userData.displacementSpeed =
+					8 + deterministicFraction(drop.id, index + 101) * 8;
+				coin.userData.phase =
+					deterministicFraction(drop.id, index + 211) * Math.PI * 2;
+				coin.renderOrder = Z_DROP;
+				this.coins.push(coin);
+				cluster.add(coin);
 			}
+			this.bodyMesh = cluster;
+			this.mesh.add(cluster);
 		} else {
 			const rarity: Rarity =
 				drop.kind === "item" ? drop.item.rarity : drop.rarity;
@@ -103,8 +110,15 @@ export class ItemDrop extends GameObject {
 			);
 			this.glowMesh.renderOrder = -0.001;
 
-			this.bodyMesh = square;
-			this.mesh.add(this.glowMesh, this.bodyMesh, strokeSquare);
+			if (drop.kind === "scrap") {
+				this.resourceMesh = new THREE.Group();
+				this.resourceMesh.add(square, strokeSquare);
+				this.bodyMesh = this.resourceMesh;
+				this.mesh.add(this.glowMesh, this.resourceMesh);
+			} else {
+				this.bodyMesh = square;
+				this.mesh.add(this.glowMesh, this.bodyMesh, strokeSquare);
+			}
 		}
 
 		this.bodyMesh.renderOrder = Z_DROP;
@@ -120,40 +134,56 @@ export class ItemDrop extends GameObject {
 		const dy = target.y - this.position.y;
 		const distance = Math.hypot(dx, dy);
 		if (distance <= 0) return;
-		const travel = Math.min(distance, speed * deltaSeconds);
-		this.position.x += (dx / distance) * travel;
-		this.position.y += (dy / distance) * travel;
+		const previousSpeed = Math.hypot(this.velocity.x, this.velocity.y);
+		const acceleration = speed * ATTRACTION_ACCELERATION_MULTIPLIER;
+		this.velocity.x += (dx / distance) * acceleration * deltaSeconds;
+		this.velocity.y += (dy / distance) * acceleration * deltaSeconds;
+		this.clampVelocity(
+			previousSpeed > speed ? Math.min(previousSpeed, DROP_MAX_SPEED) : speed,
+		);
 	}
 	applyPush(source: Vector2, impulse: number): void {
-		if (this.drop.kind !== "item") return;
 		const dx = this.position.x - source.x;
 		const dy = this.position.y - source.y;
 		const length = Math.hypot(dx, dy);
 		if (length <= 0) return;
 		this.velocity.x += (dx / length) * impulse;
 		this.velocity.y += (dy / length) * impulse;
-		this.escaping = true;
+		this.clampVelocity(DROP_MAX_SPEED);
 	}
 	move(deltaSeconds: number): void {
 		this.position.x += this.velocity.x * deltaSeconds;
 		this.position.y += this.velocity.y * deltaSeconds;
+		const drag = Math.exp(-DROP_DRAG_PER_SECOND * deltaSeconds);
+		this.velocity.x *= drag;
+		this.velocity.y *= drag;
 	}
-	outside(width: number, height: number, margin = 40): boolean {
-		return (
-			this.position.x < -margin ||
-			this.position.y < -margin ||
-			this.position.x > width + margin ||
-			this.position.y > height + margin
-		);
-	}
-
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
 		this.mesh.position.set(
 			this.position.x,
 			this.position.y,
-			groundDropPresentationCenter(this.drop),
+			groundDropPresentationCenter(this.drop) +
+				(this.resourceMesh ? coinPresentationOffset(time) : 0),
 		);
+		if (this.resourceMesh)
+			this.resourceMesh.rotation.y = time * COIN_SPIN_SPEED;
+		if (this.coins.length > 0) {
+			this.visualStartedAt ??= time;
+			const age = Math.max(0, time - this.visualStartedAt);
+			for (const coin of this.coins) {
+				const angle = coin.userData.displacementAngle as number;
+				const speed = coin.userData.displacementSpeed as number;
+				const phase = coin.userData.phase as number;
+				const displacement = (speed / 4) * (1 - Math.exp(-4 * age));
+				coin.position.set(
+					Math.cos(angle) * displacement,
+					Math.sin(angle) * displacement,
+					coinPresentationOffset(time + phase / COIN_BOB_SPEED),
+				);
+				coin.rotation.y = time * COIN_SPIN_SPEED + phase;
+			}
+		}
 		if (this.glowMesh) {
 			const pulse = 0.3 + Math.sin(time * 3) * 0.1;
 			(this.glowMesh.material as THREE.MeshBasicMaterial).opacity = pulse;
@@ -163,158 +193,39 @@ export class ItemDrop extends GameObject {
 	faceCamera(cameraQuaternion: THREE.Quaternion): void {
 		this.mesh.quaternion.copy(cameraQuaternion);
 	}
+
+	private clampVelocity(maxSpeed: number): void {
+		const speed = Math.hypot(this.velocity.x, this.velocity.y);
+		if (speed <= maxSpeed || speed === 0) return;
+		this.velocity.x = (this.velocity.x / speed) * maxSpeed;
+		this.velocity.y = (this.velocity.y / speed) * maxSpeed;
+	}
 }
 
-function moneyBagSprite(): THREE.Mesh | undefined {
-	if (typeof document === "undefined") return undefined;
-	const texture = moneyBagTexture();
-	return new THREE.Mesh(
-		new THREE.PlaneGeometry(
-			MONEY_BAG_PRESENTATION_SIZE,
-			MONEY_BAG_PRESENTATION_SIZE,
-		),
-		new THREE.MeshBasicMaterial({
-			map: texture,
-			transparent: true,
-			depthWrite: false,
-		}),
-	);
-}
-
-function coinSprite(): THREE.Mesh | undefined {
-	if (typeof document === "undefined") return undefined;
-	const texture = coinTexture();
-	return new THREE.Mesh(
-		new THREE.PlaneGeometry(COIN_PRESENTATION_SIZE, COIN_PRESENTATION_SIZE),
-		new THREE.MeshBasicMaterial({
-			map: texture,
-			transparent: true,
-			depthWrite: false,
-		}),
-	);
-}
-
-let cachedMoneyBagTexture: THREE.CanvasTexture | undefined;
-let cachedCoinTexture: THREE.CanvasTexture | undefined;
-
-function moneyBagTexture(): THREE.CanvasTexture {
-	if (cachedMoneyBagTexture) return cachedMoneyBagTexture;
-
-	const size = MONEY_BAG_PRESENTATION_SIZE;
-	const canvas = document.createElement("canvas");
-	canvas.width = size;
-	canvas.height = size;
-	const ctx = canvas2dContext(canvas);
-
-	const glow = ctx.createRadialGradient(
-		size / 2,
-		size / 2,
-		3,
-		size / 2,
-		size / 2,
-		size / 2,
-	);
-	glow.addColorStop(0, "rgba(244,207,66,0.5)");
-	glow.addColorStop(1, "rgba(244,207,66,0)");
-	ctx.fillStyle = glow;
-	ctx.fillRect(0, 0, size, size);
-
-	const cx = size / 2;
-	ctx.beginPath();
-	ctx.moveTo(cx - 5, 9);
-	ctx.quadraticCurveTo(cx - 12, 9, cx - 12, 15);
-	ctx.quadraticCurveTo(cx - 12, 24, cx, 25);
-	ctx.quadraticCurveTo(cx + 12, 24, cx + 12, 15);
-	ctx.quadraticCurveTo(cx + 12, 9, cx + 5, 9);
-	ctx.quadraticCurveTo(cx, 12, cx - 5, 9);
-	const pouchGradient = ctx.createLinearGradient(cx, 9, cx, 25);
-	pouchGradient.addColorStop(0, "#ffe27a");
-	pouchGradient.addColorStop(0.55, "#f4cf42");
-	pouchGradient.addColorStop(1, "#d9a524");
-	ctx.fillStyle = pouchGradient;
-	ctx.fill();
-	ctx.lineWidth = 1.5;
-	ctx.strokeStyle = "#8a6413";
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.arc(cx, 7, 2.6, 0, Math.PI * 2);
-	ctx.fillStyle = "#c69a1f";
-	ctx.fill();
-	ctx.lineWidth = 1;
-	ctx.strokeStyle = "#8a6413";
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.arc(cx - 0.8, 6.3, 0.9, 0, Math.PI * 2);
-	ctx.fillStyle = "rgba(255,240,160,0.9)";
-	ctx.fill();
-
-	ctx.fillStyle = "#8a6413";
-	ctx.font = "700 10px Inter, sans-serif";
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-	ctx.fillText("$", cx, 17);
-
-	cachedMoneyBagTexture = new THREE.CanvasTexture(canvas);
-	cachedMoneyBagTexture.colorSpace = THREE.SRGBColorSpace;
-	return cachedMoneyBagTexture;
-}
-
-function coinTexture(): THREE.CanvasTexture {
-	if (cachedCoinTexture) return cachedCoinTexture;
-
-	const size = COIN_PRESENTATION_SIZE;
-	const canvas = document.createElement("canvas");
-	canvas.width = size;
-	canvas.height = size;
-	const ctx = canvas2dContext(canvas);
-
-	const glow = ctx.createRadialGradient(
-		size / 2,
-		size / 2,
-		2,
-		size / 2,
-		size / 2,
-		size / 2,
-	);
-	glow.addColorStop(0, "rgba(244,207,66,0.55)");
-	glow.addColorStop(1, "rgba(244,207,66,0)");
-	ctx.fillStyle = glow;
-	ctx.fillRect(0, 0, size, size);
-
-	drawCoin(ctx, size / 2, size / 2, size / 2 - 2.5);
-
-	cachedCoinTexture = new THREE.CanvasTexture(canvas);
-	cachedCoinTexture.colorSpace = THREE.SRGBColorSpace;
-	return cachedCoinTexture;
-}
-
-function drawCoin(
-	ctx: CanvasRenderingContext2D,
-	cx: number,
-	cy: number,
-	r: number,
+export function pushDrops(
+	drops: ItemDrop[],
+	source: Vector2,
+	radius: number,
+	maxImpulse = DROP_PUSH_IMPULSE,
 ): void {
-	ctx.beginPath();
-	ctx.arc(cx, cy, r, 0, Math.PI * 2);
-	ctx.fillStyle = "#f4cf42";
-	ctx.fill();
-	ctx.lineWidth = 1.5;
-	ctx.strokeStyle = "#a97a14";
-	ctx.stroke();
+	for (const drop of drops) {
+		if (!drop.active) continue;
+		const distance = Math.hypot(
+			drop.position.x - source.x,
+			drop.position.y - source.y,
+		);
+		const falloff = Math.max(0, 1 - distance / radius);
+		if (falloff > 0) drop.applyPush(source, maxImpulse * falloff);
+	}
+}
 
-	ctx.beginPath();
-	ctx.arc(cx, cy, r - 3, 0, Math.PI * 2);
-	ctx.lineWidth = 1;
-	ctx.strokeStyle = "#e3b52c";
-	ctx.stroke();
-
-	ctx.beginPath();
-	ctx.arc(cx - 1.5, cy - 1.5, r - 3.5, Math.PI * 1.1, Math.PI * 1.9);
-	ctx.strokeStyle = "rgba(255,240,160,0.9)";
-	ctx.lineWidth = 1.5;
-	ctx.stroke();
+function deterministicFraction(id: string, salt: number): number {
+	let hash = 2166136261 ^ salt;
+	for (let index = 0; index < id.length; index++) {
+		hash ^= id.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return (hash >>> 0) / 0x1_0000_0000;
 }
 
 const DROP_RARITY_COLORS: Record<Rarity, string> = {

@@ -4,6 +4,7 @@ import {
 	MAX_RAGE,
 	STARTING_RAGE,
 	attractionSpeedMultiplier,
+	forceFieldRange,
 	rollAttackStrike,
 	spellPower,
 	STAFF_BASIC_HALF_ARC,
@@ -21,7 +22,7 @@ import { Hud, panelShortcut } from "../ui/Hud";
 import { AttackArea } from "./AttackArea";
 import { Creep } from "./Creep";
 import { Hero } from "./Hero";
-import { groundDropPresentationCenter, ItemDrop } from "./ItemDrop";
+import { groundDropPresentationCenter, ItemDrop, pushDrops } from "./ItemDrop";
 import { GameMap, resolveColumnCollision, touchesColumn } from "./Map";
 import { Projectile } from "./Projectile";
 import { SpellEffect } from "./SpellEffect";
@@ -760,6 +761,7 @@ export class Game {
 			if (attack?.type === "forceField") {
 				const level = creep.skillLevels.get("gravityPull") ?? 1;
 				castForceFieldTargets(creep, [this.hero], level, systemRandom);
+				pushDrops(this.drops, creep.position, forceFieldRange(level));
 				cancelHostileProjectiles(this.projectiles, creep, "creep", level);
 				this.arena.spellEffects.push(
 					new SpellEffect("gravityPull", creep.position),
@@ -801,22 +803,10 @@ export class Game {
 				) * attractionSpeedMultiplier(attractionLevel)
 			: 0;
 		for (const drop of this.drops) {
-			if (drop.escaping) {
-				drop.move(deltaSeconds);
-				if (drop.outside(this.map.width, this.map.height) && drop.active) {
-					drop.active = false;
-					this.socket.send({ type: "deferDrop", dropId: drop.dropId });
-				}
-			} else {
-				if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId))
-					drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds);
-				correctArenaBoundary(
-					drop,
-					this.map.width,
-					this.map.height,
-					deltaSeconds,
-				);
-			}
+			if (attractionSpeed > 0 && !this.pendingPickups.has(drop.dropId))
+				drop.pullToward(this.hero.position, attractionSpeed, deltaSeconds);
+			drop.move(deltaSeconds);
+			correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds);
 		}
 		resolveCombat(
 			this.arena,

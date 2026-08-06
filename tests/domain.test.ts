@@ -528,7 +528,7 @@ describe("attack timing", () => {
 			intelligence: 0,
 		});
 	});
-	test("keeps staff basics at one meter while preserving its spell", () => {
+	test("keeps staff basics at two meters while preserving its spell", () => {
 		const staff = {
 			...generateItem(1, "common", 20, { allowedClasses: ["staff"] }),
 			requirements: {},
@@ -538,8 +538,8 @@ describe("attack timing", () => {
 			requirements: {},
 		};
 		expect(weaponUsesProjectile(staff)).toBeFalse();
-		expect(weaponRange(staff)).toBe(50);
-		expect(weaponRange(leveledStaff)).toBe(50);
+		expect(weaponRange(staff)).toBe(100);
+		expect(weaponRange(leveledStaff)).toBe(100);
 		expect(STAFF_BASIC_HALF_ARC * 2).toBeCloseTo((120 * Math.PI) / 180);
 		expect(weaponDamage(leveledStaff, ZERO_STATS)).toBeGreaterThan(
 			weaponDamage(staff, ZERO_STATS),

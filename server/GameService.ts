@@ -1290,24 +1290,19 @@ export class GameService {
 			waveNumber: 1,
 			reason: "Wave reset to 1 after defeat.",
 		});
-		if (player.realmId) {
-			const realm = this.realms.get(player.realmId);
-			if (realm) {
-				realm.down.add(player.id);
-				const side =
-					realm.soloId === player.id ? [realm.soloId] : realm.teamIds;
-				if (side.every((id) => realm.down.has(id))) {
-					if (killer) {
-						killer.progress.souls += 1;
-						this.options.repository.markDirty(killer.id);
-						this.sendProgress(killer, "Realm defeated: gained 1 Soul.");
-					}
-					this.dissolveRealm(realm.id);
-					for (const created of this.matchWaitingPlayers())
-						this.activateRealm(created);
-				}
+		const defeatedRealmId = player.realmId;
+		player.realmOptedIn = false;
+		if (defeatedRealmId) {
+			if (killer) {
+				killer.progress.souls += 1;
+				this.options.repository.markDirty(killer.id);
+				this.sendProgress(killer, "Realm defeated: gained 1 Soul.");
 			}
+			this.dissolveRealm(defeatedRealmId);
+			for (const created of this.matchWaitingPlayers())
+				this.activateRealm(created);
 		}
+		this.dispatchCurrentWave(player, "training", true);
 		this.broadcastRealms();
 	}
 
