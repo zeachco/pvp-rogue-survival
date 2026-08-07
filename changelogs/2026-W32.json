@@ -1,13 +1,31 @@
 {
   "week": "2026-W32",
   "label": "Week of August 3, 2026",
-  "generatedAt": "2026-08-07T12:19:25.500Z",
+  "generatedAt": "2026-08-07T13:11:34.105Z",
   "model": "gemma4:e2b",
   "periods": [
     {
       "key": "2026-W32",
       "label": "Week of August 3, 2026",
       "commits": [
+        {
+          "hash": "3d60d80e4bbfc0d4e0b74e542d772225cecb4796",
+          "authoredAt": "2026-08-07T09:10:15-04:00",
+          "title": "fix: skip git hooks outside local development",
+          "description": ""
+        },
+        {
+          "hash": "c1695eb680812c6f695f39cc30d82ce18eb9ea4e",
+          "authoredAt": "2026-08-07T08:43:59-04:00",
+          "title": "fix(gameplay): persist lights and improve combat feedback",
+          "description": ""
+        },
+        {
+          "hash": "89d59dd8f2bd286e8949b3ff369c91fdfccb99c4",
+          "authoredAt": "2026-08-07T08:35:48-04:00",
+          "title": "ux(spells): filter buttons logic",
+          "description": ""
+        },
         {
           "hash": "7d52166cc2d2c9d58c1255de390d7d579999d353",
           "authoredAt": "2026-08-07T08:19:10-04:00",
@@ -303,8 +321,8 @@
           "description": ""
         }
       ],
-      "summaryTitle": "Changelog Generation Update",
-      "summary": "The changelog generation process was updated to only include commits from the past two weeks.",
+      "summaryTitle": "Gameplay and UI Overhaul",
+      "summary": "Significant updates were made to spell activation, UI presentation, and core combat mechanics. This included moving spell costs and effects into computed properties, introducing additive checkbox buttons for spells, refining aiming guides, adding new forms obstacles, and reworking various spell systems like the blizzard and rage mechanisms. New item visuals, drops, and physics were also introduced.",
       "categories": [
         "General fixes"
       ]

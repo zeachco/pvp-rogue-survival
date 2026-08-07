@@ -1,7 +1,7 @@
 {
   "week": "2026-W31",
   "label": "Week of July 27, 2026",
-  "generatedAt": "2026-08-07T12:19:25.500Z",
+  "generatedAt": "2026-08-07T13:11:34.100Z",
   "model": "gemma4:e2b",
   "periods": [
     {
@@ -175,16 +175,10 @@
           "authoredAt": "2026-07-27T08:46:50-04:00",
           "title": "feat: UX and lore",
           "description": ""
-        },
-        {
-          "hash": "1f380da97891f9c554a4311b5961c88503b1bf7a",
-          "authoredAt": "2026-07-27T08:31:56-04:00",
-          "title": "fix: amulets slots",
-          "description": ""
         }
       ],
-      "summaryTitle": "Spell Management Window",
-      "summary": "A new spell management window was introduced to enhance spell handling. This included adding editable spell loadouts and improved combat controls, limiting active spell loadouts to six persisted slots, supporting manual casting and right-click auto-fire, keeping passive skills permanent, adjusting camera orbit controls, rendering creep resource bars, migrating settings, updating protocols, specs, and regression tests.",
+      "summaryTitle": "Spell Management and Combat Controls",
+      "summary": "Introduced spell management windows and editable loadouts for combat. This includes limiting active spell loadouts to six persisted slots, supporting manual casting and auto-fire options, updating camera orbit controls, rendering creep resource bars, and refining spell activation settings. Additionally, various fixes were implemented for 3D rendering, ground clipping, UI improvements, and visual/chat bugs.",
       "categories": [
         "General fixes",
         "Refactor"
