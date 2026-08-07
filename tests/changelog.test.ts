@@ -3,6 +3,8 @@ import {
 	monthKey,
 	monthStartsBetween,
 	parseGitLog,
+	selectChangelogCommits,
+	semanticCommitType,
 	startOfMonth,
 } from "../scripts/changelog";
 
@@ -35,5 +37,29 @@ describe("generated devlog history", () => {
 				monthKey,
 			),
 		).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+	});
+
+	test("keeps player-facing semantic changes and groups maintenance work", () => {
+		const entry = (title: string) => ({
+			hash: title,
+			authoredAt: "2026-08-06T10:00:00Z",
+			title,
+			description: "details",
+		});
+		const selected = selectChangelogCommits([
+			entry("feat(spells): add nova"),
+			entry("fix: stop duplicate drops"),
+			entry("docs(readme): explain matchmaking"),
+			entry("chore: update tooling"),
+			entry("test: cover drops"),
+			entry("refactor(server)!: split wave builder"),
+		]);
+
+		expect(selected.commits.map(({ title }) => title)).toEqual([
+			"feat(spells): add nova",
+			"fix: stop duplicate drops",
+		]);
+		expect(selected.groupedCategories).toEqual(["General fixes", "Refactor"]);
+		expect(semanticCommitType("ux(hud): improve layout")).toBe("ux");
 	});
 });

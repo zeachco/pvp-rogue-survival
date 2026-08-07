@@ -29,6 +29,7 @@ export interface MonthlyDevlog {
 interface MonthSource {
 	key: string;
 	commits: CommitEntry[];
+	groupedCategories: string[];
 }
 
 interface GeneratedPeriod {
@@ -44,6 +45,41 @@ interface ChangelogOptions {
 
 const MODEL = "gemma4:e2b";
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
+const INDIVIDUAL_CHANGE_TYPES = new Set([
+	"balance",
+	"fix",
+	"feat",
+	"ux",
+	"perf",
+]);
+
+export function semanticCommitType(title: string): string | undefined {
+	return title.match(/^([a-z]+)(?:\([^()]+\))?:\s+\S/)?.[1];
+}
+
+export function selectChangelogCommits(commits: CommitEntry[]): {
+	commits: CommitEntry[];
+	groupedCategories: string[];
+} {
+	const types = commits.map((commit) => semanticCommitType(commit.title));
+	return {
+		commits: commits.filter((_, index) =>
+			INDIVIDUAL_CHANGE_TYPES.has(types[index] ?? ""),
+		),
+		groupedCategories: [
+			...(types.some(
+				(type) => type === "docs" || type === "chore" || type === "test",
+			)
+				? ["General fixes"]
+				: []),
+			...(types.includes("refactor") ? ["Refactor"] : []),
+		],
+	};
+}
+
+function hasUpdates(month: MonthSource): boolean {
+	return month.commits.length > 0 || month.groupedCategories.length > 0;
+}
 
 export function startOfMonth(date: Date): Date {
 	return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -102,22 +138,24 @@ async function gitLogs(from: Date, until: Date): Promise<CommitEntry[]> {
 }
 
 function promptFor(months: MonthSource[]): string {
-	const requestedKeys = months
-		.filter(({ commits }) => commits.length > 0)
-		.map(({ key }) => key);
+	const requestedKeys = months.filter(hasUpdates).map(({ key }) => key);
 	const logs = months
-		.map(({ key, commits }) => {
+		.map(({ key, commits, groupedCategories }) => {
 			const entries = commits
 				.map(
 					(commit) =>
 						`[${commit.authoredAt.slice(0, 10)}] ${commit.title}${commit.description ? `\n${commit.description}` : ""}`,
 				)
 				.join("\n\n");
-			return `${key}:\n${entries || "No commits."}`;
+			const grouped = groupedCategories.length
+				? `Grouped monthly categories (do not expand into individual changes): ${groupedCategories.join(", ")}`
+				: "";
+			return `${key}:\n${[entries, grouped].filter(Boolean).join("\n\n") || "No updates."}`;
 		})
 		.join("\n\n");
 
-	return `Write concise, gamer-facing development changelogs from only the supplied Git commit titles and descriptions. Do not invent details or mention commit hashes.
+	return `Write concise, gamer-facing development changelogs from only the supplied semantic Git commit titles and descriptions. Do not invent details or mention commit hashes.
+Use balance for balance-change descriptions, fix for bugs fixed, feat for features added, ux for design or experience changes, and perf for what became faster. General fixes and Refactor are presence-only monthly categories: mention each at most once and never infer or enumerate its underlying work.
 Return only strict JSON shaped as {"periods":[{"key":"YYYY-MM","title":"short headline","summary":"one detailed paragraph","categories":["concise category"]}]}.
 Return exactly one period for every requested month, in this order: ${requestedKeys.join(", ")}.
 
@@ -151,6 +189,8 @@ function buildDocument(
 				(category): category is string => typeof category === "string",
 			)
 		: [];
+	for (const category of month.groupedCategories)
+		if (!categories.includes(category)) categories.push(category);
 	const periods: DevlogPeriod[] = [
 		{
 			key: month.key,
@@ -191,7 +231,10 @@ async function sourceMonths(options: ChangelogOptions): Promise<MonthSource[]> {
 	return Promise.all(
 		starts.map(async (start) => {
 			const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-			return { key: monthKey(start), commits: await gitLogs(start, end) };
+			return {
+				key: monthKey(start),
+				...selectChangelogCommits(await gitLogs(start, end)),
+			};
 		}),
 	);
 }
@@ -203,7 +246,7 @@ async function generatePeriods(
 	const generated = new Map<string, GeneratedPeriod>();
 	const requests = separateRequests ? months.map((month) => [month]) : [months];
 	for (const request of requests) {
-		if (!request.some(({ commits }) => commits.length > 0)) continue;
+		if (!request.some(hasUpdates)) continue;
 		const prompt = promptFor(request);
 		const response =
 			await $`printf %s ${prompt} | ollama run ${MODEL} --format json --hidethinking --nowordwrap`.text();
@@ -211,7 +254,7 @@ async function generatePeriods(
 			if (typeof period.key === "string") generated.set(period.key, period);
 		}
 		for (const month of request) {
-			if (month.commits.length > 0 && !generated.has(month.key))
+			if (hasUpdates(month) && !generated.has(month.key))
 				throw new Error(`Ollama omitted or invalidated ${month.key}.`);
 		}
 	}
@@ -232,10 +275,9 @@ async function main(): Promise<void> {
 	await mkdir(outputDirectory, { recursive: true });
 	for (const month of months) {
 		const path = join(outputDirectory, `${month.key}.json`);
-		const contents =
-			month.commits.length === 0
-				? '"No updates."\n'
-				: `${JSON.stringify(buildDocument(month, generated), null, 2)}\n`;
+		const contents = !hasUpdates(month)
+			? '"No updates."\n'
+			: `${JSON.stringify(buildDocument(month, generated), null, 2)}\n`;
 		await Bun.write(path, contents);
 		console.log(`Wrote ${path}`);
 	}
