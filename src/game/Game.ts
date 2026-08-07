@@ -398,9 +398,10 @@ export class Game {
 				this.socket.send({ type: "listHeroes" });
 			}
 		});
-		this.socket.onClose(() =>
-			this.hud.setNotice("Server disconnected. Reconnecting..."),
-		);
+		this.socket.onClose((event) => {
+			this.hud.pushChatMessage("", "", serverCloseLogMessage(event), "system");
+			this.hud.setNotice("Server disconnected. Reconnecting...");
+		});
 		this.socket.onMessage((message) => this.handleServerMessage(message));
 		this.socket.connect();
 		requestAnimationFrame((timestamp) => this.animationFrame(timestamp));
@@ -1180,4 +1181,13 @@ export class Game {
 			},
 		};
 	}
+}
+
+export function serverCloseLogMessage(
+	event: Pick<CloseEvent, "code" | "reason">,
+): string {
+	const detail = event.reason.trim()
+		? `code ${event.code}: ${event.reason.trim()}`
+		: `code ${event.code}`;
+	return `Server closed the connection (${detail}). Reconnecting...`;
 }

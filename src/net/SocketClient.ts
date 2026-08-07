@@ -6,7 +6,7 @@ import {
 
 type MessageHandler = (message: ServerMessage) => void;
 type OpenHandler = () => void;
-type CloseHandler = () => void;
+type CloseHandler = (event: CloseEvent) => void;
 type ErrorHandler = (event: Event) => void;
 export function gameSocketUrl(
 	location: Pick<Location, "host" | "protocol" | "search">,
@@ -63,10 +63,10 @@ export class SocketClient {
 				handler();
 			}
 		});
-		this.socket.addEventListener("close", () => {
+		this.socket.addEventListener("close", (event) => {
 			this.connected = false;
 			for (const handler of this.closeHandlers) {
-				handler();
+				handler(event);
 			}
 			this.reconnectTimer = window.setTimeout(() => this.connect(), 1000);
 		});

@@ -20,6 +20,7 @@ import {
 } from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
 import { panelShortcut, panelToggleTooltip } from "../src/ui/Hud";
+import { serverCloseLogMessage } from "../src/game/Game";
 
 import {
 	auraRadius,
@@ -2661,6 +2662,17 @@ test("uses the production WebSocket shortcut unless an explicit endpoint is prov
 			search: "?prod&ip=legacy.test",
 		} as Location),
 	).toBe("wss://legacy.test/ws");
+});
+
+test("describes a server-side WebSocket close in the client log", () => {
+	expect(
+		serverCloseLogMessage({ code: 1012, reason: "Server shutting down" }),
+	).toBe(
+		"Server closed the connection (code 1012: Server shutting down). Reconnecting...",
+	);
+	expect(serverCloseLogMessage({ code: 1006, reason: "" })).toBe(
+		"Server closed the connection (code 1006). Reconnecting...",
+	);
 });
 
 test("maps unmodified character and inventory panel shortcuts", () => {
