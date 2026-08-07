@@ -1151,32 +1151,12 @@ export function weaponProcSkills(
 ): Array<{ id: SkillId; level: number }> {
 	if (progress.mainHand?.itemKind !== "weapon") return [];
 	const learned = new Set(learnedSkillIds(progress));
-	const stats = statsWithItemBonuses(
-		progress.stats,
-		progress.mainHand,
-		...accessories(progress),
-	);
 	return [...new Set(progress.mainHand.skills)]
 		.filter((id) => !SKILLS[id].passive && !learned.has(id))
-		.map((id) => {
-			const accessoryBonus = accessories(progress).reduce(
-				(sum, candidate) =>
-					sum +
-					itemSkillLevelBonus(candidate, SKILLS[id].resource) *
-						(candidate ? itemRequirementMultiplier(candidate, stats) : 1),
-				0,
-			);
-			return {
-				id,
-				level: Math.max(
-					1,
-					Math.min(
-						progress.level,
-						cappedSkillLevel(1 + Math.floor(accessoryBonus)),
-					),
-				),
-			};
-		});
+		.map((id) => ({
+			id,
+			level: cappedSkillLevel(progress.mainHand!.level),
+		}));
 }
 export function weaponProcTriggerChance(
 	progress: PlayerProgress,

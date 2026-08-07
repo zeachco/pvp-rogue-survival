@@ -210,7 +210,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 260,
 		resource: "life",
 		description:
-			"Spends max(10% of remaining HP, 1 HP), then launches a huge fast crescent with half knockback. Every 0.5 seconds it damages all overlapping foes; consumed HP adds to damage at 1 + skill level / 10, and it heals from cumulative actual damage when it returns.",
+			"Launches a huge fast crescent with half knockback. Every 0.5 seconds it damages all overlapping foes; consumed HP adds to damage at 1 + skill level / 10, and it heals from cumulative actual damage when it returns.",
 	},
 	orbitingHammers: {
 		id: "orbitingHammers",
@@ -241,7 +241,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 200,
 		resource: "mana",
 		description:
-			"Spends 8 mana to push and damage enemies within a level-scaled force field, both diminishing with distance.",
+			"Pushes and damages enemies within a level-scaled force field, both diminishing with distance.",
 	},
 	attraction: {
 		id: "attraction",
@@ -294,7 +294,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 600,
 		resource: "rage",
 		description:
-			"When hit while ready, spends 3 Rage and surges for 5–19 seconds, doubling Thorns and block reflection, adding 1% of incoming damage to every return, and granting 10–30% block chance up to a 95% final cap.",
+			"Surges for 5–19 seconds, doubling Thorns and block reflection, adding 1% of incoming damage to every return, and granting 10–30% block chance up to a 95% final cap.",
 	},
 	frostOrb: {
 		id: "frostOrb",
@@ -305,7 +305,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		resource: "mana",
 		cost: 45,
 		description:
-			"Spends 45 Mana to launch a slow freezing orb that sprays damaging ice spikes in every direction.",
+			"Launches a slow freezing orb that sprays damaging ice spikes in every direction.",
 	},
 	blizzard: {
 		id: "blizzard",
@@ -315,7 +315,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 500,
 		resource: "mana",
 		description:
-			"Rains icicles for 5–15 seconds. Each impact deals level + 1.2× Intelligence Cold damage in a 2–4m area and applies one Frost stack. Mana cost and rainfall scale from 55 to 300 and 1 to 3 icicles/s.",
+			"Rains icicles for 5–15 seconds. Each impact deals level + 1.2× Intelligence Cold damage in a 2–4m area and applies one Frost stack. Rainfall scales from 1 to 3 icicles/s.",
 	},
 	fireBreath: {
 		id: "fireBreath",
@@ -368,7 +368,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 150,
 		resource: "mana",
 		description:
-			"At or below 50% HP, restores 40–100% of current health plus 5–10% maximum health in a 3–12 m radius. Costs 5 + 2 mana per skill level, plus 0.25 mana per HP restored.",
+			"At or below 50% HP, restores 40–100% of current health plus 5–10% maximum health in a 3–12 m radius.",
 	},
 	rent: {
 		id: "rent",
@@ -378,7 +378,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 180,
 		resource: "life",
 		description:
-			"A full-circle blood-edge attack that spends 10% of remaining HP, leaves at least 1 HP, and adds the HP spent to damage.",
+			"A full-circle blood-edge attack that adds the HP spent to damage.",
 	},
 	blocking: {
 		id: "blocking",

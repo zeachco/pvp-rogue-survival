@@ -150,6 +150,23 @@ export function itemTile(
 			onCurrencyPreview?.();
 			onSpellPreview?.();
 		};
+		node.addEventListener("focusin", (event) => {
+			if (!(event.target instanceof Element)) return;
+			if (!event.target.closest(".item-skill-list [data-skill-id]")) return;
+			onHoverChange?.(tile.id);
+			onPreview(item, equipped);
+		});
+		node.addEventListener("focusout", (event) => {
+			if (!(event.target instanceof Element)) return;
+			if (!event.target.closest(".item-skill-list [data-skill-id]")) return;
+			if (
+				event.relatedTarget instanceof Node &&
+				node.contains(event.relatedTarget)
+			)
+				return;
+			onHoverChange?.();
+			onPreview();
+		});
 	}
 	if (spare <= 0)
 		for (const index of [0, 1, 3, 5])

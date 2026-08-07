@@ -330,39 +330,40 @@ test("previews extraction from the permanent learned maximum", () => {
 	expect(extractedLearnedLevel(99)).toBe(99);
 });
 
-test("combines spell type and learning-state catalog filters", () => {
+test("combines additive spell-state catalog filters with word search", () => {
+	const learnedPassive = {
+		learned: true,
+		equipped: false,
+		actives: false,
+		passives: true,
+		unavailable: false,
+	};
 	expect(
-		spellCatalogFilterMatches("passive", "learned", "both", "both"),
+		spellCatalogFilterMatches(learnedPassive, new Set(["learned"])),
 	).toBeTrue();
 	expect(
-		spellCatalogFilterMatches("passive", "learned", "passive", "learned"),
+		spellCatalogFilterMatches(learnedPassive, new Set(["equipped", "actives"])),
+	).toBeFalse();
+	expect(
+		spellCatalogFilterMatches(learnedPassive, new Set(["passives"])),
 	).toBeTrue();
-	expect(
-		spellCatalogFilterMatches("active", "learned", "passive", "both"),
-	).toBeFalse();
-	expect(
-		spellCatalogFilterMatches("passive", "not-learned", "both", "learned"),
-	).toBeFalse();
 	expect(
 		spellCatalogFilterMatches(
-			"active",
-			"learned",
-			"both",
-			"both",
+			learnedPassive,
+			new Set(["learned", "equipped", "actives"]),
 			"frost",
 			"frostOrb Frozen Orb launches ice Mana",
 		),
 	).toBeTrue();
 	expect(
 		spellCatalogFilterMatches(
-			"active",
-			"learned",
-			"both",
-			"both",
+			learnedPassive,
+			new Set(["learned"]),
 			"poison",
 			"frostOrb Frozen Orb launches ice Mana",
 		),
 	).toBeFalse();
+	expect(spellCatalogFilterMatches(learnedPassive, new Set())).toBeFalse();
 });
 
 test("defines a concrete acquisition source for every catalog spell", () => {
@@ -1575,10 +1576,14 @@ describe("equipped skill levels", () => {
 test("keeps unlearned weapon actives off the rail while retaining them as cooldown-weighted procs", () => {
 	const state = progress();
 	state.level = 20;
-	state.mainHand = { ...state.mainHand!, skills: ["bash", "thorns"] };
+	state.mainHand = {
+		...state.mainHand!,
+		level: 7,
+		skills: ["bash", "thorns"],
+	};
 	expect(effectiveSkillLevel(state, "bash")).toBe(0);
 	expect(effectiveSkillLevel(state, "thorns")).toBe(1);
-	expect(weaponProcSkills(state)).toEqual([{ id: "bash", level: 1 }]);
+	expect(weaponProcSkills(state)).toEqual([{ id: "bash", level: 7 }]);
 	expect(weaponSkillTriggerChance(10)).toBe(0.1);
 	expect(weaponSkillTriggerChance(1)).toBe(1);
 	expect(weaponSkillTriggerChance(0.5)).toBe(1);

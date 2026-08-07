@@ -573,12 +573,42 @@ input {
 	font-size: 13px;
 }
 
-.spell-catalog-filter select {
+.spell-catalog-filter-buttons {
+	display: flex;
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+	gap: 7px;
+}
+
+.spell-catalog-filter-button {
+	position: relative;
+	display: inline-flex;
+	cursor: pointer;
+}
+
+.spell-catalog-filter-button input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.spell-catalog-filter-button span {
+	padding: 5px 10px;
 	border: 1px solid #47717a;
-	border-radius: 4px;
-	padding: 4px 24px 4px 7px;
-	color: #e8f9ff;
+	border-radius: 5px;
+	color: #a9c3ca;
 	background: #132a31;
+}
+
+.spell-catalog-filter-button input:checked + span {
+	border-color: #62e88a;
+	color: #e8f9ff;
+	background: #1b493a;
+}
+
+.spell-catalog-filter-button input:focus-visible + span {
+	outline: 2px solid rgba(98, 232, 138, 0.5);
+	outline-offset: 2px;
 }
 
 .spell-catalog-search {
@@ -2236,13 +2266,15 @@ input {
 }
 
 .notification-area {
-	position: absolute;
-	z-index: 3;
-	top: 4px;
-	right: 0;
+	position: fixed;
+	z-index: 31;
+	top: 0;
+	right: 12px;
 	display: grid;
+	align-content: center;
 	justify-items: end;
-	width: min(360px, 34%);
+	width: min(360px, 40vw);
+	height: var(--game-header-height);
 	pointer-events: none;
 }
 

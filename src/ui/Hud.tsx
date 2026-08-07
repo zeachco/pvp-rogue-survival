@@ -343,9 +343,11 @@ export class Hud {
 	) as HTMLElement;
 	private selectedCatalogSpell?: SkillId;
 	private spellCatalogSignature = "";
-	private spellCatalogTypeFilter: "both" | "active" | "passive" = "both";
-	private spellCatalogLearningFilter: "both" | "learned" | "not-learned" =
-		"both";
+	private spellCatalogFilters = new Set<SpellCatalogFilter>([
+		"learned",
+		"equipped",
+		"actives",
+	]);
 	private spellCatalogSearch = "";
 	private spellPreviewKind?: "extract" | "equipment";
 	private readonly resourceDock = (
@@ -667,13 +669,11 @@ export class Hud {
 			<div class="game-hud">
 				<header class="game-status-bar">
 					<section class="hud-top">{this.realmPanel}</section>
+					<section class="notification-area">{this.noticeNode}</section>
 				</header>
 				{this.multiplayerIntroMask}
 				{this.multiplayerIntro}
-				<div class="canvas-overlay-top">
-					{this.waveBanner}
-					<section class="notification-area">{this.noticeNode}</section>
-				</div>
+				<div class="canvas-overlay-top">{this.waveBanner}</div>
 				{this.centerToast}
 				{this.creepPreview}
 				{this.aimReticle}
@@ -1157,6 +1157,8 @@ export class Hud {
 	toggleSpellCatalog(): void {
 		this.spellCatalog.classList.toggle("is-hidden");
 		if (!this.spellCatalog.classList.contains("is-hidden")) {
+			this.spellCatalogFilters = new Set(["learned", "equipped", "actives"]);
+			this.spellCatalogSignature = "";
 			this.renderSpellCatalog("");
 			this.spellCatalog
 				.querySelector<HTMLElement>(".spell-catalog-scroll")
@@ -1188,46 +1190,25 @@ export class Hud {
 			</button>
 		) as HTMLButtonElement;
 		close.onclick = () => this.spellCatalog.classList.add("is-hidden");
-		const typeFilter = (
-			<label class="spell-catalog-filter">
-				<span>Type</span>
-				<select>
-					<option value="both">Both</option>
-					<option value="active">Active</option>
-					<option value="passive">Passive</option>
-				</select>
-			</label>
-		) as HTMLLabelElement;
-		const typeSelect = typeFilter.querySelector("select") as HTMLSelectElement;
-		typeSelect.value = this.spellCatalogTypeFilter;
-		typeSelect.onchange = () => {
-			this.spellCatalogTypeFilter = typeSelect.value as
-				| "both"
-				| "active"
-				| "passive";
-			this.updateCatalogFilters();
-		};
-		const learningFilter = (
-			<label class="spell-catalog-filter">
-				<span>Learning</span>
-				<select>
-					<option value="both">Both</option>
-					<option value="learned">Learned</option>
-					<option value="not-learned">Not learned</option>
-				</select>
-			</label>
-		) as HTMLLabelElement;
-		const learningSelect = learningFilter.querySelector(
-			"select",
-		) as HTMLSelectElement;
-		learningSelect.value = this.spellCatalogLearningFilter;
-		learningSelect.onchange = () => {
-			this.spellCatalogLearningFilter = learningSelect.value as
-				| "both"
-				| "learned"
-				| "not-learned";
-			this.updateCatalogFilters();
-		};
+		const filterButtons = (
+			<div class="spell-catalog-filter-buttons" aria-label="Spell filters" />
+		) as HTMLElement;
+		for (const [filter, label] of SPELL_CATALOG_FILTERS) {
+			const control = (
+				<label class="spell-catalog-filter-button">
+					<input type="checkbox" value={filter} />
+					<span>{label}</span>
+				</label>
+			) as HTMLLabelElement;
+			const input = control.querySelector("input") as HTMLInputElement;
+			input.checked = this.spellCatalogFilters.has(filter);
+			input.onchange = () => {
+				if (input.checked) this.spellCatalogFilters.add(filter);
+				else this.spellCatalogFilters.delete(filter);
+				this.updateCatalogFilters();
+			};
+			filterButtons.append(control);
+		}
 		const search = (
 			<label class="spell-catalog-filter spell-catalog-search">
 				<span>Search</span>
@@ -1247,8 +1228,7 @@ export class Hud {
 		const filters = (
 			<div class="spell-catalog-filters">
 				{search}
-				{typeFilter}
-				{learningFilter}
+				{filterButtons}
 			</div>
 		) as HTMLElement;
 		const slots = (
@@ -1327,8 +1307,11 @@ export class Hud {
 					aria-disabled={String(!acquired)}
 					tabindex={acquired ? "0" : "-1"}
 					data-spell-id={id}
-					data-spell-type={definition.passive ? "passive" : "active"}
-					data-learning={learnedLevel > 0 ? "learned" : "not-learned"}
+					data-learned={String(learnedLevel > 0)}
+					data-equipped={String(spell?.bar === "geared")}
+					data-active={String(Boolean(spell?.shortcut))}
+					data-passive={String(Boolean(definition.passive))}
+					data-unavailable={String(!acquired)}
 					data-search={`${id} ${definition.label} ${definition.description} ${spellResourceLabel(definition.resource)}`}
 				>
 					<span class="spell-catalog-card-heading">
@@ -1389,10 +1372,14 @@ export class Hud {
 			".spell-catalog-card[data-spell-id]",
 		)) {
 			card.hidden = !spellCatalogFilterMatches(
-				card.dataset.spellType as "active" | "passive",
-				card.dataset.learning as "learned" | "not-learned",
-				this.spellCatalogTypeFilter,
-				this.spellCatalogLearningFilter,
+				{
+					learned: card.dataset.learned === "true",
+					equipped: card.dataset.equipped === "true",
+					actives: card.dataset.active === "true",
+					passives: card.dataset.passive === "true",
+					unavailable: card.dataset.unavailable === "true",
+				},
+				this.spellCatalogFilters,
 				this.spellCatalogSearch,
 				card.dataset.search,
 			);
@@ -3858,18 +3845,30 @@ export function spellCatalogResourceOrder(
 ): number {
 	return { life: 0, rage: 1, mana: 2 }[resource];
 }
+export type SpellCatalogFilter =
+	| "learned"
+	| "equipped"
+	| "actives"
+	| "passives"
+	| "unavailable";
+export const SPELL_CATALOG_FILTERS: ReadonlyArray<
+	readonly [SpellCatalogFilter, string]
+> = [
+	["learned", "Learned"],
+	["equipped", "Equipped"],
+	["actives", "Actives"],
+	["passives", "Passives"],
+	["unavailable", "Unavailable"],
+];
 export function spellCatalogFilterMatches(
-	type: "active" | "passive",
-	learning: "learned" | "not-learned",
-	typeFilter: "both" | "active" | "passive",
-	learningFilter: "both" | "learned" | "not-learned",
+	states: Readonly<Record<SpellCatalogFilter, boolean>>,
+	filters: ReadonlySet<SpellCatalogFilter>,
 	search = "",
 	searchableText = "",
 ): boolean {
 	const query = search.trim().toLocaleLowerCase();
 	return (
-		(typeFilter === "both" || type === typeFilter) &&
-		(learningFilter === "both" || learning === learningFilter) &&
+		[...filters].some((filter) => states[filter]) &&
 		(!query || searchableText.toLocaleLowerCase().includes(query))
 	);
 }
