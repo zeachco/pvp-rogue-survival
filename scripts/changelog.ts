@@ -281,10 +281,9 @@ async function sourceWeeks(
 
 async function generatePeriods(
 	weeks: WeekSource[],
-	separateRequests: boolean,
 ): Promise<Map<string, GeneratedPeriod>> {
 	const generated = new Map<string, GeneratedPeriod>();
-	const requests = separateRequests ? weeks.map((week) => [week]) : [weeks];
+	const requests = weeks.map((week) => [week]);
 	for (const request of requests) {
 		if (!request.some(hasUpdates)) continue;
 		const prompt = promptFor(request);
@@ -309,7 +308,7 @@ async function main(): Promise<void> {
 		throw new Error(`Unknown argument: ${unknownArguments.join(", ")}`);
 	const all = Bun.argv.includes("--all");
 	const weeks = await sourceWeeks({ all });
-	const generated = await generatePeriods(weeks, all);
+	const generated = await generatePeriods(weeks);
 
 	const outputDirectory = resolve(process.cwd(), "changelogs");
 	await mkdir(outputDirectory, { recursive: true });
