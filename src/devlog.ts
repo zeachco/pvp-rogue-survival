@@ -62,7 +62,7 @@ function renderMonth(key: string, data: string | MonthlyDevlog): void {
 		tags.append(
 			...period.categories.map((category) => element("span", category)),
 		);
-		const details = element("details");
+		const details = element("section", undefined, "commit-details");
 		const list = element("ul");
 		list.append(
 			...period.commits.map((commit) => {
@@ -74,7 +74,7 @@ function renderMonth(key: string, data: string | MonthlyDevlog): void {
 		);
 		details.append(
 			element(
-				"summary",
+				"strong",
 				`${period.commits.length} source commit${period.commits.length === 1 ? "" : "s"}`,
 			),
 			list,
