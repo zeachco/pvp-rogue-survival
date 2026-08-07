@@ -33,8 +33,8 @@ export const HERO_LIGHT = {
 	intensity: 180,
 	distance: 280,
 	decay: 1,
-	height: 150,
-	angle: THREE.MathUtils.degToRad(38),
+	height: 72,
+	angle: THREE.MathUtils.degToRad(62),
 	penumbra: 0.35,
 } as const;
 

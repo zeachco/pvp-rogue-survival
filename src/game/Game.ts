@@ -49,7 +49,12 @@ import {
 	BACKGROUND_FRAME_INTERVAL_MS,
 	backgroundFrameDue,
 } from "./FrameScheduler";
-import { loadLightingMode, saveLightingMode } from "./graphicsSettings";
+import {
+	loadLightingMode,
+	loadShadowMode,
+	saveLightingMode,
+	saveShadowMode,
+} from "./graphicsSettings";
 
 const FIXED_STEP = 1 / 60;
 
@@ -129,7 +134,9 @@ export class Game {
 		this.map.buildMeshes();
 		this.renderer = new ThreeRenderer(this.canvas);
 		const lightingMode = loadLightingMode(localStorage);
+		const shadowMode = loadShadowMode(localStorage);
 		this.renderer.setLightingMode(lightingMode);
+		this.renderer.setShadowMode(shadowMode);
 		this.renderer.scene.add(this.map.mesh);
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
 		this.attachRadialReflect(this.hero);
@@ -164,6 +171,10 @@ export class Game {
 				saveLightingMode(localStorage, mode);
 				this.renderer.setLightingMode(mode);
 			},
+			onSetShadowMode: (mode) => {
+				saveShadowMode(localStorage, mode);
+				this.renderer.setShadowMode(mode);
+			},
 			onInspectHero: (heroId) =>
 				this.socket.send({ type: "inspectHero", heroId }),
 			onSetSkillEquipped: (skillId, equipped, slot) =>
@@ -178,6 +189,7 @@ export class Game {
 			},
 		});
 		this.hud.setLightingMode(lightingMode);
+		this.hud.setShadowMode(shadowMode);
 		if (this.savedSession) this.hud.setJoinName(this.savedSession.username);
 		this.setupTouchControls(hudRoot);
 		this.registerDebugGlobal();

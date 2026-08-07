@@ -210,8 +210,8 @@ export class Hud {
 					type="radio"
 					name="graphics-shadows"
 					value={mode}
-					checked={mode === "off"}
-					disabled
+					checked={mode === DEFAULT_GRAPHICS_SETTINGS.shadowMode}
+					disabled={mode === "static"}
 				/>
 			) as HTMLInputElement,
 	);
@@ -239,14 +239,12 @@ export class Hud {
 					</label>
 				))}
 			</fieldset>
-			<fieldset class="graphics-option-group is-unimplemented" disabled>
-				<legend>
-					Shadow <small>NON_IMPLEMENTED</small>
-				</legend>
+			<fieldset class="graphics-option-group">
+				<legend>Shadows</legend>
 				{this.shadowRadios.map((radio, index) => (
 					<label>
 						{radio}
-						<span>{["Off", "Static", "Dynamic"][index]}</span>
+						<span>{["Off", "Static (not implemented)", "Dynamic"][index]}</span>
 					</label>
 				))}
 			</fieldset>
@@ -665,6 +663,13 @@ export class Hud {
 				this.setLightingMode(mode);
 				this.callbacks.onSetLightingMode(mode);
 			};
+		for (const radio of this.shadowRadios)
+			radio.onchange = () => {
+				if (!radio.checked || radio.value === "static") return;
+				const mode = radio.value as "off" | "dynamic";
+				this.setShadowMode(mode);
+				this.callbacks.onSetShadowMode(mode);
+			};
 		this.gameHud = (
 			<div class="game-hud">
 				<header class="game-status-bar">
@@ -702,6 +707,9 @@ export class Hud {
 	setLightingMode(mode: "off" | "hero" | "all"): void {
 		for (const radio of this.lightingRadios)
 			radio.checked = radio.value === mode;
+	}
+	setShadowMode(mode: "off" | "dynamic"): void {
+		for (const radio of this.shadowRadios) radio.checked = radio.value === mode;
 	}
 	setNotice(notice: string): void {
 		for (const node of [this.noticeNode, this.joinNoticeNode]) {

@@ -1,161 +1,155 @@
 {
-  "week": "2026-W31",
-  "label": "Week of July 27, 2026",
-  "generatedAt": "2026-08-07T22:13:54.311Z",
-  "model": "gemma4:e2b",
-  "periods": [
-    {
-      "key": "2026-W31",
-      "label": "Week of July 27, 2026",
-      "commits": [
-        {
-          "hash": "d38170abb885e2540ce8879b7ec9ec58ffa22517",
-          "authoredAt": "2026-08-02T18:44:17-04:00",
-          "title": "feat: spell management window",
-          "description": ""
-        },
-        {
-          "hash": "67463c0e4fcb99f90cc9be35f4cdbbc10f67f143",
-          "authoredAt": "2026-08-02T18:15:33-04:00",
-          "title": "feat: add editable spell loadouts and improve combat controls",
-          "description": "- limit active spell loadouts to six persisted slots\n  - support 1–6 manual casting and right-click auto-fire\n  - keep passive skills permanently active\n  - move camera orbit controls to left-drag without changing hero facing\n  - keep right-click as the explicit aiming control\n  - render creep resource bars above overlapping units\n  - migrate existing spell activation settings\n  - update protocol, specs, and regression tests"
-        },
-        {
-          "hash": "04ed185dfce6535529d437d1a55a6e8d8e13e46b",
-          "authoredAt": "2026-08-02T17:59:59-04:00",
-          "title": "fix: auras spells are dropable",
-          "description": ""
-        },
-        {
-          "hash": "b5ea4f9ccb93dc4f31d1696fce9886eee1595986",
-          "authoredAt": "2026-08-02T17:19:26-04:00",
-          "title": "feat: fullscreen and mouse move recenter",
-          "description": ""
-        },
-        {
-          "hash": "51e5c6d6fa5e184ee2b25c13a7871868849bcf12",
-          "authoredAt": "2026-08-02T16:25:28-04:00",
-          "title": "feat: added columns",
-          "description": ""
-        },
-        {
-          "hash": "0593bebb56fd571ffcb134fe5b09d145a6fddff9",
-          "authoredAt": "2026-08-02T15:45:18-04:00",
-          "title": "feat: aim with camera",
-          "description": ""
-        },
-        {
-          "hash": "acb6eb53398bc3563d1d94256b3259c4a40cce5a",
-          "authoredAt": "2026-08-02T12:48:51-04:00",
-          "title": "fix: remove context menu options",
-          "description": ""
-        },
-        {
-          "hash": "9b1d0923b6193847f2176c29186e264e89b612dd",
-          "authoredAt": "2026-08-02T12:41:22-04:00",
-          "title": "fix: adjustments for visuals and mobile experience",
-          "description": ""
-        },
-        {
-          "hash": "2184486b4ae684bd70b02b9ceab86d33fc48195d",
-          "authoredAt": "2026-08-02T12:31:12-04:00",
-          "title": "fix: ground clipping",
-          "description": ""
-        },
-        {
-          "hash": "aff11e157f83af9f5d028c7de6bbecc7dd7ec5d4",
-          "authoredAt": "2026-08-02T12:21:07-04:00",
-          "title": "fix: 3D rendering and positioning",
-          "description": ""
-        },
-        {
-          "hash": "74d5cbc5d273001a19d27a8888403543a6868d9a",
-          "authoredAt": "2026-08-02T12:01:29-04:00",
-          "title": "fix: UI improvments",
-          "description": ""
-        },
-        {
-          "hash": "5ed4373e874fb5c74714471fb1c64a8f9cccee61",
-          "authoredAt": "2026-08-02T11:26:54-04:00",
-          "title": "feat: progressive 3D transform",
-          "description": ""
-        },
-        {
-          "hash": "a26adbf16f3d405193272b98f1ebf32aa850427f",
-          "authoredAt": "2026-08-01T23:16:46-04:00",
-          "title": "feat: 3D animated models",
-          "description": ""
-        },
-        {
-          "hash": "25a9744ed3ba6b91e645272b7a0ca12addb5e8cc",
-          "authoredAt": "2026-07-30T23:40:03-04:00",
-          "title": "feat: assets",
-          "description": ""
-        },
-        {
-          "hash": "983bb2abb38b30b86c9a72493c17346681ce08ee",
-          "authoredAt": "2026-07-29T20:40:19-04:00",
-          "title": "feat: skills overflow",
-          "description": ""
-        },
-        {
-          "hash": "2dc74137e8738680648e570729938983e66539fd",
-          "authoredAt": "2026-07-29T12:26:53-04:00",
-          "title": "fix: long spell bar",
-          "description": ""
-        },
-        {
-          "hash": "883ae1526f68db65a9d4d84b898bfba75bb9e0f4",
-          "authoredAt": "2026-07-29T12:11:05-04:00",
-          "title": "feat: healing spell effect",
-          "description": ""
-        },
-        {
-          "hash": "075b611b1b45ed78a811f7ddeabf044c87f7b1a2",
-          "authoredAt": "2026-07-29T12:04:12-04:00",
-          "title": "fix: healing",
-          "description": ""
-        },
-        {
-          "hash": "1d4babf1e9ddf0a0cb64714dd2daa6b08ca2c28d",
-          "authoredAt": "2026-07-28T21:30:22-04:00",
-          "title": "fix: some visual and chat bugs",
-          "description": ""
-        },
-        {
-          "hash": "cc28695259b4a63e5c7cc4b151d8ebbf1269b9a2",
-          "authoredAt": "2026-07-28T20:59:22-04:00",
-          "title": "feat: adds chat system",
-          "description": ""
-        },
-        {
-          "hash": "45951aaa48aca2ebdbf4ff11b74e7f3be72f4618",
-          "authoredAt": "2026-07-28T00:34:07-04:00",
-          "title": "fix: camera zoom",
-          "description": ""
-        },
-        {
-          "hash": "a6ae6ab52c9eb7686f42a02320ee41f199827489",
-          "authoredAt": "2026-07-27T23:56:05-04:00",
-          "title": "feat: refactor to use 3D map",
-          "description": ""
-        },
-        {
-          "hash": "fde33541abe68bea37ada8d82e9e57e374b7ee27",
-          "authoredAt": "2026-07-27T21:31:21-04:00",
-          "title": "feat: autofilter",
-          "description": ""
-        }
-      ],
-      "summaryTitle": "Chat System and Asset Updates",
-      "summary": "Introduced a new chat system functionality and updated various game assets. Additionally, addressed issues related to long spell bars and healing spell effects.",
-      "categories": [
-        "feat",
-        "fix",
-        "assets",
-        "General fixes",
-        "Refactor"
-      ]
-    }
-  ]
+	"week": "2026-W31",
+	"label": "Week of July 27, 2026",
+	"generatedAt": "2026-08-07T22:13:54.311Z",
+	"model": "gemma4:e2b",
+	"periods": [
+		{
+			"key": "2026-W31",
+			"label": "Week of July 27, 2026",
+			"commits": [
+				{
+					"hash": "d38170abb885e2540ce8879b7ec9ec58ffa22517",
+					"authoredAt": "2026-08-02T18:44:17-04:00",
+					"title": "feat: spell management window",
+					"description": ""
+				},
+				{
+					"hash": "67463c0e4fcb99f90cc9be35f4cdbbc10f67f143",
+					"authoredAt": "2026-08-02T18:15:33-04:00",
+					"title": "feat: add editable spell loadouts and improve combat controls",
+					"description": "- limit active spell loadouts to six persisted slots\n  - support 1–6 manual casting and right-click auto-fire\n  - keep passive skills permanently active\n  - move camera orbit controls to left-drag without changing hero facing\n  - keep right-click as the explicit aiming control\n  - render creep resource bars above overlapping units\n  - migrate existing spell activation settings\n  - update protocol, specs, and regression tests"
+				},
+				{
+					"hash": "04ed185dfce6535529d437d1a55a6e8d8e13e46b",
+					"authoredAt": "2026-08-02T17:59:59-04:00",
+					"title": "fix: auras spells are dropable",
+					"description": ""
+				},
+				{
+					"hash": "b5ea4f9ccb93dc4f31d1696fce9886eee1595986",
+					"authoredAt": "2026-08-02T17:19:26-04:00",
+					"title": "feat: fullscreen and mouse move recenter",
+					"description": ""
+				},
+				{
+					"hash": "51e5c6d6fa5e184ee2b25c13a7871868849bcf12",
+					"authoredAt": "2026-08-02T16:25:28-04:00",
+					"title": "feat: added columns",
+					"description": ""
+				},
+				{
+					"hash": "0593bebb56fd571ffcb134fe5b09d145a6fddff9",
+					"authoredAt": "2026-08-02T15:45:18-04:00",
+					"title": "feat: aim with camera",
+					"description": ""
+				},
+				{
+					"hash": "acb6eb53398bc3563d1d94256b3259c4a40cce5a",
+					"authoredAt": "2026-08-02T12:48:51-04:00",
+					"title": "fix: remove context menu options",
+					"description": ""
+				},
+				{
+					"hash": "9b1d0923b6193847f2176c29186e264e89b612dd",
+					"authoredAt": "2026-08-02T12:41:22-04:00",
+					"title": "fix: adjustments for visuals and mobile experience",
+					"description": ""
+				},
+				{
+					"hash": "2184486b4ae684bd70b02b9ceab86d33fc48195d",
+					"authoredAt": "2026-08-02T12:31:12-04:00",
+					"title": "fix: ground clipping",
+					"description": ""
+				},
+				{
+					"hash": "aff11e157f83af9f5d028c7de6bbecc7dd7ec5d4",
+					"authoredAt": "2026-08-02T12:21:07-04:00",
+					"title": "fix: 3D rendering and positioning",
+					"description": ""
+				},
+				{
+					"hash": "74d5cbc5d273001a19d27a8888403543a6868d9a",
+					"authoredAt": "2026-08-02T12:01:29-04:00",
+					"title": "fix: UI improvments",
+					"description": ""
+				},
+				{
+					"hash": "5ed4373e874fb5c74714471fb1c64a8f9cccee61",
+					"authoredAt": "2026-08-02T11:26:54-04:00",
+					"title": "feat: progressive 3D transform",
+					"description": ""
+				},
+				{
+					"hash": "a26adbf16f3d405193272b98f1ebf32aa850427f",
+					"authoredAt": "2026-08-01T23:16:46-04:00",
+					"title": "feat: 3D animated models",
+					"description": ""
+				},
+				{
+					"hash": "25a9744ed3ba6b91e645272b7a0ca12addb5e8cc",
+					"authoredAt": "2026-07-30T23:40:03-04:00",
+					"title": "feat: assets",
+					"description": ""
+				},
+				{
+					"hash": "983bb2abb38b30b86c9a72493c17346681ce08ee",
+					"authoredAt": "2026-07-29T20:40:19-04:00",
+					"title": "feat: skills overflow",
+					"description": ""
+				},
+				{
+					"hash": "2dc74137e8738680648e570729938983e66539fd",
+					"authoredAt": "2026-07-29T12:26:53-04:00",
+					"title": "fix: long spell bar",
+					"description": ""
+				},
+				{
+					"hash": "883ae1526f68db65a9d4d84b898bfba75bb9e0f4",
+					"authoredAt": "2026-07-29T12:11:05-04:00",
+					"title": "feat: healing spell effect",
+					"description": ""
+				},
+				{
+					"hash": "075b611b1b45ed78a811f7ddeabf044c87f7b1a2",
+					"authoredAt": "2026-07-29T12:04:12-04:00",
+					"title": "fix: healing",
+					"description": ""
+				},
+				{
+					"hash": "1d4babf1e9ddf0a0cb64714dd2daa6b08ca2c28d",
+					"authoredAt": "2026-07-28T21:30:22-04:00",
+					"title": "fix: some visual and chat bugs",
+					"description": ""
+				},
+				{
+					"hash": "cc28695259b4a63e5c7cc4b151d8ebbf1269b9a2",
+					"authoredAt": "2026-07-28T20:59:22-04:00",
+					"title": "feat: adds chat system",
+					"description": ""
+				},
+				{
+					"hash": "45951aaa48aca2ebdbf4ff11b74e7f3be72f4618",
+					"authoredAt": "2026-07-28T00:34:07-04:00",
+					"title": "fix: camera zoom",
+					"description": ""
+				},
+				{
+					"hash": "a6ae6ab52c9eb7686f42a02320ee41f199827489",
+					"authoredAt": "2026-07-27T23:56:05-04:00",
+					"title": "feat: refactor to use 3D map",
+					"description": ""
+				},
+				{
+					"hash": "fde33541abe68bea37ada8d82e9e57e374b7ee27",
+					"authoredAt": "2026-07-27T21:31:21-04:00",
+					"title": "feat: autofilter",
+					"description": ""
+				}
+			],
+			"summaryTitle": "Chat System and Asset Updates",
+			"summary": "Introduced a new chat system functionality and updated various game assets. Additionally, addressed issues related to long spell bars and healing spell effects.",
+			"categories": ["feat", "fix", "assets", "General fixes", "Refactor"]
+		}
+	]
 }

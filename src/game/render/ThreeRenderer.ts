@@ -7,6 +7,7 @@ import type { CombatText } from "../CombatText";
 import {
 	DEFAULT_GRAPHICS_SETTINGS,
 	type LightingMode,
+	type ShadowMode,
 } from "../graphicsSettings";
 import {
 	combatTextScale,
@@ -146,6 +147,35 @@ export function applySceneLightingMode(
 	});
 }
 
+export function applySceneShadowMode(
+	renderer: Pick<THREE.WebGLRenderer, "shadowMap">,
+	scene: THREE.Scene,
+	mode: ShadowMode,
+): void {
+	const enabled = mode === "dynamic";
+	renderer.shadowMap.enabled = enabled;
+	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	scene.traverse((object) => {
+		if (object instanceof THREE.Mesh) {
+			object.castShadow = enabled;
+			object.receiveShadow = enabled;
+		}
+		if (
+			object instanceof THREE.DirectionalLight ||
+			object instanceof THREE.SpotLight ||
+			object instanceof THREE.PointLight
+		) {
+			object.castShadow = enabled;
+			object.shadow.mapSize.set(
+				object instanceof THREE.DirectionalLight ? 1024 : 512,
+				object instanceof THREE.DirectionalLight ? 1024 : 512,
+			);
+			object.shadow.bias = -0.0005;
+			object.shadow.normalBias = 0.02;
+		}
+	});
+}
+
 export function adjustedCameraTilt(
 	current: number,
 	wheelDelta: number,
@@ -211,6 +241,7 @@ export class ThreeRenderer {
 	private readonly ambientLight: THREE.AmbientLight;
 	private readonly keyLight: THREE.DirectionalLight;
 	private lightingMode: LightingMode = DEFAULT_GRAPHICS_SETTINGS.lightingMode;
+	private shadowMode: ShadowMode = DEFAULT_GRAPHICS_SETTINGS.shadowMode;
 	private heroLightRoot?: THREE.Object3D;
 
 	constructor(canvas: HTMLCanvasElement) {
@@ -232,6 +263,7 @@ export class ThreeRenderer {
 		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
 		this.updateCameraTransform();
 		this.setLightingMode(DEFAULT_GRAPHICS_SETTINGS.lightingMode);
+		this.setShadowMode(DEFAULT_GRAPHICS_SETTINGS.shadowMode);
 	}
 
 	async init(): Promise<void> {
@@ -247,6 +279,11 @@ export class ThreeRenderer {
 			this.heroLightRoot,
 			mode,
 		);
+	}
+
+	setShadowMode(mode: ShadowMode): void {
+		this.shadowMode = mode;
+		applySceneShadowMode(this.renderer, this.scene, mode);
 	}
 
 	resize(w: number, h: number): void {
@@ -413,6 +450,7 @@ export class ThreeRenderer {
 			this.heroLightRoot,
 			this.lightingMode,
 		);
+		applySceneShadowMode(this.renderer, this.scene, this.shadowMode);
 
 		hero.updateVisuals(time);
 		hero.faceCamera(this.camera.quaternion);

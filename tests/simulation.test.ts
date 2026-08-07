@@ -36,6 +36,9 @@ import {
 } from "../common/items";
 import { combatTextScale, type CombatText } from "../src/game/CombatText";
 import {
+	FORCE_FIELD_ANIMATION_DURATION,
+	FORCE_FIELD_LIGHT_FADE_DURATION,
+	FORCE_FIELD_LIGHT_INTENSITY,
 	ELBO_HEIGHT,
 	elbowHeight,
 	rentSlashAngle,
@@ -116,13 +119,17 @@ import {
 	MAP_Z,
 	SCENE_LIGHTING,
 	applySceneLightingMode,
+	applySceneShadowMode,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
 import {
 	DEFAULT_GRAPHICS_SETTINGS,
 	LIGHTING_MODE_STORAGE_KEY,
+	SHADOW_MODE_STORAGE_KEY,
 	loadLightingMode,
+	loadShadowMode,
 	saveLightingMode,
+	saveShadowMode,
 } from "../src/game/graphicsSettings";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
 
@@ -133,6 +140,38 @@ describe("animated 3D characters", () => {
 		expect(matchingAnimationClip([idle, walk], ["idle"])).toBe(idle);
 		expect(matchingAnimationClip([idle, walk], ["Run", "walk"])).toBe(walk);
 		expect(matchingAnimationClip([idle], ["Attack"])).toBeUndefined();
+	});
+	test("stores shadows locally with an off default", () => {
+		const values = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => values.set(key, value),
+		};
+		expect(loadShadowMode(storage)).toBe("off");
+		saveShadowMode(storage, "dynamic");
+		expect(values.get(SHADOW_MODE_STORAGE_KEY)).toBe("dynamic");
+		expect(loadShadowMode(storage)).toBe("dynamic");
+	});
+
+	test("toggles dynamic shadow maps for scene lights and meshes", () => {
+		const scene = new THREE.Scene();
+		const mesh = new THREE.Mesh(new THREE.BoxGeometry());
+		const light = new THREE.SpotLight();
+		scene.add(mesh, light);
+		const renderer = { shadowMap: { enabled: false, type: 0 } } as Pick<
+			THREE.WebGLRenderer,
+			"shadowMap"
+		>;
+		applySceneShadowMode(renderer, scene, "dynamic");
+		expect(renderer.shadowMap.enabled).toBeTrue();
+		expect(renderer.shadowMap.type).toBe(THREE.PCFSoftShadowMap);
+		expect(mesh.castShadow).toBeTrue();
+		expect(mesh.receiveShadow).toBeTrue();
+		expect(light.castShadow).toBeTrue();
+		applySceneShadowMode(renderer, scene, "off");
+		expect(renderer.shadowMap.enabled).toBeFalse();
+		expect(mesh.castShadow).toBeFalse();
+		expect(light.castShadow).toBeFalse();
 	});
 
 	test("keeps hero and boss models world-sized and role-specific", () => {
@@ -161,7 +200,10 @@ describe("animated 3D characters", () => {
 		expect(heroLights[0].distance).toBe(HERO_LIGHT.distance);
 		expect(heroLights[0].intensity).toBe(180);
 		expect(heroLights[0].position.z).toBe(HERO_LIGHT.height);
+		expect(HERO_LIGHT.height).toBe(72);
 		expect(heroLights[0].angle).toBe(HERO_LIGHT.angle);
+		expect(THREE.MathUtils.radToDeg(HERO_LIGHT.angle)).toBeCloseTo(62);
+		expect(Math.tan(HERO_LIGHT.angle) * HERO_LIGHT.height).toBeGreaterThan(134);
 		expect(heroLights[0].penumbra).toBe(HERO_LIGHT.penumbra);
 		expect(heroLights[0].target.position.z).toBe(0);
 		expect(hero.mesh.getObjectsByProperty("type", "PointLight")).toHaveLength(
@@ -1424,11 +1466,24 @@ describe("arena systems", () => {
 		) as THREE.PointLight[];
 		expect(forceFieldLights).toHaveLength(1);
 		expect(forceFieldLights[0].color.getHex()).toBe(0xb98cff);
-		expect(forceFieldLights[0].intensity).toBe(45);
+		expect(forceFieldLights[0].intensity).toBe(FORCE_FIELD_LIGHT_INTENSITY);
 		expect(forceFieldLights[0].distance).toBe(640);
 		expect(forceFieldLights[0].distance).toBe(
 			spellEffectLightDistance("gravityPull", 320),
 		);
+		forceField.update(FORCE_FIELD_ANIMATION_DURATION);
+		forceField.updateVisuals(FORCE_FIELD_ANIMATION_DURATION);
+		expect(forceFieldLights[0].intensity).toBe(FORCE_FIELD_LIGHT_INTENSITY);
+		expect(forceField.active).toBeTrue();
+		forceField.update(FORCE_FIELD_LIGHT_FADE_DURATION / 2);
+		forceField.updateVisuals(1.4);
+		expect(forceFieldLights[0].intensity).toBeCloseTo(
+			FORCE_FIELD_LIGHT_INTENSITY / 2,
+		);
+		forceField.update(FORCE_FIELD_LIGHT_FADE_DURATION / 2);
+		forceField.updateVisuals(1.9);
+		expect(forceFieldLights[0].intensity).toBe(0);
+		expect(forceField.active).toBeFalse();
 
 		const whirlwind = new SpellEffect(
 			"whirlwind",

@@ -1,68 +1,65 @@
 {
-  "week": "2026-W30",
-  "label": "Week of July 20, 2026",
-  "generatedAt": "2026-08-07T22:13:54.311Z",
-  "model": "gemma4:e2b",
-  "periods": [
-    {
-      "key": "2026-W30",
-      "label": "Week of July 20, 2026",
-      "commits": [
-        {
-          "hash": "494f58e9f7c234aa421fc741b99006339423d2e0",
-          "authoredAt": "2026-07-27T16:29:33-04:00",
-          "title": "feat: send is bonus XP",
-          "description": ""
-        },
-        {
-          "hash": "5cbbb7aa2c84aa0dacf52c502f128c7e6c382bce",
-          "authoredAt": "2026-07-27T15:51:03-04:00",
-          "title": "feat: updated UI and skills mechanics",
-          "description": ""
-        },
-        {
-          "hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
-          "authoredAt": "2026-07-27T14:17:45-04:00",
-          "title": "feat: freeze mechanics",
-          "description": ""
-        },
-        {
-          "hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
-          "authoredAt": "2026-07-27T12:55:53-04:00",
-          "title": "feat: reworked a few spells and spec files",
-          "description": ""
-        },
-        {
-          "hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",
-          "authoredAt": "2026-07-27T08:46:50-04:00",
-          "title": "feat: UX and lore",
-          "description": ""
-        },
-        {
-          "hash": "1f380da97891f9c554a4311b5961c88503b1bf7a",
-          "authoredAt": "2026-07-27T08:31:56-04:00",
-          "title": "fix: amulets slots",
-          "description": ""
-        },
-        {
-          "hash": "09f1c72b241eef14058fdf04cecfa3efdb974c32",
-          "authoredAt": "2026-07-27T07:55:20-04:00",
-          "title": "fix: fixed force field skill",
-          "description": ""
-        },
-        {
-          "hash": "cacc8b5b801ca50912e53f420a033307fa0bc235",
-          "authoredAt": "2026-07-27T07:41:07-04:00",
-          "title": "feat: FTUE, UI bugs",
-          "description": ""
-        }
-      ],
-      "summaryTitle": "Implement Bonus XP and New Mechanics",
-      "summary": "Added bonus experience for sending items, updated UI and skills mechanics, introduced freeze mechanics, reworked several spells and spec files, and added new UX elements and lore.",
-      "categories": [
-        "General fixes",
-        "Refactor"
-      ]
-    }
-  ]
+	"week": "2026-W30",
+	"label": "Week of July 20, 2026",
+	"generatedAt": "2026-08-07T22:13:54.311Z",
+	"model": "gemma4:e2b",
+	"periods": [
+		{
+			"key": "2026-W30",
+			"label": "Week of July 20, 2026",
+			"commits": [
+				{
+					"hash": "494f58e9f7c234aa421fc741b99006339423d2e0",
+					"authoredAt": "2026-07-27T16:29:33-04:00",
+					"title": "feat: send is bonus XP",
+					"description": ""
+				},
+				{
+					"hash": "5cbbb7aa2c84aa0dacf52c502f128c7e6c382bce",
+					"authoredAt": "2026-07-27T15:51:03-04:00",
+					"title": "feat: updated UI and skills mechanics",
+					"description": ""
+				},
+				{
+					"hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
+					"authoredAt": "2026-07-27T14:17:45-04:00",
+					"title": "feat: freeze mechanics",
+					"description": ""
+				},
+				{
+					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
+					"authoredAt": "2026-07-27T12:55:53-04:00",
+					"title": "feat: reworked a few spells and spec files",
+					"description": ""
+				},
+				{
+					"hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",
+					"authoredAt": "2026-07-27T08:46:50-04:00",
+					"title": "feat: UX and lore",
+					"description": ""
+				},
+				{
+					"hash": "1f380da97891f9c554a4311b5961c88503b1bf7a",
+					"authoredAt": "2026-07-27T08:31:56-04:00",
+					"title": "fix: amulets slots",
+					"description": ""
+				},
+				{
+					"hash": "09f1c72b241eef14058fdf04cecfa3efdb974c32",
+					"authoredAt": "2026-07-27T07:55:20-04:00",
+					"title": "fix: fixed force field skill",
+					"description": ""
+				},
+				{
+					"hash": "cacc8b5b801ca50912e53f420a033307fa0bc235",
+					"authoredAt": "2026-07-27T07:41:07-04:00",
+					"title": "feat: FTUE, UI bugs",
+					"description": ""
+				}
+			],
+			"summaryTitle": "Implement Bonus XP and New Mechanics",
+			"summary": "Added bonus experience for sending items, updated UI and skills mechanics, introduced freeze mechanics, reworked several spells and spec files, and added new UX elements and lore.",
+			"categories": ["General fixes", "Refactor"]
+		}
+	]
 }

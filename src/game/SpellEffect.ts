@@ -12,6 +12,9 @@ export type SpellEffectKind =
 	| "arcaneBoltExplosion";
 
 export const ELBO_HEIGHT = 0.8;
+export const FORCE_FIELD_ANIMATION_DURATION = 0.9;
+export const FORCE_FIELD_LIGHT_FADE_DURATION = 1;
+export const FORCE_FIELD_LIGHT_INTENSITY = 45;
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -94,7 +97,8 @@ export class SpellEffect extends GameObject {
 						: kind === "rent"
 							? 0.7
 							: kind === "gravityPull"
-								? 0.9
+								? FORCE_FIELD_ANIMATION_DURATION +
+									FORCE_FIELD_LIGHT_FADE_DURATION
 								: 0.55);
 
 		this.effectGroup = new THREE.Group();
@@ -129,17 +133,27 @@ export class SpellEffect extends GameObject {
 
 	override updateVisuals(_time: number): void {
 		super.updateVisuals(_time);
-		const progress = Math.min(1, this.age / this.lifetime);
+		const animationDuration =
+			this.kind === "gravityPull"
+				? FORCE_FIELD_ANIMATION_DURATION
+				: this.lifetime;
+		const progress = Math.min(1, this.age / animationDuration);
 		if (this.spellLight) {
 			const persistent = this.source !== undefined;
 			this.spellLight.intensity = persistent
 				? 16 + 6 * (0.5 + 0.5 * Math.sin(_time * 7))
-				: (this.kind === "arcaneBoltExplosion"
-						? 90
-						: this.kind === "gravityPull"
-							? 45
-							: 20) *
-					(1 - progress);
+				: this.kind === "gravityPull"
+					? this.age >=
+						FORCE_FIELD_ANIMATION_DURATION + FORCE_FIELD_LIGHT_FADE_DURATION
+						? 0
+						: FORCE_FIELD_LIGHT_INTENSITY *
+							Math.max(
+								0,
+								1 -
+									Math.max(0, this.age - FORCE_FIELD_ANIMATION_DURATION) /
+										FORCE_FIELD_LIGHT_FADE_DURATION,
+							)
+					: (this.kind === "arcaneBoltExplosion" ? 90 : 20) * (1 - progress);
 		}
 
 		while (this.effectGroup.children.length > 0) {

@@ -4,6 +4,8 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 
 The HUD groups every timed hero effect above the Health bar: harmful statuses are red-outlined, while positive buffs are green-outlined. Positive timed buffs include XP Send, Reflective Surge, and Rapid Regeneration. This rule supersedes older placement descriptions elsewhere in this file.
 
+Superseding the older hero-light height description below, the hero's warm-white spotlight sits at `z = 72`, safely above its complete 50-unit silhouette, and uses a 62-degree half-angle. Its roughly 135-unit floor radius is wider than the former pool, while the lower source produces longer, more readable shadows from nearby obstacles without placing the light inside the hero model.
+
 ## Unarmed Combat
 
 An empty main-hand slot resolves to an unarmed physical attack profile: `1 + effective Strength` base damage, 1.4 m range, and one attack per second. Basic weapon and unarmed attacks cost no Rage; each basic attack the local hero launches grants 3 Rage at the moment of the swing, whether or not it lands, and no longer restores an authored base Rage value on a damaging hit. Punches use the ordinary critical-hit and target-mitigation rules, but have no weapon affixes or weapon/offensive active skills. Independent offhand and globally bound effects—including Healing, auras, Attraction, and buckler Blocking—remain available. Empty-handed clones and death echoes use this same profile.
