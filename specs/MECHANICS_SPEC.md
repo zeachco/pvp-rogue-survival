@@ -2,7 +2,7 @@
 
 This specification extends `specs/SPEC.md` and is authoritative for arena simulation, movement, targeting, telegraphs, projectiles, collision resolution, and local defeat reset behavior. Progression, itemization, stat formulas, wave composition, generated builds, XP, drops, and rival scaling belong in `specs/PROGRESSION_SPEC.md`. Individual spell contracts live in `specs/spells/`; item-applied slow contracts live in `specs/item-effects/`.
 
-The HUD groups timed effects above the XP bar: harmful statuses are red-outlined, while positive buffs are green-outlined. Positive timed buffs include XP Send, Reflective Surge, and Rapid Regeneration.
+The HUD groups every timed hero effect above the Health bar: harmful statuses are red-outlined, while positive buffs are green-outlined. Positive timed buffs include XP Send, Reflective Surge, and Rapid Regeneration. This rule supersedes older placement descriptions elsewhere in this file.
 
 ## Unarmed Combat
 
