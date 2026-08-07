@@ -18,6 +18,12 @@ import { InMemoryPlayerRepository } from "./domain.ts";
 import type { PlayerRepository } from "./domain.ts";
 import { SqlPlayerRepository } from "./SqlPlayerRepository.ts";
 import { GameService } from "./GameService.ts";
+import {
+	InMemoryDevlogRequestStore,
+	SqlDevlogRequestStore,
+	type DevlogRequestKind,
+	type DevlogRequestStore,
+} from "./DevlogRequestRepository.ts";
 
 interface PlayerSocket extends WebSocket {
 	playerId?: PlayerId;
@@ -27,6 +33,7 @@ interface PlayerSocket extends WebSocket {
 export interface AppOptions {
 	root: string;
 	databaseUrl?: string | false;
+	devlogRequestStore?: DevlogRequestStore;
 }
 const PERSIST_INTERVAL_MS = 60_000;
 export const RESTART_COUNTDOWN_MS = 30_000;
@@ -42,6 +49,7 @@ export async function createApp(options: AppOptions) {
 	let closePromise: Promise<void> | undefined;
 	let restartPromise: Promise<void> | undefined;
 	let repository: PlayerRepository;
+	let devlogRequests: DevlogRequestStore;
 	if (options.databaseUrl === false)
 		repository = new InMemoryPlayerRepository();
 	else {
@@ -51,6 +59,15 @@ export async function createApp(options: AppOptions) {
 		if (databaseUrl.startsWith("sqlite:") || databaseUrl.startsWith("file:"))
 			mkdirSync(join(options.root, "server-data"), { recursive: true });
 		repository = await SqlPlayerRepository.open(databaseUrl);
+	}
+	if (options.devlogRequestStore) devlogRequests = options.devlogRequestStore;
+	else if (options.databaseUrl === false)
+		devlogRequests = new InMemoryDevlogRequestStore();
+	else {
+		const databaseUrl =
+			options.databaseUrl ??
+			`sqlite://${join(options.root, "server-data", "players.sqlite")}`;
+		devlogRequests = await SqlDevlogRequestStore.open(databaseUrl);
 	}
 	const sendToPlayer = (playerId: PlayerId, message: ServerMessage) => {
 		for (const socket of sockets.values())
@@ -73,9 +90,19 @@ export async function createApp(options: AppOptions) {
 	});
 	const broadcastLeaderboard = () =>
 		broadcastAnonymousLeaderboard(sockets.values(), game);
-	const server = createServer((request, response) =>
-		serveStatic(request, response, publicRoot),
-	);
+	const server = createServer((request, response) => {
+		void serveRequest(request, response, publicRoot, devlogRequests).catch(
+			(error) => {
+				console.error(
+					"[MLH][devlog] request failed",
+					error instanceof Error ? error.message : error,
+				);
+				if (!response.headersSent)
+					json(response, 500, { error: "The request could not be completed." });
+				else response.end();
+			},
+		);
+	});
 	const wss = new WebSocketServer({ server, path: "/ws" });
 	wss.on("connection", (socket: PlayerSocket) => {
 		if (closing) {
@@ -210,6 +237,7 @@ export async function createApp(options: AppOptions) {
 			);
 			await repository.persist();
 			await repository.close?.();
+			await devlogRequests.close?.();
 			for (const socket of sockets.values()) socket.terminate();
 			await closeServer(server);
 		})());
@@ -219,7 +247,7 @@ export async function createApp(options: AppOptions) {
 			await new Promise<void>((resolve) => setTimeout(resolve, countdownMs));
 			await close();
 		})());
-	return { server, game, repository, close, restart };
+	return { server, game, repository, devlogRequests, close, restart };
 }
 
 export function broadcastRestartNotice(
@@ -284,15 +312,70 @@ function closeServer(server: ReturnType<typeof createServer>): Promise<void> {
 		server.close((error) => (error ? reject(error) : resolve()));
 	});
 }
-async function serveStatic(
+async function serveRequest(
 	request: IncomingMessage,
 	response: ServerResponse,
 	publicRoot: string,
+	devlogRequests: DevlogRequestStore,
 ): Promise<void> {
 	const url = new URL(
 		request.url ?? "/",
 		`http://${request.headers.host ?? "localhost"}`,
 	);
+	if (url.pathname === "/api/devlog/requests") {
+		if (request.method === "GET") {
+			json(response, 200, { requests: await devlogRequests.list() });
+			return;
+		}
+		if (request.method === "POST") {
+			const input = await readJson(request);
+			const validated = parseDevlogRequestInput(input);
+			if (!validated) {
+				json(response, 400, {
+					error:
+						"Choose feature or bug, use a 3-100 character title, and a 10-2000 character description.",
+				});
+				return;
+			}
+			json(response, 201, {
+				request: await devlogRequests.create(validated),
+			});
+			return;
+		}
+		methodNotAllowed(response, "GET, POST");
+		return;
+	}
+	const voteMatch = url.pathname.match(
+		/^\/api\/devlog\/requests\/([0-9a-f-]+)\/vote$/i,
+	);
+	if (voteMatch) {
+		if (request.method !== "POST") {
+			methodNotAllowed(response, "POST");
+			return;
+		}
+		const input = await readJson(request);
+		const voterId =
+			typeof input?.voterId === "string" ? input.voterId.trim() : "";
+		const value = input?.value;
+		if (
+			!/^[-_a-zA-Z0-9]{16,80}$/.test(voterId) ||
+			(value !== -1 && value !== 0 && value !== 1)
+		) {
+			json(response, 400, { error: "Invalid vote." });
+			return;
+		}
+		const updated = await devlogRequests.vote(voteMatch[1], voterId, value);
+		if (!updated) {
+			json(response, 404, { error: "Request not found." });
+			return;
+		}
+		json(response, 200, { request: updated });
+		return;
+	}
+	if (url.pathname.startsWith("/api/")) {
+		json(response, 404, { error: "Not found." });
+		return;
+	}
 	const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
 	const filePath = normalize(join(publicRoot, pathname));
 	if (!filePath.startsWith(publicRoot)) {
@@ -309,6 +392,66 @@ async function serveStatic(
 		response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
 		response.end(index);
 	}
+}
+
+async function readJson(
+	request: IncomingMessage,
+): Promise<Record<string, unknown> | undefined> {
+	const chunks: Buffer[] = [];
+	let size = 0;
+	for await (const chunk of request) {
+		const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+		size += buffer.length;
+		if (size > 8_192) throw new Error("Request body is too large.");
+		chunks.push(buffer);
+	}
+	try {
+		const value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+		return value && typeof value === "object"
+			? (value as Record<string, unknown>)
+			: undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function isRequestKind(value: unknown): value is DevlogRequestKind {
+	return value === "feature" || value === "bug";
+}
+
+export function parseDevlogRequestInput(
+	input: Record<string, unknown> | undefined,
+): { kind: DevlogRequestKind; title: string; description: string } | undefined {
+	const kind = input?.kind;
+	const title = typeof input?.title === "string" ? input.title.trim() : "";
+	const description =
+		typeof input?.description === "string" ? input.description.trim() : "";
+	if (
+		!isRequestKind(kind) ||
+		title.length < 3 ||
+		title.length > 100 ||
+		description.length < 10 ||
+		description.length > 2_000
+	)
+		return undefined;
+	return { kind, title, description };
+}
+
+function json(
+	response: ServerResponse,
+	status: number,
+	body: Record<string, unknown>,
+): void {
+	response.writeHead(status, {
+		"content-type": "application/json; charset=utf-8",
+		"cache-control": "no-store",
+	});
+	response.end(JSON.stringify(body));
+}
+
+function methodNotAllowed(response: ServerResponse, allow: string): void {
+	response.setHeader("allow", allow);
+	json(response, 405, { error: "Method not allowed." });
 }
 function contentType(filePath: string): string {
 	const extension = extname(filePath);

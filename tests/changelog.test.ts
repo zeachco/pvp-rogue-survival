@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { monthKey, parseGitLog, startOfMonth } from "../scripts/changelog";
+import {
+	monthKey,
+	monthStartsBetween,
+	parseGitLog,
+	startOfMonth,
+} from "../scripts/changelog";
 
 describe("generated devlog history", () => {
 	test("parses commit titles and descriptions without diff content", () => {
@@ -22,5 +27,13 @@ describe("generated devlog history", () => {
 		const previous = new Date(january.getFullYear(), january.getMonth() - 1, 1);
 		expect(monthKey(january)).toBe("2026-01");
 		expect(monthKey(previous)).toBe("2025-12");
+	});
+
+	test("lists every calendar month between two dates", () => {
+		expect(
+			monthStartsBetween(new Date(2025, 10, 18), new Date(2026, 1, 2)).map(
+				monthKey,
+			),
+		).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
 	});
 });
