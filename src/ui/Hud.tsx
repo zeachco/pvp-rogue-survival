@@ -2830,7 +2830,7 @@ export class Hud {
 			</div>
 		) as HTMLElement;
 		this.allocationNode.append(
-			<strong class="allocation-title">Attribute allocation</strong>,
+			<strong class="allocation-title">Level-up allocation</strong>,
 			controls,
 		);
 		const currentValues = (): Stats => ({ ...values });

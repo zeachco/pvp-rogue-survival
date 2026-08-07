@@ -4,7 +4,6 @@ For each categories under, chose one easy to implement task, do it and remove th
 
 ## Fixes
 
-- preview stats when overing stats allocator doesn't show char stats properly. it should also be renamed
 - when disconnected from a server, show in the logs that the servers closed the connexion on their side
 - in options panel, the settings for lights, make the `all` the default and make it pre selected by the radio button, then store to the local storage the value, not on the player
 
