@@ -24,7 +24,9 @@
 	--character-panel-width: 320px;
 	--inventory-panel-width: 640px;
 	--inventory-panel-preview-width: 640px;
-	--build-panel-inset: 16px;
+	--build-panel-vertical-inset: 64px;
+	--character-panel-left-inset: 112px;
+	--inventory-panel-right-inset: 64px;
 	--ground-item-preview-gap: 6px;
 	--game-header-height: 52px;
 	font-family:
@@ -106,7 +108,7 @@ input {
 	top: 16px;
 	right: calc(
 		var(--inventory-panel-preview-width) +
-		var(--build-panel-inset) +
+		var(--inventory-panel-right-inset) +
 		var(--ground-item-preview-gap)
 	);
 	width: min(320px, calc(100vw - 32px));
@@ -1344,9 +1346,9 @@ input {
 .character-panel {
 	position: absolute;
 	z-index: 8;
-	top: var(--build-panel-inset);
-	bottom: var(--build-panel-inset);
-	left: var(--build-panel-inset);
+	top: var(--build-panel-vertical-inset);
+	bottom: var(--build-panel-vertical-inset);
+	left: var(--character-panel-left-inset);
 	display: grid;
 	align-content: start;
 	width: var(--character-panel-width);
@@ -1366,11 +1368,11 @@ input {
 .inventory-column {
 	position: absolute;
 	z-index: 8;
-	top: var(--build-panel-inset);
-	right: var(--build-panel-inset);
-	bottom: var(--build-panel-inset);
+	top: var(--build-panel-vertical-inset);
+	right: var(--inventory-panel-right-inset);
+	bottom: var(--build-panel-vertical-inset);
 	display: grid;
-	grid-template-rows: auto minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
 	width: var(--inventory-panel-width);
 	min-height: 200px;
 	gap: 8px;
@@ -1448,10 +1450,10 @@ input {
 	font-size: 18px;
 	line-height: 1;
 }
-.character-panel > .panel-toggle {
+.character-panel-toggle {
 	left: 20px;
 }
-.inventory-column > .panel-toggle {
+.inventory-panel-toggle {
 	right: 20px;
 }
 .inventory-content {

@@ -2,11 +2,6 @@
 
 For each categories under, chose one easy to implement task, do it and remove that from the list once confirmed by the user that it's done
 
-## ux
-
-- panels for char and inventory don't displace other UI elements anymore, player level is centered middle, chat isn't displaced either, perspective is now
-  transform: perspective(100px) translateX(0) rotateY(+/- 0.5deg);
-
 ## Fixes
 
 - preview stats when overing stats allocator doesn't show char stats properly. it should also be renamed

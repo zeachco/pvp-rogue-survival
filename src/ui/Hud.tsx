@@ -489,7 +489,7 @@ export class Hud {
 		back.onclick = callbacks.onBack;
 		this.characterToggle = (
 			<button
-				class="panel-toggle"
+				class="panel-toggle character-panel-toggle"
 				type="button"
 				aria-label="Collapse character sheet"
 				title={panelToggleTooltip("character", false)}
@@ -500,7 +500,7 @@ export class Hud {
 		) as HTMLButtonElement;
 		this.inventoryToggle = (
 			<button
-				class="panel-toggle"
+				class="panel-toggle inventory-panel-toggle"
 				type="button"
 				aria-label="Collapse inventory"
 				title={panelToggleTooltip("inventory", false)}
@@ -511,16 +511,12 @@ export class Hud {
 		) as HTMLButtonElement;
 		this.characterPanel = (
 			<aside class="character-panel">
-				{this.characterToggle}
 				{back}
 				{this.sheetNode}
 			</aside>
 		) as HTMLElement;
 		this.inventoryPanel = (
-			<aside class="inventory-column">
-				{this.inventoryToggle}
-				{this.inventoryNode}
-			</aside>
+			<aside class="inventory-column">{this.inventoryNode}</aside>
 		) as HTMLElement;
 		this.inventoryNode.append(
 			this.inventoryHeader,
@@ -680,6 +676,8 @@ export class Hud {
 				{this.resourceDock}
 				{this.characterPanel}
 				{this.inventoryPanel}
+				{this.characterToggle}
+				{this.inventoryToggle}
 				{this.itemHoverCard}
 			</div>
 		) as HTMLElement;
@@ -2815,7 +2813,7 @@ export class Hud {
 			</div>
 		) as HTMLElement;
 		this.allocationNode.append(
-			<strong class="allocation-title">Next-level allocation</strong>,
+			<strong class="allocation-title">Attribute allocation</strong>,
 			controls,
 		);
 		const currentValues = (): Stats => ({ ...values });
@@ -2842,20 +2840,28 @@ export class Hud {
 					: (Object.fromEntries(
 							STAT_KEYS.map((key) => [key, p.stats[key] + values[key]]),
 						) as Stats);
-			const currentEffective = statsWithItemBonuses(
-				p.stats,
-				p.mainHand,
-				p.offHand,
-				p.amulet,
-				p.charm,
+			const effects = statEffects(
+				activeStatBuffs(this.player!, p),
+				hasThornsSkill(p.learnedSkills, [
+					p.mainHand,
+					p.offHand,
+					p.amulet,
+					p.charm,
+				]),
 			);
-			const projectedEffective = statsWithItemBonuses(
-				projected,
-				p.mainHand,
-				p.offHand,
-				p.amulet,
-				p.charm,
-			);
+			const projectAttributes = (baseStats: Stats): Stats =>
+				projectUnitState({
+					baseStats,
+					mainHand: p.mainHand,
+					offHand: p.offHand,
+					amulet: p.amulet,
+					charm: p.charm,
+					blockingLevel: effectiveSkillLevel(p, "blocking"),
+					attractionLevel: effectiveSkillLevel(p, "attraction"),
+					effects,
+				}).attributes;
+			const currentEffective = projectAttributes(p.stats);
+			const projectedEffective = projectAttributes(projected);
 			for (const key of STAT_KEYS) {
 				const node = grid?.querySelector<HTMLElement>(`[data-stat="${key}"] b`);
 				if (node) {
