@@ -10,9 +10,9 @@ describe("semantic commit hook", () => {
 		expect(
 			isSemanticCommitMessage("docs(game rules): explain matchmaking"),
 		).toBe(true);
-		expect(isSemanticCommitMessage("perf(path finding): reduce allocations")).toBe(
-			true,
-		);
+		expect(
+			isSemanticCommitMessage("perf(path finding): reduce allocations"),
+		).toBe(true);
 	});
 
 	test("rejects unsupported or incomplete commit messages", () => {

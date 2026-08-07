@@ -52,7 +52,7 @@ describe("generated devlog history", () => {
 			entry("docs(readme): explain matchmaking"),
 			entry("chore: update tooling"),
 			entry("test: cover drops"),
-			entry("refactor(server)!: split wave builder"),
+			entry("refactor(server): split wave builder"),
 		]);
 
 		expect(selected.commits.map(({ title }) => title)).toEqual([
