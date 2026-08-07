@@ -10,9 +10,21 @@ body {
 }
 
 main {
-	width: min(920px, calc(100% - 32px));
+	width: min(1440px, calc(100% - 32px));
 	margin: 0 auto;
 	padding: 48px 0 80px;
+}
+
+.devlog-columns {
+	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
+	gap: 28px;
+	align-items: start;
+}
+
+.changelog-column,
+.requests-column {
+	min-width: 0;
 }
 
 header {
@@ -352,5 +364,11 @@ li small {
 	#request-form label:last-of-type,
 	.form-actions {
 		grid-column: auto;
+	}
+}
+
+@media (max-width: 980px) {
+	.devlog-columns {
+		grid-template-columns: 1fr;
 	}
 }
