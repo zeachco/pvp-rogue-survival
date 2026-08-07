@@ -63,6 +63,7 @@ import {
 import { starterClub } from "../common/items";
 import {
 	arcaneBoltExplosionRadius,
+	attackProfile,
 	BASIC_ATTACK_RAGE_GAIN,
 	HEALING_MAX_RADIUS,
 	healingCast,
@@ -88,6 +89,7 @@ import {
 } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
 import {
+	basicWeaponHitCount,
 	cancelHostileProjectiles,
 	castForceField,
 	castForceFieldTargets,
@@ -116,7 +118,12 @@ import {
 	applySceneLightingMode,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
-import { DEFAULT_GRAPHICS_SETTINGS } from "../src/game/graphicsSettings";
+import {
+	DEFAULT_GRAPHICS_SETTINGS,
+	LIGHTING_MODE_STORAGE_KEY,
+	loadLightingMode,
+	saveLightingMode,
+} from "../src/game/graphicsSettings";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
 
 describe("animated 3D characters", () => {
@@ -169,6 +176,19 @@ describe("animated 3D characters", () => {
 		}
 		expect(enemyRoleLight("creep")).toBeUndefined();
 		expect(enemyRoleLight("invader")).toBeUndefined();
+	});
+	test("stores lighting as a browser-local preference and defaults invalid values to off", () => {
+		const values = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => values.set(key, value),
+		};
+		expect(loadLightingMode(storage)).toBe("off");
+		saveLightingMode(storage, "all");
+		expect(values.get(LIGHTING_MODE_STORAGE_KEY)).toBe("all");
+		expect(loadLightingMode(storage)).toBe("all");
+		values.set(LIGHTING_MODE_STORAGE_KEY, "invalid");
+		expect(loadLightingMode(storage)).toBe("off");
 	});
 
 	test("applies ambient-only, hero-only, and all lighting modes", () => {
@@ -1196,6 +1216,21 @@ describe("arena systems", () => {
 			costLabel: "Free attack proc",
 		});
 		expect(procSlot?.procChancesOnAttacks).toBeGreaterThan(0);
+	});
+	test("counts every unit in a basic weapon hit for spell-proc scaling", () => {
+		const mace = generateItem(1, "common", 104, {
+			allowedClasses: ["mace"],
+		});
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(ZERO_STATS, undefined, mace);
+		const profile = attackProfile(mace, ZERO_STATS, "hero", BALANCE);
+		const creeps = [
+			makeCreep("one", { x: 50, y: 0 }),
+			makeCreep("two", { x: -50, y: 0 }),
+			makeCreep("three", { x: 0, y: 50 }),
+			makeCreep("outside", { x: profile.range + 100, y: 0 }),
+		];
+		expect(basicWeaponHitCount(hero, creeps, mace, profile)).toBe(3);
 	});
 	test("restores resources and clears transient combat state for a new realm", () => {
 		const hero = new Hero({ x: 50, y: 50 });

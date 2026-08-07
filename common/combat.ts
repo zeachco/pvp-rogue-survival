@@ -208,6 +208,16 @@ export function reflectiveSurgeBlockChanceBonus(level: number): number {
 export function weaponSkillTriggerChance(effectiveCooldown: number): number {
 	return Math.min(1, 1 / Math.max(Number.EPSILON, effectiveCooldown));
 }
+
+export function weaponSkillTriggerChanceForHits(
+	effectiveCooldown: number,
+	hitCount: number,
+): number {
+	return Math.min(
+		1,
+		weaponSkillTriggerChance(effectiveCooldown) * Math.max(0, hitCount),
+	);
+}
 export function bucklerBlockCost(item: ItemInstance, stats: Stats): number {
 	if (item.itemKind !== "buckler") return 0;
 	if (!item.reflectionComponents.includes("return")) return 1;

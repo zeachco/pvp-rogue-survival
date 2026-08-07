@@ -616,6 +616,7 @@ export class Hud {
 		this.resourceDock.append(
 			(
 				<div class="health-cluster">
+					{this.timedEffects}
 					{this.healthBar.node}
 					{this.rageLine}
 					{this.rageValue}
@@ -624,7 +625,6 @@ export class Hud {
 			(
 				<div class="xp-cluster">
 					{this.xpToast}
-					{this.timedEffects}
 					{this.trainingModeStatus}
 					{this.xpBadge}
 				</div>
@@ -2096,17 +2096,25 @@ export class Hud {
 		rapidRegenRemaining: number,
 	): void {
 		const buff = xpSendBuffSummary(buffs);
+		const rapidRegenLevel = this.player
+			? effectiveSkillLevel(this.player.progress, "rapidRegen")
+			: 0;
+		const rapidRegenTooltip = `Rapid Regeneration — ${fmt(rapidRegenMultiplier(rapidRegenLevel) * 100)}% normal regeneration + 0.1 HP/s · ${fmt(rapidRegenRemaining)}s remaining`;
+		const reflectiveSurgeLevel = this.player
+			? effectiveSkillLevel(this.player.progress, "reflectiveSurge")
+			: 0;
+		const reflectiveSurgeTooltip = `Reflective Surge — doubles returned damage and adds ${fmt(reflectiveSurgeBlockChanceBonus(reflectiveSurgeLevel) * 100)}% block chance · ${fmt(reflectiveSurgeRemaining)}s remaining`;
 		this.beneficialEffects.replaceChildren(
 			...(rapidRegenRemaining > 0
 				? [
 						<span
 							class="beneficial-effect beneficial-effect-rapid-regen"
 							tabindex="0"
-							aria-label={`Rapid Regeneration — ${fmt(rapidRegenRemaining)}s remaining`}
+							aria-label={rapidRegenTooltip}
 						>
 							<span aria-hidden="true">+</span>
 							<span class="beneficial-effect-tooltip" role="tooltip">
-								Rapid Regeneration — {fmt(rapidRegenRemaining)}s remaining
+								{rapidRegenTooltip}
 							</span>
 						</span>,
 					]
@@ -2116,11 +2124,11 @@ export class Hud {
 						<span
 							class="beneficial-effect beneficial-effect-reflective-surge"
 							tabindex="0"
-							aria-label={`Reflective Surge — ${fmt(reflectiveSurgeRemaining)}s remaining`}
+							aria-label={reflectiveSurgeTooltip}
 						>
 							<span aria-hidden="true">◈</span>
 							<span class="beneficial-effect-tooltip" role="tooltip">
-								Reflective Surge — {fmt(reflectiveSurgeRemaining)}s remaining
+								{reflectiveSurgeTooltip}
 							</span>
 						</span>,
 					]

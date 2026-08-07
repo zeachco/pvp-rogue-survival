@@ -88,6 +88,7 @@ import {
 	weaponRange,
 	weaponUsesProjectile,
 	weaponSkillTriggerChance,
+	weaponSkillTriggerChanceForHits,
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
@@ -1590,6 +1591,8 @@ test("keeps unlearned weapon actives off the rail while retaining them as cooldo
 	expect(weaponSkillTriggerChance(10)).toBe(0.1);
 	expect(weaponSkillTriggerChance(1)).toBe(1);
 	expect(weaponSkillTriggerChance(0.5)).toBe(1);
+	expect(weaponSkillTriggerChanceForHits(10, 3)).toBeCloseTo(0.3);
+	expect(weaponSkillTriggerChanceForHits(1, 3)).toBe(1);
 });
 
 test("scales Reflective Surge cooldown, duration, and block bonus to exact endpoints", () => {

@@ -1314,21 +1314,16 @@ input {
 	transform: translateX(-50%);
 }
 
-.timed-effects:has(+ .training-mode-status:not(.is-hidden)) {
-	bottom: calc(100% + 31px);
-}
-
 .timed-effects {
 	position: absolute;
 	bottom: calc(100% + 9px);
-	left: 50%;
+	right: 0;
 	display: flex;
 	width: max-content;
 	max-width: min(440px, 60vw);
 	gap: 4px;
 	align-items: center;
-	justify-content: center;
-	transform: translateX(-50%);
+	justify-content: flex-end;
 	pointer-events: auto;
 }
 
@@ -2403,6 +2398,7 @@ input {
 }
 
 .health-cluster {
+	position: relative;
 	justify-self: end;
 }
 .mana-cluster {

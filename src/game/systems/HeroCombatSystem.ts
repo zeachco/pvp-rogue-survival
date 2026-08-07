@@ -37,6 +37,7 @@ import {
 	whirlwindDuration,
 	whirlwindMovementSpeed,
 	weaponSkillTriggerChance,
+	weaponSkillTriggerChanceForHits,
 	whirlwindRadius,
 	BASIC_ATTACK_RAGE_GAIN,
 } from "../../../common/combat";
@@ -264,6 +265,7 @@ export class HeroCombatSystem {
 		const profile = hero.state.attack;
 		const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 		const procSkills = weaponProcSkills(progress);
+		const procHitCount = basicWeaponHitCount(hero, state.creeps, item, profile);
 		const castingProc = this.casting
 			? procSkills.find(({ id }) => id === this.casting?.id)
 			: undefined;
@@ -282,7 +284,10 @@ export class HeroCombatSystem {
 					level,
 					Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
 				);
-				if (random.next() < weaponSkillTriggerChance(cooldown))
+				if (
+					random.next() <
+					weaponSkillTriggerChanceForHits(cooldown, procHitCount)
+				)
 					this.pendingWeaponProcs.push(id);
 			}
 		const triggeredProc = procSkills.find(
@@ -957,6 +962,35 @@ export function pointAlongFacing(
 		x: position.x + Math.cos(facing) * distanceFromSource,
 		y: position.y + Math.sin(facing) * distanceFromSource,
 	};
+}
+
+export function basicWeaponHitCount(
+	hero: Hero,
+	creeps: Creep[],
+	item: ItemInstance | undefined,
+	profile: ReturnType<typeof attackProfile>,
+): number {
+	if (profile.projectile) return 1;
+	const halfArc =
+		item?.definitionId === "staff"
+			? STAFF_BASIC_HALF_ARC
+			: item?.definitionId === "mace" ||
+					item?.definitionId === "club" ||
+					item?.definitionId === "hammer"
+				? Math.PI
+				: 0.72;
+	return creeps.filter((creep) => {
+		if (!creep.active) return false;
+		const dx = creep.position.x - hero.position.x;
+		const dy = creep.position.y - hero.position.y;
+		if (Math.hypot(dx, dy) > profile.range + creep.radius) return false;
+		if (halfArc >= Math.PI) return true;
+		const delta = Math.atan2(
+			Math.sin(Math.atan2(dy, dx) - hero.facing),
+			Math.cos(Math.atan2(dy, dx) - hero.facing),
+		);
+		return Math.abs(delta) <= halfArc;
+	}).length;
 }
 
 function closestTarget(

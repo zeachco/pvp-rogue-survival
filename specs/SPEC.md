@@ -62,6 +62,9 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 7. Visual and UX Direction
 
+- `Off` remains selected when no graphics preference exists. The selected valid Lights mode is stored in browser local storage rather than player state and restored whenever a new scene initializes.
+- Active hero status and beneficial-effect badges sit above the Health bar rather than above the central level badge. Every badge exposes a hover and keyboard-focus tooltip naming the effect, its remaining duration, and its relevant live magnitude or mechanic, such as combined damage per second for damaging statuses or Reflective Surge's doubled returned damage and block-chance bonus.
+
 - A creep inspection character panel is intentionally compact: it shows only the creep name, level, live/current HP against combat maximum HP, current timed states, unmodified base attributes, and equipped Main hand, Offhand, Amulet, and Charm details. It does not show XP reward or the derived Effective stats section. Local and public hero character panels retain their existing advanced-stat presentation.
 - Pointer-hover creep preview never replaces or expands the character panel. It appears as a compact, non-interactive tooltip centered at the top of the arena and shows only name, level, live/current HP against combat maximum HP, current timed states, equipped-item icons, and unmodified base attributes. Poison, Burn, Bleed, Frost/Freeze, Stun, Shock, Curse, Rapid Regeneration, and Reflective Surge use compact state badges, including stack count and remaining duration when applicable. Leaving the creep hides the tooltip and preserves whichever hero or committed creep inspection was already shown in the character panel.
 
@@ -224,6 +227,8 @@ The current client intentionally uses the proven legacy Three.js WebGL renderer 
 - Stable-DOM performance is behavioral: scalar resource/XP values update in place each frame; expensive character, spell, realm, and inventory subtrees are replaced only when their flattened signatures change. Canvas owns map, units, telegraphs, projectiles, drops, spell effects, selection, indicators, and floating combat text; DOM owns joining and all persistent interactive controls.
 
 ## 13. Development Process
+
+- New scenes restore a valid browser-local Lights preference and otherwise use the `Off` default below.
 
 - Lights default to `Off` when no graphics setting has been selected, and every new scene initializes from that same shared default. `Off` disables lighting and renders every mesh with an unlit material so its authored color remains readable. This applies recursively to existing and subsequently added meshes and supersedes the earlier ambient-only Off description.
 - SIGINT begins immediate graceful shutdown. Superseding the earlier immediate-SIGTERM description, SIGTERM for managed redeployments first broadcasts a realm system message to every joined player that the server will restart and disconnect them in 30 seconds, keeps the server available during that countdown, and then begins the same graceful shutdown. The deployment termination window must exceed 30 seconds; SIGKILL itself cannot be observed or delayed by an application.
