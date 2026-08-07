@@ -1,0 +1,23 @@
+{
+	"week": "2026-W30",
+	"label": "Week of July 20, 2026",
+	"generatedAt": "2026-08-07T11:53:59.468Z",
+	"model": "gemma4:e2b",
+	"periods": [
+		{
+			"key": "2026-W30",
+			"label": "Week of July 20, 2026",
+			"commits": [
+				{
+					"hash": "cacc8b5b801ca50912e53f420a033307fa0bc235",
+					"authoredAt": "2026-07-27T07:41:07-04:00",
+					"title": "feat: FTUE, UI bugs",
+					"description": ""
+				}
+			],
+			"summaryTitle": "FTUE and UI Bug Fixes",
+			"summary": "Implemented the new FTUE and addressed various UI bugs.",
+			"categories": []
+		}
+	]
+}

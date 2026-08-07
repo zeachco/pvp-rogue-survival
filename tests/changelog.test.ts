@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
-	monthKey,
-	monthStartsBetween,
 	parseGitLog,
+	projectInitializationCommit,
 	selectChangelogCommits,
 	semanticCommitType,
-	startOfMonth,
+	startOfWeek,
+	weekKey,
+	weekStartsBetween,
 } from "../scripts/changelog";
 
 describe("generated devlog history", () => {
@@ -24,19 +25,29 @@ describe("generated devlog history", () => {
 		]);
 	});
 
-	test("computes local calendar month boundaries across years", () => {
-		const january = startOfMonth(new Date(2026, 0, 20, 12));
-		const previous = new Date(january.getFullYear(), january.getMonth() - 1, 1);
-		expect(monthKey(january)).toBe("2026-01");
-		expect(monthKey(previous)).toBe("2025-12");
+	test("computes ISO calendar week boundaries across years", () => {
+		const newYear = startOfWeek(new Date(2026, 0, 1, 12));
+		const nextWeek = startOfWeek(new Date(2026, 0, 5, 12));
+		expect(newYear).toEqual(new Date(2025, 11, 29));
+		expect(weekKey(newYear)).toBe("2026-W01");
+		expect(weekKey(nextWeek)).toBe("2026-W02");
 	});
 
-	test("lists every calendar month between two dates", () => {
+	test("lists every ISO calendar week between two dates", () => {
 		expect(
-			monthStartsBetween(new Date(2025, 10, 18), new Date(2026, 1, 2)).map(
-				monthKey,
+			weekStartsBetween(new Date(2025, 11, 28), new Date(2026, 0, 6)).map(
+				weekKey,
 			),
-		).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+		).toEqual(["2025-W52", "2026-W01", "2026-W02"]);
+	});
+
+	test("represents repository creation as a reportable first-week entry", () => {
+		expect(projectInitializationCommit("2026-07-07T18:01:40-04:00")).toEqual({
+			hash: "project-initialization",
+			authoredAt: "2026-07-07T18:01:40-04:00",
+			title: "Initialized project",
+			description: "",
+		});
 	});
 
 	test("keeps player-facing semantic changes and groups maintenance work", () => {

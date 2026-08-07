@@ -18,18 +18,19 @@ export interface DevlogPeriod {
 	categories: string[];
 }
 
-export interface MonthlyDevlog {
-	month: string;
+export interface WeeklyDevlog {
+	week: string;
 	label: string;
 	generatedAt: string;
 	model: string;
 	periods: DevlogPeriod[];
 }
 
-interface MonthSource {
+interface WeekSource {
 	key: string;
 	commits: CommitEntry[];
 	groupedCategories: string[];
+	projectInitialized: boolean;
 }
 
 interface GeneratedPeriod {
@@ -77,18 +78,35 @@ export function selectChangelogCommits(commits: CommitEntry[]): {
 	};
 }
 
-function hasUpdates(month: MonthSource): boolean {
-	return month.commits.length > 0 || month.groupedCategories.length > 0;
+export function projectInitializationCommit(authoredAt: string): CommitEntry {
+	return {
+		hash: "project-initialization",
+		authoredAt,
+		title: "Initialized project",
+		description: "",
+	};
 }
 
-export function startOfMonth(date: Date): Date {
-	return new Date(date.getFullYear(), date.getMonth(), 1);
+function hasUpdates(week: WeekSource): boolean {
+	return week.commits.length > 0 || week.groupedCategories.length > 0;
 }
 
-export function monthKey(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	return `${year}-${month}`;
+export function startOfWeek(date: Date): Date {
+	const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+	const daysSinceMonday = (start.getDay() + 6) % 7;
+	start.setDate(start.getDate() - daysSinceMonday);
+	return start;
+}
+
+export function weekKey(date: Date): string {
+	const monday = startOfWeek(date);
+	const thursday = new Date(monday);
+	thursday.setDate(monday.getDate() + 3);
+	const weekYear = thursday.getFullYear();
+	const firstMonday = startOfWeek(new Date(weekYear, 0, 4));
+	const week =
+		Math.round((monday.getTime() - firstMonday.getTime()) / 604_800_000) + 1;
+	return `${weekYear}-W${String(week).padStart(2, "0")}`;
 }
 
 export function parseGitLog(raw: string): CommitEntry[] {
@@ -109,37 +127,41 @@ export function parseGitLog(raw: string): CommitEntry[] {
 }
 
 function formatGitDate(date: Date): string {
-	return `${monthKey(date)}-01`;
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
 }
 
-export function monthStartsBetween(from: Date, through: Date): Date[] {
+export function weekStartsBetween(from: Date, through: Date): Date[] {
 	const starts: Date[] = [];
-	const cursor = startOfMonth(from);
-	const last = startOfMonth(through);
+	const cursor = startOfWeek(from);
+	const last = startOfWeek(through);
 	while (cursor <= last) {
 		starts.push(new Date(cursor));
-		cursor.setMonth(cursor.getMonth() + 1);
+		cursor.setDate(cursor.getDate() + 7);
 	}
 	return starts;
 }
 
-function monthLabel(key: string): string {
-	return new Intl.DateTimeFormat("en-CA", {
+function weekLabel(start: Date): string {
+	const date = new Intl.DateTimeFormat("en-CA", {
+		day: "numeric",
 		month: "long",
 		year: "numeric",
-		timeZone: "UTC",
-	}).format(new Date(`${key}-01T00:00:00Z`));
+	}).format(start);
+	return `Week of ${date}`;
 }
 
-async function gitLogs(from: Date, until: Date): Promise<CommitEntry[]> {
+async function gitLogs(from: Date, before: Date): Promise<CommitEntry[]> {
 	const raw =
-		await $`git log --since=${formatGitDate(from)} --until=${formatGitDate(until)} --date=iso-strict --format=${GIT_LOG_FORMAT}`.text();
+		await $`git log --since=${formatGitDate(from)} --before=${formatGitDate(before)} --date=iso-strict --format=${GIT_LOG_FORMAT}`.text();
 	return parseGitLog(raw);
 }
 
-function promptFor(months: MonthSource[]): string {
-	const requestedKeys = months.filter(hasUpdates).map(({ key }) => key);
-	const logs = months
+function promptFor(weeks: WeekSource[]): string {
+	const requestedKeys = weeks.filter(hasUpdates).map(({ key }) => key);
+	const logs = weeks
 		.map(({ key, commits, groupedCategories }) => {
 			const entries = commits
 				.map(
@@ -148,18 +170,18 @@ function promptFor(months: MonthSource[]): string {
 				)
 				.join("\n\n");
 			const grouped = groupedCategories.length
-				? `Grouped monthly categories (do not expand into individual changes): ${groupedCategories.join(", ")}`
+				? `Grouped weekly categories (do not expand into individual changes): ${groupedCategories.join(", ")}`
 				: "";
 			return `${key}:\n${[entries, grouped].filter(Boolean).join("\n\n") || "No updates."}`;
 		})
 		.join("\n\n");
 
 	return `Write concise, gamer-facing development changelogs from only the supplied semantic Git commit titles and descriptions. Do not invent details or mention commit hashes.
-Use balance for balance-change descriptions, fix for bugs fixed, feat for features added, ux for design or experience changes, and perf for what became faster. General fixes and Refactor are presence-only monthly categories: mention each at most once and never infer or enumerate its underlying work.
-Return only strict JSON shaped as {"periods":[{"key":"YYYY-MM","title":"short headline","summary":"one detailed paragraph","categories":["concise category"]}]}.
-Return exactly one period for every requested month, in this order: ${requestedKeys.join(", ")}.
+Use balance for balance-change descriptions, fix for bugs fixed, feat for features added, ux for design or experience changes, and perf for what became faster. General fixes and Refactor are presence-only weekly categories: mention each at most once and never infer or enumerate its underlying work.
+Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":"one detailed paragraph","categories":["concise category"]}]}.
+Return exactly one period for every requested week, in this order: ${requestedKeys.join(", ")}.
 
-Git logs for the requested months:
+Git logs for the requested weeks:
 ${logs}`;
 }
 
@@ -178,32 +200,37 @@ function extractPeriods(raw: string): GeneratedPeriod[] {
 }
 
 function buildDocument(
-	month: MonthSource,
+	week: WeekSource,
+	start: Date,
 	generated: Map<string, GeneratedPeriod>,
-): MonthlyDevlog {
-	const result = generated.get(month.key);
+): WeeklyDevlog {
+	const result = generated.get(week.key);
 	if (typeof result?.title !== "string" || typeof result.summary !== "string")
-		throw new Error(`Ollama omitted or invalidated ${month.key}.`);
+		throw new Error(`Ollama omitted or invalidated ${week.key}.`);
 	const categories = Array.isArray(result.categories)
 		? result.categories.filter(
 				(category): category is string => typeof category === "string",
 			)
 		: [];
-	for (const category of month.groupedCategories)
+	for (const category of week.groupedCategories)
 		if (!categories.includes(category)) categories.push(category);
+	if (week.projectInitialized && !categories.includes("Project initialization"))
+		categories.push("Project initialization");
 	const periods: DevlogPeriod[] = [
 		{
-			key: month.key,
-			label: monthLabel(month.key),
-			commits: month.commits,
-			summaryTitle: result.title,
+			key: week.key,
+			label: weekLabel(start),
+			commits: week.commits,
+			summaryTitle: week.projectInitialized
+				? "Initialized project"
+				: result.title,
 			summary: result.summary,
 			categories,
 		},
 	];
 	return {
-		month: month.key,
-		label: monthLabel(month.key),
+		week: week.key,
+		label: weekLabel(start),
 		generatedAt: new Date().toISOString(),
 		model: MODEL,
 		periods,
@@ -218,33 +245,46 @@ async function firstCommitDate(): Promise<Date> {
 	return new Date(authoredAt);
 }
 
-async function sourceMonths(options: ChangelogOptions): Promise<MonthSource[]> {
-	const currentStart = startOfMonth(new Date());
-	const previousStart = new Date(
-		currentStart.getFullYear(),
-		currentStart.getMonth() - 1,
-		1,
-	);
+async function sourceWeeks(
+	options: ChangelogOptions,
+): Promise<Array<WeekSource & { start: Date }>> {
+	const firstDate = await firstCommitDate();
+	const firstWeekKey = weekKey(firstDate);
+	const currentStart = startOfWeek(new Date());
+	const previousStart = new Date(currentStart);
+	previousStart.setDate(previousStart.getDate() - 7);
 	const starts = options.all
-		? monthStartsBetween(await firstCommitDate(), currentStart)
+		? weekStartsBetween(firstDate, currentStart)
 		: [previousStart, currentStart];
 	return Promise.all(
 		starts.map(async (start) => {
-			const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+			const end = new Date(start);
+			end.setDate(end.getDate() + 7);
+			const key = weekKey(start);
+			const selected = selectChangelogCommits(await gitLogs(start, end));
+			const projectInitialized = key === firstWeekKey;
 			return {
-				key: monthKey(start),
-				...selectChangelogCommits(await gitLogs(start, end)),
+				key,
+				start,
+				...selected,
+				projectInitialized,
+				commits: projectInitialized
+					? [
+							projectInitializationCommit(firstDate.toISOString()),
+							...selected.commits,
+						]
+					: selected.commits,
 			};
 		}),
 	);
 }
 
 async function generatePeriods(
-	months: MonthSource[],
+	weeks: WeekSource[],
 	separateRequests: boolean,
 ): Promise<Map<string, GeneratedPeriod>> {
 	const generated = new Map<string, GeneratedPeriod>();
-	const requests = separateRequests ? months.map((month) => [month]) : [months];
+	const requests = separateRequests ? weeks.map((week) => [week]) : [weeks];
 	for (const request of requests) {
 		if (!request.some(hasUpdates)) continue;
 		const prompt = promptFor(request);
@@ -253,9 +293,9 @@ async function generatePeriods(
 		for (const period of extractPeriods(response)) {
 			if (typeof period.key === "string") generated.set(period.key, period);
 		}
-		for (const month of request) {
-			if (hasUpdates(month) && !generated.has(month.key))
-				throw new Error(`Ollama omitted or invalidated ${month.key}.`);
+		for (const week of request) {
+			if (hasUpdates(week) && !generated.has(week.key))
+				throw new Error(`Ollama omitted or invalidated ${week.key}.`);
 		}
 	}
 	return generated;
@@ -268,16 +308,16 @@ async function main(): Promise<void> {
 	if (unknownArguments.length > 0)
 		throw new Error(`Unknown argument: ${unknownArguments.join(", ")}`);
 	const all = Bun.argv.includes("--all");
-	const months = await sourceMonths({ all });
-	const generated = await generatePeriods(months, all);
+	const weeks = await sourceWeeks({ all });
+	const generated = await generatePeriods(weeks, all);
 
 	const outputDirectory = resolve(process.cwd(), "changelogs");
 	await mkdir(outputDirectory, { recursive: true });
-	for (const month of months) {
-		const path = join(outputDirectory, `${month.key}.json`);
-		const contents = !hasUpdates(month)
+	for (const week of weeks) {
+		const path = join(outputDirectory, `${week.key}.json`);
+		const contents = !hasUpdates(week)
 			? '"No updates."\n'
-			: `${JSON.stringify(buildDocument(month, generated), null, 2)}\n`;
+			: `${JSON.stringify(buildDocument(week, week.start, generated), null, 2)}\n`;
 		await Bun.write(path, contents);
 		console.log(`Wrote ${path}`);
 	}
