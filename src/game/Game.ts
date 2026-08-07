@@ -511,8 +511,7 @@ export class Game {
 			this.hero.applyProgress(message.progress, true);
 			this.syncHeroState();
 			this.hud.setPlayer(this.player);
-			if (this.waveMode === "training") this.hud.showXpToast(message.reason);
-			else this.hud.setNotice(message.reason);
+			if (this.waveMode !== "training") this.hud.setNotice(message.reason);
 		} else if (message.type === "progressionUpdated" && this.player) {
 			this.player.progress = message.progress;
 			this.player.xpSendBuffs = message.xpSendBuffs;
