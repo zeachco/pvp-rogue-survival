@@ -6,6 +6,7 @@
 	"scripts": {
 		"test": "bun test",
 		"changelog": "bun scripts/changelog.ts",
+		"changelog:all": "bun scripts/changelog.ts --all",
 		"reset": "bun server/resetLocalDatabase.ts",
 		"dev": "bun run --watch --parallel client server",
 		"client": "bunx vite --host 0.0.0.0",

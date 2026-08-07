@@ -38,6 +38,10 @@ interface GeneratedPeriod {
 	categories?: unknown;
 }
 
+interface ChangelogOptions {
+	all: boolean;
+}
+
 const MODEL = "gemma4:e2b";
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
 
@@ -68,17 +72,19 @@ export function parseGitLog(raw: string): CommitEntry[] {
 		});
 }
 
-export function groupByDay(commits: CommitEntry[]): Map<string, CommitEntry[]> {
-	const groups = new Map<string, CommitEntry[]>();
-	for (const commit of commits) {
-		const key = commit.authoredAt.slice(0, 10);
-		groups.set(key, [...(groups.get(key) ?? []), commit]);
-	}
-	return new Map([...groups].sort(([a], [b]) => b.localeCompare(a)));
-}
-
 function formatGitDate(date: Date): string {
 	return `${monthKey(date)}-01`;
+}
+
+export function monthStartsBetween(from: Date, through: Date): Date[] {
+	const starts: Date[] = [];
+	const cursor = startOfMonth(from);
+	const last = startOfMonth(through);
+	while (cursor <= last) {
+		starts.push(new Date(cursor));
+		cursor.setMonth(cursor.getMonth() + 1);
+	}
+	return starts;
 }
 
 function monthLabel(key: string): string {
@@ -89,13 +95,6 @@ function monthLabel(key: string): string {
 	}).format(new Date(`${key}-01T00:00:00Z`));
 }
 
-function dayLabel(key: string): string {
-	return new Intl.DateTimeFormat("en-CA", {
-		dateStyle: "long",
-		timeZone: "UTC",
-	}).format(new Date(`${key}T00:00:00Z`));
-}
-
 async function gitLogs(from: Date, until: Date): Promise<CommitEntry[]> {
 	const raw =
 		await $`git log --since=${formatGitDate(from)} --until=${formatGitDate(until)} --date=iso-strict --format=${GIT_LOG_FORMAT}`.text();
@@ -103,9 +102,9 @@ async function gitLogs(from: Date, until: Date): Promise<CommitEntry[]> {
 }
 
 function promptFor(months: MonthSource[]): string {
-	const requestedKeys = months.flatMap(({ commits }) => [
-		...groupByDay(commits).keys(),
-	]);
+	const requestedKeys = months
+		.filter(({ commits }) => commits.length > 0)
+		.map(({ key }) => key);
 	const logs = months
 		.map(({ key, commits }) => {
 			const entries = commits
@@ -119,10 +118,10 @@ function promptFor(months: MonthSource[]): string {
 		.join("\n\n");
 
 	return `Write concise, gamer-facing development changelogs from only the supplied Git commit titles and descriptions. Do not invent details or mention commit hashes.
-Return only strict JSON shaped as {"periods":[{"key":"YYYY-MM-DD","title":"short headline","summary":"one paragraph","categories":["concise category"]}]}.
-Return exactly one period for every requested day, in this order: ${requestedKeys.join(", ")}.
+Return only strict JSON shaped as {"periods":[{"key":"YYYY-MM","title":"short headline","summary":"one detailed paragraph","categories":["concise category"]}]}.
+Return exactly one period for every requested month, in this order: ${requestedKeys.join(", ")}.
 
-Git logs for the previous and current months:
+Git logs for the requested months:
 ${logs}`;
 }
 
@@ -144,24 +143,24 @@ function buildDocument(
 	month: MonthSource,
 	generated: Map<string, GeneratedPeriod>,
 ): MonthlyDevlog {
-	const periods = [...groupByDay(month.commits)].map(([key, commits]) => {
-		const result = generated.get(key);
-		if (typeof result?.title !== "string" || typeof result.summary !== "string")
-			throw new Error(`Ollama omitted or invalidated ${key}.`);
-		const categories = Array.isArray(result.categories)
-			? result.categories.filter(
-					(category): category is string => typeof category === "string",
-				)
-			: [];
-		return {
-			key,
-			label: dayLabel(key),
-			commits,
+	const result = generated.get(month.key);
+	if (typeof result?.title !== "string" || typeof result.summary !== "string")
+		throw new Error(`Ollama omitted or invalidated ${month.key}.`);
+	const categories = Array.isArray(result.categories)
+		? result.categories.filter(
+				(category): category is string => typeof category === "string",
+			)
+		: [];
+	const periods: DevlogPeriod[] = [
+		{
+			key: month.key,
+			label: monthLabel(month.key),
+			commits: month.commits,
 			summaryTitle: result.title,
 			summary: result.summary,
 			categories,
-		};
-	});
+		},
+	];
 	return {
 		month: month.key,
 		label: monthLabel(month.key),
@@ -171,37 +170,63 @@ function buildDocument(
 	};
 }
 
-async function main(): Promise<void> {
+async function firstCommitDate(): Promise<Date> {
+	const authoredAt = (await $`git log --reverse --format=%aI`.text())
+		.split("\n", 1)[0]
+		?.trim();
+	if (!authoredAt) throw new Error("The repository has no commits.");
+	return new Date(authoredAt);
+}
+
+async function sourceMonths(options: ChangelogOptions): Promise<MonthSource[]> {
 	const currentStart = startOfMonth(new Date());
 	const previousStart = new Date(
 		currentStart.getFullYear(),
 		currentStart.getMonth() - 1,
 		1,
 	);
-	const nextStart = new Date(
-		currentStart.getFullYear(),
-		currentStart.getMonth() + 1,
-		1,
+	const starts = options.all
+		? monthStartsBetween(await firstCommitDate(), currentStart)
+		: [previousStart, currentStart];
+	return Promise.all(
+		starts.map(async (start) => {
+			const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+			return { key: monthKey(start), commits: await gitLogs(start, end) };
+		}),
 	);
-	const months: MonthSource[] = [
-		{
-			key: monthKey(previousStart),
-			commits: await gitLogs(previousStart, currentStart),
-		},
-		{
-			key: monthKey(currentStart),
-			commits: await gitLogs(currentStart, nextStart),
-		},
-	];
-	const monthsWithCommits = months.filter(({ commits }) => commits.length > 0);
+}
+
+async function generatePeriods(
+	months: MonthSource[],
+	separateRequests: boolean,
+): Promise<Map<string, GeneratedPeriod>> {
 	const generated = new Map<string, GeneratedPeriod>();
-	if (monthsWithCommits.length > 0) {
-		const prompt = promptFor(months);
-		const response = await $`printf %s ${prompt} | ollama run ${MODEL}`.text();
+	const requests = separateRequests ? months.map((month) => [month]) : [months];
+	for (const request of requests) {
+		if (!request.some(({ commits }) => commits.length > 0)) continue;
+		const prompt = promptFor(request);
+		const response =
+			await $`printf %s ${prompt} | ollama run ${MODEL} --format json --hidethinking --nowordwrap`.text();
 		for (const period of extractPeriods(response)) {
 			if (typeof period.key === "string") generated.set(period.key, period);
 		}
+		for (const month of request) {
+			if (month.commits.length > 0 && !generated.has(month.key))
+				throw new Error(`Ollama omitted or invalidated ${month.key}.`);
+		}
 	}
+	return generated;
+}
+
+async function main(): Promise<void> {
+	const unknownArguments = Bun.argv
+		.slice(2)
+		.filter((argument) => argument !== "--all");
+	if (unknownArguments.length > 0)
+		throw new Error(`Unknown argument: ${unknownArguments.join(", ")}`);
+	const all = Bun.argv.includes("--all");
+	const months = await sourceMonths({ all });
+	const generated = await generatePeriods(months, all);
 
 	const outputDirectory = resolve(process.cwd(), "changelogs");
 	await mkdir(outputDirectory, { recursive: true });

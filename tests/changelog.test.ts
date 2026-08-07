@@ -1,11 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	groupByDay,
-	monthKey,
-	parseGitLog,
-	startOfMonth,
-	type CommitEntry,
-} from "../scripts/changelog";
+import { monthKey, parseGitLog, startOfMonth } from "../scripts/changelog";
 
 describe("generated devlog history", () => {
 	test("parses commit titles and descriptions without diff content", () => {
@@ -21,41 +15,6 @@ describe("generated devlog history", () => {
 				description: "Explains the HUD change.",
 			},
 		]);
-	});
-
-	test("groups commits into newest-first website periods", () => {
-		const commits: CommitEntry[] = [
-			{
-				hash: "new-a",
-				authoredAt: "2026-08-05T12:00:00Z",
-				title: "New A",
-				description: "",
-			},
-			{
-				hash: "new-b",
-				authoredAt: "2026-08-05T08:00:00Z",
-				title: "New B",
-				description: "",
-			},
-			{
-				hash: "old-a",
-				authoredAt: "2026-06-20T12:00:00Z",
-				title: "Old A",
-				description: "",
-			},
-			{
-				hash: "old-b",
-				authoredAt: "2026-06-01T12:00:00Z",
-				title: "Old B",
-				description: "",
-			},
-		];
-		expect([...groupByDay(commits).keys()]).toEqual([
-			"2026-08-05",
-			"2026-06-20",
-			"2026-06-01",
-		]);
-		expect(groupByDay(commits).get("2026-08-05")).toHaveLength(2);
 	});
 
 	test("computes local calendar month boundaries across years", () => {

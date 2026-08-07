@@ -1,0 +1,485 @@
+{
+  "month": "2026-07",
+  "label": "July 2026",
+  "generatedAt": "2026-08-07T03:26:38.781Z",
+  "model": "gemma4:e2b",
+  "periods": [
+    {
+      "key": "2026-07",
+      "label": "July 2026",
+      "commits": [
+        {
+          "hash": "a26adbf16f3d405193272b98f1ebf32aa850427f",
+          "authoredAt": "2026-08-01T23:16:46-04:00",
+          "title": "feat: 3D animated models",
+          "description": ""
+        },
+        {
+          "hash": "25a9744ed3ba6b91e645272b7a0ca12addb5e8cc",
+          "authoredAt": "2026-07-30T23:40:03-04:00",
+          "title": "feat: assets",
+          "description": ""
+        },
+        {
+          "hash": "f4d3d6a3cbcdf0ab25de230d553931b4edd17282",
+          "authoredAt": "2026-07-30T22:42:10-04:00",
+          "title": "chore: a few fixes",
+          "description": "- Added a shared checked 2D canvas-context helper, replacing three\nunsafe assertions.\n  - Removed unsafe non-null assertions from realm updates and legacy\nitem migration.\n  - Synchronized protocol documentation and test naming with runtime\nprotocol version 36.\n  - Kept gameplay and UX behavior unchanged."
+        },
+        {
+          "hash": "983bb2abb38b30b86c9a72493c17346681ce08ee",
+          "authoredAt": "2026-07-29T20:40:19-04:00",
+          "title": "feat: skills overflow",
+          "description": ""
+        },
+        {
+          "hash": "2dc74137e8738680648e570729938983e66539fd",
+          "authoredAt": "2026-07-29T12:26:53-04:00",
+          "title": "fix: long spell bar",
+          "description": ""
+        },
+        {
+          "hash": "883ae1526f68db65a9d4d84b898bfba75bb9e0f4",
+          "authoredAt": "2026-07-29T12:11:05-04:00",
+          "title": "feat: healing spell effect",
+          "description": ""
+        },
+        {
+          "hash": "075b611b1b45ed78a811f7ddeabf044c87f7b1a2",
+          "authoredAt": "2026-07-29T12:04:12-04:00",
+          "title": "fix: healing",
+          "description": ""
+        },
+        {
+          "hash": "2c8d9dd7d6baba38cb42a82e8524abdcf7f86373",
+          "authoredAt": "2026-07-29T11:51:07-04:00",
+          "title": "chore: balance and fixes",
+          "description": ""
+        },
+        {
+          "hash": "d3b964db5064cc3f5a711f49148b619c72c626a8",
+          "authoredAt": "2026-07-29T00:48:05-04:00",
+          "title": "docs: some ideas and fix",
+          "description": ""
+        },
+        {
+          "hash": "1d4babf1e9ddf0a0cb64714dd2daa6b08ca2c28d",
+          "authoredAt": "2026-07-28T21:30:22-04:00",
+          "title": "fix: some visual and chat bugs",
+          "description": ""
+        },
+        {
+          "hash": "cc28695259b4a63e5c7cc4b151d8ebbf1269b9a2",
+          "authoredAt": "2026-07-28T20:59:22-04:00",
+          "title": "feat: adds chat system",
+          "description": ""
+        },
+        {
+          "hash": "45951aaa48aca2ebdbf4ff11b74e7f3be72f4618",
+          "authoredAt": "2026-07-28T00:34:07-04:00",
+          "title": "fix: camera zoom",
+          "description": ""
+        },
+        {
+          "hash": "a6ae6ab52c9eb7686f42a02320ee41f199827489",
+          "authoredAt": "2026-07-27T23:56:05-04:00",
+          "title": "feat: refactor to use 3D map",
+          "description": ""
+        },
+        {
+          "hash": "fde33541abe68bea37ada8d82e9e57e374b7ee27",
+          "authoredAt": "2026-07-27T21:31:21-04:00",
+          "title": "feat: autofilter",
+          "description": ""
+        },
+        {
+          "hash": "3b89e14f0865f54e13cc54169614bab31facacaf",
+          "authoredAt": "2026-07-27T20:20:54-04:00",
+          "title": "chore: added UX about reflection",
+          "description": ""
+        },
+        {
+          "hash": "f2f7e3bee87c5ce1612f76c35a071a58896d1d68",
+          "authoredAt": "2026-07-27T20:12:54-04:00",
+          "title": "chore: adds formatter",
+          "description": ""
+        },
+        {
+          "hash": "78d51167e4b14e3100d42d37c2434a5c23721768",
+          "authoredAt": "2026-07-27T20:00:37-04:00",
+          "title": "format",
+          "description": ""
+        },
+        {
+          "hash": "b119f41e0cbf5fb1d42fc245d0d6cdaa8798769f",
+          "authoredAt": "2026-07-27T19:33:19-04:00",
+          "title": "refactor: rage mechanism, basic attack",
+          "description": ""
+        },
+        {
+          "hash": "41b01ef75a48f8060310d54bff5bde88ec1281ab",
+          "authoredAt": "2026-07-27T18:47:10-04:00",
+          "title": "refactor: major changes of skills and mechanism",
+          "description": ""
+        },
+        {
+          "hash": "bdf2cb03ac6438873aa62764408817d5d4de8bcb",
+          "authoredAt": "2026-07-27T17:04:34-04:00",
+          "title": "refactor: all spells have cast time and run parallel to weapon",
+          "description": ""
+        },
+        {
+          "hash": "494f58e9f7c234aa421fc741b99006339423d2e0",
+          "authoredAt": "2026-07-27T16:29:33-04:00",
+          "title": "feat: send is bonus XP",
+          "description": ""
+        },
+        {
+          "hash": "5cbbb7aa2c84aa0dacf52c502f128c7e6c382bce",
+          "authoredAt": "2026-07-27T15:51:03-04:00",
+          "title": "feat: updated UI and skills mechanics",
+          "description": ""
+        },
+        {
+          "hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
+          "authoredAt": "2026-07-27T14:17:45-04:00",
+          "title": "feat: freeze mechanics",
+          "description": ""
+        },
+        {
+          "hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
+          "authoredAt": "2026-07-27T12:55:53-04:00",
+          "title": "feat: reworked a few spells and spec files",
+          "description": ""
+        },
+        {
+          "hash": "0a45ed625aa5bf0d1e3d74cd5d41f02ae31cffb7",
+          "authoredAt": "2026-07-27T11:10:11-04:00",
+          "title": "chore: ux",
+          "description": ""
+        },
+        {
+          "hash": "70985cc2296a6d95731d8139ccb53c364b6816c1",
+          "authoredAt": "2026-07-27T09:57:28-04:00",
+          "title": "chore: skills and items tweaks",
+          "description": ""
+        },
+        {
+          "hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",
+          "authoredAt": "2026-07-27T08:46:50-04:00",
+          "title": "feat: UX and lore",
+          "description": ""
+        },
+        {
+          "hash": "1f380da97891f9c554a4311b5961c88503b1bf7a",
+          "authoredAt": "2026-07-27T08:31:56-04:00",
+          "title": "fix: amulets slots",
+          "description": ""
+        },
+        {
+          "hash": "09f1c72b241eef14058fdf04cecfa3efdb974c32",
+          "authoredAt": "2026-07-27T07:55:20-04:00",
+          "title": "fix: fixed force field skill",
+          "description": ""
+        },
+        {
+          "hash": "cacc8b5b801ca50912e53f420a033307fa0bc235",
+          "authoredAt": "2026-07-27T07:41:07-04:00",
+          "title": "feat: FTUE, UI bugs",
+          "description": ""
+        },
+        {
+          "hash": "894c10cbe05bc63b58596e835256b7a77d107f6f",
+          "authoredAt": "2026-07-15T08:23:43-04:00",
+          "title": "fix: extract button bug",
+          "description": ""
+        },
+        {
+          "hash": "26053a5df3ad67e84d1bc9922c2da228a1ba63b9",
+          "authoredAt": "2026-07-15T08:06:26-04:00",
+          "title": "chore: economy tweak",
+          "description": ""
+        },
+        {
+          "hash": "33e24e00125b6fc5579a80ee89aab523733e6b15",
+          "authoredAt": "2026-07-15T00:25:30-04:00",
+          "title": "fix: fixed rent and scepter auras mechanics",
+          "description": ""
+        },
+        {
+          "hash": "7e065f2cd61d861da274a32aea8a1b5817130216",
+          "authoredAt": "2026-07-15T00:10:18-04:00",
+          "title": "refactor: tweaks for spells and re-org code",
+          "description": ""
+        },
+        {
+          "hash": "1f7f9174d4cfa26bc63cf5b2e686ef36cd68f6a6",
+          "authoredAt": "2026-07-14T23:34:25-04:00",
+          "title": "feat: rings, amulets and new spells and mechanics around blood magic",
+          "description": ""
+        },
+        {
+          "hash": "bf8b4fd8f98513d0ee7e75275c52770459c7018e",
+          "authoredAt": "2026-07-14T23:22:43-04:00",
+          "title": "chore: UI/UX tweaks",
+          "description": ""
+        },
+        {
+          "hash": "ba766c67cfd7359e591c21c9b86ea8224580bd32",
+          "authoredAt": "2026-07-14T23:15:42-04:00",
+          "title": "chore: spell tweaks",
+          "description": ""
+        },
+        {
+          "hash": "48bcf9d128d29ccaeb75898caeac35ef7c6b00b3",
+          "authoredAt": "2026-07-14T22:37:29-04:00",
+          "title": "feat: new spells and tweaks (auras)",
+          "description": ""
+        },
+        {
+          "hash": "8b48fa8b5c816c33c10b61a94e9721304638fee9",
+          "authoredAt": "2026-07-14T22:05:50-04:00",
+          "title": "feat: server recover and tweaks",
+          "description": ""
+        },
+        {
+          "hash": "ad66d62f0a4845197d279c5867426e051d82253d",
+          "authoredAt": "2026-07-14T21:25:25-04:00",
+          "title": "feat: leaderboard",
+          "description": ""
+        },
+        {
+          "hash": "156b582c732a09aa7ea0316b38bed9e9ea11f484",
+          "authoredAt": "2026-07-14T21:15:18-04:00",
+          "title": "chore: tweak game bootstrap and rebirth",
+          "description": ""
+        },
+        {
+          "hash": "04ce85a19a68e38c3a8e0c03cd5adaf2fd5e34bb",
+          "authoredAt": "2026-07-14T20:56:46-04:00",
+          "title": "chore: HUI",
+          "description": ""
+        },
+        {
+          "hash": "8f846c3325470da38a86e0f7c38c9436ba17a347",
+          "authoredAt": "2026-07-14T20:15:18-04:00",
+          "title": "feat: suicide and top player mechanics",
+          "description": ""
+        },
+        {
+          "hash": "19a0a3b3318e9d4d83010208c5997dc20d538e5e",
+          "authoredAt": "2026-07-14T20:07:05-04:00",
+          "title": "chore: tweak spels",
+          "description": ""
+        },
+        {
+          "hash": "9cce06c75982b8e1e1c19c64afe25adcd1fdb54e",
+          "authoredAt": "2026-07-14T20:00:10-04:00",
+          "title": "chore: tweak items generation",
+          "description": ""
+        },
+        {
+          "hash": "57ed45a1ddb318f56bca59bb59f6940728092491",
+          "authoredAt": "2026-07-14T18:22:26-04:00",
+          "title": "chore: startup tweaks",
+          "description": ""
+        },
+        {
+          "hash": "1129d4fb3ba96421052e215669a7ca4a23e3564a",
+          "authoredAt": "2026-07-14T18:15:37-04:00",
+          "title": "feat: DB based server using bun SQL",
+          "description": ""
+        },
+        {
+          "hash": "80e85dcd3ee53a8fd4fb8edf9c786e17c8f4c282",
+          "authoredAt": "2026-07-14T17:50:05-04:00",
+          "title": "DB setup",
+          "description": ""
+        },
+        {
+          "hash": "d0cf0fe8e2fa4f140ed900eb31b70338bbd6bcd2",
+          "authoredAt": "2026-07-14T17:18:02-04:00",
+          "title": "fix: server setup",
+          "description": ""
+        },
+        {
+          "hash": "dae81d2e9c9c22748390a774c7a1ba0e0a5dc3bc",
+          "authoredAt": "2026-07-14T16:48:14-04:00",
+          "title": "feat: multiplayer tweaks",
+          "description": ""
+        },
+        {
+          "hash": "99494f9151a5a581c8f72bf1e6b18535971beecf",
+          "authoredAt": "2026-07-14T16:00:23-04:00",
+          "title": "feat: tweaks and improved solo play",
+          "description": ""
+        },
+        {
+          "hash": "b9beb862a370947a3f4c8ca8089531a09285be50",
+          "authoredAt": "2026-07-14T15:34:44-04:00",
+          "title": "feat: weapon tweaks",
+          "description": ""
+        },
+        {
+          "hash": "a5c38f5e7126f2383a587ade0707c0e88d472bba",
+          "authoredAt": "2026-07-14T15:05:53-04:00",
+          "title": "feat: more UX and added panel information",
+          "description": ""
+        },
+        {
+          "hash": "d97ad378cd7b0c418916b8916b771af8531ae966",
+          "authoredAt": "2026-07-14T14:55:59-04:00",
+          "title": "feat: UI and diffs",
+          "description": ""
+        },
+        {
+          "hash": "4a9653457a327991c70a9eeb9ff4babd3aa53c22",
+          "authoredAt": "2026-07-14T14:15:54-04:00",
+          "title": "ux: inventory",
+          "description": ""
+        },
+        {
+          "hash": "ff91cd8419802c6927062fa8015c7ed0fe512f33",
+          "authoredAt": "2026-07-14T14:06:46-04:00",
+          "title": "chore: balancing spells",
+          "description": ""
+        },
+        {
+          "hash": "03ea82aa67a5aac43185a709fdd8a53f217a6513",
+          "authoredAt": "2026-07-14T10:27:57-04:00",
+          "title": "feat: UX and tweaks",
+          "description": ""
+        },
+        {
+          "hash": "a0527b266429c85f5a1c8c9a90db20d3be6ece64",
+          "authoredAt": "2026-07-14T01:12:32-04:00",
+          "title": "chore: UI stuff",
+          "description": ""
+        },
+        {
+          "hash": "8dad401e1d38e49ad41712ecb320c963fab2cdea",
+          "authoredAt": "2026-07-14T01:04:44-04:00",
+          "title": "feat: hui char stats",
+          "description": ""
+        },
+        {
+          "hash": "7a65bdc2a62b49a8ac783ab3ef0dc6e821cd897b",
+          "authoredAt": "2026-07-14T00:58:52-04:00",
+          "title": "mechanics",
+          "description": ""
+        },
+        {
+          "hash": "9db5e7696c39f88ff44c2d47e2838c4f76ca5774",
+          "authoredAt": "2026-07-14T00:41:51-04:00",
+          "title": "chore: UI and fixes",
+          "description": ""
+        },
+        {
+          "hash": "49429192bb037f5e49bebd8852066c67e511bdd5",
+          "authoredAt": "2026-07-14T00:38:00-04:00",
+          "title": "feat: more items and spells",
+          "description": ""
+        },
+        {
+          "hash": "72f0b22cd970cafb23b953ecf7ee1727d010e855",
+          "authoredAt": "2026-07-14T00:21:59-04:00",
+          "title": "feat: game mechanics",
+          "description": ""
+        },
+        {
+          "hash": "2ed28caba9a0c0b79d09588c73fc0f93b919589c",
+          "authoredAt": "2026-07-13T23:52:49-04:00",
+          "title": "feat: some inventory / UI fixes",
+          "description": ""
+        },
+        {
+          "hash": "039dd693208090fe326aed88a05f4dd19cf918b4",
+          "authoredAt": "2026-07-13T23:34:25-04:00",
+          "title": "feat: UI numbers and weapon system",
+          "description": ""
+        },
+        {
+          "hash": "2aaa97ac45fb3e8896694ee1e3a395356eab3b11",
+          "authoredAt": "2026-07-13T19:14:31-04:00",
+          "title": "feat: UI stuff",
+          "description": ""
+        },
+        {
+          "hash": "dd70d08607b66f1efde1e7270e1443a62a334baf",
+          "authoredAt": "2026-07-13T18:59:22-04:00",
+          "title": "feat: many redesign of mechanics and UI",
+          "description": ""
+        },
+        {
+          "hash": "3abd186796b6bc23900f1b753fdaebd7487ed5fd",
+          "authoredAt": "2026-07-13T17:30:26-04:00",
+          "title": "refactor: fixed a bunch of stuff and refactor",
+          "description": ""
+        },
+        {
+          "hash": "c3522d9321208e5bfebab4d8e267e2b101cac9e6",
+          "authoredAt": "2026-07-13T10:26:05-04:00",
+          "title": "vibe",
+          "description": ""
+        },
+        {
+          "hash": "419506e3feb2033951c834e26bc84bee0c103cbf",
+          "authoredAt": "2026-07-11T12:50:24-04:00",
+          "title": "vibe organisation and mechanics",
+          "description": ""
+        },
+        {
+          "hash": "1bc409ccc11d708dd63ec20b38c96c426665e869",
+          "authoredAt": "2026-07-11T09:43:44-04:00",
+          "title": "more vibes and specs",
+          "description": ""
+        },
+        {
+          "hash": "a72ef3b4272117b3048f5083bd3ddd1930ba50bb",
+          "authoredAt": "2026-07-10T23:15:55-04:00",
+          "title": "vibe coded",
+          "description": ""
+        },
+        {
+          "hash": "99b9d07adc6f540cccb30c9ac36124b127ed4bdc",
+          "authoredAt": "2026-07-10T18:41:04-04:00",
+          "title": "rewrote to a rogue-like survivor",
+          "description": ""
+        },
+        {
+          "hash": "4ea133e75a0bc9358c687e0412f9eec9133606e8",
+          "authoredAt": "2026-07-10T18:29:05-04:00",
+          "title": "fix bug",
+          "description": ""
+        },
+        {
+          "hash": "7d392f23d68f4c733dd80e593953bdfb3075c5a7",
+          "authoredAt": "2026-07-07T20:01:42-04:00",
+          "title": "more vibes",
+          "description": ""
+        },
+        {
+          "hash": "a1a37ffc6511c2e236500bd50578d04fd0732b0d",
+          "authoredAt": "2026-07-07T18:18:59-04:00",
+          "title": "more vibe",
+          "description": ""
+        },
+        {
+          "hash": "b4f6900ed85f4e62ed6b5995ed0bc2b57ef61e18",
+          "authoredAt": "2026-07-07T18:08:17-04:00",
+          "title": "base game",
+          "description": ""
+        },
+        {
+          "hash": "1f0547fdda63137c29f98294ed363f1cdd8efbee",
+          "authoredAt": "2026-07-07T18:01:40-04:00",
+          "title": "init",
+          "description": ""
+        }
+      ],
+      "summaryTitle": "UI Redesign & Polish",
+      "summary": "A major redesign of mechanics and UI was executed, focusing on improved aesthetics, information display, and overall user experience for the game interface.",
+      "categories": []
+    }
+  ]
+}
