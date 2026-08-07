@@ -4,7 +4,6 @@ For each categories under, chose one easy to implement task, do it and remove th
 
 ## Fixes
 
-- in options panel, the settings for lights, make the `all` the default and make it pre selected by the radio button, then store to the local storage the value, not on the player
 
 ## Balance
 

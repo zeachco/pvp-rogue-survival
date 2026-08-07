@@ -3,7 +3,7 @@ export type LightingMode = "off" | "hero" | "all";
 export const LIGHTING_MODE_STORAGE_KEY = "multi-line-tower.graphics.lighting";
 
 export const DEFAULT_GRAPHICS_SETTINGS = {
-	lightingMode: "off",
+	lightingMode: "all",
 } as const satisfies { lightingMode: LightingMode };
 
 type GraphicsStorage = Pick<Storage, "getItem" | "setItem">;

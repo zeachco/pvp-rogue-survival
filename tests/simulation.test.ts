@@ -145,7 +145,7 @@ describe("animated 3D characters", () => {
 	});
 
 	test("uses a dark global baseline and short-radius role lights", () => {
-		expect(DEFAULT_GRAPHICS_SETTINGS.lightingMode).toBe("off");
+		expect(DEFAULT_GRAPHICS_SETTINGS.lightingMode).toBe("all");
 		expect(SCENE_LIGHTING).toEqual({
 			clearColor: 0x05080c,
 			ambientIntensity: { off: 1.1, hero: 0.25, all: 0.05 },
@@ -177,18 +177,18 @@ describe("animated 3D characters", () => {
 		expect(enemyRoleLight("creep")).toBeUndefined();
 		expect(enemyRoleLight("invader")).toBeUndefined();
 	});
-	test("stores lighting as a browser-local preference and defaults invalid values to off", () => {
+	test("stores lighting as a browser-local preference and defaults invalid values to all", () => {
 		const values = new Map<string, string>();
 		const storage = {
 			getItem: (key: string) => values.get(key) ?? null,
 			setItem: (key: string, value: string) => values.set(key, value),
 		};
-		expect(loadLightingMode(storage)).toBe("off");
+		expect(loadLightingMode(storage)).toBe("all");
 		saveLightingMode(storage, "all");
 		expect(values.get(LIGHTING_MODE_STORAGE_KEY)).toBe("all");
 		expect(loadLightingMode(storage)).toBe("all");
 		values.set(LIGHTING_MODE_STORAGE_KEY, "invalid");
-		expect(loadLightingMode(storage)).toBe("off");
+		expect(loadLightingMode(storage)).toBe("all");
 	});
 
 	test("applies ambient-only, hero-only, and all lighting modes", () => {

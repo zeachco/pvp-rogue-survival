@@ -62,7 +62,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 7. Visual and UX Direction
 
-- `Off` remains selected when no graphics preference exists. The selected valid Lights mode is stored in browser local storage rather than player state and restored whenever a new scene initializes.
+- `All` is selected when no graphics preference exists. The selected valid Lights mode is stored in browser local storage rather than player state and restored whenever a new scene initializes.
 - Active hero status and beneficial-effect badges sit above the Health bar rather than above the central level badge. Every badge exposes a hover and keyboard-focus tooltip naming the effect, its remaining duration, and its relevant live magnitude or mechanic, such as combined damage per second for damaging statuses or Reflective Surge's doubled returned damage and block-chance bonus.
 
 - A creep inspection character panel is intentionally compact: it shows only the creep name, level, live/current HP against combat maximum HP, current timed states, unmodified base attributes, and equipped Main hand, Offhand, Amulet, and Charm details. It does not show XP reward or the derived Effective stats section. Local and public hero character panels retain their existing advanced-stat presentation.
@@ -228,9 +228,9 @@ The current client intentionally uses the proven legacy Three.js WebGL renderer 
 
 ## 13. Development Process
 
-- New scenes restore a valid browser-local Lights preference and otherwise use the `Off` default below.
+- New scenes restore a valid browser-local Lights preference and otherwise use the `All` default below.
 
-- Lights default to `Off` when no graphics setting has been selected, and every new scene initializes from that same shared default. `Off` disables lighting and renders every mesh with an unlit material so its authored color remains readable. This applies recursively to existing and subsequently added meshes and supersedes the earlier ambient-only Off description.
+- Lights default to `All` when no graphics setting has been selected, and every new scene initializes from that same shared default. `Off` disables lighting and renders every mesh with an unlit material so its authored color remains readable. This applies recursively to existing and subsequently added meshes and supersedes the earlier ambient-only Off description.
 - SIGINT begins immediate graceful shutdown. Superseding the earlier immediate-SIGTERM description, SIGTERM for managed redeployments first broadcasts a realm system message to every joined player that the server will restart and disconnect them in 30 seconds, keeps the server available during that countdown, and then begins the same graceful shutdown. The deployment termination window must exceed 30 seconds; SIGKILL itself cannot be observed or delayed by an application.
 - When the WebSocket closes, the client appends a system entry to the chat log stating that the server closed the connection, including the close code and server-supplied reason when available, while the reconnect notice remains visible.
 - `bun run reset` transactionally deletes local heroes, checkpoints the SQLite write-ahead log, and verifies that zero heroes remain while preserving the schema.
