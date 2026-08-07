@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { $ } from "bun";
+import { z } from "zod";
 
 export interface CommitEntry {
 	hash: string;
@@ -12,9 +13,9 @@ export interface CommitEntry {
 export interface DevlogPeriod {
 	key: string;
 	label: string;
-	commits: CommitEntry[];
 	summaryTitle: string;
 	summary: string;
+	commits: CommitEntry[];
 	categories: string[];
 }
 
@@ -26,19 +27,35 @@ export interface WeeklyDevlog {
 	periods: DevlogPeriod[];
 }
 
-interface WeekSource {
+export interface WeekSource {
 	key: string;
 	commits: CommitEntry[];
 	groupedCategories: string[];
 	projectInitialized: boolean;
 }
 
-interface GeneratedPeriod {
-	key?: unknown;
-	title?: unknown;
-	summary?: unknown;
-	categories?: unknown;
-}
+const generatedPeriodSchema = z.strictObject({
+	key: z.string().regex(/^\d{4}-W\d{2}$/),
+	title: z.string().trim().min(1),
+	summary: z.string().trim().min(1),
+	categories: z.array(z.string().trim().min(1)).optional(),
+});
+
+const generatedResponseSchema = z
+	.strictObject({
+		periods: z.array(generatedPeriodSchema),
+		categories: z.array(z.string().trim().min(1)).optional(),
+	})
+	.transform(({ periods, categories }) => ({
+		periods: periods.map((period) => ({
+			...period,
+			categories: period.categories ?? categories ?? [],
+		})),
+	}));
+
+type GeneratedPeriod = z.output<
+	typeof generatedResponseSchema
+>["periods"][number];
 
 interface ChangelogOptions {
 	all: boolean;
@@ -159,7 +176,7 @@ async function gitLogs(from: Date, before: Date): Promise<CommitEntry[]> {
 	return parseGitLog(raw);
 }
 
-function promptFor(weeks: WeekSource[]): string {
+export function promptFor(weeks: WeekSource[]): string {
 	const requestedKeys = weeks.filter(hasUpdates).map(({ key }) => key);
 	const logs = weeks
 		.map(({ key, commits, groupedCategories }) => {
@@ -176,16 +193,17 @@ function promptFor(weeks: WeekSource[]): string {
 		})
 		.join("\n\n");
 
-	return `Write concise, gamer-facing development changelogs from only the supplied semantic Git commit titles and descriptions. Do not invent details or mention commit hashes.
+	return `Write detailed, gamer-facing development changelogs from only the supplied semantic Git commit titles and descriptions. Do not invent details or mention commit hashes.
 Use balance for balance-change descriptions, fix for bugs fixed, feat for features added, ux for design or experience changes, and perf for what became faster. General fixes and Refactor are presence-only weekly categories: mention each at most once and never infer or enumerate its underlying work.
-Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":"one detailed paragraph","categories":["concise category"]}]}.
+For each week, the summary must synthesize every supplied reportable commit into one detailed paragraph. Give every commit meaningful coverage, regardless of its position in the log; do not focus on or summarize only the newest or last commit.
+Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":"one detailed paragraph covering all supplied reportable commits","categories":["concise category"]}]}.
 Return exactly one period for every requested week, in this order: ${requestedKeys.join(", ")}.
 
 Git logs for the requested weeks:
 ${logs}`;
 }
 
-function extractPeriods(raw: string): GeneratedPeriod[] {
+export function extractPeriods(raw: string): GeneratedPeriod[] {
 	const clean = raw
 		.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "")
 		.replaceAll("\r", "")
@@ -193,25 +211,22 @@ function extractPeriods(raw: string): GeneratedPeriod[] {
 	const fenced = clean.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
 	const candidate =
 		fenced ?? clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1);
-	const parsed = JSON.parse(candidate) as { periods?: unknown };
-	if (!Array.isArray(parsed.periods))
-		throw new Error("Ollama returned invalid changelog JSON.");
-	return parsed.periods as GeneratedPeriod[];
+	const parsed = generatedResponseSchema.safeParse(JSON.parse(candidate));
+	if (!parsed.success)
+		throw new Error(
+			`Ollama returned invalid changelog JSON: ${z.prettifyError(parsed.error)}`,
+		);
+	return parsed.data.periods;
 }
 
-function buildDocument(
+export function buildDocument(
 	week: WeekSource,
 	start: Date,
 	generated: Map<string, GeneratedPeriod>,
 ): WeeklyDevlog {
 	const result = generated.get(week.key);
-	if (typeof result?.title !== "string" || typeof result.summary !== "string")
-		throw new Error(`Ollama omitted or invalidated ${week.key}.`);
-	const categories = Array.isArray(result.categories)
-		? result.categories.filter(
-				(category): category is string => typeof category === "string",
-			)
-		: [];
+	if (!result) throw new Error(`Ollama omitted or invalidated ${week.key}.`);
+	const categories = [...result.categories];
 	for (const category of week.groupedCategories)
 		if (!categories.includes(category)) categories.push(category);
 	if (week.projectInitialized && !categories.includes("Project initialization"))
@@ -220,11 +235,11 @@ function buildDocument(
 		{
 			key: week.key,
 			label: weekLabel(start),
-			commits: week.commits,
 			summaryTitle: week.projectInitialized
 				? "Initialized project"
 				: result.title,
 			summary: result.summary,
+			commits: week.commits,
 			categories,
 		},
 	];
