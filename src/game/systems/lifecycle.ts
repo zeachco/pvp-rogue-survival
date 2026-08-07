@@ -1,6 +1,8 @@
 import type { CreepWave, UnitBuild } from "../../../common/protocol";
 import type { ArenaState } from "../ArenaState";
 
+export const MAX_ACTIVE_CREEPS = 100;
+
 export function enqueueWave(
 	state: ArenaState,
 	wave: CreepWave,
@@ -17,6 +19,8 @@ export function releaseReadySpawns(
 	state: ArenaState,
 	now: number,
 ): UnitBuild[] {
+	if (state.creeps.filter((creep) => creep.active).length >= MAX_ACTIVE_CREEPS)
+		return [];
 	const index = state.waveQueue.findIndex((entry) => entry.spawnAt <= now);
 	if (index === -1) return [];
 

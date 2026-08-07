@@ -34,7 +34,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 ## 5. Creep and Wave Rules
 
 - The server advances a numbered wave turn for each connected player and sends one `incomingWave` payload per turn.
-- The client only spawns creeps described by server-authored waves and staggers them using the supplied interval. Browser focus loss or a delayed frame never releases a backlog together: at most one due creep is released per fixed update, preserving the authored spawn debounce while catching up.
+- The client only spawns creeps described by server-authored waves and staggers them using the supplied interval. Browser focus loss or a delayed frame never releases a backlog together: at most one due creep is released per fixed update, preserving the authored spawn debounce while catching up. At most 100 living creeps may be active in an arena at once. Due spawns beyond that cap remain in the FIFO wave queue, even as later waves arrive, and resume at the normal one-per-fixed-update cadence when defeats open slots; queued creeps are never discarded.
 - Early waves contain melee creeps. Beginning with wave 3, waves also contain ranged bubble shooters, with their presence increasing later.
 - Creep spawn positioning, steering, melee telegraphs, ranged projectiles, and collision behavior follow `specs/MECHANICS_SPEC.md`.
 - Wave size, spawn batching, generated enemy builds, XP, drops, and rival scaling follow `specs/PROGRESSION_SPEC.md`.

@@ -21,6 +21,7 @@ import {
 	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
 } from "../src/game/Projectile";
 import {
+	MAX_ACTIVE_CREEPS,
 	releaseReadySpawns,
 	removeInactive,
 } from "../src/game/systems/lifecycle";
@@ -589,6 +590,39 @@ describe("arena systems", () => {
 		);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
+	});
+	test("keeps due spawns queued until the 100-creep cap has an open slot", () => {
+		const state = new ArenaState();
+		const build = {
+			id: "waiting",
+			name: "Waiting",
+			kind: "melee" as const,
+			level: 0,
+			stats: { ...ZERO_STATS },
+			carried: [],
+			isRival: false,
+			xpReward: 0,
+			goldReward: 0,
+			seed: 1,
+		};
+		state.waveQueue.push({ build, spawnAt: 1 });
+		state.creeps.push(
+			...Array.from(
+				{ length: MAX_ACTIVE_CREEPS },
+				() => ({ active: true }) as never,
+			),
+		);
+
+		expect(releaseReadySpawns(state, 100)).toEqual([]);
+		expect(state.waveQueue.map(({ build: queued }) => queued.id)).toEqual([
+			"waiting",
+		]);
+
+		state.creeps[0].active = false;
+		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual([
+			"waiting",
+		]);
+		expect(state.waveQueue).toHaveLength(0);
 	});
 	test("runs a background frame only after animation frames become stale", () => {
 		const lastAnimationFrameAt = 1_000;
