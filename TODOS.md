@@ -5,10 +5,6 @@ For each categories under, chose one easy to implement task, do it and remove th
 ## Fixes
 
 
-## Balance
-
-- When a weapon has a change to trigger a spell on hit, it's for every unit hit, if the weapon hits 3 units, it x3 the chances (capped at 100%)
-
 ## UX
 
 - moves effects on hero over the hp bar instead of the lvl circle and add tooltips for each that display what they do (`bleed, 23dmg/sec, X secs` or `Reflective surge, doule returned damage and provide base block of x %, X secs`)
