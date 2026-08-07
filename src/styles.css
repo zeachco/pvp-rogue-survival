@@ -1221,20 +1221,31 @@ input {
 }
 
 .multiplayer-intro {
-	position: absolute;
-	z-index: 5;
-	top: 52px;
-	left: 16px;
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	z-index: 101;
 	display: flex;
 	gap: 16px;
 	align-items: center;
 	width: min(620px, calc(100vw - 32px));
+	max-height: calc(100vh - 32px);
+	overflow-y: auto;
 	border: 1px solid rgba(58, 255, 212, 0.65);
-	border-radius: 5px;
-	padding: 12px 14px;
+	border-radius: 12px;
+	padding: 22px;
 	color: #e8f9ff;
 	background: rgba(13, 24, 28, 0.96);
-	box-shadow: 0 14px 42px rgba(0, 0, 0, 0.42);
+	box-shadow: 0 24px 80px rgba(0, 0, 0, 0.72);
+	pointer-events: auto;
+	transform: translate(-50%, -50%);
+}
+
+.multiplayer-intro-mask {
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	background: rgba(0, 0, 0, 0.48);
 	pointer-events: auto;
 }
 

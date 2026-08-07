@@ -409,19 +409,26 @@ export class Hud {
 	private readonly multiplayerIntro = (
 		<aside
 			class="multiplayer-intro is-hidden"
+			role="dialog"
+			aria-modal="true"
 			aria-label="Multiplayer introduction"
 		>
 			<div>
 				<strong>Your bloodline must survive.</strong>
 				<p>
-					Training Grounds are safe, but death in a Realm ends this hero's
-					journey. Their child takes over at level 1, inheriting all equipment
-					and half the family's Gold and Souls. In a Realm, use an item's Send
-					button to invade another player's realm: your gear arms a named creep
-					in one of their future waves.
+					Training Grounds are safe, but provide no rewards. Enter Realm is the
+					real test: it provides rewards, and you can be matched against other
+					players who are online. Death in a Realm ends this hero's journey.
+					Their child takes over at level 1, inheriting all equipment and half
+					the family's Gold and Souls. In a Realm, use an item's Send button to
+					invade another player's realm: your gear arms a named creep in one of
+					their future waves.
 				</p>
 			</div>
 		</aside>
+	) as HTMLElement;
+	private readonly multiplayerIntroMask = (
+		<div class="multiplayer-intro-mask is-hidden" aria-hidden="true" />
 	) as HTMLElement;
 	private readonly xpToast = (
 		<div class="xp-toast" role="status" aria-live="polite" />
@@ -626,11 +633,14 @@ export class Hud {
 		const dismissMultiplayer = (
 			<button type="button">Got it</button>
 		) as HTMLButtonElement;
-		dismissMultiplayer.onclick = () => {
+		const closeMultiplayerIntro = () => {
 			this.panelTriggers.multiplayer = false;
+			this.multiplayerIntroMask.classList.add("is-hidden");
 			this.multiplayerIntro.classList.add("is-hidden");
 			this.callbacks.onDismissPanelTrigger("multiplayer");
 		};
+		dismissMultiplayer.onclick = closeMultiplayerIntro;
+		this.multiplayerIntroMask.onclick = closeMultiplayerIntro;
 		this.multiplayerIntro.append(dismissMultiplayer);
 		const graphicsClose = this.graphicsOptionsModal.querySelector(
 			".graphics-options-close",
@@ -658,6 +668,7 @@ export class Hud {
 				<header class="game-status-bar">
 					<section class="hud-top">{this.realmPanel}</section>
 				</header>
+				{this.multiplayerIntroMask}
 				{this.multiplayerIntro}
 				<div class="canvas-overlay-top">
 					{this.waveBanner}
@@ -786,6 +797,10 @@ export class Hud {
 				"inventory",
 				true,
 			);
+		this.multiplayerIntroMask.classList.toggle(
+			"is-hidden",
+			!triggers.multiplayer,
+		);
 		this.multiplayerIntro.classList.toggle("is-hidden", !triggers.multiplayer);
 	}
 	setLeaderboard(heroes: HeroSummary[]): void {
