@@ -330,7 +330,7 @@ test("previews extraction from the permanent learned maximum", () => {
 	expect(extractedLearnedLevel(99)).toBe(99);
 });
 
-test("combines additive spell-state catalog filters with word search", () => {
+test("ORs spell catalog filters within status and type groups, then ANDs the groups", () => {
 	const learnedPassive = {
 		learned: true,
 		equipped: false,
@@ -342,15 +342,18 @@ test("combines additive spell-state catalog filters with word search", () => {
 		spellCatalogFilterMatches(learnedPassive, new Set(["learned"])),
 	).toBeTrue();
 	expect(
-		spellCatalogFilterMatches(learnedPassive, new Set(["equipped", "actives"])),
+		spellCatalogFilterMatches(learnedPassive, new Set(["equipped", "learned"])),
+	).toBeTrue();
+	expect(
+		spellCatalogFilterMatches(learnedPassive, new Set(["learned", "actives"])),
 	).toBeFalse();
 	expect(
-		spellCatalogFilterMatches(learnedPassive, new Set(["passives"])),
+		spellCatalogFilterMatches(learnedPassive, new Set(["actives", "passives"])),
 	).toBeTrue();
 	expect(
 		spellCatalogFilterMatches(
 			learnedPassive,
-			new Set(["learned", "equipped", "actives"]),
+			new Set(["learned", "equipped", "passives"]),
 			"frost",
 			"frostOrb Frozen Orb launches ice Mana",
 		),
@@ -363,7 +366,7 @@ test("combines additive spell-state catalog filters with word search", () => {
 			"frostOrb Frozen Orb launches ice Mana",
 		),
 	).toBeFalse();
-	expect(spellCatalogFilterMatches(learnedPassive, new Set())).toBeFalse();
+	expect(spellCatalogFilterMatches(learnedPassive, new Set())).toBeTrue();
 });
 
 test("defines a concrete acquisition source for every catalog spell", () => {

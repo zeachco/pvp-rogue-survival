@@ -1193,21 +1193,27 @@ export class Hud {
 		const filterButtons = (
 			<div class="spell-catalog-filter-buttons" aria-label="Spell filters" />
 		) as HTMLElement;
-		for (const [filter, label] of SPELL_CATALOG_FILTERS) {
-			const control = (
-				<label class="spell-catalog-filter-button">
-					<input type="checkbox" value={filter} />
-					<span>{label}</span>
-				</label>
-			) as HTMLLabelElement;
-			const input = control.querySelector("input") as HTMLInputElement;
-			input.checked = this.spellCatalogFilters.has(filter);
-			input.onchange = () => {
-				if (input.checked) this.spellCatalogFilters.add(filter);
-				else this.spellCatalogFilters.delete(filter);
-				this.updateCatalogFilters();
-			};
-			filterButtons.append(control);
+		for (const group of SPELL_CATALOG_FILTER_GROUPS) {
+			const filterGroup = (
+				<div class="spell-catalog-filter-group" />
+			) as HTMLElement;
+			for (const [filter, label] of group) {
+				const control = (
+					<label class="spell-catalog-filter-button">
+						<input type="checkbox" value={filter} />
+						<span>{label}</span>
+					</label>
+				) as HTMLLabelElement;
+				const input = control.querySelector("input") as HTMLInputElement;
+				input.checked = this.spellCatalogFilters.has(filter);
+				input.onchange = () => {
+					if (input.checked) this.spellCatalogFilters.add(filter);
+					else this.spellCatalogFilters.delete(filter);
+					this.updateCatalogFilters();
+				};
+				filterGroup.append(control);
+			}
+			filterButtons.append(filterGroup);
 		}
 		const search = (
 			<label class="spell-catalog-filter spell-catalog-search">
@@ -1309,7 +1315,7 @@ export class Hud {
 					data-spell-id={id}
 					data-learned={String(learnedLevel > 0)}
 					data-equipped={String(spell?.bar === "geared")}
-					data-active={String(Boolean(spell?.shortcut))}
+					data-active={String(!definition.passive)}
 					data-passive={String(Boolean(definition.passive))}
 					data-unavailable={String(!acquired)}
 					data-search={`${id} ${definition.label} ${definition.description} ${spellResourceLabel(definition.resource)}`}
@@ -3851,14 +3857,18 @@ export type SpellCatalogFilter =
 	| "actives"
 	| "passives"
 	| "unavailable";
-export const SPELL_CATALOG_FILTERS: ReadonlyArray<
-	readonly [SpellCatalogFilter, string]
+export const SPELL_CATALOG_FILTER_GROUPS: ReadonlyArray<
+	ReadonlyArray<readonly [SpellCatalogFilter, string]>
 > = [
-	["learned", "Learned"],
-	["equipped", "Equipped"],
-	["actives", "Actives"],
-	["passives", "Passives"],
-	["unavailable", "Unavailable"],
+	[
+		["learned", "Learned"],
+		["equipped", "Equipped"],
+		["unavailable", "Unavailable"],
+	],
+	[
+		["actives", "Actives"],
+		["passives", "Passives"],
+	],
 ];
 export function spellCatalogFilterMatches(
 	states: Readonly<Record<SpellCatalogFilter, boolean>>,
@@ -3867,8 +3877,15 @@ export function spellCatalogFilterMatches(
 	searchableText = "",
 ): boolean {
 	const query = search.trim().toLocaleLowerCase();
+	const [statusFilters, typeFilters] = SPELL_CATALOG_FILTER_GROUPS.map(
+		(group) =>
+			group.map(([filter]) => filter).filter((filter) => filters.has(filter)),
+	);
 	return (
-		[...filters].some((filter) => states[filter]) &&
+		(statusFilters.length === 0 ||
+			statusFilters.some((filter) => states[filter])) &&
+		(typeFilters.length === 0 ||
+			typeFilters.some((filter) => states[filter])) &&
 		(!query || searchableText.toLocaleLowerCase().includes(query))
 	);
 }

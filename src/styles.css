@@ -577,6 +577,12 @@ input {
 	display: flex;
 	flex: 1 1 100%;
 	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.spell-catalog-filter-group {
+	display: flex;
+	flex-wrap: wrap;
 	gap: 7px;
 }
 
