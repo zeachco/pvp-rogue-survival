@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"prepare": "git config core.hooksPath .githooks",
+		"prepare": "if [ -z \"${CI:-}\" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git config core.hooksPath .githooks; fi",
 		"hooks:install": "git config core.hooksPath .githooks",
 		"test": "bun test",
 		"changelog": "bun scripts/changelog.ts",
