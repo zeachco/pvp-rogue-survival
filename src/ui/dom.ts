@@ -14,8 +14,7 @@ export function h(
 		if (key === "class") element.className = String(value);
 		else if (key === "style") element.setAttribute("style", String(value));
 		else if (key.startsWith("data-")) element.setAttribute(key, String(value));
-		else if (key in element)
-			Reflect.set(element, key, value === true ? "" : value);
+		else if (key in element) Reflect.set(element, key, value);
 		else element.setAttribute(key, String(value));
 	}
 	appendChildren(element, children);
