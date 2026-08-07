@@ -34,6 +34,7 @@ import type {
 	PlayerState,
 	StatusEffectSnapshot,
 } from "../game/types";
+import { DEFAULT_GRAPHICS_SETTINGS } from "../game/graphicsSettings";
 import { h } from "./dom";
 import {
 	itemTile,
@@ -198,7 +199,7 @@ export class Hud {
 					type="radio"
 					name="graphics-lighting"
 					value={mode}
-					checked={mode === "all"}
+					checked={mode === DEFAULT_GRAPHICS_SETTINGS.lightingMode}
 				/>
 			) as HTMLInputElement,
 	);

@@ -5,6 +5,10 @@ import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
 import type { CombatText } from "../CombatText";
 import {
+	DEFAULT_GRAPHICS_SETTINGS,
+	type LightingMode,
+} from "../graphicsSettings";
+import {
 	combatTextScale,
 	COMBAT_TEXT_COLORS,
 	CRITICAL_TEXT_COLOR,
@@ -49,8 +53,6 @@ export const SCENE_LIGHTING = {
 	},
 	keyIntensity: 0.95,
 } as const;
-
-export type LightingMode = "off" | "hero" | "all";
 
 const unlitMaterialByOriginal = new WeakMap<
 	THREE.Material,
@@ -208,7 +210,7 @@ export class ThreeRenderer {
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 	private readonly ambientLight: THREE.AmbientLight;
 	private readonly keyLight: THREE.DirectionalLight;
-	private lightingMode: LightingMode = "all";
+	private lightingMode: LightingMode = DEFAULT_GRAPHICS_SETTINGS.lightingMode;
 	private heroLightRoot?: THREE.Object3D;
 
 	constructor(canvas: HTMLCanvasElement) {
@@ -229,6 +231,7 @@ export class ThreeRenderer {
 		this.scene.add(this.ambientLight, this.keyLight);
 		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
 		this.updateCameraTransform();
+		this.setLightingMode(DEFAULT_GRAPHICS_SETTINGS.lightingMode);
 	}
 
 	async init(): Promise<void> {

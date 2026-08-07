@@ -115,6 +115,7 @@ import {
 	applySceneLightingMode,
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
+import { DEFAULT_GRAPHICS_SETTINGS } from "../src/game/graphicsSettings";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
 
 describe("animated 3D characters", () => {
@@ -136,6 +137,7 @@ describe("animated 3D characters", () => {
 	});
 
 	test("uses a dark global baseline and short-radius role lights", () => {
+		expect(DEFAULT_GRAPHICS_SETTINGS.lightingMode).toBe("off");
 		expect(SCENE_LIGHTING).toEqual({
 			clearColor: 0x05080c,
 			ambientIntensity: { off: 1.1, hero: 0.25, all: 0.05 },
