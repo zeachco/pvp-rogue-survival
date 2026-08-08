@@ -137,7 +137,7 @@ export function weaponAttackSpeed(item: ItemInstance, stats: Stats): number {
 	if (item.itemKind !== "weapon" || item.weight <= 0) return 0;
 	const handling = isMagicWeapon(item)
 		? (stats.strength + stats.spirit) / 2
-		: item.hands === 1
+		: item.hands === 1 || item.definitionId === "katars"
 			? stats.agility
 			: stats.strength;
 	const effectiveness = itemRequirementMultiplier(item, stats);

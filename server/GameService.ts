@@ -608,6 +608,9 @@ export class GameService {
 			"mace",
 			"axe",
 			"hammer",
+			"largeMace",
+			"longsword",
+			"katars",
 		];
 		const template = this.generateBuild(
 			"Perimeter creep",

@@ -584,6 +584,34 @@ describe("attack timing", () => {
 			intelligence: 0,
 		});
 	});
+	test("generates distinct two-handed physical weapon profiles", () => {
+		const largeMace = generateItem(1, "common", 101, {
+			allowedClasses: ["largeMace"],
+		});
+		const longsword = generateItem(1, "common", 102, {
+			allowedClasses: ["longsword"],
+		});
+		const katars = generateItem(1, "common", 103, {
+			allowedClasses: ["katars"],
+		});
+		for (const weapon of [largeMace, longsword, katars])
+			expect(weapon.hands).toBe(2);
+		expect(weaponDamage(largeMace, ZERO_STATS)).toBeGreaterThan(
+			weaponDamage(longsword, ZERO_STATS),
+		);
+		expect(weaponDamage(longsword, ZERO_STATS)).toBeGreaterThan(
+			weaponDamage(katars, ZERO_STATS),
+		);
+		expect(weaponAttackSpeed(katars, ZERO_STATS)).toBeGreaterThan(
+			weaponAttackSpeed(longsword, ZERO_STATS),
+		);
+		expect(weaponAttackSpeed(longsword, ZERO_STATS)).toBeGreaterThan(
+			weaponAttackSpeed(largeMace, ZERO_STATS),
+		);
+		expect(largeMace.skills[0]).toBe("shockwave");
+		expect(longsword.skills[0]).toBe("sweep");
+		expect(katars.skills[0]).toBe("flurry");
+	});
 	test("keeps staff basics at two meters while preserving its spell", () => {
 		const staff = {
 			...generateItem(1, "common", 20, { allowedClasses: ["staff"] }),
@@ -1562,9 +1590,8 @@ describe("protocol validation", () => {
 	});
 });
 describe("weapon skills", () => {
-	test("gives every weapon class a distinct registered signature skill", () => {
+	test("gives every weapon class a registered signature skill", () => {
 		const skills = Object.values(WEAPONS).map((weapon) => weapon.skill);
-		expect(new Set(skills).size).toBe(Object.keys(WEAPONS).length);
 		for (const skill of skills) expect(skill && SKILLS[skill]).toBeDefined();
 		expect(WEAPONS.mace.skill).toBe("shockwave");
 		expect(WEAPONS.axe.skill).toBe("cleave");

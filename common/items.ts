@@ -11,6 +11,9 @@ export type WeaponClass =
 	| "throwingAxe"
 	| "hammer"
 	| "staff"
+	| "largeMace"
+	| "longsword"
+	| "katars"
 	| "scepter";
 export type EquipmentDefinitionId =
 	| WeaponClass
@@ -845,7 +848,11 @@ function buildWeapon(
 			MAX_ITEM_REQUIREMENT,
 			Math.max(1, Math.floor(level * 0.6 * power)),
 		);
-	const hands = weaponClass === "staff" ? 2 : 1;
+	const hands = (
+		["staff", "largeMace", "longsword", "katars"] as WeaponClass[]
+	).includes(weaponClass)
+		? 2
+		: 1;
 	const skills = data.skill
 		? weaponSkills(weaponClass, data.skill, rarity, seed, hands)
 		: [];
