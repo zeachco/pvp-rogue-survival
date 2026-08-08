@@ -1,15 +1,87 @@
 {
   "week": "2026-W32",
   "label": "Week of August 3, 2026",
-  "generatedAt": "2026-08-07T22:29:49.780Z",
+  "generatedAt": "2026-08-08T15:35:04.062Z",
   "model": "gemma4:e2b",
   "periods": [
     {
       "key": "2026-W32",
       "label": "Week of August 3, 2026",
-      "summaryTitle": "Gameplay and Spell Reworks",
-      "summary": "This week focused heavily on the core gameplay mechanics, particularly around spells and combat systems. Several spells were reworked, including the introduction of a new spell called Blizzard and a rework of the Boomrang spell, alongside changes to Rage mechanisms. The mana drain for mana drain was adjusted, and the aim guide was fixed. Further adjustments were made to spell and cooldown balances. New features included adding reroll mechanics and unique items, along with improving staff mechanics and starting items and staff attacks. Finally, thorns from spells were now visible in the HUD.",
+      "summaryTitle": "UI/UX Overhaul and Authentication Updates",
+      "summary": "This week focused heavily on refining the user experience across panels, authentication flows, and realm interactions. The UI saw significant improvements with inventory and character panels occupying better space by pushing large elements to the edges, and chat/messages UI being adjusted when panels are open. Contextual information was improved by adding a tooltip for souls, and realms were reorganized, moving options and lobby controls to the far left, simplifying realm noise. A combined online and realm-presence summary was centered, showing solo waiting or unique clickable opponents in red alongside the player label. Panel design also involved removing character and inventory tilt in favor of flat slide-and-fade animations. Authentication received major enhancements: login feedback is now explicit with success/error tones, protocol compatibility was advanced to version 41, and joining arenas display a green success message while invalid logins remain red errors. Password input received improved handling, including showing errors inside the modal and ensuring existing passwords are persisted correctly before hashing. New features included docking the top-player list on the left for the leaderboard, limiting payloads to the top 100 heroes, and securing username login by requiring 8-128 character passwords and persisting only Bun-generated hashes. Additionally, Devlog moved outside realm states, header controls were unified with rounded shadows, and protocol compatibility advanced to version 40.",
       "commits": [
+        {
+          "hash": "2f5bc29d3f130f75fb5427fef65e8d32ffcd627c",
+          "authoredAt": "2026-08-08T11:33:05-04:00",
+          "title": "ux: panels and game UI",
+          "description": "- inventory and character panels are now occupying better space\n- pushed large panels towards the edges\n- chat and messages UI is now displaced with panels open"
+        },
+        {
+          "hash": "362eebac42bfdc65f1914cd154c463903a0f6d57",
+          "authoredAt": "2026-08-08T11:24:19-04:00",
+          "title": "ux: added tooltip for context around souls",
+          "description": ""
+        },
+        {
+          "hash": "79ef30971bd1bac92648b505f08bf824a6cf0be7",
+          "authoredAt": "2026-08-08T11:16:23-04:00",
+          "title": "ux(realm): reorganize the presence header",
+          "description": "Place Options and Leave to Lobby at the extreme left, followed immediately by the concise wave status, while removing guard, attacker, and queue noise from the realm controls.\n\nCenter a combined online and realm-presence summary that reports solo waiting or lists unique clickable opponents in red alongside an italicized current player label."
+        },
+        {
+          "hash": "3946d1ea96dbc192239b37835d3f389ca99cab35",
+          "authoredAt": "2026-08-08T11:09:09-04:00",
+          "title": "ux(panels): remove character and inventory tilt",
+          "description": "Replace the perspective and rotateY entry treatment with flat side-specific slide-and-fade animations, settling both panels at translateX(0).\n\nRetain will-change for transform and opacity on both containers so transitions remain smoothly composited."
+        },
+        {
+          "hash": "cc8d89b1a1f4dc1586da78399d76d822fd57286d",
+          "authoredAt": "2026-08-08T11:06:44-04:00",
+          "title": "ux(auth): type login feedback by result",
+          "description": "Extend server notices with an explicit success or error tone and advance protocol compatibility to version 41.\n\nRender Joining arena as green success feedback in the authentication modal while rejected passwords and invalid login responses retain the red error treatment."
+        },
+        {
+          "hash": "ef0cca0140089934ec9b188140aca786459dd5d2",
+          "authoredAt": "2026-08-08T11:04:01-04:00",
+          "title": "fix(auth): show password errors inside the modal",
+          "description": "Add an assertive authentication notice within the password dialog and route feedback there while the dialog is open, keeping incorrect-password errors visible instead of rendering them behind the modal.\n\nClear modal feedback whenever authentication opens or is cancelled."
+        },
+        {
+          "hash": "7dd37d66e602026991675efe4510eb65cf4eb1a4",
+          "authoredAt": "2026-08-08T11:00:07-04:00",
+          "title": "fix(auth): persist and present existing passwords correctly",
+          "description": "Apply newly created hashes before dirty snapshotting and flush them before the socket accepts another command, ensuring later username login verifies the established password.\n\nHide password confirmation with an explicit hidden-state rule for existing accounts, leaving two fields only in password-creation mode.\n\nMove Devlog exclusively into the shared header outside realm states, unify rounded shadow-based header controls, and advance protocol compatibility to version 40."
+        },
+        {
+          "hash": "e678176a4b387b30716391ca1e39e731688460c4",
+          "authoredAt": "2026-08-08T10:53:17-04:00",
+          "title": "ux(login): dock the top-player list on the left",
+          "description": "Separate the leaderboard from the bottom-centered login form and vertically center it along the left edge in a scrollable panel capped at 90 percent of viewport height.\n\nLimit leaderboard payloads to the top 100 ranked heroes while carrying a separate total online count so header presence remains accurate beyond the displayed list."
+        },
+        {
+          "hash": "271d376728853c35ecb355b40df3827d04623783",
+          "authoredAt": "2026-08-08T10:50:18-04:00",
+          "title": "feat(auth): secure username login and shared presence header",
+          "description": "Keep the game header visible before login with Devlog, Options, and a live online-player count, and bottom-center the login panel.\n\nChallenge new and legacy passwordless accounts to create an 8-128 character password, verify existing account passwords, and persist only Bun-generated password hashes through a backwards-compatible nullable SQL column.\n\nExtend protocol, HUD, persistence, and focused regression coverage for authentication requirements, password validation, hash round-tripping, and protocol version 39."
+        },
+        {
+          "hash": "ff7a76deafc25d5d2b65d76ae961f5a9d8a75351",
+          "authoredAt": "2026-08-08T10:38:29-04:00",
+          "title": "fix: removed broken static lights option, using dynamic or off only",
+          "description": ""
+        },
+        {
+          "hash": "ca087e661d1b23dfb1ac50fa834511e88830231f",
+          "authoredAt": "2026-08-07T20:50:33-04:00",
+          "title": "feat: home links for devlog and options (before login)",
+          "description": ""
+        },
+        {
+          "hash": "e9883de9eef7e931d25a3cdde6757343d66268af",
+          "authoredAt": "2026-08-07T18:30:09-04:00",
+          "title": "fix(changelogs): better summary",
+          "description": ""
+        },
         {
           "hash": "50d39168cd14deffd82a1df26291a0bac625ee5c",
           "authoredAt": "2026-08-07T18:23:55-04:00",
@@ -366,10 +438,6 @@
         }
       ],
       "categories": [
-        "feat",
-        "balance",
-        "fix",
-        "ux",
         "General fixes"
       ]
     }

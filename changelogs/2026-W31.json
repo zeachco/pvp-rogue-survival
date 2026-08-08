@@ -1,14 +1,14 @@
 {
   "week": "2026-W31",
   "label": "Week of July 27, 2026",
-  "generatedAt": "2026-08-07T22:29:49.768Z",
+  "generatedAt": "2026-08-08T15:35:04.061Z",
   "model": "gemma4:e2b",
   "periods": [
     {
       "key": "2026-W31",
       "label": "Week of July 27, 2026",
-      "summaryTitle": "Major spell management and UI overhaul",
-      "summary": "This week focused heavily on introducing advanced spell management features and significant UI improvements. A major feature involved adding editable spell loadouts and improving combat controls, which included limiting active spell loadouts to six persisted slots, supporting 1–6 manual casting and right-click auto-fire, keeping passive skills permanently active, moving camera orbit controls to left-drag without changing hero facing, retaining right-click as the explicit aiming control, rendering creep resource bars above overlapping units, migrating existing spell activation settings, and updating protocol, specs, and regression tests. Additionally, new features included fullscreen and mouse move recenter functionalities, adding columns, aim with camera, progressive 3D transform, and a refactor to use a 3D map. Several fixes addressed visual and rendering issues, including dropping auras spells, ground clipping, 3D rendering and positioning adjustments, UI improvements, removal of context menu options, and adjustments for visuals and mobile experience. The team also implemented new systems such as 3D animated models, a chat system, healing spell effects, and addressed bugs related to long spell bars and general healing functions.",
+      "summaryTitle": "Major spell management and combat control updates",
+      "summary": "This week focused heavily on implementing advanced spell management and combat controls. New features included a spell management window, editable spell loadouts limited to six persisted slots, support for 1–6 manual casting methods and right-click auto-fire, permanent passive skills, movement of camera orbit controls to left-drag without affecting hero facing, use of right-click as explicit aiming control, rendering of creep resource bars above overlapping units, migration of spell activation settings, updating protocols, specs, and regression tests. Additionally, fixes addressed issues such as dropable auras spells, ground clipping, 3D rendering and positioning problems, UI improvements, visual and chat bugs, camera zoom, and adjustments for visuals and mobile experience. New features also included fullscreen/mouse move recentering, aim with camera, progressive 3D transform, and the addition of columns. The week began with updates to 3D animated models, assets, skills overflow handling, a long spell bar fix, healing spell effects, healing fixes, and the introduction of a chat system, along with reworked spells and spec files.",
       "commits": [
         {
           "hash": "d38170abb885e2540ce8879b7ec9ec58ffa22517",
@@ -146,6 +146,30 @@
           "hash": "fde33541abe68bea37ada8d82e9e57e374b7ee27",
           "authoredAt": "2026-07-27T21:31:21-04:00",
           "title": "feat: autofilter",
+          "description": ""
+        },
+        {
+          "hash": "494f58e9f7c234aa421fc741b99006339423d2e0",
+          "authoredAt": "2026-07-27T16:29:33-04:00",
+          "title": "feat: send is bonus XP",
+          "description": ""
+        },
+        {
+          "hash": "5cbbb7aa2c84aa0dacf52c502f128c7e6c382bce",
+          "authoredAt": "2026-07-27T15:51:03-04:00",
+          "title": "feat: updated UI and skills mechanics",
+          "description": ""
+        },
+        {
+          "hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
+          "authoredAt": "2026-07-27T14:17:45-04:00",
+          "title": "feat: freeze mechanics",
+          "description": ""
+        },
+        {
+          "hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
+          "authoredAt": "2026-07-27T12:55:53-04:00",
+          "title": "feat: reworked a few spells and spec files",
           "description": ""
         }
       ],
