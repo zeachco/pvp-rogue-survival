@@ -88,8 +88,14 @@ export async function createApp(options: AppOptions) {
 				`[MLH][realm] ${event} id=${playerId} realm=${realmId} opponents=${opponentIds.join(",")}`,
 			),
 	});
-	const broadcastLeaderboard = () =>
-		broadcastAnonymousLeaderboard(sockets.values(), game);
+	const broadcastLeaderboard = () => {
+		const message = JSON.stringify({
+			type: "leaderboard",
+			heroes: game.leaderboard(),
+		} satisfies ServerMessage);
+		for (const socket of sockets.values())
+			if (socket.readyState === WebSocket.OPEN) socket.send(message);
+	};
 	const server = createServer((request, response) => {
 		void serveRequest(request, response, publicRoot, devlogRequests).catch(
 			(error) => {
@@ -145,10 +151,47 @@ export async function createApp(options: AppOptions) {
 								type: "serverNotice",
 								message: "That username is already logged in.",
 							});
-						try {
-							game.join(message.name ?? "", message.heroId, (playerId) => {
-								socket.playerId = playerId;
+						if (message.name && !message.password)
+							return sendSocket(socket, {
+								type: "authenticationRequired",
+								username: existing?.name ?? message.name.trim(),
+								mode: existing?.passwordHash ? "login" : "create",
 							});
+						if (
+							message.name &&
+							existing?.passwordHash &&
+							!(await Bun.password.verify(
+								message.password!,
+								existing.passwordHash,
+							))
+						)
+							return sendSocket(socket, {
+								type: "serverNotice",
+								message: "Incorrect password.",
+							});
+						const needsPassword = message.name && !existing?.passwordHash;
+						if (
+							needsPassword &&
+							message.password !== message.passwordConfirmation
+						)
+							return sendSocket(socket, {
+								type: "serverNotice",
+								message: "Passwords do not match.",
+							});
+						const newPasswordHash = needsPassword
+							? await Bun.password.hash(message.password!)
+							: undefined;
+						try {
+							const player = game.join(
+								message.name ?? "",
+								message.heroId,
+								(playerId, identified) => {
+									socket.playerId = playerId;
+									if (newPasswordHash)
+										identified.passwordHash = newPasswordHash;
+								},
+							);
+							if (newPasswordHash) repository.markDirty(player.id);
 							broadcastLeaderboard();
 						} catch {
 							sendSocket(socket, {

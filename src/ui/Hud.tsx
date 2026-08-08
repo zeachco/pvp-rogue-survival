@@ -171,6 +171,61 @@ export class Hud {
 	private readonly joinPanel: HTMLElement;
 	private readonly gameHud: HTMLElement;
 	private readonly nameInput: HTMLInputElement;
+	private readonly onlineCount = (
+		<strong class="online-count" />
+	) as HTMLElement;
+	private readonly loginHeaderActions = (
+		<nav class="header-login-actions" aria-label="Login links">
+			<a href="devlog.html" target="_blank" rel="noopener noreferrer">
+				Devlog
+			</a>
+			<button type="button">Options</button>
+		</nav>
+	) as HTMLElement;
+	private authenticationMode: "create" | "login" = "login";
+	private readonly authenticationTitle = (<h2 />) as HTMLElement;
+	private readonly passwordInput = (
+		<input
+			type="password"
+			minlength="8"
+			maxlength="128"
+			autocomplete="current-password"
+			required
+		/>
+	) as HTMLInputElement;
+	private readonly passwordConfirmationInput = (
+		<input
+			type="password"
+			minlength="8"
+			maxlength="128"
+			autocomplete="new-password"
+			required
+		/>
+	) as HTMLInputElement;
+	private readonly authenticationModal = (
+		<form
+			class="authentication-modal is-hidden"
+			role="dialog"
+			aria-modal="true"
+		>
+			{this.authenticationTitle}
+			<label>
+				Password
+				{this.passwordInput}
+			</label>
+			<label class="password-confirmation">
+				Confirm password
+				{this.passwordConfirmationInput}
+			</label>
+			<div class="authentication-actions">
+				<button type="button">Cancel</button>
+				<button type="submit">Continue</button>
+			</div>
+		</form>
+	) as HTMLFormElement;
+	private readonly authenticationMask = (
+		<div class="authentication-mask is-hidden" aria-hidden="true" />
+	) as HTMLElement;
 	private readonly leaderboardNode = (
 		<div class="leaderboard" />
 	) as HTMLElement;
@@ -479,21 +534,13 @@ export class Hud {
 				<button type="submit">Join</button>
 			</form>
 		) as HTMLElement;
-		const homeLinks = (
-			<nav class="home-links" aria-label="Home links">
-				<a href="devlog.html" target="_blank" rel="noopener noreferrer">
-					Devlog
-				</a>
-				<button type="button">Options</button>
-			</nav>
-		) as HTMLElement;
-		(homeLinks.querySelector("button") as HTMLButtonElement).onclick = () =>
-			this.openGraphicsOptions();
+		(
+			this.loginHeaderActions.querySelector("button") as HTMLButtonElement
+		).onclick = () => this.openGraphicsOptions();
 		this.joinPanel = (
 			<section class="join-panel">
 				{joinForm}
 				{this.joinNoticeNode}
-				{homeLinks}
 				<h2>Heroes</h2>
 				{this.leaderboardNode}
 			</section>
@@ -502,6 +549,35 @@ export class Hud {
 			event.preventDefault();
 			const name = this.nameInput.value.trim();
 			if (name) callbacks.onJoin(name);
+		};
+		const closeAuthentication = () => {
+			this.authenticationMask.classList.add("is-hidden");
+			this.authenticationModal.classList.add("is-hidden");
+			this.passwordInput.value = "";
+			this.passwordConfirmationInput.value = "";
+		};
+		(
+			this.authenticationModal.querySelector(
+				'button[type="button"]',
+			) as HTMLButtonElement
+		).onclick = closeAuthentication;
+		this.authenticationMask.onclick = closeAuthentication;
+		this.authenticationModal.onsubmit = (event) => {
+			event.preventDefault();
+			if (
+				this.authenticationMode === "create" &&
+				this.passwordInput.value !== this.passwordConfirmationInput.value
+			) {
+				this.setNotice("Passwords do not match.");
+				return;
+			}
+			this.callbacks.onJoin(
+				this.nameInput.value.trim(),
+				this.passwordInput.value,
+				this.authenticationMode === "create"
+					? this.passwordConfirmationInput.value
+					: undefined,
+			);
 		};
 		const back = (
 			<button class="inspect-back is-hidden" type="button">
@@ -684,12 +760,16 @@ export class Hud {
 				this.setShadowMode(mode);
 				this.callbacks.onSetShadowMode(mode);
 			};
+		const statusBar = (
+			<header class="game-status-bar">
+				<section class="hud-top">{this.realmPanel}</section>
+				{this.loginHeaderActions}
+				{this.onlineCount}
+				<section class="notification-area">{this.noticeNode}</section>
+			</header>
+		) as HTMLElement;
 		this.gameHud = (
 			<div class="game-hud">
-				<header class="game-status-bar">
-					<section class="hud-top">{this.realmPanel}</section>
-					<section class="notification-area">{this.noticeNode}</section>
-				</header>
 				{this.multiplayerIntroMask}
 				{this.multiplayerIntro}
 				<div class="canvas-overlay-top">{this.waveBanner}</div>
@@ -711,11 +791,14 @@ export class Hud {
 			</div>
 		) as HTMLElement;
 		root.append(
+			statusBar,
 			this.joinPanel,
 			this.publicSheet,
 			this.gameHud,
 			this.graphicsOptionsMask,
 			this.graphicsOptionsModal,
+			this.authenticationMask,
+			this.authenticationModal,
 		);
 		this.updateVisibility();
 	}
@@ -831,6 +914,8 @@ export class Hud {
 		this.multiplayerIntro.classList.toggle("is-hidden", !triggers.multiplayer);
 	}
 	setLeaderboard(heroes: HeroSummary[]): void {
+		const online = heroes.filter((hero) => hero.connected).length;
+		this.onlineCount.textContent = `${online} ${online === 1 ? "player" : "players"} online`;
 		this.leaderboardNode.replaceChildren(
 			...heroes.map((hero) => {
 				const button = (
@@ -848,6 +933,24 @@ export class Hud {
 				return button;
 			}),
 		);
+	}
+	showAuthentication(username: string, mode: "create" | "login"): void {
+		this.authenticationMode = mode;
+		this.nameInput.value = username;
+		this.authenticationTitle.textContent =
+			mode === "create"
+				? `Create password for ${username}`
+				: `Log in as ${username}`;
+		const confirmation = this.authenticationModal.querySelector(
+			".password-confirmation",
+		) as HTMLElement;
+		confirmation.classList.toggle("is-hidden", mode === "login");
+		this.passwordConfirmationInput.required = mode === "create";
+		this.passwordInput.autocomplete =
+			mode === "create" ? "new-password" : "current-password";
+		this.authenticationMask.classList.remove("is-hidden");
+		this.authenticationModal.classList.remove("is-hidden");
+		this.passwordInput.focus();
 	}
 	setPublicHero(hero?: PublicHeroProfile): void {
 		if (!hero) {
@@ -3098,6 +3201,12 @@ export class Hud {
 		const joined = Boolean(this.player);
 		this.joinPanel.classList.toggle("is-hidden", joined);
 		this.gameHud.classList.toggle("is-hidden", !joined);
+		this.realmPanel.classList.toggle("is-hidden", !joined);
+		this.loginHeaderActions.classList.toggle("is-hidden", joined);
+		if (joined) {
+			this.authenticationMask.classList.add("is-hidden");
+			this.authenticationModal.classList.add("is-hidden");
+		}
 	}
 }
 function equipmentIcon(

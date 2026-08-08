@@ -17,6 +17,7 @@ interface HeroRow {
 	id: string;
 	username: string;
 	level: number;
+	password_hash?: string | null;
 	hero: string;
 }
 
@@ -59,7 +60,7 @@ export class SqlPlayerRepository implements PlayerRepository {
 	): Promise<Player | undefined> {
 		const rows = await this.sql<
 			HeroRow[]
-		>`SELECT id, username, level, hero FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY RANDOM() LIMIT 1`;
+		>`SELECT id, username, level, password_hash, hero FROM heroes WHERE level BETWEEN ${minimum} AND ${maximum} ORDER BY RANDOM() LIMIT 1`;
 		return rows[0] ? fromRow(rows[0]) : undefined;
 	}
 	async listSummaries(): Promise<HeroSummary[]> {
@@ -98,9 +99,9 @@ export class SqlPlayerRepository implements PlayerRepository {
 				try {
 					for (const row of rows)
 						await this.sql`
-          INSERT INTO heroes (id, username, level, hero)
-          VALUES (${row.id}, ${row.username}, ${row.level}, ${row.hero})
-          ON CONFLICT (id) DO UPDATE SET username = excluded.username, level = excluded.level, hero = excluded.hero
+          INSERT INTO heroes (id, username, level, password_hash, hero)
+          VALUES (${row.id}, ${row.username}, ${row.level}, ${row.password_hash}, ${row.hero})
+          ON CONFLICT (id) DO UPDATE SET username = excluded.username, level = excluded.level, password_hash = excluded.password_hash, hero = excluded.hero
         `;
 				} catch (error) {
 					for (const id of playerIds) this.dirtyPlayerIds.add(id);
@@ -117,13 +118,23 @@ export class SqlPlayerRepository implements PlayerRepository {
 
 	private async initialize(): Promise<void> {
 		await this
-			.sql`CREATE TABLE IF NOT EXISTS heroes (id TEXT PRIMARY KEY, username TEXT NOT NULL, level INTEGER NOT NULL, hero TEXT NOT NULL)`;
+			.sql`CREATE TABLE IF NOT EXISTS heroes (id TEXT PRIMARY KEY, username TEXT NOT NULL, level INTEGER NOT NULL, password_hash TEXT, hero TEXT NOT NULL)`;
+		try {
+			await this.sql`ALTER TABLE heroes ADD COLUMN password_hash TEXT`;
+		} catch (error) {
+			const message = String(error).toLowerCase();
+			if (
+				!message.includes("duplicate column") &&
+				!message.includes("already exists")
+			)
+				throw error;
+		}
 		await this
 			.sql`CREATE UNIQUE INDEX IF NOT EXISTS heroes_username_ci ON heroes (lower(username))`;
 		await this.sql`CREATE INDEX IF NOT EXISTS heroes_level ON heroes (level)`;
 		const rows = await this.sql<
 			HeroRow[]
-		>`SELECT id, username, level, hero FROM heroes`;
+		>`SELECT id, username, level, password_hash, hero FROM heroes`;
 		for (const row of rows) {
 			const player = fromRow(row);
 			if (player) this.players.set(player.id, player);
@@ -147,6 +158,7 @@ function toRow(player: Player): HeroRow {
 		id: player.id,
 		username: player.name,
 		level: player.progress.level,
+		password_hash: player.passwordHash ?? null,
 		hero: JSON.stringify(blob),
 	};
 }
@@ -191,6 +203,7 @@ function fromRow(row: HeroRow): Player | undefined {
 	return {
 		id: row.id,
 		name: row.username,
+		passwordHash: row.password_hash ?? undefined,
 		score: blob.score,
 		waveNumber: blob.waveNumber,
 		maxWaveReached: Math.max(blob.waveNumber, blob.maxWaveReached ?? 0),

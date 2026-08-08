@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 38;
+export const PROTOCOL_VERSION = 39;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -148,8 +148,12 @@ const joinSchema = z
 			.regex(/^[A-Za-z0-9_-]+$/)
 			.optional(),
 		heroId: z.string().min(1).optional(),
+		password: z.string().min(8).max(128).optional(),
+		passwordConfirmation: z.string().min(8).max(128).optional(),
 	})
-	.refine((value) => Boolean(value.name) !== Boolean(value.heroId));
+	.refine((value) => Boolean(value.name) !== Boolean(value.heroId))
+	.refine((value) => !value.heroId || !value.password)
+	.refine((value) => !value.passwordConfirmation || Boolean(value.password));
 const tileCommand = (
 	type:
 		| "equipItem"
@@ -231,6 +235,7 @@ const serverEnvelope = z
 		type: z.enum([
 			"welcome",
 			"loggedOut",
+			"authenticationRequired",
 			"leaderboard",
 			"heroProfile",
 			"realmUpdated",
@@ -253,7 +258,13 @@ export const serverMessageSchema = serverEnvelope.transform(
 );
 
 export type ClientMessage =
-	| { type: "join"; name?: string; heroId?: string }
+	| {
+			type: "join";
+			name?: string;
+			heroId?: string;
+			password?: string;
+			passwordConfirmation?: string;
+	  }
 	| { type: "updateAllocation"; allocation: Stats }
 	| { type: "respecStats"; allocation: Stats }
 	| { type: "creepDefeated"; unitId: string }
@@ -310,6 +321,11 @@ export type ServerMessage =
 			config: ServerConfig;
 	  }
 	| { type: "loggedOut" }
+	| {
+			type: "authenticationRequired";
+			username: string;
+			mode: "create" | "login";
+	  }
 	| { type: "leaderboard"; heroes: HeroSummary[] }
 	| { type: "heroProfile"; hero: PublicHeroProfile }
 	| { type: "realmUpdated"; realm: RealmState }

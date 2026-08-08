@@ -27,6 +27,7 @@ describe("Bun SQL player persistence", () => {
 				send: () => {},
 			});
 			const player = game.join("Persistent");
+			player.passwordHash = await Bun.password.hash("password123");
 			player.score = 17;
 			player.waveNumber = 2;
 			player.maxWaveReached = 9;
@@ -39,6 +40,10 @@ describe("Bun SQL player persistence", () => {
 			const restoredRepository = await SqlPlayerRepository.open(url);
 			const restored = restoredRepository.get(player.id);
 			expect(restored?.name).toBe("Persistent");
+			expect(restored?.passwordHash).not.toBe("password123");
+			expect(
+				await Bun.password.verify("password123", restored!.passwordHash!),
+			).toBeTrue();
 			expect(restored?.progress.level).toBe(2);
 			expect(restored?.score).toBe(17);
 			expect(restored?.waveNumber).toBe(2);

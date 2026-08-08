@@ -3,7 +3,7 @@ import type { Stats } from "../../common/progression";
 import type { PanelTrigger, RarityAction } from "../../common/protocol";
 
 export interface HudCallbacks {
-	onJoin(name: string): void;
+	onJoin(name: string, password?: string, passwordConfirmation?: string): void;
 	onAllocation(stats: Stats): void;
 	onRespec(stats: Stats): void;
 	onEquip(tileId: string): void;

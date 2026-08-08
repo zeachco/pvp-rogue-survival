@@ -126,11 +126,11 @@ export class GameService {
 	join(
 		name: string,
 		heroId?: PlayerId,
-		onIdentified?: (playerId: PlayerId) => void,
+		onIdentified?: (playerId: PlayerId, player: Player) => void,
 	): Player {
 		const player = this.joinPlayer(name, heroId);
 		this.options.repository.markDirty(player.id);
-		onIdentified?.(player.id);
+		onIdentified?.(player.id, player);
 		this.options.logPlayerLifecycle?.("connected", player);
 		const created = this.matchWaitingPlayers();
 		this.options.send(player.id, {

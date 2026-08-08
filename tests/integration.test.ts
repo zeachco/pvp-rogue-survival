@@ -67,7 +67,22 @@ describe("server protocol integration", () => {
 			(message) => message?.type === "incomingWave",
 		);
 		expect(welcome?.config.balance.id).toBe("normal");
-		expect(welcome?.config.protocolVersion).toBe(38);
+		expect(welcome?.config.protocolVersion).toBe(39);
+		expect(
+			parseClientMessage({
+				type: "join",
+				name: "Integration",
+				password: "password123",
+				passwordConfirmation: "password123",
+			}),
+		).toMatchObject({ type: "join", password: "password123" });
+		expect(
+			parseClientMessage({
+				type: "join",
+				name: "Integration",
+				password: "short",
+			}),
+		).toBeUndefined();
 		expect(welcome?.realm.mode).toBe("training");
 		expect(wave?.wave.mode).toBe("training");
 		expect(wave?.wave.waveNumber).toBe(1);

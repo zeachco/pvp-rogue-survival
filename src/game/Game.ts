@@ -141,7 +141,8 @@ export class Game {
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
 		this.attachRadialReflect(this.hero);
 		this.hud = new Hud(hudRoot, {
-			onJoin: (name) => this.join(name),
+			onJoin: (name, password, passwordConfirmation) =>
+				this.join(name, undefined, password, passwordConfirmation),
 			onAllocation: (allocation) =>
 				this.socket.send({ type: "updateAllocation", allocation }),
 			onRespec: (allocation) =>
@@ -420,10 +421,17 @@ export class Game {
 		this.scheduleBackgroundFrameCheck();
 	}
 
-	private join(name: string, heroId?: string): void {
+	private join(
+		name: string,
+		heroId?: string,
+		password?: string,
+		passwordConfirmation?: string,
+	): void {
 		this.debugName = name.trim() || this.debugName;
 		this.socket.send(
-			heroId ? { type: "join", heroId } : { type: "join", name },
+			heroId
+				? { type: "join", heroId }
+				: { type: "join", name, password, passwordConfirmation },
 		);
 		this.hud.setNotice("Joining arena...");
 	}
@@ -482,6 +490,8 @@ export class Game {
 				"WASD moves. Combat and skills cast automatically. Walk over glowing item drops.",
 			);
 			this.reconcileDrops();
+		} else if (message.type === "authenticationRequired") {
+			this.hud.showAuthentication(message.username, message.mode);
 		} else if (message.type === "loggedOut") {
 			this.sessionStorage.clear();
 			this.savedSession = undefined;

@@ -22,6 +22,7 @@ export interface QueuedEquipment {
 export interface Player {
 	id: PlayerId;
 	name: string;
+	passwordHash?: string;
 	score: number;
 	waveNumber: number;
 	maxWaveReached: number;
