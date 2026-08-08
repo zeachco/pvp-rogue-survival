@@ -372,7 +372,7 @@ export class Hud {
 		<div class="inventory-header">
 			<div class="currency-grid">
 				{currencyCell("Gold", 0, "gold")}
-				{currencyCell("Souls", 0, "souls")}
+				{currencyCell("Souls", 0, "souls", SOULS_TOOLTIP)}
 				{currencyCell("Common", 0, "common")}
 				{currencyCell("Uncommon", 0, "uncommon")}
 				{currencyCell("Rare", 0, "rare")}
@@ -3632,11 +3632,25 @@ function effectiveStatSheet(
 		</div>
 	) as HTMLElement;
 }
-function currencyCell(label: string, value: number, kind: string): HTMLElement {
+export const SOULS_TOOLTIP =
+	"Earn Souls when a carrier equipped with an item you sent into another player's Realm kills that player. Spend Souls to upgrade Unique items or reroll item properties.";
+
+function currencyCell(
+	label: string,
+	value: number,
+	kind: string,
+	tooltip?: string,
+): HTMLElement {
 	return (
-		<div class={`currency-cell currency-${kind}`} data-currency={kind}>
+		<div
+			class={`currency-cell currency-${kind}${tooltip ? " has-tooltip" : ""}`}
+			data-currency={kind}
+			tabindex={tooltip ? "0" : undefined}
+			aria-label={tooltip ? `${label}. ${tooltip}` : undefined}
+		>
 			<small>{label}</small>
 			<strong>{value}</strong>
+			{tooltip ? <span role="tooltip">{tooltip}</span> : null}
 		</div>
 	) as HTMLElement;
 }

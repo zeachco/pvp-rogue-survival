@@ -19,7 +19,11 @@ import {
 	turnAngleTowards,
 } from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
-import { panelShortcut, panelToggleTooltip } from "../src/ui/Hud";
+import {
+	panelShortcut,
+	panelToggleTooltip,
+	SOULS_TOOLTIP,
+} from "../src/ui/Hud";
 import { serverCloseLogMessage } from "../src/game/Game";
 
 import {
@@ -324,6 +328,12 @@ test("shows current, next, and maximum spell tooltip levels", () => {
 		{ heading: "Next level", level: 5 },
 		{ heading: "Max learned", level: 0 },
 	]);
+});
+
+test("explains how Souls are earned and spent", () => {
+	expect(SOULS_TOOLTIP).toBe(
+		"Earn Souls when a carrier equipped with an item you sent into another player's Realm kills that player. Spend Souls to upgrade Unique items or reroll item properties.",
+	);
 });
 
 test("previews extraction from the permanent learned maximum", () => {
