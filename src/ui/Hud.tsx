@@ -171,9 +171,8 @@ export class Hud {
 	private readonly joinPanel: HTMLElement;
 	private readonly gameHud: HTMLElement;
 	private readonly nameInput: HTMLInputElement;
-	private readonly onlineCount = (
-		<strong class="online-count" />
-	) as HTMLElement;
+	private onlinePlayerCount = 0;
+	private readonly onlineCount = (<div class="online-count" />) as HTMLElement;
 	private readonly loginHeaderActions = (
 		<nav class="header-login-actions" aria-label="Login links">
 			<a
@@ -931,7 +930,8 @@ export class Hud {
 		this.multiplayerIntro.classList.toggle("is-hidden", !triggers.multiplayer);
 	}
 	setLeaderboard(heroes: HeroSummary[], onlineCount: number): void {
-		this.onlineCount.textContent = `${onlineCount} ${onlineCount === 1 ? "player" : "players"} online`;
+		this.onlinePlayerCount = onlineCount;
+		this.renderPresenceSummary();
 		this.leaderboardNode.replaceChildren(
 			...heroes.map((hero) => {
 				const button = (
@@ -2820,6 +2820,7 @@ export class Hud {
 	private renderRealm(): void {
 		if (!this.realm) return;
 		const r = this.realm;
+		this.renderPresenceSummary();
 		const signature = [
 			r.mode,
 			this.player?.waveNumber ?? "",
@@ -2878,27 +2879,6 @@ export class Hud {
 			r.mode === "waiting"
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
 				: `Wave ${this.player?.waveNumber ?? "—"}`;
-		const members = (values: RealmState["guards"]) =>
-			values.length
-				? (values
-						.flatMap((p, index) => {
-							const button = (
-								<button class="realm-member" type="button">
-									{rankedName(
-										`${p.name} L${p.level}${p.down ? " ↓" : ""}`,
-										p.receivesDeathEchoes,
-									)}
-								</button>
-							) as HTMLButtonElement;
-							button.onclick = () => this.callbacks.onInspectHero(p.id);
-							return [index ? document.createTextNode(", ") : null, button];
-						})
-						.filter(Boolean) as Node[])
-				: [document.createTextNode("—")];
-		const guards = (<span>Guard: </span>) as HTMLElement;
-		guards.append(...members(r.guards));
-		const attackers = (<span>Attacker: </span>) as HTMLElement;
-		attackers.append(...members(r.attackers));
 		this.realmPanel.classList.remove("is-hidden");
 		this.trainingModeStatus.classList.toggle(
 			"is-hidden",
@@ -2908,15 +2888,37 @@ export class Hud {
 			this.realmPanel.replaceChildren(action, devlog, options, logout);
 			return;
 		}
-		this.realmPanel.replaceChildren(
-			<strong>{title}</strong>,
-			guards,
-			attackers,
-			<span>
-				Queues {r.outgoingQueued} out / {r.incomingQueued} in
-			</span>,
-			options,
-			action,
+		this.realmPanel.replaceChildren(options, action, <strong>{title}</strong>);
+	}
+	private renderPresenceSummary(): void {
+		const countLabel = `${this.onlinePlayerCount} ${this.onlinePlayerCount === 1 ? "player" : "players"} online`;
+		this.onlineCount.replaceChildren(countLabel);
+		if (!this.player || !this.realm || this.realm.mode === "training") return;
+		const others = new Map(
+			[...this.realm.guards, ...this.realm.attackers]
+				.filter((member) => member.id !== this.player?.id)
+				.map((member) => [member.id, member]),
+		);
+		this.onlineCount.append(document.createTextNode(" - "));
+		if (!others.size) {
+			this.onlineCount.append("playing alone for now");
+			return;
+		}
+		const members = [...others.values()];
+		for (const [index, member] of members.entries()) {
+			if (index > 0) this.onlineCount.append(document.createTextNode(", "));
+			const button = (
+				<button class="realm-presence-member" type="button">
+					{member.name}
+				</button>
+			) as HTMLButtonElement;
+			button.onclick = () => this.callbacks.onInspectHero(member.id);
+			this.onlineCount.append(button);
+		}
+		this.onlineCount.append(
+			document.createTextNode(" and "),
+			(<em>you</em>) as HTMLElement,
+			document.createTextNode(" in this Realm"),
 		);
 	}
 	private renderAllocation(): void {

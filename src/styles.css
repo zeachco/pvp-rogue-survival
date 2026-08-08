@@ -186,10 +186,30 @@ input {
 	position: absolute;
 	top: 50%;
 	left: 50%;
+	display: flex;
+	align-items: baseline;
 	color: #9fb8bf;
 	font-size: 13px;
 	font-variant-numeric: tabular-nums;
 	transform: translate(-50%, -50%);
+	white-space: nowrap;
+	pointer-events: auto;
+}
+
+.realm-presence-member {
+	border: 0;
+	padding: 0;
+	color: #ff6575;
+	background: transparent;
+	font-weight: 800;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+
+.realm-presence-member:hover,
+.realm-presence-member:focus-visible {
+	color: #ff9aa5;
 }
 
 .header-login-actions {
@@ -1752,19 +1772,6 @@ input {
 	background: #20282a;
 	cursor: not-allowed;
 	filter: grayscale(1);
-}
-.realm-panel .realm-member {
-	border: 0;
-	padding: 0 2px;
-	color: #8fffea;
-	background: transparent;
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-.realm-panel .realm-member:hover,
-.realm-panel .realm-member:focus-visible {
-	color: #fff;
-	background: #17443f;
 }
 .ranked-name {
 	display: inline-flex;
