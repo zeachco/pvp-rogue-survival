@@ -1,5 +1,25 @@
 export type Child = Node | string | number | boolean | null | undefined;
 
+const SVG_TAGS = new Set([
+	"svg",
+	"circle",
+	"path",
+	"rect",
+	"line",
+	"polyline",
+	"polygon",
+	"ellipse",
+	"g",
+	"use",
+	"defs",
+	"stop",
+	"linearGradient",
+	"radialGradient",
+	"clipPath",
+	"mask",
+	"pattern",
+]);
+
 export function h(
 	tag:
 		| string
@@ -8,10 +28,15 @@ export function h(
 	...children: Child[]
 ): Node {
 	if (typeof tag === "function") return tag(props ?? {}, ...children);
-	const element = document.createElement(tag);
+	const SVG_NS = "http://www.w3.org/2000/svg";
+	const isSvg = SVG_TAGS.has(tag);
+	const element = isSvg
+		? document.createElementNS(SVG_NS, tag)
+		: document.createElement(tag);
 	for (const [key, value] of Object.entries(props ?? {})) {
 		if (value === false || value === null || value === undefined) continue;
-		if (key === "class") element.className = String(value);
+		if (isSvg) element.setAttribute(key, String(value));
+		else if (key === "class") element.className = String(value);
 		else if (key === "style") element.setAttribute("style", String(value));
 		else if (key.startsWith("data-")) element.setAttribute(key, String(value));
 		else if (key in element) Reflect.set(element, key, value);
