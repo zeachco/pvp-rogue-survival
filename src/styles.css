@@ -24,9 +24,10 @@
 	--character-panel-width: 320px;
 	--inventory-panel-width: 640px;
 	--inventory-panel-preview-width: 640px;
-	--build-panel-vertical-inset: 64px;
-	--character-panel-left-inset: 112px;
-	--inventory-panel-right-inset: 64px;
+	--build-panel-top-inset: 64px;
+	--build-panel-bottom-inset: 12px;
+	--character-panel-left-inset: 12px;
+	--inventory-panel-right-inset: 12px;
 	--ground-item-preview-gap: 6px;
 	--game-header-height: 52px;
 	font-family:
@@ -175,11 +176,59 @@ input {
 	pointer-events: none;
 }
 
+.header-panel-toggle {
+	position: absolute;
+	top: 6px;
+	z-index: 2;
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	border: 1px solid rgba(138, 216, 255, 0.5);
+	border-radius: 6px;
+	padding: 7px;
+	color: #dffeff;
+	background: #15312f;
+	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.42);
+	cursor: pointer;
+	transition:
+		box-shadow 100ms ease,
+		filter 100ms ease;
+}
+
+.header-panel-toggle:hover {
+	box-shadow: 0 5px 14px rgba(0, 0, 0, 0.58);
+	filter: brightness(1.18);
+}
+
+.header-panel-toggle:active {
+	box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42);
+	filter: brightness(0.94);
+}
+
+.header-panel-toggle svg {
+	width: 100%;
+	height: 100%;
+	fill: none;
+	stroke: currentColor;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 1.8;
+}
+
+.character-panel-toggle {
+	left: 0;
+}
+
+.inventory-panel-toggle {
+	right: 0;
+}
+
 .hud-top {
 	position: absolute;
 	top: 4px;
-	left: 0;
-	right: 0;
+	left: 46px;
+	right: 46px;
 }
 
 .online-count {
@@ -1537,8 +1586,8 @@ input {
 .character-panel {
 	position: absolute;
 	z-index: 8;
-	top: var(--build-panel-vertical-inset);
-	bottom: var(--build-panel-vertical-inset);
+	top: var(--build-panel-top-inset);
+	bottom: var(--build-panel-bottom-inset);
 	left: var(--character-panel-left-inset);
 	display: grid;
 	align-content: start;
@@ -1560,9 +1609,9 @@ input {
 .inventory-column {
 	position: absolute;
 	z-index: 8;
-	top: var(--build-panel-vertical-inset);
+	top: var(--build-panel-top-inset);
 	right: var(--inventory-panel-right-inset);
-	bottom: var(--build-panel-vertical-inset);
+	bottom: var(--build-panel-bottom-inset);
 	display: grid;
 	grid-template-rows: minmax(0, 1fr);
 	width: var(--inventory-panel-width);
@@ -1623,31 +1672,9 @@ input {
 	backdrop-filter: none;
 	pointer-events: none;
 }
-.character-panel.is-collapsed > :not(.panel-toggle),
-.inventory-column.is-collapsed > :not(.panel-toggle) {
+.character-panel.is-collapsed > *,
+.inventory-column.is-collapsed > * {
 	display: none;
-}
-.panel-toggle {
-	position: fixed;
-	z-index: 9;
-	bottom: 20px;
-	width: 22px;
-	height: 28px;
-	justify-self: start;
-	border: 1px solid rgba(138, 216, 255, 0.45);
-	border-radius: 3px;
-	padding: 0;
-	color: #dffeff;
-	background: #102427;
-	cursor: pointer;
-	font-size: 18px;
-	line-height: 1;
-}
-.character-panel-toggle {
-	left: 20px;
-}
-.inventory-panel-toggle {
-	right: 20px;
 }
 .inventory-content {
 	display: grid;
@@ -2382,7 +2409,7 @@ input {
 /* RPG combat HUD */
 .spell-bar {
 	right: auto;
-	bottom: 72px;
+	bottom: 12px;
 	left: 14px;
 	flex-direction: row;
 	width: auto;
@@ -2393,13 +2420,18 @@ input {
 	overflow: visible;
 	transform: none;
 	pointer-events: auto;
+	transition: left 180ms ease;
+}
+
+.game-hud.character-panel-open .spell-bar {
+	left: calc(var(--character-panel-width) + 24px);
 }
 
 .notification-area {
 	position: fixed;
 	z-index: 31;
 	top: 0;
-	right: 12px;
+	right: 46px;
 	display: grid;
 	align-content: center;
 	justify-items: end;
@@ -2417,12 +2449,17 @@ input {
 .chat-area {
 	position: absolute;
 	z-index: 3;
-	bottom: 76px;
-	right: 16px;
+	bottom: 0;
+	right: 12px;
 	width: min(320px, calc(100vw - 32px));
 	pointer-events: none;
 	display: block;
 	gap: 4px;
+	transition: right 180ms ease;
+}
+
+.game-hud.inventory-panel-open .chat-area {
+	right: calc(var(--inventory-panel-width) + 24px);
 }
 
 .chat-log {
@@ -2504,9 +2541,9 @@ input {
 .resource-dock {
 	position: absolute;
 	z-index: 2;
-	right: 16px;
-	bottom: 14px;
-	left: 16px;
+	right: 12px;
+	bottom: 12px;
+	left: 12px;
 	display: grid;
 	grid-template-columns: minmax(180px, 260px) 92px minmax(180px, 260px);
 	justify-content: center;

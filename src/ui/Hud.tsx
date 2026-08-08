@@ -598,24 +598,30 @@ export class Hud {
 		back.onclick = callbacks.onBack;
 		this.characterToggle = (
 			<button
-				class="panel-toggle character-panel-toggle"
+				class="header-panel-toggle character-panel-toggle"
 				type="button"
 				aria-label="Collapse character sheet"
 				title={panelToggleTooltip("character", false)}
 				aria-expanded="true"
 			>
-				‹
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<circle cx="12" cy="8" r="3.5" />
+					<path d="M5.5 20c.5-4 2.7-6 6.5-6s6 2 6.5 6" />
+				</svg>
 			</button>
 		) as HTMLButtonElement;
 		this.inventoryToggle = (
 			<button
-				class="panel-toggle inventory-panel-toggle"
+				class="header-panel-toggle inventory-panel-toggle"
 				type="button"
 				aria-label="Collapse inventory"
 				title={panelToggleTooltip("inventory", false)}
 				aria-expanded="true"
 			>
-				›
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M5 8h14l-1 12H6L5 8Z" />
+					<path d="M9 8V6a3 3 0 0 1 6 0v2" />
+				</svg>
 			</button>
 		) as HTMLButtonElement;
 		this.characterPanel = (
@@ -764,10 +770,12 @@ export class Hud {
 			};
 		const statusBar = (
 			<header class="game-status-bar">
+				{this.characterToggle}
 				<section class="hud-top">{this.realmPanel}</section>
 				{this.loginHeaderActions}
 				{this.onlineCount}
 				<section class="notification-area">{this.noticeNode}</section>
+				{this.inventoryToggle}
 			</header>
 		) as HTMLElement;
 		this.gameHud = (
@@ -787,8 +795,6 @@ export class Hud {
 				{this.resourceDock}
 				{this.characterPanel}
 				{this.inventoryPanel}
-				{this.characterToggle}
-				{this.inventoryToggle}
 				{this.itemHoverCard}
 			</div>
 		) as HTMLElement;
@@ -3213,8 +3219,7 @@ export class Hud {
 		collapsed: boolean,
 	): void {
 		panel.classList.toggle("is-collapsed", collapsed);
-		toggle.textContent =
-			kind === "character" ? (collapsed ? "›" : "‹") : collapsed ? "‹" : "›";
+		this.gameHud.classList.toggle(`${kind}-panel-open`, !collapsed);
 		toggle.setAttribute("aria-expanded", String(!collapsed));
 		toggle.setAttribute(
 			"aria-label",
@@ -3234,6 +3239,8 @@ export class Hud {
 		this.gameHud.classList.toggle("is-hidden", !joined);
 		this.realmPanel.classList.toggle("is-hidden", !joined);
 		this.loginHeaderActions.classList.toggle("is-hidden", joined);
+		this.characterToggle.classList.toggle("is-hidden", !joined);
+		this.inventoryToggle.classList.toggle("is-hidden", !joined);
 		if (joined) {
 			this.authenticationMask.classList.add("is-hidden");
 			this.authenticationModal.classList.add("is-hidden");
