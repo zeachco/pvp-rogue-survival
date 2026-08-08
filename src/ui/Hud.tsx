@@ -176,10 +176,17 @@ export class Hud {
 	) as HTMLElement;
 	private readonly loginHeaderActions = (
 		<nav class="header-login-actions" aria-label="Login links">
-			<a href="devlog.html" target="_blank" rel="noopener noreferrer">
+			<a
+				class="header-control header-devlog"
+				href="devlog.html"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
 				Devlog
 			</a>
-			<button type="button">Options</button>
+			<button class="header-control" type="button">
+				Options
+			</button>
 		</nav>
 	) as HTMLElement;
 	private authenticationMode: "create" | "login" = "login";
@@ -308,15 +315,6 @@ export class Hud {
 					</label>
 				))}
 			</fieldset>
-			<section class="graphics-devlog">
-				<div>
-					<strong>Devlog</strong>
-					<small>See what changed, from fresh fixes to major features.</small>
-				</div>
-				<button type="button" class="graphics-devlog-open">
-					Open devlog ↗
-				</button>
-			</section>
 		</section>
 	) as HTMLElement;
 	private readonly shadowOptionsFieldset =
@@ -741,15 +739,6 @@ export class Hud {
 		) as HTMLButtonElement;
 		graphicsClose.onclick = () => this.closeGraphicsOptions();
 		this.graphicsOptionsMask.onclick = () => this.closeGraphicsOptions();
-		const devlogOpen = this.graphicsOptionsModal.querySelector(
-			".graphics-devlog-open",
-		) as HTMLButtonElement;
-		devlogOpen.onclick = () =>
-			window.open(
-				new URL("devlog.html", document.baseURI).href,
-				"_blank",
-				"noopener,noreferrer",
-			);
 		for (const radio of this.lightingRadios)
 			radio.onchange = () => {
 				if (!radio.checked) return;
@@ -948,7 +937,7 @@ export class Hud {
 		const confirmation = this.authenticationModal.querySelector(
 			".password-confirmation",
 		) as HTMLElement;
-		confirmation.classList.toggle("is-hidden", mode === "login");
+		confirmation.hidden = mode === "login";
 		this.passwordConfirmationInput.required = mode === "create";
 		this.passwordInput.autocomplete =
 			mode === "create" ? "new-password" : "current-password";
@@ -2850,6 +2839,16 @@ export class Hud {
 			</button>
 		) as HTMLButtonElement;
 		options.onclick = () => this.openGraphicsOptions();
+		const devlog = (
+			<a
+				class="header-control header-devlog"
+				href="devlog.html"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				Devlog
+			</a>
+		) as HTMLAnchorElement;
 		const title =
 			r.mode === "waiting"
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
@@ -2881,7 +2880,7 @@ export class Hud {
 			r.mode !== "training",
 		);
 		if (r.mode === "training") {
-			this.realmPanel.replaceChildren(action, options, logout);
+			this.realmPanel.replaceChildren(action, devlog, options, logout);
 			return;
 		}
 		this.realmPanel.replaceChildren(

@@ -192,7 +192,10 @@ export async function createApp(options: AppOptions) {
 										identified.passwordHash = newPasswordHash;
 								},
 							);
-							if (newPasswordHash) repository.markDirty(player.id);
+							if (newPasswordHash) {
+								repository.markDirty(player.id);
+								await repository.persist();
+							}
 							broadcastLeaderboard();
 						} catch {
 							sendSocket(socket, {

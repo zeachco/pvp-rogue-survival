@@ -67,7 +67,7 @@ describe("server protocol integration", () => {
 			(message) => message?.type === "incomingWave",
 		);
 		expect(welcome?.config.balance.id).toBe("normal");
-		expect(welcome?.config.protocolVersion).toBe(39);
+		expect(welcome?.config.protocolVersion).toBe(40);
 		expect(
 			parseClientMessage({
 				type: "join",

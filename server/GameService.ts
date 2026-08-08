@@ -129,8 +129,8 @@ export class GameService {
 		onIdentified?: (playerId: PlayerId, player: Player) => void,
 	): Player {
 		const player = this.joinPlayer(name, heroId);
-		this.options.repository.markDirty(player.id);
 		onIdentified?.(player.id, player);
+		this.options.repository.markDirty(player.id);
 		this.options.logPlayerLifecycle?.("connected", player);
 		const created = this.matchWaitingPlayers();
 		this.options.send(player.id, {

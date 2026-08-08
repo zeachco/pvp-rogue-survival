@@ -26,8 +26,14 @@ describe("Bun SQL player persistence", () => {
 				random: new FixedRandom(),
 				send: () => {},
 			});
-			const player = game.join("Persistent");
-			player.passwordHash = await Bun.password.hash("password123");
+			const passwordHash = await Bun.password.hash("password123");
+			const player = game.join(
+				"Persistent",
+				undefined,
+				(_playerId, identified) => {
+					identified.passwordHash = passwordHash;
+				},
+			);
 			player.score = 17;
 			player.waveNumber = 2;
 			player.maxWaveReached = 9;
