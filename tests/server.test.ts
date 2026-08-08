@@ -1096,6 +1096,22 @@ describe("realm game service", () => {
 			["beta", false, false],
 		]);
 	});
+	test("limits the leaderboard to the top 100 while counting every online player", () => {
+		const { game } = harness();
+		for (let index = 0; index < 105; index += 1) {
+			const player = game.join(`Player${String(index).padStart(3, "0")}`);
+			player.progress.level = index + 1;
+		}
+		const leaderboard = game.leaderboard();
+		expect(leaderboard).toHaveLength(100);
+		expect(leaderboard[0]).toMatchObject({
+			username: "Player104",
+			level: 105,
+			receivesDeathEchoes: true,
+		});
+		expect(leaderboard.at(-1)?.username).toBe("Player005");
+		expect(game.onlinePlayerCount()).toBe(105);
+	});
 	test("training kills grant nothing", () => {
 		const { game } = harness();
 		const player = game.join("Trainee");

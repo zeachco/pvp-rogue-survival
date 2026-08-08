@@ -1038,6 +1038,7 @@ input {
 }
 
 .join-panel,
+.leaderboard-panel,
 .stats-panel,
 .neighbor-panel,
 .notice,
@@ -1068,8 +1069,22 @@ input {
 	display: flex;
 	gap: 8px;
 }
-.join-panel h2 {
-	margin: 8px 0 0;
+.leaderboard-panel {
+	position: absolute;
+	top: 50%;
+	left: 16px;
+	display: grid;
+	width: min(320px, calc(100vw - 32px));
+	max-height: 90vh;
+	gap: 8px;
+	padding: 10px;
+	overflow-y: auto;
+	border-radius: 8px;
+	pointer-events: auto;
+	transform: translateY(-50%);
+}
+.leaderboard-panel h2 {
+	margin: 0;
 	font-size: 16px;
 }
 .leaderboard {

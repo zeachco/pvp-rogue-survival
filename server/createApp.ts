@@ -92,6 +92,7 @@ export async function createApp(options: AppOptions) {
 		const message = JSON.stringify({
 			type: "leaderboard",
 			heroes: game.leaderboard(),
+			onlineCount: game.onlinePlayerCount(),
 		} satisfies ServerMessage);
 		for (const socket of sockets.values())
 			if (socket.readyState === WebSocket.OPEN) socket.send(message);
@@ -314,7 +315,11 @@ function sendSocket(socket: PlayerSocket, message: ServerMessage): void {
 		socket.send(JSON.stringify(message));
 }
 function sendLeaderboard(socket: PlayerSocket, game: GameService): void {
-	sendSocket(socket, { type: "leaderboard", heroes: game.leaderboard() });
+	sendSocket(socket, {
+		type: "leaderboard",
+		heroes: game.leaderboard(),
+		onlineCount: game.onlinePlayerCount(),
+	});
 }
 export function broadcastAnonymousLeaderboard(
 	sockets: Iterable<Pick<PlayerSocket, "playerId" | "readyState" | "send">>,
@@ -326,6 +331,7 @@ export function broadcastAnonymousLeaderboard(
 				JSON.stringify({
 					type: "leaderboard",
 					heroes: game.leaderboard(),
+					onlineCount: game.onlinePlayerCount(),
 				} satisfies ServerMessage),
 			);
 }

@@ -201,7 +201,13 @@ export class GameService {
 				receivesDeathEchoes: false,
 			}))
 			.sort((a, b) => b.level - a.level || a.username.localeCompare(b.username))
+			.slice(0, 100)
 			.map((hero, index) => ({ ...hero, receivesDeathEchoes: index === 0 }));
+	}
+	onlinePlayerCount(): number {
+		return [...this.options.repository.values()].filter(
+			(player) => player.connected,
+		).length;
 	}
 	publicHeroProfile(heroId: string): PublicHeroProfile | undefined {
 		const player = this.options.repository.get(heroId);

@@ -326,7 +326,7 @@ export type ServerMessage =
 			username: string;
 			mode: "create" | "login";
 	  }
-	| { type: "leaderboard"; heroes: HeroSummary[] }
+	| { type: "leaderboard"; heroes: HeroSummary[]; onlineCount: number }
 	| { type: "heroProfile"; hero: PublicHeroProfile }
 	| { type: "realmUpdated"; realm: RealmState }
 	| { type: "incomingWave"; wave: CreepWave }

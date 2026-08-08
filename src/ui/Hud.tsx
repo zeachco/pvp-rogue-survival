@@ -229,6 +229,12 @@ export class Hud {
 	private readonly leaderboardNode = (
 		<div class="leaderboard" />
 	) as HTMLElement;
+	private readonly leaderboardPanel = (
+		<section class="leaderboard-panel">
+			<h2>Heroes</h2>
+			{this.leaderboardNode}
+		</section>
+	) as HTMLElement;
 	private readonly publicSheet = (
 		<aside class="character-panel public-character-panel is-hidden" />
 	) as HTMLElement;
@@ -541,8 +547,6 @@ export class Hud {
 			<section class="join-panel">
 				{joinForm}
 				{this.joinNoticeNode}
-				<h2>Heroes</h2>
-				{this.leaderboardNode}
 			</section>
 		) as HTMLElement;
 		joinForm.onsubmit = (event) => {
@@ -792,6 +796,7 @@ export class Hud {
 		) as HTMLElement;
 		root.append(
 			statusBar,
+			this.leaderboardPanel,
 			this.joinPanel,
 			this.publicSheet,
 			this.gameHud,
@@ -913,9 +918,8 @@ export class Hud {
 		);
 		this.multiplayerIntro.classList.toggle("is-hidden", !triggers.multiplayer);
 	}
-	setLeaderboard(heroes: HeroSummary[]): void {
-		const online = heroes.filter((hero) => hero.connected).length;
-		this.onlineCount.textContent = `${online} ${online === 1 ? "player" : "players"} online`;
+	setLeaderboard(heroes: HeroSummary[], onlineCount: number): void {
+		this.onlineCount.textContent = `${onlineCount} ${onlineCount === 1 ? "player" : "players"} online`;
 		this.leaderboardNode.replaceChildren(
 			...heroes.map((hero) => {
 				const button = (
@@ -3200,6 +3204,7 @@ export class Hud {
 	private updateVisibility(): void {
 		const joined = Boolean(this.player);
 		this.joinPanel.classList.toggle("is-hidden", joined);
+		this.leaderboardPanel.classList.toggle("is-hidden", joined);
 		this.gameHud.classList.toggle("is-hidden", !joined);
 		this.realmPanel.classList.toggle("is-hidden", !joined);
 		this.loginHeaderActions.classList.toggle("is-hidden", joined);

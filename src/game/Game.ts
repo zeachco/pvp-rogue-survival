@@ -502,7 +502,7 @@ export class Game {
 			this.hud.clearPlayer();
 			this.hud.setPublicHero();
 		} else if (message.type === "leaderboard")
-			this.hud.setLeaderboard(message.heroes);
+			this.hud.setLeaderboard(message.heroes, message.onlineCount);
 		else if (message.type === "heroProfile")
 			this.hud.setPublicHero(message.hero);
 		else if (message.type === "realmUpdated") {
