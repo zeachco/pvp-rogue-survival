@@ -50,10 +50,15 @@ import {
 	backgroundFrameDue,
 } from "./FrameScheduler";
 import {
+	loadFullscreenMode,
 	loadLightingMode,
+	loadResolutionScale,
 	loadShadowMode,
+	saveFullscreenMode,
 	saveLightingMode,
+	saveResolutionScale,
 	saveShadowMode,
+	type FullscreenMode,
 } from "./graphicsSettings";
 
 const FIXED_STEP = 1 / 60;
@@ -105,6 +110,7 @@ export class Game {
 	private inspected?: Creep;
 	private waveMode: "competitive" | "solo" | "training" = "training";
 	private realmMode: "training" | "waiting" | "competitive" = "training";
+	private fullscreenMode: FullscreenMode = "on";
 	private get creeps(): Creep[] {
 		return this.arena.creeps;
 	}
@@ -133,9 +139,12 @@ export class Game {
 	) {
 		this.map.buildMeshes();
 		this.renderer = new ThreeRenderer(this.canvas);
+		this.fullscreenMode = loadFullscreenMode(localStorage);
+		const resolutionScale = loadResolutionScale(localStorage);
 		const lightingMode = loadLightingMode(localStorage);
 		const shadowMode = loadShadowMode(localStorage);
 		this.renderer.setLightingMode(lightingMode);
+		this.renderer.setResolutionScale(resolutionScale);
 		this.renderer.setShadowMode(shadowMode);
 		this.renderer.scene.add(this.map.mesh);
 		this.hero.onCombatText = (text) => this.arena.addCombatText(text);
@@ -168,6 +177,14 @@ export class Game {
 			onEnterRealm: () => this.enterRealm(),
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
+			onSetFullscreenMode: (mode) => {
+				saveFullscreenMode(localStorage, mode);
+				this.fullscreenMode = mode;
+			},
+			onSetResolutionScale: (scale) => {
+				saveResolutionScale(localStorage, scale);
+				this.renderer.setResolutionScale(scale);
+			},
 			onSetLightingMode: (mode) => {
 				saveLightingMode(localStorage, mode);
 				this.renderer.setLightingMode(mode);
@@ -189,6 +206,8 @@ export class Game {
 				this.isChatting = chatting;
 			},
 		});
+		this.hud.setFullscreenMode(this.fullscreenMode);
+		this.hud.setResolutionScale(resolutionScale);
 		this.hud.setLightingMode(lightingMode);
 		this.hud.setShadowMode(shadowMode);
 		if (this.savedSession) this.hud.setJoinName(this.savedSession.username);
@@ -437,7 +456,7 @@ export class Game {
 	}
 	private enterRealm(): void {
 		if (this.realmMode !== "training") return;
-		if (!document.fullscreenElement) {
+		if (this.fullscreenMode === "on" && !document.fullscreenElement) {
 			const fullscreen = document.documentElement.requestFullscreen?.();
 			if (fullscreen) void fullscreen.catch(() => {});
 		}

@@ -949,6 +949,23 @@ input {
 	accent-color: #3affd4;
 }
 
+.resolution-scale-setting {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: center;
+}
+
+.resolution-scale-setting input {
+	width: 100%;
+}
+
+.resolution-scale-setting output {
+	min-width: 3ch;
+	color: #e8f9ff;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
 .graphics-option-group:disabled {
 	opacity: 0.45;
 }

@@ -124,11 +124,17 @@ import {
 } from "../src/game/render/ThreeRenderer";
 import {
 	DEFAULT_GRAPHICS_SETTINGS,
+	FULLSCREEN_MODE_STORAGE_KEY,
 	LIGHTING_MODE_STORAGE_KEY,
+	RESOLUTION_SCALE_STORAGE_KEY,
 	SHADOW_MODE_STORAGE_KEY,
+	loadFullscreenMode,
 	loadLightingMode,
+	loadResolutionScale,
 	loadShadowMode,
+	saveFullscreenMode,
 	saveLightingMode,
+	saveResolutionScale,
 	saveShadowMode,
 } from "../src/game/graphicsSettings";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
@@ -151,6 +157,34 @@ describe("animated 3D characters", () => {
 		saveShadowMode(storage, "dynamic");
 		expect(values.get(SHADOW_MODE_STORAGE_KEY)).toBe("dynamic");
 		expect(loadShadowMode(storage)).toBe("dynamic");
+	});
+	test("stores fullscreen-on-start locally with an on default", () => {
+		const values = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => values.set(key, value),
+		};
+		expect(loadFullscreenMode(storage)).toBe("on");
+		saveFullscreenMode(storage, "off");
+		expect(values.get(FULLSCREEN_MODE_STORAGE_KEY)).toBe("off");
+		expect(loadFullscreenMode(storage)).toBe("off");
+		values.set(FULLSCREEN_MODE_STORAGE_KEY, "invalid");
+		expect(loadFullscreenMode(storage)).toBe("on");
+	});
+	test("stores resolution scale locally from twenty through one hundred percent", () => {
+		const values = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => values.get(key) ?? null,
+			setItem: (key: string, value: string) => values.set(key, value),
+		};
+		expect(loadResolutionScale(storage)).toBe(1);
+		saveResolutionScale(storage, 0.2);
+		expect(values.get(RESOLUTION_SCALE_STORAGE_KEY)).toBe("0.2");
+		expect(loadResolutionScale(storage)).toBe(0.2);
+		values.set(RESOLUTION_SCALE_STORAGE_KEY, "0.1");
+		expect(loadResolutionScale(storage)).toBe(1);
+		values.set(RESOLUTION_SCALE_STORAGE_KEY, "1.1");
+		expect(loadResolutionScale(storage)).toBe(1);
 	});
 
 	test("toggles dynamic shadow maps for scene lights and meshes", () => {

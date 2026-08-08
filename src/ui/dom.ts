@@ -36,7 +36,7 @@ export function h(
 	for (const [key, value] of Object.entries(props ?? {})) {
 		if (value === false || value === null || value === undefined) continue;
 		if (isSvg) element.setAttribute(key, String(value));
-		else if (key === "class") element.className = String(value);
+		else if (key === "class") element.setAttribute("class", String(value));
 		else if (key === "style") element.setAttribute("style", String(value));
 		else if (key.startsWith("data-")) element.setAttribute(key, String(value));
 		else if (key in element) Reflect.set(element, key, value);

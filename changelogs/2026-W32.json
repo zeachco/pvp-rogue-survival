@@ -1,15 +1,21 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-08T21:44:05.298Z",
+	"generatedAt": "2026-08-08T21:58:59.616Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Feature and UI Overhaul",
-			"summary": "This week focused heavily on introducing new gameplay features, significant UI/UX improvements across the game, and deep authentication system changes. New content included two-handed weapon classes and various spell additions like Blizzard and reworked Boomrang and Rage mechanisms, alongside the introduction of unique items and reroll functionality. Major interface updates involved repositioning panels for better space utilization, implementing flat slide-and-fade animations for panels, reorganizing realm presence headers, and enhancing authentication flow with explicit success/error feedback and updated protocol compatibility. The system also introduced new visual elements like SVG icons for panels, advanced spell preview logic using computed tooltips, and improvements to combat feedback, such as persisting lights and fixing staff mechanics.",
+			"summaryTitle": "Refinement of Game Settings, UI Flow, and Authentication",
+			"summary": "This week focused on significant updates to game settings, user interface flow, and the authentication system. New game settings were introduced, allowing players to select rendering scale and disable auto fullscreen upon game start. The user experience saw major adjustments across panels, including better spacing for inventory and character panels, repositioning large elements towards the edges, and displacement of chat and messages when panels are open. Contextual tooltips were added around souls, and the realm presence header was reorganized to place options and status information at the extreme left, consolidating real-time opponent noise. The authentication flow was enhanced with improved feedback for login results, including explicit success or error tones compatible with protocol version 41. Specific fixes included ensuring password errors are shown inside the modal, persisting passwords correctly through hashing before snapshotting, hiding password confirmation for existing accounts, and streamlining the login interface by docking the top-player list to the left. The system also updated Devlog placement and header controls, aligning rounded shadows and advancing protocol compatibility to version 40.",
 			"commits": [
+				{
+					"hash": "67b11dd7944192671b2967ffd181e16e5b49a46e",
+					"authoredAt": "2026-08-08T17:58:05-04:00",
+					"title": "feat: Added new game settings",
+					"description": "- extracted game settings into it's own component\n- can now select rendering scale\n- can now disable auto fullscreen on game start"
+				},
 				{
 					"hash": "1120b819d862a44fe73e4f79df34a4a359883a8b",
 					"authoredAt": "2026-08-08T17:16:44-04:00",
@@ -449,7 +455,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["feat", "ux", "fix", "balance", "General fixes"]
+			"categories": ["General fixes"]
 		}
 	]
 }

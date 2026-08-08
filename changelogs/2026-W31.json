@@ -1,14 +1,14 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-08T21:44:05.254Z",
+	"generatedAt": "2026-08-08T21:58:59.575Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Major Spell Management and UI Overhaul",
-			"summary": "This week focused heavily on introducing advanced spell management features and significant interface improvements. A major feature involved adding editable spell loadouts and enhancing combat controls, which limited active spell loadouts to six persisted slots, supported 1–6 manual casting and right-click auto-fire, kept passive skills permanently active, moved camera orbit controls to left-drag without affecting hero facing, established right-click as the explicit aiming control, rendered creep resource bars above overlapping units, migrated existing spell activation settings, and updated protocol, specs, and regression tests. Additionally, features included enabling aim with the camera and progressive 3D transform. Several fixes were also implemented to address visual and positioning issues, such as fixing ground clipping, 3D rendering and positioning, general UI improvements, removing context menu options, and adjustments for visuals and mobile experience. Furthermore, auras spells were made dropable, and fullscreen and mouse move recenter functionality was added, along with the addition of new columns. The week also included adding 3D animated models, alongside previous work on healing spell effects, general fixes, and introducing a new chat system.",
+			"summaryTitle": "Feature Update and UI Overhaul",
+			"summary": "This week focused heavily on expanding spell management, combat controls, and visual presentation. New features included a spell management window, editable spell loadouts with limits on active slots, support for manual casting and auto-fire aiming via right-click, persistent passive skills, and rendering of creep resource bars above overlapping units. Camera orbit controls were moved to left-drag while maintaining hero facing, and the system was updated to include progressive 3D transforms. Additionally, improvements covered fixing issues like dropable auras spells, ground clipping, 3D rendering and positioning problems, UI improvements, and managing chat systems. Visual and chat bugs were addressed, camera zoom was fixed, and other general visual/mobile experience adjustments were implemented.",
 			"commits": [
 				{
 					"hash": "d38170abb885e2540ce8879b7ec9ec58ffa22517",

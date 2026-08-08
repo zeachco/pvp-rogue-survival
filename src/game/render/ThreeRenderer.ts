@@ -242,13 +242,14 @@ export class ThreeRenderer {
 	private readonly keyLight: THREE.DirectionalLight;
 	private lightingMode: LightingMode = DEFAULT_GRAPHICS_SETTINGS.lightingMode;
 	private shadowMode: ShadowMode = DEFAULT_GRAPHICS_SETTINGS.shadowMode;
+	private resolutionScale: number = DEFAULT_GRAPHICS_SETTINGS.resolutionScale;
 	private heroLightRoot?: THREE.Object3D;
 
 	constructor(canvas: HTMLCanvasElement) {
 		this.canvas = canvas;
 		this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 		this.renderer.setClearColor(SCENE_LIGHTING.clearColor);
-		this.renderer.setPixelRatio(devicePixelRatio);
+		this.renderer.setPixelRatio(devicePixelRatio * this.resolutionScale);
 		this.scene = new THREE.Scene();
 		this.ambientLight = new THREE.AmbientLight(
 			0xbfe8ff,
@@ -284,6 +285,12 @@ export class ThreeRenderer {
 	setShadowMode(mode: ShadowMode): void {
 		this.shadowMode = mode;
 		applySceneShadowMode(this.renderer, this.scene, mode);
+	}
+
+	setResolutionScale(scale: number): void {
+		this.resolutionScale = scale;
+		this.renderer.setPixelRatio(devicePixelRatio * scale);
+		this.renderer.setSize(this.width, this.height, false);
 	}
 
 	resize(w: number, h: number): void {

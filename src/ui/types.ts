@@ -19,6 +19,8 @@ export interface HudCallbacks {
 	onEnterRealm(): void;
 	onBack(): void;
 	onLogout(): void;
+	onSetFullscreenMode(mode: "on" | "off"): void;
+	onSetResolutionScale(scale: number): void;
 	onSetLightingMode(mode: "off" | "hero" | "all"): void;
 	onSetShadowMode(mode: "off" | "dynamic"): void;
 	onInspectHero(heroId: string): void;

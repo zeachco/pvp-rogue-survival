@@ -34,8 +34,8 @@ import type {
 	PlayerState,
 	StatusEffectSnapshot,
 } from "../game/types";
-import { DEFAULT_GRAPHICS_SETTINGS } from "../game/graphicsSettings";
 import { h } from "./dom";
+import { GameSettings } from "./GameSettings";
 import {
 	itemTile,
 	orderInventoryTiles,
@@ -267,78 +267,7 @@ export class Hud {
 			[Training Grounds - No Rewards]
 		</div>
 	) as HTMLElement;
-	private readonly lightingRadios = (["off", "hero", "all"] as const).map(
-		(mode) =>
-			(
-				<input
-					type="radio"
-					name="graphics-lighting"
-					value={mode}
-					checked={mode === DEFAULT_GRAPHICS_SETTINGS.lightingMode}
-				/>
-			) as HTMLInputElement,
-	);
-	private readonly shadowRadios = (["off", "dynamic"] as const).map(
-		(mode) =>
-			(
-				<input
-					type="radio"
-					name="graphics-shadows"
-					value={mode}
-					checked={mode === DEFAULT_GRAPHICS_SETTINGS.shadowMode}
-				/>
-			) as HTMLInputElement,
-	);
-	private readonly graphicsOptionsModal = (
-		<section
-			class="graphics-options-modal is-hidden"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Graphics options"
-		>
-			<button
-				class="graphics-options-close"
-				type="button"
-				aria-label="Close graphics options"
-			>
-				×
-			</button>
-			<h2>Graphics Options</h2>
-			<fieldset class="graphics-option-group">
-				<legend>Lights</legend>
-				{this.lightingRadios.map((radio, index) => (
-					<label>
-						{radio}
-						<span>{["Off", "Hero only", "All"][index]}</span>
-					</label>
-				))}
-			</fieldset>
-			<fieldset class="graphics-option-group" data-graphics-shadows>
-				<legend>Shadows</legend>
-				{this.shadowRadios.map((radio, index) => (
-					<label>
-						{radio}
-						<span>{["Off", "Dynamic"][index]}</span>
-					</label>
-				))}
-			</fieldset>
-		</section>
-	) as HTMLElement;
-	private readonly shadowOptionsFieldset =
-		this.graphicsOptionsModal.querySelector(
-			"[data-graphics-shadows]",
-		) as HTMLFieldSetElement;
-	private readonly graphicsOptionsMask = (
-		<div class="graphics-options-mask is-hidden" aria-hidden="true" />
-	) as HTMLElement;
-	private closeGraphicsOptions(): void {
-		this.graphicsOptionsMask.classList.add("is-hidden");
-		this.graphicsOptionsModal.classList.add("is-hidden");
-	}
-	private openGraphicsOptions(): void {
-		this.graphicsOptionsMask.classList.remove("is-hidden");
-		this.graphicsOptionsModal.classList.remove("is-hidden");
-	}
+	private readonly gameSettings: GameSettings;
 	private readonly aimReticle = (
 		<div class="aim-reticle is-hidden" aria-hidden="true">
 			<span />
@@ -531,6 +460,7 @@ export class Hud {
 		private readonly root: HTMLDivElement,
 		private readonly callbacks: HudCallbacks,
 	) {
+		this.gameSettings = new GameSettings(callbacks);
 		this.nameInput = (
 			<input
 				name="name"
@@ -547,7 +477,7 @@ export class Hud {
 		) as HTMLElement;
 		(
 			this.loginHeaderActions.querySelector("button") as HTMLButtonElement
-		).onclick = () => this.openGraphicsOptions();
+		).onclick = () => this.gameSettings.open();
 		this.joinPanel = (
 			<section class="join-panel">
 				{joinForm}
@@ -749,25 +679,6 @@ export class Hud {
 		dismissMultiplayer.onclick = closeMultiplayerIntro;
 		this.multiplayerIntroMask.onclick = closeMultiplayerIntro;
 		this.multiplayerIntro.append(dismissMultiplayer);
-		const graphicsClose = this.graphicsOptionsModal.querySelector(
-			".graphics-options-close",
-		) as HTMLButtonElement;
-		graphicsClose.onclick = () => this.closeGraphicsOptions();
-		this.graphicsOptionsMask.onclick = () => this.closeGraphicsOptions();
-		for (const radio of this.lightingRadios)
-			radio.onchange = () => {
-				if (!radio.checked) return;
-				const mode = radio.value as "off" | "hero" | "all";
-				this.setLightingMode(mode);
-				this.callbacks.onSetLightingMode(mode);
-			};
-		for (const radio of this.shadowRadios)
-			radio.onchange = () => {
-				if (!radio.checked) return;
-				const mode = radio.value as "off" | "dynamic";
-				this.setShadowMode(mode);
-				this.callbacks.onSetShadowMode(mode);
-			};
 		const statusBar = (
 			<header class="game-status-bar">
 				{this.characterToggle}
@@ -804,23 +715,26 @@ export class Hud {
 			this.joinPanel,
 			this.publicSheet,
 			this.gameHud,
-			this.graphicsOptionsMask,
-			this.graphicsOptionsModal,
 			this.authenticationMask,
 			this.authenticationModal,
 		);
+		this.gameSettings.appendTo(root);
 		this.updateVisibility();
 	}
 	setJoinName(name: string): void {
 		this.nameInput.value = name;
 	}
 	setLightingMode(mode: "off" | "hero" | "all"): void {
-		for (const radio of this.lightingRadios)
-			radio.checked = radio.value === mode;
-		this.shadowOptionsFieldset.disabled = mode === "off";
+		this.gameSettings.setLightingMode(mode);
 	}
 	setShadowMode(mode: "off" | "dynamic"): void {
-		for (const radio of this.shadowRadios) radio.checked = radio.value === mode;
+		this.gameSettings.setShadowMode(mode);
+	}
+	setFullscreenMode(mode: "on" | "off"): void {
+		this.gameSettings.setFullscreenMode(mode);
+	}
+	setResolutionScale(scale: number): void {
+		this.gameSettings.setResolutionScale(scale);
 	}
 	setNotice(notice: string, tone: "success" | "error" = "success"): void {
 		if (!this.authenticationModal.classList.contains("is-hidden")) {
@@ -2870,7 +2784,7 @@ export class Hud {
 				Options
 			</button>
 		) as HTMLButtonElement;
-		options.onclick = () => this.openGraphicsOptions();
+		options.onclick = () => this.gameSettings.open();
 		const devlog = (
 			<a
 				class="header-control header-devlog"
