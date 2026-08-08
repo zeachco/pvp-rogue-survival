@@ -239,7 +239,7 @@ export class Hud {
 					</label>
 				))}
 			</fieldset>
-			<fieldset class="graphics-option-group">
+			<fieldset class="graphics-option-group" data-graphics-shadows>
 				<legend>Shadows</legend>
 				{this.shadowRadios.map((radio, index) => (
 					<label>
@@ -259,6 +259,10 @@ export class Hud {
 			</section>
 		</section>
 	) as HTMLElement;
+	private readonly shadowOptionsFieldset =
+		this.graphicsOptionsModal.querySelector(
+			"[data-graphics-shadows]",
+		) as HTMLFieldSetElement;
 	private readonly graphicsOptionsMask = (
 		<div class="graphics-options-mask is-hidden" aria-hidden="true" />
 	) as HTMLElement;
@@ -476,10 +480,21 @@ export class Hud {
 				<button type="submit">Join</button>
 			</form>
 		) as HTMLElement;
+		const homeLinks = (
+			<nav class="home-links" aria-label="Home links">
+				<a href="devlog.html" target="_blank" rel="noopener noreferrer">
+					Devlog
+				</a>
+				<button type="button">Options</button>
+			</nav>
+		) as HTMLElement;
+		(homeLinks.querySelector("button") as HTMLButtonElement).onclick = () =>
+			this.openGraphicsOptions();
 		this.joinPanel = (
 			<section class="join-panel">
 				{joinForm}
 				{this.joinNoticeNode}
+				{homeLinks}
 				<h2>Heroes</h2>
 				{this.leaderboardNode}
 			</section>
@@ -684,8 +699,6 @@ export class Hud {
 				{this.aimReticle}
 				{this.spellBar}
 				{this.spellCatalog}
-				{this.graphicsOptionsMask}
-				{this.graphicsOptionsModal}
 				<section class="chat-area">
 					{this.chatLog}
 					{this.chatInput}
@@ -698,7 +711,13 @@ export class Hud {
 				{this.itemHoverCard}
 			</div>
 		) as HTMLElement;
-		root.append(this.joinPanel, this.publicSheet, this.gameHud);
+		root.append(
+			this.joinPanel,
+			this.publicSheet,
+			this.gameHud,
+			this.graphicsOptionsMask,
+			this.graphicsOptionsModal,
+		);
 		this.updateVisibility();
 	}
 	setJoinName(name: string): void {
@@ -707,6 +726,7 @@ export class Hud {
 	setLightingMode(mode: "off" | "hero" | "all"): void {
 		for (const radio of this.lightingRadios)
 			radio.checked = radio.value === mode;
+		this.shadowOptionsFieldset.disabled = mode === "off";
 	}
 	setShadowMode(mode: "off" | "dynamic"): void {
 		for (const radio of this.shadowRadios) radio.checked = radio.value === mode;

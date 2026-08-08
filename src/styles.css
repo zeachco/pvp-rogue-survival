@@ -825,6 +825,14 @@ input {
 	accent-color: #3affd4;
 }
 
+.graphics-option-group:disabled {
+	opacity: 0.45;
+}
+
+.graphics-option-group:disabled label {
+	cursor: not-allowed;
+}
+
 .graphics-option-group.is-unimplemented {
 	border-color: rgba(255, 101, 117, 0.35);
 	opacity: 0.58;
@@ -1021,6 +1029,28 @@ input {
 .join-panel h2 {
 	margin: 8px 0 0;
 	font-size: 16px;
+}
+.home-links {
+	display: flex;
+	gap: 8px;
+}
+.home-links a,
+.home-links button {
+	flex: 1;
+	border: 1px solid #3affd4;
+	border-radius: 4px;
+	padding: 8px 12px;
+	color: #dffeff;
+	background: transparent;
+	font: inherit;
+	text-align: center;
+	text-decoration: none;
+	cursor: pointer;
+}
+.home-links a:hover,
+.home-links button:hover {
+	color: #06211f;
+	background: #3affd4;
 }
 .leaderboard {
 	display: grid;
