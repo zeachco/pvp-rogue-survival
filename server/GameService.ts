@@ -1708,7 +1708,11 @@ export class GameService {
 			});
 	}
 	private notice(player: Player, message: string): void {
-		this.options.send(player.id, { type: "serverNotice", message });
+		this.options.send(player.id, {
+			type: "serverNotice",
+			message,
+			tone: "error",
+		});
 	}
 	private seed(): number {
 		return randomSeed(this.options.random);

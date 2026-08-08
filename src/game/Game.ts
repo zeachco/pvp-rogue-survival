@@ -581,7 +581,7 @@ export class Game {
 				message.kind,
 			);
 		else if (message.type === "serverNotice")
-			this.hud.setNotice(message.message);
+			this.hud.setNotice(message.message, message.tone);
 	}
 
 	private enqueueWave(wave: CreepWave): void {

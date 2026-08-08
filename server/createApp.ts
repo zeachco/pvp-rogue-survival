@@ -133,6 +133,7 @@ export async function createApp(options: AppOptions) {
 						return sendSocket(socket, {
 							type: "serverNotice",
 							message: "Ignored invalid message.",
+							tone: "error",
 						});
 					if (message.type === "listHeroes")
 						return sendLeaderboard(socket, game);
@@ -143,6 +144,7 @@ export async function createApp(options: AppOptions) {
 							: sendSocket(socket, {
 									type: "serverNotice",
 									message: "That hero is unavailable.",
+									tone: "error",
 								});
 					}
 					if (message.type === "join") {
@@ -151,6 +153,7 @@ export async function createApp(options: AppOptions) {
 							return sendSocket(socket, {
 								type: "serverNotice",
 								message: "That username is already logged in.",
+								tone: "error",
 							});
 						if (message.name && !message.password)
 							return sendSocket(socket, {
@@ -169,6 +172,7 @@ export async function createApp(options: AppOptions) {
 							return sendSocket(socket, {
 								type: "serverNotice",
 								message: "Incorrect password.",
+								tone: "error",
 							});
 						const needsPassword = message.name && !existing?.passwordHash;
 						if (
@@ -178,6 +182,7 @@ export async function createApp(options: AppOptions) {
 							return sendSocket(socket, {
 								type: "serverNotice",
 								message: "Passwords do not match.",
+								tone: "error",
 							});
 						const newPasswordHash = needsPassword
 							? await Bun.password.hash(message.password!)
@@ -203,6 +208,7 @@ export async function createApp(options: AppOptions) {
 								message: message.heroId
 									? "That hero is unavailable."
 									: "Username must use 1-20 letters, digits, underscores, or hyphens.",
+								tone: "error",
 							});
 						}
 						return;
@@ -219,6 +225,7 @@ export async function createApp(options: AppOptions) {
 						return sendSocket(socket, {
 							type: "serverNotice",
 							message: "Join before playing.",
+							tone: "error",
 						});
 					game.handle(socket.playerId, message);
 				})
@@ -230,6 +237,7 @@ export async function createApp(options: AppOptions) {
 					sendSocket(socket, {
 						type: "serverNotice",
 						message: "The server could not save that change.",
+						tone: "error",
 					});
 				});
 		});

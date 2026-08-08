@@ -580,7 +580,7 @@ export class Hud {
 				this.authenticationMode === "create" &&
 				this.passwordInput.value !== this.passwordConfirmationInput.value
 			) {
-				this.setNotice("Passwords do not match.");
+				this.setNotice("Passwords do not match.", "error");
 				return;
 			}
 			this.callbacks.onJoin(
@@ -817,10 +817,18 @@ export class Hud {
 	setShadowMode(mode: "off" | "dynamic"): void {
 		for (const radio of this.shadowRadios) radio.checked = radio.value === mode;
 	}
-	setNotice(notice: string): void {
+	setNotice(notice: string, tone: "success" | "error" = "success"): void {
 		if (!this.authenticationModal.classList.contains("is-hidden")) {
 			this.authenticationNotice.textContent = notice;
 			this.authenticationNotice.classList.toggle("is-hidden", !notice);
+			this.authenticationNotice.classList.toggle(
+				"is-success",
+				Boolean(notice) && tone === "success",
+			);
+			this.authenticationNotice.classList.toggle(
+				"is-error",
+				Boolean(notice) && tone === "error",
+			);
 			return;
 		}
 		for (const node of [this.noticeNode, this.joinNoticeNode]) {

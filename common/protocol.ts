@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 40;
+export const PROTOCOL_VERSION = 41;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -361,7 +361,7 @@ export type ServerMessage =
 	| { type: "groundDropCreated"; drop: GroundDrop }
 	| { type: "scoreAwarded"; score: number; reason: string }
 	| { type: "suicideResolved" }
-	| { type: "serverNotice"; message: string }
+	| { type: "serverNotice"; message: string; tone: "success" | "error" }
 	| {
 			type: "chatMessage";
 			senderId: PlayerId;
