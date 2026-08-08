@@ -1528,8 +1528,9 @@ input {
 	overflow-y: auto;
 	border-radius: 10px;
 	pointer-events: auto;
-	transform: perspective(100px) translateX(0) rotateY(0.5deg);
+	transform: translateX(0);
 	transform-origin: left center;
+	will-change: transform, opacity;
 }
 .public-character-panel {
 	left: auto;
@@ -1553,8 +1554,9 @@ input {
 	border-radius: 10px;
 	background: rgba(13, 20, 24, 0.9);
 	pointer-events: auto;
-	transform: perspective(100px) translateX(0) rotateY(-0.5deg);
+	transform: translateX(0);
 	transform-origin: right center;
+	will-change: transform, opacity;
 }
 
 .game-hud > .character-panel:not(.is-collapsed) {
@@ -1568,22 +1570,22 @@ input {
 @keyframes character-panel-enter {
 	from {
 		opacity: 0;
-		transform: perspective(100px) translateX(-24px) rotateY(8deg);
+		transform: translateX(-24px);
 	}
 	to {
 		opacity: 1;
-		transform: perspective(100px) translateX(0) rotateY(0.5deg);
+		transform: translateX(0);
 	}
 }
 
 @keyframes inventory-panel-enter {
 	from {
 		opacity: 0;
-		transform: perspective(100px) translateX(24px) rotateY(-8deg);
+		transform: translateX(24px);
 	}
 	to {
 		opacity: 1;
-		transform: perspective(100px) translateX(0) rotateY(-0.5deg);
+		transform: translateX(0);
 	}
 }
 
