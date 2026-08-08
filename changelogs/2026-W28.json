@@ -1,26 +1,23 @@
 {
-  "week": "2026-W28",
-  "label": "Week of July 6, 2026",
-  "generatedAt": "2026-08-07T22:29:49.767Z",
-  "model": "gemma4:e2b",
-  "periods": [
-    {
-      "key": "2026-W28",
-      "label": "Week of July 6, 2026",
-      "summaryTitle": "Initialized project",
-      "summary": "The project was initialized, establishing the foundational structure for development.",
-      "commits": [
-        {
-          "hash": "project-initialization",
-          "authoredAt": "2026-07-07T22:01:40.000Z",
-          "title": "Initialized project",
-          "description": ""
-        }
-      ],
-      "categories": [
-        "Refactor",
-        "Project initialization"
-      ]
-    }
-  ]
+	"week": "2026-W28",
+	"label": "Week of July 6, 2026",
+	"generatedAt": "2026-08-08T21:44:05.067Z",
+	"model": "gemma4:e2b",
+	"periods": [
+		{
+			"key": "2026-W28",
+			"label": "Week of July 6, 2026",
+			"summaryTitle": "Initialized project",
+			"summary": "The project was initialized, setting the foundation for future development.",
+			"commits": [
+				{
+					"hash": "project-initialization",
+					"authoredAt": "2026-07-07T22:01:40.000Z",
+					"title": "Initialized project",
+					"description": ""
+				}
+			],
+			"categories": ["Refactor", "Project initialization"]
+		}
+	]
 }

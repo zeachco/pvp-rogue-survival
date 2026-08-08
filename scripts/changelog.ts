@@ -334,6 +334,11 @@ async function main(): Promise<void> {
 			: `${JSON.stringify(buildDocument(week, week.start, generated), null, 2)}\n`;
 		await Bun.write(path, contents);
 		console.log(`Wrote ${path}`);
+
+		if (path.endsWith(".json")) {
+			await $`bunx biome format --write ${path}`;
+			console.log(`Formatted ${path}`);
+		}
 	}
 }
 

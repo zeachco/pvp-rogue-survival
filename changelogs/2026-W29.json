@@ -1,158 +1,155 @@
 {
-  "week": "2026-W29",
-  "label": "Week of July 13, 2026",
-  "generatedAt": "2026-08-07T22:29:49.768Z",
-  "model": "gemma4:e2b",
-  "periods": [
-    {
-      "key": "2026-W29",
-      "label": "Week of July 13, 2026",
-      "summaryTitle": "Gameplay and Server Overhaul",
-      "summary": "This week focused on significant gameplay features and server infrastructure upgrades. New blood magic mechanics were introduced via rings, amulets, and new spells, along with further spell and aura tweaks. The system also included server recovery and tweaks, a new leaderboard feature, and mechanics around suicide and top player ranking. Server architecture was overhauled by implementing a DB-based server using Bun SQL, alongside general multiplayer tweaks and improvements for solo play. Weapon tweaks were implemented, and the UI received significant redesigns and additions, including more panel information, inventory improvements, and updates to character stats and item/spell lists.",
-      "commits": [
-        {
-          "hash": "894c10cbe05bc63b58596e835256b7a77d107f6f",
-          "authoredAt": "2026-07-15T08:23:43-04:00",
-          "title": "fix: extract button bug",
-          "description": ""
-        },
-        {
-          "hash": "33e24e00125b6fc5579a80ee89aab523733e6b15",
-          "authoredAt": "2026-07-15T00:25:30-04:00",
-          "title": "fix: fixed rent and scepter auras mechanics",
-          "description": ""
-        },
-        {
-          "hash": "1f7f9174d4cfa26bc63cf5b2e686ef36cd68f6a6",
-          "authoredAt": "2026-07-14T23:34:25-04:00",
-          "title": "feat: rings, amulets and new spells and mechanics around blood magic",
-          "description": ""
-        },
-        {
-          "hash": "48bcf9d128d29ccaeb75898caeac35ef7c6b00b3",
-          "authoredAt": "2026-07-14T22:37:29-04:00",
-          "title": "feat: new spells and tweaks (auras)",
-          "description": ""
-        },
-        {
-          "hash": "8b48fa8b5c816c33c10b61a94e9721304638fee9",
-          "authoredAt": "2026-07-14T22:05:50-04:00",
-          "title": "feat: server recover and tweaks",
-          "description": ""
-        },
-        {
-          "hash": "ad66d62f0a4845197d279c5867426e051d82253d",
-          "authoredAt": "2026-07-14T21:25:25-04:00",
-          "title": "feat: leaderboard",
-          "description": ""
-        },
-        {
-          "hash": "8f846c3325470da38a86e0f7c38c9436ba17a347",
-          "authoredAt": "2026-07-14T20:15:18-04:00",
-          "title": "feat: suicide and top player mechanics",
-          "description": ""
-        },
-        {
-          "hash": "1129d4fb3ba96421052e215669a7ca4a23e3564a",
-          "authoredAt": "2026-07-14T18:15:37-04:00",
-          "title": "feat: DB based server using bun SQL",
-          "description": ""
-        },
-        {
-          "hash": "d0cf0fe8e2fa4f140ed900eb31b70338bbd6bcd2",
-          "authoredAt": "2026-07-14T17:18:02-04:00",
-          "title": "fix: server setup",
-          "description": ""
-        },
-        {
-          "hash": "dae81d2e9c9c22748390a774c7a1ba0e0a5dc3bc",
-          "authoredAt": "2026-07-14T16:48:14-04:00",
-          "title": "feat: multiplayer tweaks",
-          "description": ""
-        },
-        {
-          "hash": "99494f9151a5a581c8f72bf1e6b18535971beecf",
-          "authoredAt": "2026-07-14T16:00:23-04:00",
-          "title": "feat: tweaks and improved solo play",
-          "description": ""
-        },
-        {
-          "hash": "b9beb862a370947a3f4c8ca8089531a09285be50",
-          "authoredAt": "2026-07-14T15:34:44-04:00",
-          "title": "feat: weapon tweaks",
-          "description": ""
-        },
-        {
-          "hash": "a5c38f5e7126f2383a587ade0707c0e88d472bba",
-          "authoredAt": "2026-07-14T15:05:53-04:00",
-          "title": "feat: more UX and added panel information",
-          "description": ""
-        },
-        {
-          "hash": "d97ad378cd7b0c418916b8916b771af8531ae966",
-          "authoredAt": "2026-07-14T14:55:59-04:00",
-          "title": "feat: UI and diffs",
-          "description": ""
-        },
-        {
-          "hash": "4a9653457a327991c70a9eeb9ff4babd3aa53c22",
-          "authoredAt": "2026-07-14T14:15:54-04:00",
-          "title": "ux: inventory",
-          "description": ""
-        },
-        {
-          "hash": "03ea82aa67a5aac43185a709fdd8a53f217a6513",
-          "authoredAt": "2026-07-14T10:27:57-04:00",
-          "title": "feat: UX and tweaks",
-          "description": ""
-        },
-        {
-          "hash": "8dad401e1d38e49ad41712ecb320c963fab2cdea",
-          "authoredAt": "2026-07-14T01:04:44-04:00",
-          "title": "feat: hui char stats",
-          "description": ""
-        },
-        {
-          "hash": "49429192bb037f5e49bebd8852066c67e511bdd5",
-          "authoredAt": "2026-07-14T00:38:00-04:00",
-          "title": "feat: more items and spells",
-          "description": ""
-        },
-        {
-          "hash": "72f0b22cd970cafb23b953ecf7ee1727d010e855",
-          "authoredAt": "2026-07-14T00:21:59-04:00",
-          "title": "feat: game mechanics",
-          "description": ""
-        },
-        {
-          "hash": "2ed28caba9a0c0b79d09588c73fc0f93b919589c",
-          "authoredAt": "2026-07-13T23:52:49-04:00",
-          "title": "feat: some inventory / UI fixes",
-          "description": ""
-        },
-        {
-          "hash": "039dd693208090fe326aed88a05f4dd19cf918b4",
-          "authoredAt": "2026-07-13T23:34:25-04:00",
-          "title": "feat: UI numbers and weapon system",
-          "description": ""
-        },
-        {
-          "hash": "2aaa97ac45fb3e8896694ee1e3a395356eab3b11",
-          "authoredAt": "2026-07-13T19:14:31-04:00",
-          "title": "feat: UI stuff",
-          "description": ""
-        },
-        {
-          "hash": "dd70d08607b66f1efde1e7270e1443a62a334baf",
-          "authoredAt": "2026-07-13T18:59:22-04:00",
-          "title": "feat: many redesign of mechanics and UI",
-          "description": ""
-        }
-      ],
-      "categories": [
-        "General fixes",
-        "Refactor"
-      ]
-    }
-  ]
+	"week": "2026-W29",
+	"label": "Week of July 13, 2026",
+	"generatedAt": "2026-08-08T21:44:05.172Z",
+	"model": "gemma4:e2b",
+	"periods": [
+		{
+			"key": "2026-W29",
+			"label": "Week of July 13, 2026",
+			"summaryTitle": "Gameplay and Server Mechanics Overhaul",
+			"summary": "This week focused heavily on adding new gameplay features and significant server infrastructure updates. New blood magic mechanics were introduced with rings, amulets, and new spells, alongside tweaks to existing aura mechanics. Server stability was improved with a server recovery feature and general tweaks, including the implementation of a DB-based server using bun SQL. Major game mechanics were expanded with the introduction of leaderboards and suicide/top player mechanics for enhanced competitive play. Multiplayer features received tweaks, solo play was improved, and weapon stats were adjusted. A substantial amount of work was dedicated to UI improvements, including adding new panel information, implementing UI changes and diffs, refining the inventory system, and redesigning various mechanics. Finally, several UI fixes addressed inventory/UI numbers, the weapon system, and general UI elements.",
+			"commits": [
+				{
+					"hash": "894c10cbe05bc63b58596e835256b7a77d107f6f",
+					"authoredAt": "2026-07-15T08:23:43-04:00",
+					"title": "fix: extract button bug",
+					"description": ""
+				},
+				{
+					"hash": "33e24e00125b6fc5579a80ee89aab523733e6b15",
+					"authoredAt": "2026-07-15T00:25:30-04:00",
+					"title": "fix: fixed rent and scepter auras mechanics",
+					"description": ""
+				},
+				{
+					"hash": "1f7f9174d4cfa26bc63cf5b2e686ef36cd68f6a6",
+					"authoredAt": "2026-07-14T23:34:25-04:00",
+					"title": "feat: rings, amulets and new spells and mechanics around blood magic",
+					"description": ""
+				},
+				{
+					"hash": "48bcf9d128d29ccaeb75898caeac35ef7c6b00b3",
+					"authoredAt": "2026-07-14T22:37:29-04:00",
+					"title": "feat: new spells and tweaks (auras)",
+					"description": ""
+				},
+				{
+					"hash": "8b48fa8b5c816c33c10b61a94e9721304638fee9",
+					"authoredAt": "2026-07-14T22:05:50-04:00",
+					"title": "feat: server recover and tweaks",
+					"description": ""
+				},
+				{
+					"hash": "ad66d62f0a4845197d279c5867426e051d82253d",
+					"authoredAt": "2026-07-14T21:25:25-04:00",
+					"title": "feat: leaderboard",
+					"description": ""
+				},
+				{
+					"hash": "8f846c3325470da38a86e0f7c38c9436ba17a347",
+					"authoredAt": "2026-07-14T20:15:18-04:00",
+					"title": "feat: suicide and top player mechanics",
+					"description": ""
+				},
+				{
+					"hash": "1129d4fb3ba96421052e215669a7ca4a23e3564a",
+					"authoredAt": "2026-07-14T18:15:37-04:00",
+					"title": "feat: DB based server using bun SQL",
+					"description": ""
+				},
+				{
+					"hash": "d0cf0fe8e2fa4f140ed900eb31b70338bbd6bcd2",
+					"authoredAt": "2026-07-14T17:18:02-04:00",
+					"title": "fix: server setup",
+					"description": ""
+				},
+				{
+					"hash": "dae81d2e9c9c22748390a774c7a1ba0e0a5dc3bc",
+					"authoredAt": "2026-07-14T16:48:14-04:00",
+					"title": "feat: multiplayer tweaks",
+					"description": ""
+				},
+				{
+					"hash": "99494f9151a5a581c8f72bf1e6b18535971beecf",
+					"authoredAt": "2026-07-14T16:00:23-04:00",
+					"title": "feat: tweaks and improved solo play",
+					"description": ""
+				},
+				{
+					"hash": "b9beb862a370947a3f4c8ca8089531a09285be50",
+					"authoredAt": "2026-07-14T15:34:44-04:00",
+					"title": "feat: weapon tweaks",
+					"description": ""
+				},
+				{
+					"hash": "a5c38f5e7126f2383a587ade0707c0e88d472bba",
+					"authoredAt": "2026-07-14T15:05:53-04:00",
+					"title": "feat: more UX and added panel information",
+					"description": ""
+				},
+				{
+					"hash": "d97ad378cd7b0c418916b8916b771af8531ae966",
+					"authoredAt": "2026-07-14T14:55:59-04:00",
+					"title": "feat: UI and diffs",
+					"description": ""
+				},
+				{
+					"hash": "4a9653457a327991c70a9eeb9ff4babd3aa53c22",
+					"authoredAt": "2026-07-14T14:15:54-04:00",
+					"title": "ux: inventory",
+					"description": ""
+				},
+				{
+					"hash": "03ea82aa67a5aac43185a709fdd8a53f217a6513",
+					"authoredAt": "2026-07-14T10:27:57-04:00",
+					"title": "feat: UX and tweaks",
+					"description": ""
+				},
+				{
+					"hash": "8dad401e1d38e49ad41712ecb320c963fab2cdea",
+					"authoredAt": "2026-07-14T01:04:44-04:00",
+					"title": "feat: hui char stats",
+					"description": ""
+				},
+				{
+					"hash": "49429192bb037f5e49bebd8852066c67e511bdd5",
+					"authoredAt": "2026-07-14T00:38:00-04:00",
+					"title": "feat: more items and spells",
+					"description": ""
+				},
+				{
+					"hash": "72f0b22cd970cafb23b953ecf7ee1727d010e855",
+					"authoredAt": "2026-07-14T00:21:59-04:00",
+					"title": "feat: game mechanics",
+					"description": ""
+				},
+				{
+					"hash": "2ed28caba9a0c0b79d09588c73fc0f93b919589c",
+					"authoredAt": "2026-07-13T23:52:49-04:00",
+					"title": "feat: some inventory / UI fixes",
+					"description": ""
+				},
+				{
+					"hash": "039dd693208090fe326aed88a05f4dd19cf918b4",
+					"authoredAt": "2026-07-13T23:34:25-04:00",
+					"title": "feat: UI numbers and weapon system",
+					"description": ""
+				},
+				{
+					"hash": "2aaa97ac45fb3e8896694ee1e3a395356eab3b11",
+					"authoredAt": "2026-07-13T19:14:31-04:00",
+					"title": "feat: UI stuff",
+					"description": ""
+				},
+				{
+					"hash": "dd70d08607b66f1efde1e7270e1443a62a334baf",
+					"authoredAt": "2026-07-13T18:59:22-04:00",
+					"title": "feat: many redesign of mechanics and UI",
+					"description": ""
+				}
+			],
+			"categories": ["General fixes", "Refactor"]
+		}
+	]
 }
