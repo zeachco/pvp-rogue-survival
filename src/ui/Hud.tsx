@@ -203,7 +203,7 @@ export class Hud {
 				/>
 			) as HTMLInputElement,
 	);
-	private readonly shadowRadios = (["off", "static", "dynamic"] as const).map(
+	private readonly shadowRadios = (["off", "dynamic"] as const).map(
 		(mode) =>
 			(
 				<input
@@ -211,7 +211,6 @@ export class Hud {
 					name="graphics-shadows"
 					value={mode}
 					checked={mode === DEFAULT_GRAPHICS_SETTINGS.shadowMode}
-					disabled={mode === "static"}
 				/>
 			) as HTMLInputElement,
 	);
@@ -244,7 +243,7 @@ export class Hud {
 				{this.shadowRadios.map((radio, index) => (
 					<label>
 						{radio}
-						<span>{["Off", "Static (not implemented)", "Dynamic"][index]}</span>
+						<span>{["Off", "Dynamic"][index]}</span>
 					</label>
 				))}
 			</fieldset>
@@ -680,7 +679,7 @@ export class Hud {
 			};
 		for (const radio of this.shadowRadios)
 			radio.onchange = () => {
-				if (!radio.checked || radio.value === "static") return;
+				if (!radio.checked) return;
 				const mode = radio.value as "off" | "dynamic";
 				this.setShadowMode(mode);
 				this.callbacks.onSetShadowMode(mode);
