@@ -191,6 +191,13 @@ export class Hud {
 	) as HTMLElement;
 	private authenticationMode: "create" | "login" = "login";
 	private readonly authenticationTitle = (<h2 />) as HTMLElement;
+	private readonly authenticationNotice = (
+		<div
+			class="authentication-notice is-hidden"
+			role="alert"
+			aria-live="assertive"
+		/>
+	) as HTMLElement;
 	private readonly passwordInput = (
 		<input
 			type="password"
@@ -224,6 +231,7 @@ export class Hud {
 				Confirm password
 				{this.passwordConfirmationInput}
 			</label>
+			{this.authenticationNotice}
 			<div class="authentication-actions">
 				<button type="button">Cancel</button>
 				<button type="submit">Continue</button>
@@ -557,6 +565,8 @@ export class Hud {
 			this.authenticationModal.classList.add("is-hidden");
 			this.passwordInput.value = "";
 			this.passwordConfirmationInput.value = "";
+			this.authenticationNotice.textContent = "";
+			this.authenticationNotice.classList.add("is-hidden");
 		};
 		(
 			this.authenticationModal.querySelector(
@@ -808,6 +818,11 @@ export class Hud {
 		for (const radio of this.shadowRadios) radio.checked = radio.value === mode;
 	}
 	setNotice(notice: string): void {
+		if (!this.authenticationModal.classList.contains("is-hidden")) {
+			this.authenticationNotice.textContent = notice;
+			this.authenticationNotice.classList.toggle("is-hidden", !notice);
+			return;
+		}
 		for (const node of [this.noticeNode, this.joinNoticeNode]) {
 			node.textContent = notice;
 			node.classList.toggle("is-hidden", !notice);
@@ -941,6 +956,8 @@ export class Hud {
 		this.passwordConfirmationInput.required = mode === "create";
 		this.passwordInput.autocomplete =
 			mode === "create" ? "new-password" : "current-password";
+		this.authenticationNotice.textContent = "";
+		this.authenticationNotice.classList.add("is-hidden");
 		this.authenticationMask.classList.remove("is-hidden");
 		this.authenticationModal.classList.remove("is-hidden");
 		this.passwordInput.focus();
