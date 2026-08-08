@@ -22,3 +22,36 @@ Use Bun for project tooling and scripts. The client is Vite + TypeScript with ca
 ## Preview-Driven Game Tweaks
 
 For changes that affect resources, equipment, attributes, advanced stats, or spells, use the project skill at `skills/td-war-preview-driven-tweaks/SKILL.md`. The behavior remains authoritative in `specs/`; the skill defines the implementation and validation workflow for consistent before/after HUD projections.
+
+## commit semantic
+
+feat: feature
+chore: clean up or other changes that aren't pertinent to changelogs
+fix: bug fix
+ux: User experience features of fixes
+balance: tweak in game configs
+docs: changed documentation, usually not exposed in devlog
+refactor: changed code without functionality
+perf: improved performance
+
+### examples of a commit message
+
+```
+feat(graphics): added dynamic shadows
+
+- added options to control graphics
+- added no shadows
+- added dynamic shadows
+```
+
+```
+perf(spawn): limited maximum creeps to 100
+```
+
+```
+docs: updated tooltips for ressources
+```
+
+```
+ux(inventory): improved font size in panel
+```
