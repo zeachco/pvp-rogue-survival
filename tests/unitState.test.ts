@@ -52,6 +52,14 @@ class OrderedEffect extends UnitEffect {
 }
 
 describe("unit state compiler", () => {
+	test("projects passive block chance without a buckler", () => {
+		const state = projectUnitState({
+			baseStats: ZERO_STATS,
+			blockingLevel: 6,
+		});
+		expect(state.blockChance).toBeCloseTo(0.03);
+	});
+
 	test("applies priorities first and application sequence for ties", () => {
 		const target = new TestTarget();
 		const multiply = new OrderedEffect("multiply", 20, (unit) => {

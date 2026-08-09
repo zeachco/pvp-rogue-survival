@@ -183,14 +183,13 @@ export function bucklerBlockChance(
 	stats: Stats,
 	blockingLevel = 0,
 ): number {
-	return item?.itemKind === "buckler"
-		? Math.min(
-				1,
-				0.005 * Math.max(0, blockingLevel) +
-					(item.blockChance + 0.005 * (stats.strength + stats.agility)) *
-						itemRequirementMultiplier(item, stats),
-			)
-		: 0;
+	const passiveChance = 0.005 * Math.max(0, blockingLevel);
+	const bucklerChance =
+		item?.itemKind === "buckler"
+			? (item.blockChance + 0.005 * (stats.strength + stats.agility)) *
+				itemRequirementMultiplier(item, stats)
+			: 0;
+	return Math.min(1, passiveChance + bucklerChance);
 }
 
 export function reflectiveSurgeCooldown(level: number): number {

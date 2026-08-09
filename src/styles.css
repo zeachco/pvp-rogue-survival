@@ -2638,6 +2638,14 @@ input {
 .beneficial-effect > b {
 	font-weight: 700;
 }
+.beneficial-effect-xp {
+	border-color: #c084fc;
+	color: #f3e8ff;
+	background: rgba(67, 27, 94, 0.92);
+	box-shadow:
+		0 2px 7px rgba(0, 0, 0, 0.45),
+		0 0 8px rgba(192, 132, 252, 0.35);
+}
 .beneficial-effect-tooltip {
 	position: absolute;
 	z-index: 30;

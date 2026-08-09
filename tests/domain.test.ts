@@ -2043,21 +2043,21 @@ describe("hero status HUD summaries", () => {
 		expect(
 			xpSendBuffSummary(
 				[
-					{ multiplier: 2, expiresAt: 21_000 },
+					{ multiplier: 1.2, expiresAt: 21_000 },
 					{ multiplier: 3, expiresAt: 31_000 },
 				],
 				1_500,
 			),
 		).toEqual({
-			multiplier: 2,
+			multiplier: 1.2,
 			remaining: 20,
-			label: "200% XP · 20s",
-			tooltip: "XP Send bonus — 200% XP for 20s remaining",
+			label: "x1.2 · 20s",
+			tooltip: "XP Send bonus — 120% XP for 20s remaining",
 		});
 		expect(
 			xpSendBuffSummary(
 				[
-					{ multiplier: 2, expiresAt: 21_000 },
+					{ multiplier: 1.2, expiresAt: 21_000 },
 					{ multiplier: 3, expiresAt: 31_000 },
 				],
 				21_000,
@@ -2065,7 +2065,7 @@ describe("hero status HUD summaries", () => {
 		).toEqual({
 			multiplier: 3,
 			remaining: 10,
-			label: "300% XP · 10s",
+			label: "x3 · 10s",
 			tooltip: "XP Send bonus — 300% XP for 10s remaining",
 		});
 	});

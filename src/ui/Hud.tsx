@@ -2139,6 +2139,11 @@ export class Hud {
 		);
 	}
 	private renderStatusEffects(statuses: StatusEffectSnapshot[]): void {
+		if (
+			this.statusEffects.matches(":hover") ||
+			this.statusEffects.contains(document.activeElement)
+		)
+			return;
 		this.statusEffects.replaceChildren(
 			...statusEffectSummaries(statuses).map(
 				(status) =>
@@ -2163,6 +2168,11 @@ export class Hud {
 		reflectiveSurgeRemaining: number,
 		rapidRegenRemaining: number,
 	): void {
+		if (
+			this.beneficialEffects.matches(":hover") ||
+			this.beneficialEffects.contains(document.activeElement)
+		)
+			return;
 		const buff = xpSendBuffSummary(buffs);
 		const rapidRegenLevel = this.player
 			? effectiveSkillLevel(this.player.progress, "rapidRegen")
@@ -2204,11 +2214,10 @@ export class Hud {
 			...(buff
 				? [
 						<span
-							class="beneficial-effect"
+							class="beneficial-effect beneficial-effect-xp"
 							tabindex="0"
 							aria-label={buff.tooltip}
 						>
-							<span aria-hidden="true">✦</span>
 							<b>{buff.label}</b>
 							<span class="beneficial-effect-tooltip" role="tooltip">
 								{buff.tooltip}
@@ -3694,7 +3703,7 @@ export function xpSendBuffSummary(
 	return {
 		multiplier: buff.multiplier,
 		remaining,
-		label: `${percent}% XP · ${remaining}s`,
+		label: `x${fmt(buff.multiplier)} · ${remaining}s`,
 		tooltip: `XP Send bonus — ${percent}% XP for ${remaining}s remaining`,
 	};
 }
