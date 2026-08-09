@@ -2218,13 +2218,17 @@ describe("arena systems", () => {
 			),
 		).toBeTrue();
 		expect(singleCoins[0].rotation.y).not.toBe(0);
-		expect(COIN_SCATTER_MULTIPLIER).toBe(3);
+		expect(COIN_SCATTER_MULTIPLIER).toBe(5);
 		expect(
 			clusteredCoins.every(
 				(child) =>
-					child.userData.displacementSpeed >= 24 &&
-					child.userData.displacementSpeed < 48,
+					child.userData.displacementSpeed >= 40 &&
+					child.userData.displacementSpeed < 80,
 			),
+		).toBeTrue();
+		expect(clusteredCoins.every((child) => child.position.y === 0)).toBeTrue();
+		expect(
+			clusteredCoins.every((child) => child.position.z >= -COIN_BOB_AMPLITUDE),
 		).toBeTrue();
 		expect(
 			clusteredCoins.some((child) => child.position.length() > 0),
