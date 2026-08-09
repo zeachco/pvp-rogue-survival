@@ -1,50 +1,56 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T18:21:46.796Z",
+	"generatedAt": "2026-08-09T18:34:05.069Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Stability & Polish Update",
+			"summaryTitle": "New Content & System Overhaul",
 			"summary": {
 				"features": [
-					"Implemented expanded Devlog history viewing with SPA routing and realm-safe navigation warnings.",
-					"Added unique new gear slots, including a unique buckler.",
-					"The system now supports two-handed weapon classes.",
-					"Devlogs and Options pages were revamped to streamline the user experience.",
-					"The ability for players to submit feature requests or vote on suggestions was added through an official form."
+					"A new unique buckler and its associated attributes have been added to the game.",
+					"The Devlog has been significantly upgraded, moving history into a fully featured section with modern navigation (SPA routing, browser back support) and supporting realm-safe warnings. Voting and submitting content is now restricted to logged-in players.",
+					"Improved functionality for item drops when inventory overflows, allowing dropped items to appear on the ground.",
+					"Added dedicated admin controls to streamline feature request processes and general system stability."
 				],
 				"bugfixes": [
-					"Addressed issues with inventory overflow mechanics when characters die.",
-					"Fixed visual glitches involving coins clipping underground terrain and incorrect healing light displacement.",
-					"Corrected bugs preventing items that provide spells from displaying correctly in the spell bar or activating properly.",
-					"Improved consistency in how character statistics, especially passive blocks, are displayed across various panels and tooltips.",
-					"Updated authentication flows to improve error messaging visibility within the modal."
+					"Self-messaging issues have been resolved, ensuring that a player sees their own messages correctly alongside those of others in chat.",
+					"Fixed instances where spells or inventory menus were inaccessible while open.",
+					"Addressed the rendering issue of coins clipping through underground geometry.",
+					"Resolved glitches related to 'healing light' displacement and visual errors from item models (e.g., invader model)."
 				],
 				"performance": [
-					"Optimized rendering by controlling light sources and shadow map overhead, specifically keeping projectiles unlit.",
-					"Implemented a pre-allocated pooling system for light effects to reduce performance costs associated with frequently created lighting instances."
+					"Optimized rendering by limiting redundant overhead, ensuring spell projectiles, gold, and scrap remain unlit and outside dynamic shadow maps. Redundant hero fallback presentations are detached after model loading.",
+					"Implemented a light effect pooling system to drastically reduce performance costs associated with creating and managing numerous transient light objects."
 				],
 				"balance": [
-					"Adjusted spell mechanics, including making Katar's abilities block based and changing Swamp Spell to have circular coverage.",
-					"Tuned passive gain mechanics related to Magic Find and Septers/Auras.",
-					"Adjusted starting gear and updated core spell and cooldown balance."
+					"Tuned combat balance by making Katar's abilities capable of blocking, and redesigning the Swamp spell into a more consistent circular attack pattern.",
+					"Adjusted global spell mechanics including improvements to 'Magic Find' and changes related to Scepters/Auras consistency."
 				],
 				"ux": [
-					"Enhanced Devlog reading experience by restructuring the changelogs into distinct update categories for better readability, including mobile optimization.",
-					"Improved panel design with refined animations and better spacing for character and inventory details.",
-					"Added specific visual cues—such as recoloring hero blood spells purple—to clarify spell ownership and status effects.",
-					"Updated the realm presence header to be more concise by removing redundant noise elements."
-				],
-				"graphics": [
-					"Refined player model mechanics by reusing a scaled-down version of the hero's model for invader appearances."
+					"The Devlog interface received major quality-of-life improvements, separating content into dedicated update categories for better readability and featuring mobile responsiveness enhancements.",
+					"Refinements to the user experience across panels, including making character and inventory tooltips clearer (e.g., showing proc chances/passive blocks) and adding effect badges for better status visualization.",
+					"Color ownership clarification was added for spells: enemy effects are now tinted red, hero blood magic is purple, and distinct colors were assigned for non-healing Rapid Regeneration effects.",
+					"Improved panel visibility through modern masking techniques and back blur to enhance text readability across the board. The general UI layout has also been refined."
 				]
 			},
 			"commits": [
 				{
-					"hash": "ef573ab5a32dfbb6855149653b473b8b61400ae8",
+					"hash": "040b8fe366be318ddb307b5225fbb89b31da113c",
+					"authoredAt": "2026-08-09T14:28:02-04:00",
+					"title": "fix: echo self messages",
+					"description": "now a player sending messages will see his own messages, not just others"
+				},
+				{
+					"hash": "006763f3a8173ae0265fbc6dbb62e7bdafabf620",
+					"authoredAt": "2026-08-09T14:25:47-04:00",
+					"title": "fix: inventory open spells and chat",
+					"description": ""
+				},
+				{
+					"hash": "60d361d1000514541c2e2d32053504a4c484e553",
 					"authoredAt": "2026-08-09T14:12:10-04:00",
 					"title": "ux: devlogs mask close button, search functionality",
 					"description": ""
@@ -620,14 +626,7 @@
 					"description": ""
 				}
 			],
-			"categories": [
-				"Features",
-				"Bugfixes",
-				"Performance",
-				"Balance",
-				"UX",
-				"Graphics"
-			]
+			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
 		}
 	]
 }

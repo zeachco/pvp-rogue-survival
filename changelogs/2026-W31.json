@@ -1,25 +1,23 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T18:21:46.757Z",
+	"generatedAt": "2026-08-09T18:34:05.016Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Spell Systems & Combat Overhaul",
+			"summaryTitle": "Enhanced Spell System and Core Experience Polish",
 			"summary": {
 				"features": [
-					"New spell management window with editable loadouts (up to six slots).",
-					"Improved combat controls including manual casting via 1–6 keys and right-click auto-fire.",
-					"Implemented aim functionality tied directly to the camera view.",
-					"Support for persistent passive skills and rendered creep resource bars above overlapping units.",
-					"Added progressive 3D transforms, improved model animation, and updated map rendering to support full 3D environments.",
-					"Enhanced UI elements with added columns and fullscreen mouse recentering capabilities."
+					"A comprehensive spell management window was added, allowing users to customize up to six equipped spell slots for manual casting or right-click auto-fire. New functionality includes the ability to aim spells using the camera view, and visible resource bars now render above multiple overlapping units."
 				],
 				"bugfixes": [
-					"Fixed issue where Aura spells were incorrectly dropable.",
-					"Addressed various bugs related to positional data in 3D rendering, ground clipping, and general visual integrity."
+					"The system has been corrected to allow auras spells to be dropped in the inventory.",
+					"Multiple visual bugs were resolved across rendering and UI elements, including fixes for ground clipping, 3D positioning issues, and general mobile experience adjustments."
+				],
+				"ux": [
+					"Improvements were made to various user interfaces, including column additions and updated controls. Fullscreen support was added alongside a mouse movement feature that recenters the view for better usability."
 				]
 			},
 			"commits": [
@@ -174,7 +172,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes"]
+			"categories": ["Features", "Bugfixes", "UX"]
 		}
 	]
 }
