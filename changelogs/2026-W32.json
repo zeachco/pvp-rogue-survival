@@ -1,40 +1,60 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T18:02:45.071Z",
+	"generatedAt": "2026-08-09T18:21:46.796Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Aura Updates and Devlog Polish",
+			"summaryTitle": "Stability & Polish Update",
 			"summary": {
 				"features": [
-					"Introduced a new unique buckler and associated attributes.",
-					"Developed major Devlog capabilities, allowing users to navigate history within the game client with persistent routing support. The Devlog remains available across all realms while loading requests and votes from the selected WebSocket server.",
-					"Implemented player-only voting and submission features for better community interaction.",
-					"The system was updated to handle two-handed weapons, which now occupy separate dedicated slots in equipment display areas."
+					"Implemented expanded Devlog history viewing with SPA routing and realm-safe navigation warnings.",
+					"Added unique new gear slots, including a unique buckler.",
+					"The system now supports two-handed weapon classes.",
+					"Devlogs and Options pages were revamped to streamline the user experience.",
+					"The ability for players to submit feature requests or vote on suggestions was added through an official form."
 				],
 				"bugfixes": [
-					"Fixed an issue where equipped items with spells were not correctly registering or activating their passive effects.",
-					"Resolved several visual glitches including coins clipping underground, healing light displacement, and issues surrounding the invader model's appearance.",
-					"Corrected visibility errors regarding 'block' passives within character statistics panels and effect tooltips.",
-					"Addressed various performance concerns by implementing a pool system for dynamic light effects and optimizing shadow rendering overhead for better stability."
+					"Addressed issues with inventory overflow mechanics when characters die.",
+					"Fixed visual glitches involving coins clipping underground terrain and incorrect healing light displacement.",
+					"Corrected bugs preventing items that provide spells from displaying correctly in the spell bar or activating properly.",
+					"Improved consistency in how character statistics, especially passive blocks, are displayed across various panels and tooltips.",
+					"Updated authentication flows to improve error messaging visibility within the modal."
 				],
 				"performance": [
-					"Optimized rendering by detaching redundant hero/clone fallback presentations after model load and creating a shared pool for light effect instances to reduce runtime overhead."
+					"Optimized rendering by controlling light sources and shadow map overhead, specifically keeping projectiles unlit.",
+					"Implemented a pre-allocated pooling system for light effects to reduce performance costs associated with frequently created lighting instances."
 				],
 				"balance": [
-					"Tuned existing spells and mechanics, including modifications to the Katar kit (now blocking) and making the Swamp spell circular. Also made adjustments to Magic Find and Septers/Auras.",
-					"Updated stamina mechanics and applied general balancing across various spells and cooldowns."
+					"Adjusted spell mechanics, including making Katar's abilities block based and changing Swamp Spell to have circular coverage.",
+					"Tuned passive gain mechanics related to Magic Find and Septers/Auras.",
+					"Adjusted starting gear and updated core spell and cooldown balance."
 				],
 				"ux": [
-					"Significant overhaul of the Devlog experience, allowing users to separate changelogs into clear update categories for better readability and implementing mobile-specific improvements. The UI now features clearer spell ownership color coding (e.g., enemy effects are red, hero blood magic is purple) and revised panel visibility logic.",
-					"Improved user experience across various panels and the main game interface: character/inventory panels use flatter slide-and-fade animations, the realms presence header was reorganized for conciseness, and tooltip context around Souls was added.",
-					"Updated the structure of spell previews to move activation costs and proc behaviors into computed tooltips, allowing viewing of unequipped weapon procs, while also ensuring that advanced stats display passive effects correctly."
+					"Enhanced Devlog reading experience by restructuring the changelogs into distinct update categories for better readability, including mobile optimization.",
+					"Improved panel design with refined animations and better spacing for character and inventory details.",
+					"Added specific visual cues—such as recoloring hero blood spells purple—to clarify spell ownership and status effects.",
+					"Updated the realm presence header to be more concise by removing redundant noise elements."
+				],
+				"graphics": [
+					"Refined player model mechanics by reusing a scaled-down version of the hero's model for invader appearances."
 				]
 			},
 			"commits": [
+				{
+					"hash": "ef573ab5a32dfbb6855149653b473b8b61400ae8",
+					"authoredAt": "2026-08-09T14:12:10-04:00",
+					"title": "ux: devlogs mask close button, search functionality",
+					"description": ""
+				},
+				{
+					"hash": "e155ca793ce93aae14ce238b547375823ec61126",
+					"authoredAt": "2026-08-09T14:07:16-04:00",
+					"title": "feat: inventory overflow, having too much items on death drops items on the ground",
+					"description": ""
+				},
 				{
 					"hash": "ac25b8d288f19ddfb5ea943f1dca8ada68a3fcc4",
 					"authoredAt": "2026-08-09T13:32:58-04:00",
@@ -600,7 +620,14 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics"
+			]
 		}
 	]
 }

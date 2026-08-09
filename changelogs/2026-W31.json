@@ -1,33 +1,25 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T18:02:45.030Z",
+	"generatedAt": "2026-08-09T18:21:46.757Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Combat and UI Overhaul",
+			"summaryTitle": "Spell Systems & Combat Overhaul",
 			"summary": {
 				"features": [
-					"New spell management window allows for editable loadouts of up to six active spells.",
-					"Improved combat controls include manual casting options, right-click aiming (which remains explicit), and rendering visible resource bars above overlapping units.",
-					"Core gameplay enhancements feature the ability to aim directly with the camera control system, alongside progressive 3D transformations.",
-					"Expanded UI functionality includes added columns and a redesigned spell management interface.",
-					"Improved user experience features include fullscreen mode support and mouse movement that can recenter the view."
+					"New spell management window with editable loadouts (up to six slots).",
+					"Improved combat controls including manual casting via 1–6 keys and right-click auto-fire.",
+					"Implemented aim functionality tied directly to the camera view.",
+					"Support for persistent passive skills and rendered creep resource bars above overlapping units.",
+					"Added progressive 3D transforms, improved model animation, and updated map rendering to support full 3D environments.",
+					"Enhanced UI elements with added columns and fullscreen mouse recentering capabilities."
 				],
 				"bugfixes": [
-					"Resolved several visual glitches affecting mobile experiences and general 3D rendering/positioning. Auras spells are now correctly droppable.",
-					"Fixed various UI elements, including improvements to spell bars, removal of unnecessary context menu options, and addressing ground clipping issues.",
-					"Addressed camera zoom bugs and inconsistencies in 3D model representation."
-				],
-				"performance": ["N/A"],
-				"balance": ["N/A"],
-				"ux": [
-					"Improved the overall player experience with updated UI mechanics, better visibility of resources, and adjustments to camera controls."
-				],
-				"graphics": [
-					"Significant visual upgrades including support for 3D animated models, progressive 3D transformations, and asset integration into the environment."
+					"Fixed issue where Aura spells were incorrectly dropable.",
+					"Addressed various bugs related to positional data in 3D rendering, ground clipping, and general visual integrity."
 				]
 			},
 			"commits": [
@@ -180,22 +172,9 @@
 					"authoredAt": "2026-07-27T15:51:03-04:00",
 					"title": "feat: updated UI and skills mechanics",
 					"description": ""
-				},
-				{
-					"hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
-					"authoredAt": "2026-07-27T14:17:45-04:00",
-					"title": "feat: freeze mechanics",
-					"description": ""
 				}
 			],
-			"categories": [
-				"Features",
-				"Bugfixes",
-				"Performance",
-				"Balance",
-				"UX",
-				"Graphics"
-			]
+			"categories": ["Features", "Bugfixes"]
 		}
 	]
 }

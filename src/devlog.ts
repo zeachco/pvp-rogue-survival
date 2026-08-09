@@ -25,6 +25,9 @@ const calendar = document.querySelector("#calendar") as HTMLElement;
 const weekNode = document.querySelector("#week") as HTMLElement;
 const requestForm = document.querySelector("#request-form") as HTMLFormElement;
 const requestStatus = document.querySelector("#request-status") as HTMLElement;
+const requestSearch = document.querySelector(
+	"#request-search",
+) as HTMLInputElement;
 const futureRequests = document.querySelector(
 	"#future-requests",
 ) as HTMLElement;
@@ -32,6 +35,7 @@ const sessionStorage = new SessionStorage();
 let voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
 let isModerator = false;
+let selectedWeekKey = weeks.at(-1)?.key ?? "";
 
 function element<K extends keyof HTMLElementTagNameMap>(
 	name: K,
@@ -78,6 +82,7 @@ function renderSummary(summary: DevlogSummary | string): HTMLElement {
 }
 
 function renderWeek(key: string, data: string | WeeklyDevlog): void {
+	selectedWeekKey = key;
 	for (const button of calendar.querySelectorAll("button"))
 		button.classList.toggle("is-selected", button.dataset.week === key);
 	if (typeof data === "string") {
@@ -92,7 +97,24 @@ function renderWeek(key: string, data: string | WeeklyDevlog): void {
 		element("h2", data.label),
 		element("span", `Generated ${new Date(data.generatedAt).toLocaleString()}`),
 	);
-	const articles = data.periods.map((period) => {
+	const query = searchQuery();
+	const periods = data.periods
+		.map((period) => ({
+			...period,
+			summary: filterSummary(period.summary, query),
+			commits: query
+				? period.commits.filter((commit) =>
+						matchesText(query, commit.title, commit.description ?? ""),
+					)
+				: period.commits,
+		}))
+		.filter(
+			(period) =>
+				!query ||
+				hasSummaryContent(period.summary) ||
+				period.commits.length > 0,
+		);
+	const articles = periods.map((period) => {
 		const article = element("article");
 		article.append(
 			element("small", period.label),
@@ -104,6 +126,7 @@ function renderWeek(key: string, data: string | WeeklyDevlog): void {
 			...period.categories.map((category) => element("span", category)),
 		);
 		const details = element("details", undefined, "commit-details");
+		details.open = Boolean(query);
 		const commitCount = `${period.commits.length} source commit${period.commits.length === 1 ? "" : "s"}`;
 		const list = element("ul");
 		list.append(
@@ -115,21 +138,102 @@ function renderWeek(key: string, data: string | WeeklyDevlog): void {
 			}),
 		);
 		details.append(element("summary", commitCount), list);
-		article.append(tags, details);
+		article.append(tags);
+		if (period.commits.length) article.append(details);
 		return article;
 	});
 	weekNode.replaceChildren(heading, ...articles);
 }
 
+function filterSummary(
+	summary: DevlogSummary | string,
+	query: string,
+): DevlogSummary | string {
+	if (!query) return summary;
+	if (typeof summary === "string")
+		return matchesText(query, summary) ? summary : "";
+	return {
+		features: summary.features?.filter((feature) =>
+			matchesText(query, feature),
+		),
+	};
+}
+
+function hasSummaryContent(summary: DevlogSummary | string): boolean {
+	return typeof summary === "string"
+		? Boolean(summary)
+		: DEVLOG_SUMMARY_BUCKETS.some((bucket) => Boolean(summary[bucket]?.length));
+}
+
+function searchQuery(): string {
+	return requestSearch.value.trim().toLocaleLowerCase();
+}
+
+function matchesText(query: string, ...values: string[]): boolean {
+	return values.some((value) => value.toLocaleLowerCase().includes(query));
+}
+
+function weekMatchesSearch(
+	data: string | WeeklyDevlog,
+	query: string,
+): boolean {
+	if (!query || typeof data === "string") return !query;
+	return data.periods.some(
+		(period) =>
+			(typeof period.summary === "string"
+				? matchesText(query, period.summary)
+				: period.summary.features?.some((feature) =>
+						matchesText(query, feature),
+					) === true) ||
+			period.commits.some((commit) =>
+				matchesText(query, commit.title, commit.description ?? ""),
+			),
+	);
+}
+
+function renderChangelogSearch(): void {
+	const query = searchQuery();
+	const matches = weeks.filter(({ data }) => weekMatchesSearch(data, query));
+	for (const button of calendar.querySelectorAll<HTMLButtonElement>("button"))
+		button.hidden = !matches.some(({ key }) => key === button.dataset.week);
+	if (!matches.length) {
+		weekNode.replaceChildren(
+			element(
+				"p",
+				`No changelog entries match “${requestSearch.value.trim()}”.`,
+				"muted",
+			),
+		);
+		return;
+	}
+	const selected =
+		matches.find(({ key }) => key === selectedWeekKey) ?? matches.at(-1)!;
+	renderWeek(selected.key, selected.data);
+}
+
 function renderRequests(): void {
-	if (!requests.length) {
+	const query = searchQuery();
+	const visibleRequests = query
+		? requests.filter((request) =>
+				`${request.title} ${request.description}`
+					.toLocaleLowerCase()
+					.includes(query),
+			)
+		: requests;
+	if (!visibleRequests.length) {
 		futureRequests.replaceChildren(
-			element("p", "No requests yet. Be the first to suggest one.", "muted"),
+			element(
+				"p",
+				query
+					? `No requests match “${requestSearch.value.trim()}”.`
+					: "No requests yet. Be the first to suggest one.",
+				"muted",
+			),
 		);
 		return;
 	}
 	const groups = new Map<string, DevlogRequest[]>();
-	for (const request of requests)
+	for (const request of visibleRequests)
 		groups.set(request.scheduledMonth, [
 			...(groups.get(request.scheduledMonth) ?? []),
 			request,
@@ -159,6 +263,11 @@ function renderRequests(): void {
 		});
 	futureRequests.replaceChildren(...monthSections);
 }
+
+requestSearch.addEventListener("input", () => {
+	renderRequests();
+	renderChangelogSearch();
+});
 
 function renderRequest(request: DevlogRequest): HTMLElement {
 	const card = element("article", undefined, "request-card");

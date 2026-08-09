@@ -1,25 +1,24 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-09T18:02:44.949Z",
+	"generatedAt": "2026-08-09T18:21:46.671Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Blood Magic & Major System Overhaul",
+			"summaryTitle": "Blood Magic and Gameplay Overhaul",
 			"summary": {
 				"features": [
-					"New blood magic spells and systems are introduced along with the addition of rings and amulets.",
-					"The leaderboard system has been implemented, alongside new mechanics for top players and suicide actions.",
-					"General gameplay tweaks include improvements to solo play, weapon tuning, and revamped game mechanics across the board.",
-					"UX was heavily improved with UI overhauls, inventory updates, added panel information, and detailed stat display (HUI/Character stats).",
-					"Multiplayer capabilities received several general tweaks.",
-					"The core server backend has been upgraded using a database-driven setup for better stability and recovery."
+					"Added rings, amulets, and new spells centered around blood magic.",
+					"Introduced a leaderboard system along with suicide mechanics for top player ranking.",
+					"Implemented server recovery improvements and major tweaks to enhance solo play experience.",
+					"Equipped multiple enhancements including refined weapon systems and detailed character stat displays (HUI).",
+					"Revamped core game mechanics and UI components, alongside general inventory and panel UX improvements."
 				],
 				"bugfixes": [
-					"Fixed issues related to rent and scepter aura mechanics.",
-					"Resolved the specific button extraction bug."
+					"Corrected issues with rent and scepter auras mechanics.",
+					"Fixed a persistent button extraction bug."
 				]
 			},
 			"commits": [

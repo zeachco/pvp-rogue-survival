@@ -26,6 +26,9 @@ export class AppRouter {
 
 	start(): void {
 		this.closeButton.onclick = () => this.closeDevlog();
+		this.panel.addEventListener("click", (event) => {
+			if (event.target === this.panel) this.closeDevlog();
+		});
 		window.addEventListener("popstate", () => this.render());
 		this.render();
 	}

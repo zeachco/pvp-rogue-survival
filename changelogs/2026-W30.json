@@ -1,31 +1,31 @@
 {
 	"week": "2026-W30",
 	"label": "Week of July 20, 2026",
-	"generatedAt": "2026-08-09T18:02:44.989Z",
+	"generatedAt": "2026-08-09T18:21:46.716Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W30",
 			"label": "Week of July 20, 2026",
-			"summaryTitle": "Refined abilities and updated user experience",
+			"summaryTitle": "Combat Refinements and New Systems",
 			"summary": {
 				"features": [
-					"Added initial gameplay tutorial (FTUE) to guide new players through the game's systems.",
-					"Improved overall UI presentation and incorporated additional lore into the character experience."
+					"Implemented freeze mechanics and reworked various spells and spec files for greater versatility.",
+					"Updated the initial player experience, including lore enhancements and UI improvements.",
+					"Addressed several noticeable bugs within the user interface (FTUE)."
 				],
 				"bugfixes": [
-					"Resolved an issue where amulets slots were not displaying correctly.",
-					"Fixed a bug impacting the force field skill functionality across various combat scenarios."
-				],
-				"balance": [
-					"Refined several spells and character specializations (specs) for better gameplay balance."
-				],
-				"ux": [
-					"Overhauled the User Experience, adding lore elements and improving UI flows.",
-					"Addressed various UI bugs to smooth out the player's overall interaction with the game."
+					"Corrected issues with amulet slot functionality.",
+					"Fixed unexpected behavior related to force field skills."
 				]
 			},
 			"commits": [
+				{
+					"hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
+					"authoredAt": "2026-07-27T14:17:45-04:00",
+					"title": "feat: freeze mechanics",
+					"description": ""
+				},
 				{
 					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
 					"authoredAt": "2026-07-27T12:55:53-04:00",
@@ -57,7 +57,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Balance", "UX"]
+			"categories": ["Features", "Bugfixes"]
 		}
 	]
 }
