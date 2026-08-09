@@ -632,7 +632,7 @@ export class Hud {
 			</header>
 		) as HTMLElement;
 		this.gameHud = (
-			<div class="game-hud">
+			<div class="game-hud character-panel-open inventory-panel-open">
 				{this.multiplayerIntroMask}
 				{this.multiplayerIntro}
 				{this.deathModal}
