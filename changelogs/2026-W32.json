@@ -1,17 +1,53 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-08T21:58:59.616Z",
+	"generatedAt": "2026-08-09T13:56:21.140Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Refinement of Game Settings, UI Flow, and Authentication",
-			"summary": "This week focused on significant updates to game settings, user interface flow, and the authentication system. New game settings were introduced, allowing players to select rendering scale and disable auto fullscreen upon game start. The user experience saw major adjustments across panels, including better spacing for inventory and character panels, repositioning large elements towards the edges, and displacement of chat and messages when panels are open. Contextual tooltips were added around souls, and the realm presence header was reorganized to place options and status information at the extreme left, consolidating real-time opponent noise. The authentication flow was enhanced with improved feedback for login results, including explicit success or error tones compatible with protocol version 41. Specific fixes included ensuring password errors are shown inside the modal, persisting passwords correctly through hashing before snapshotting, hiding password confirmation for existing accounts, and streamlining the login interface by docking the top-player list to the left. The system also updated Devlog placement and header controls, aligning rounded shadows and advancing protocol compatibility to version 40.",
+			"summaryTitle": "Core Model Refinements and Performance Overhaul",
+			"summary": "This week focused heavily on optimizing performance, refining core mechanics, and improving user interface elements. Several model and graphics fixes were implemented, including reusing a smaller version of the hero's model and addressing issues like coins clipping underground and healing light displacement.\nPerformance improvements included creating a pool of light effects to reduce creation costs by pre-creating and sharing light instances across different effects, along with reducing shadow and fallback overhead by ensuring spell projectiles, Gold, and Scrap remain unlit, setting the arena floor to receive-only for dynamic shadows, and detaching redundant hero/clone presentations after model load.\nUI and experience enhancements focused on clarity and flow; passive block application was fixed in character stats and effect tooltips, xp bonus badges were reduced with added details, and a new tooltip was added around souls. The realm presence header was reorganized to consolidate controls, centrally displaying online/realm status, and the inventory/character panels were repositioned for better space utilization. Authentication flow was significantly improved by introducing explicit success/error tones, updating protocol compatibility to version 40, and implementing secure username login with enhanced password hashing and shared presence headers.\nVarious spell and item mechanics were also tweaked: multi-hit spell proc chance was capped, starting gear was changed, arcane bolt visuals were improved, new spells like Blizzard and reworked Boomrang were introduced, and mana drain for spell overmana was adjusted. Additionally, several fixes targeted visual consistency, such as default lights being set to all, persistent combat feedback, and clearing broken static lights options.",
 			"commits": [
 				{
-					"hash": "67b11dd7944192671b2967ffd181e16e5b49a46e",
+					"hash": "c30248f3e795b79d2e8ec67e19bcf0901f9c7eec",
+					"authoredAt": "2026-08-09T09:49:17-04:00",
+					"title": "fix: invader model",
+					"description": "reusing a smaller version of the hero's model"
+				},
+				{
+					"hash": "6d2fe280d8a2ef1a960ad829d8b6080dfe2e8849",
+					"authoredAt": "2026-08-09T09:47:25-04:00",
+					"title": "fix: coins clipping underground",
+					"description": ""
+				},
+				{
+					"hash": "e89a6891902b53bdc85546ea290e145ef3968a86",
+					"authoredAt": "2026-08-09T09:45:25-04:00",
+					"title": "fix: healing light displacement",
+					"description": ""
+				},
+				{
+					"hash": "fb02e99f42c146619e9e69246183574c64b21edc",
+					"authoredAt": "2026-08-09T09:36:39-04:00",
+					"title": "perf(rendering): reduce shadow and fallback overhead",
+					"description": "- keep spell projectiles, Gold, and Scrap unlit and outside shadow maps\n- make the arena floor receive-only for dynamic shadows\n- detach redundant hero and clone fallback presentations after model load"
+				},
+				{
+					"hash": "467a32e0719f084aecfdb5f30174adf797f900d4",
+					"authoredAt": "2026-08-09T09:20:52-04:00",
+					"title": "ux: block passive wasn't applying in char stats panel and effects tooltips",
+					"description": "- advanced stats showed block 0% with a passive giving additional block\n- effects on hero where not hoverable\n- reduced xp bonus badges and added tooltip to show details"
+				},
+				{
+					"hash": "332c6e4634a71596f869e643673205ee57819010",
+					"authoredAt": "2026-08-09T09:11:46-04:00",
+					"title": "perf: created a pool of light effects",
+					"description": "to reduce the cost of creating light objects and dealing with initely\nscaling lights and shadows, a pool of light instances are pre created\nand shared across different effects (reposition and change properties as\nallocated)"
+				},
+				{
+					"hash": "eb98868b2e258304f3eacc3ff0e58aac1e4a311a",
 					"authoredAt": "2026-08-08T17:58:05-04:00",
 					"title": "feat: Added new game settings",
 					"description": "- extracted game settings into it's own component\n- can now select rendering scale\n- can now disable auto fullscreen on game start"

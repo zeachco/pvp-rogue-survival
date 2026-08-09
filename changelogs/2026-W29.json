@@ -1,14 +1,14 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-08T21:44:05.172Z",
+	"generatedAt": "2026-08-09T13:56:21.021Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Gameplay and Server Mechanics Overhaul",
-			"summary": "This week focused heavily on adding new gameplay features and significant server infrastructure updates. New blood magic mechanics were introduced with rings, amulets, and new spells, alongside tweaks to existing aura mechanics. Server stability was improved with a server recovery feature and general tweaks, including the implementation of a DB-based server using bun SQL. Major game mechanics were expanded with the introduction of leaderboards and suicide/top player mechanics for enhanced competitive play. Multiplayer features received tweaks, solo play was improved, and weapon stats were adjusted. A substantial amount of work was dedicated to UI improvements, including adding new panel information, implementing UI changes and diffs, refining the inventory system, and redesigning various mechanics. Finally, several UI fixes addressed inventory/UI numbers, the weapon system, and general UI elements.",
+			"summaryTitle": "Feature Update & Server Overhaul",
+			"summary": "This week focused heavily on introducing new game mechanics and systems. New spells, rings, amulets, and blood magic mechanics were added, along with extensive tweaks to existing aura systems. The server was upgraded by implementing a DB-based server using Bun SQL for improved stability, alongside new features like leaderboards, suicide mechanics, and top player systems. Multiplayer features received specific tweaks, and solo play was improved through general tweaks. Weapon statistics were also adjusted, and the user experience was enhanced with more panel information, UI changes, and inventory improvements. Furthermore, character statistics (Hui) were updated, and the UI numbers and weapon system were refined across the board.",
 			"commits": [
 				{
 					"hash": "894c10cbe05bc63b58596e835256b7a77d107f6f",

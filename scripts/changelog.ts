@@ -61,7 +61,11 @@ interface ChangelogOptions {
 	all: boolean;
 }
 
-const MODEL = "gemma4:e2b";
+export const MODEL_FALLBACKS = [
+	"gemma4:e2b",
+	"gemma4:e4b",
+	"gemma4:latest",
+] as const;
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
 const INDIVIDUAL_CHANGE_TYPES = new Set([
 	"balance",
@@ -211,7 +215,15 @@ export function extractPeriods(raw: string): GeneratedPeriod[] {
 	const fenced = clean.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
 	const candidate =
 		fenced ?? clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1);
-	const parsed = generatedResponseSchema.safeParse(JSON.parse(candidate));
+	let json: unknown;
+	try {
+		json = JSON.parse(candidate);
+	} catch (error) {
+		throw new Error(
+			`Ollama returned invalid changelog JSON: ${error instanceof Error ? error.message : String(error)}`,
+		);
+	}
+	const parsed = generatedResponseSchema.safeParse(json);
 	if (!parsed.success)
 		throw new Error(
 			`Ollama returned invalid changelog JSON: ${z.prettifyError(parsed.error)}`,
@@ -223,6 +235,7 @@ export function buildDocument(
 	week: WeekSource,
 	start: Date,
 	generated: Map<string, GeneratedPeriod>,
+	model: string = MODEL_FALLBACKS[0],
 ): WeeklyDevlog {
 	const result = generated.get(week.key);
 	if (!result) throw new Error(`Ollama omitted or invalidated ${week.key}.`);
@@ -247,7 +260,7 @@ export function buildDocument(
 		week: week.key,
 		label: weekLabel(start),
 		generatedAt: new Date().toISOString(),
-		model: MODEL,
+		model,
 		periods,
 	};
 }
@@ -294,25 +307,47 @@ async function sourceWeeks(
 	);
 }
 
-async function generatePeriods(
+type RunModel = (model: string, prompt: string) => Promise<string>;
+
+async function runOllama(model: string, prompt: string): Promise<string> {
+	return await $`printf %s ${prompt} | ollama run ${model} --format json --hidethinking --nowordwrap`.text();
+}
+
+export async function generatePeriods(
 	weeks: WeekSource[],
-): Promise<Map<string, GeneratedPeriod>> {
+	runModel: RunModel = runOllama,
+): Promise<{
+	periods: Map<string, GeneratedPeriod>;
+	models: Map<string, string>;
+}> {
 	const generated = new Map<string, GeneratedPeriod>();
-	const requests = weeks.map((week) => [week]);
-	for (const request of requests) {
-		if (!request.some(hasUpdates)) continue;
-		const prompt = promptFor(request);
-		const response =
-			await $`printf %s ${prompt} | ollama run ${MODEL} --format json --hidethinking --nowordwrap`.text();
-		for (const period of extractPeriods(response)) {
-			if (typeof period.key === "string") generated.set(period.key, period);
+	const models = new Map<string, string>();
+	for (const week of weeks) {
+		if (!hasUpdates(week)) continue;
+		const prompt = promptFor([week]);
+		let lastReason = "unknown error";
+		for (const model of MODEL_FALLBACKS) {
+			try {
+				const periods = extractPeriods(await runModel(model, prompt));
+				const period = periods.find(({ key }) => key === week.key);
+				if (!period)
+					throw new Error(`Ollama omitted expected period ${week.key}.`);
+				generated.set(week.key, period);
+				models.set(week.key, model);
+				break;
+			} catch (error) {
+				lastReason = error instanceof Error ? error.message : String(error);
+				console.error(
+					`Changelog generation failed for ${week.key} with ${model}: ${lastReason}`,
+				);
+			}
 		}
-		for (const week of request) {
-			if (hasUpdates(week) && !generated.has(week.key))
-				throw new Error(`Ollama omitted or invalidated ${week.key}.`);
-		}
+		if (!generated.has(week.key))
+			throw new Error(
+				`Changelog generation failed for ${week.key} after trying ${MODEL_FALLBACKS.join(", ")}. Final reason: ${lastReason}`,
+			);
 	}
-	return generated;
+	return { periods: generated, models };
 }
 
 async function main(): Promise<void> {
@@ -331,7 +366,16 @@ async function main(): Promise<void> {
 		const path = join(outputDirectory, `${week.key}.json`);
 		const contents = !hasUpdates(week)
 			? '"No updates."\n'
-			: `${JSON.stringify(buildDocument(week, week.start, generated), null, 2)}\n`;
+			: `${JSON.stringify(
+					buildDocument(
+						week,
+						week.start,
+						generated.periods,
+						generated.models.get(week.key),
+					),
+					null,
+					2,
+				)}\n`;
 		await Bun.write(path, contents);
 		console.log(`Wrote ${path}`);
 

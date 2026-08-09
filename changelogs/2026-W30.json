@@ -1,39 +1,15 @@
 {
 	"week": "2026-W30",
 	"label": "Week of July 20, 2026",
-	"generatedAt": "2026-08-08T21:44:05.215Z",
+	"generatedAt": "2026-08-09T13:56:21.062Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W30",
 			"label": "Week of July 20, 2026",
-			"summaryTitle": "Feature and Quality of Life Updates",
-			"summary": "This week introduced several major gameplay features and quality-of-life improvements. New mechanics included a way to send bonus XP, freeze mechanics, and reworked spells and specification files for deeper customization. The user interface and skills mechanics were updated, along with new UX and lore content added to enhance the game's presentation. Bug fixes addressed issues related to amulet slots and the force field skill, and various UI bugs were also resolved.",
+			"summaryTitle": "UX and Lore Update",
+			"summary": "This week brought a significant update focusing on the user experience and lore. New content was added to enhance the game's narrative depth and aesthetic appeal, alongside various bug fixes ensuring a smooth player experience. Specifically, amulets slots were addressed, the force field skill was fixed, and various UI bugs were resolved, improving overall game stability and visual presentation for players.",
 			"commits": [
-				{
-					"hash": "494f58e9f7c234aa421fc741b99006339423d2e0",
-					"authoredAt": "2026-07-27T16:29:33-04:00",
-					"title": "feat: send is bonus XP",
-					"description": ""
-				},
-				{
-					"hash": "5cbbb7aa2c84aa0dacf52c502f128c7e6c382bce",
-					"authoredAt": "2026-07-27T15:51:03-04:00",
-					"title": "feat: updated UI and skills mechanics",
-					"description": ""
-				},
-				{
-					"hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
-					"authoredAt": "2026-07-27T14:17:45-04:00",
-					"title": "feat: freeze mechanics",
-					"description": ""
-				},
-				{
-					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
-					"authoredAt": "2026-07-27T12:55:53-04:00",
-					"title": "feat: reworked a few spells and spec files",
-					"description": ""
-				},
 				{
 					"hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",
 					"authoredAt": "2026-07-27T08:46:50-04:00",
@@ -59,7 +35,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["General fixes", "Refactor"]
+			"categories": []
 		}
 	]
 }

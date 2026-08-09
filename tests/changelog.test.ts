@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	buildDocument,
 	extractPeriods,
+	generatePeriods,
+	MODEL_FALLBACKS,
 	parseGitLog,
 	promptFor,
 	projectInitializationCommit,
@@ -65,6 +67,61 @@ describe("generated devlog history", () => {
 				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":"","categories":"Features"}]}',
 			),
 		).toThrow("Ollama returned invalid changelog JSON");
+	});
+
+	test("retries an invalid week with progressively larger models", async () => {
+		const attempts: string[] = [];
+		const errors: string[] = [];
+		const originalError = console.error;
+		console.error = (message?: unknown) => errors.push(String(message));
+		try {
+			const result = await generatePeriods(
+				[
+					{
+						key: "2026-W32",
+						commits: [projectInitializationCommit("2026-08-07T10:00:00Z")],
+						groupedCategories: [],
+						projectInitialized: true,
+					},
+				],
+				async (model) => {
+					attempts.push(model);
+					if (model !== "gemma4:latest") return '{"periods":[{"periods":[]}]}';
+					return '{"periods":[{"key":"2026-W32","title":"Started","summary":"Initialized the project."}]}';
+				},
+			);
+
+			expect(attempts).toEqual(MODEL_FALLBACKS);
+			expect(result.models.get("2026-W32")).toBe("gemma4:latest");
+			expect(errors[0]).toContain("2026-W32 with gemma4:e2b");
+			expect(errors[0]).toContain('Unrecognized key: "periods"');
+		} finally {
+			console.error = originalError;
+		}
+	});
+
+	test("fails clearly after every model rejects the week", async () => {
+		const originalError = console.error;
+		console.error = () => {};
+		try {
+			await expect(
+				generatePeriods(
+					[
+						{
+							key: "2026-W32",
+							commits: [projectInitializationCommit("2026-08-07T10:00:00Z")],
+							groupedCategories: [],
+							projectInitialized: true,
+						},
+					],
+					async () => "not json",
+				),
+			).rejects.toThrow(
+				"Changelog generation failed for 2026-W32 after trying gemma4:e2b, gemma4:e4b, gemma4:latest",
+			);
+		} finally {
+			console.error = originalError;
+		}
 	});
 
 	test("serializes the summary before its source commits", () => {
