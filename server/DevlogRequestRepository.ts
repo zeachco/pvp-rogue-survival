@@ -26,6 +26,7 @@ export interface DevlogRequestStore {
 		voterId: string,
 		value: -1 | 0 | 1,
 	): Promise<DevlogRequest | undefined>;
+	delete(id: string): Promise<boolean>;
 	close?(): Promise<void>;
 }
 
@@ -98,6 +99,16 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 			`;
 		const rows = await this.rows(id);
 		return rows[0] ? fromRow(rows[0]) : undefined;
+	}
+
+	async delete(id: string): Promise<boolean> {
+		const existing = await this.sql<Array<{ id: string }>>`
+			SELECT id FROM devlog_requests WHERE id = ${id}
+		`;
+		if (!existing.length) return false;
+		await this.sql`DELETE FROM devlog_request_votes WHERE request_id = ${id}`;
+		await this.sql`DELETE FROM devlog_requests WHERE id = ${id}`;
+		return true;
 	}
 
 	async close(): Promise<void> {
@@ -195,6 +206,11 @@ export class InMemoryDevlogRequestStore implements DevlogRequestStore {
 		).length;
 		request.score = request.upvotes - request.downvotes;
 		return request;
+	}
+
+	async delete(id: string): Promise<boolean> {
+		this.votes.delete(id);
+		return this.requests.delete(id);
 	}
 }
 

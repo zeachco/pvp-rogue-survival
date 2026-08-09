@@ -23,6 +23,7 @@ export interface Player {
 	id: PlayerId;
 	name: string;
 	passwordHash?: string;
+	isModerator: boolean;
 	score: number;
 	waveNumber: number;
 	maxWaveReached: number;

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
 	activeAccountId,
+	activeModeratorAccountId,
 	isLocalDevelopmentOrigin,
 	parseDevlogRequestInput,
 } from "../server/createApp";
@@ -49,6 +50,9 @@ describe("devlog requests", () => {
 				score: -1,
 			}),
 		]);
+		expect(await restored.delete(request.id)).toBeTrue();
+		expect(await restored.delete(request.id)).toBeFalse();
+		expect(await restored.list()).toEqual([]);
 		await restored.close();
 	});
 
@@ -87,6 +91,31 @@ describe("devlog requests", () => {
 			"hero-active",
 		);
 		expect(activeAccountId(request, () => false)).toBeUndefined();
+	});
+
+	test("accepts request deletion only from an active moderator", () => {
+		const request = { headers: { "x-hero-id": "hero-moderator" } };
+		expect(
+			activeModeratorAccountId(
+				request,
+				() => true,
+				() => true,
+			),
+		).toBe("hero-moderator");
+		expect(
+			activeModeratorAccountId(
+				request,
+				() => true,
+				() => false,
+			),
+		).toBeUndefined();
+		expect(
+			activeModeratorAccountId(
+				request,
+				() => false,
+				() => true,
+			),
+		).toBeUndefined();
 	});
 
 	test("allows production request APIs from local development origins only", () => {

@@ -34,7 +34,9 @@ describe("Bun SQL player persistence", () => {
 					identified.passwordHash = passwordHash;
 				},
 			);
+			expect(player.isModerator).toBeFalse();
 			player.score = 17;
+			player.isModerator = true;
 			player.waveNumber = 2;
 			player.maxWaveReached = 9;
 			player.progress.xp = 250;
@@ -52,6 +54,7 @@ describe("Bun SQL player persistence", () => {
 			).toBeTrue();
 			expect(restored?.progress.level).toBe(2);
 			expect(restored?.score).toBe(17);
+			expect(restored?.isModerator).toBeTrue();
 			expect(restored?.waveNumber).toBe(2);
 			expect(restored?.maxWaveReached).toBe(9);
 			expect(restored?.progress.gold).toBe(88);

@@ -26,6 +26,7 @@ const futureRequests = document.querySelector(
 const sessionStorage = new SessionStorage();
 let voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
+let isModerator = false;
 
 function element<K extends keyof HTMLElementTagNameMap>(
 	name: K,
@@ -133,6 +134,7 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 			"request-date",
 		),
 	);
+	if (isModerator) meta.append(deleteButton(request));
 	copy.append(
 		meta,
 		element("h4", request.title),
@@ -146,6 +148,40 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	votes.append(up, score, down);
 	card.append(copy, votes);
 	return card;
+}
+
+function deleteButton(request: DevlogRequest): HTMLButtonElement {
+	const button = element("button", "Delete", "moderator-delete");
+	button.type = "button";
+	button.title = "Delete completed or refused request";
+	button.onclick = async () => {
+		if (!confirm(`Permanently delete “${request.title}”?`)) return;
+		button.disabled = true;
+		try {
+			const response = await fetch(
+				apiUrl(`/api/devlog/requests/${request.id}`),
+				{ method: "DELETE", headers: authenticatedHeaders() },
+			);
+			const result = (await response.json()) as {
+				deleted?: boolean;
+				error?: string;
+			};
+			if (!response.ok || !result.deleted)
+				throw new Error(result.error ?? "Deletion failed.");
+			requests = requests.filter((entry) => entry.id !== request.id);
+			delete voteChoices[request.id];
+			localStorage.setItem(voteStorageKey(), JSON.stringify(voteChoices));
+			requestStatus.textContent = "Request deleted.";
+			requestStatus.className = "success";
+			renderRequests();
+		} catch (error) {
+			requestStatus.textContent =
+				error instanceof Error ? error.message : "Deletion failed.";
+			requestStatus.className = "error";
+			button.disabled = false;
+		}
+	};
+	return button;
 }
 
 function voteButton(
@@ -273,14 +309,18 @@ window.addEventListener("devlogopen", () => {
 
 async function loadRequests(): Promise<void> {
 	try {
-		const response = await fetch(apiUrl("/api/devlog/requests"));
+		const response = await fetch(apiUrl("/api/devlog/requests"), {
+			headers: authenticatedHeaders(),
+		});
 		const result = (await response.json()) as {
 			requests?: DevlogRequest[];
+			isModerator?: boolean;
 			error?: string;
 		};
 		if (!response.ok || !result.requests)
 			throw new Error(result.error ?? "Could not load requests.");
 		requests = result.requests;
+		isModerator = result.isModerator === true;
 		renderRequests();
 	} catch (error) {
 		futureRequests.replaceChildren(

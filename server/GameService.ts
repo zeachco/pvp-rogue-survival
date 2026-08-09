@@ -452,6 +452,7 @@ export class GameService {
 		const player: Player = {
 			id: this.createId(),
 			name: trimmed,
+			isModerator: false,
 			score: 0,
 			waveNumber: 1,
 			maxWaveReached: 0,

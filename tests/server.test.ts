@@ -4,6 +4,7 @@ import { emptyScraps, upgradeCosts } from "../common/inventory";
 import {
 	generateBuckler,
 	generateItem,
+	generateRelic,
 	itemStackKey,
 	nextRarity,
 } from "../common/items";
@@ -152,6 +153,57 @@ describe("realm game service", () => {
 		});
 		expect(player.progress.equippedSkills).toEqual(["bash", "cleave"]);
 		expect(player.progress.autoFireSkills).toEqual(["bash", "cleave"]);
+	});
+	test("assigns geared Gooey Swamp from a Voodoo Doll to the active loadout", () => {
+		const { game } = harness();
+		const player = game.join("SwampSlot");
+		const voodooDoll = generateRelic(4, "unique", 1001);
+		expect(voodooDoll.skills).toContain("swamp");
+		player.progress.offHand = voodooDoll;
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "swamp",
+			equipped: true,
+			slot: 1,
+		});
+		expect(player.progress.equippedSkills).toEqual(["swamp"]);
+		expect(player.progress.autoFireSkills).toEqual(["swamp"]);
+	});
+	test("replaces slot four with learned Gooey Swamp in a full loadout", () => {
+		const { game } = harness();
+		const player = game.join("FullSwampSlot");
+		player.progress.learnedSkills.push(
+			"arcaneBolt",
+			"healing",
+			"gravityPull",
+			"whirlwind",
+			"reflectiveSurge",
+			"frostOrb",
+			"swamp",
+		);
+		player.progress.learnedSkillLevels.swamp = 8;
+		player.progress.equippedSkills = [
+			"arcaneBolt",
+			"healing",
+			"gravityPull",
+			"whirlwind",
+			"reflectiveSurge",
+			"frostOrb",
+		];
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "swamp",
+			equipped: true,
+			slot: 4,
+		});
+		expect(player.progress.equippedSkills).toEqual([
+			"arcaneBolt",
+			"healing",
+			"gravityPull",
+			"swamp",
+			"reflectiveSurge",
+			"frostOrb",
+		]);
 	});
 	test("allows loadout assignment without a minimum hero level", () => {
 		const { game } = harness();

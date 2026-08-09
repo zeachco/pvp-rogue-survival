@@ -104,6 +104,7 @@ export async function createApp(options: AppOptions) {
 			publicRoot,
 			devlogRequests,
 			(playerId) => hasSocket(sockets, playerId),
+			(playerId) => repository.get(playerId)?.isModerator === true,
 		).catch((error) => {
 			console.error(
 				"[MLH][devlog] request failed",
@@ -382,6 +383,7 @@ async function serveRequest(
 	publicRoot: string,
 	devlogRequests: DevlogRequestStore,
 	isActiveAccount: (playerId: PlayerId) => boolean,
+	isModerator: (playerId: PlayerId) => boolean,
 ): Promise<void> {
 	const url = new URL(
 		request.url ?? "/",
@@ -396,7 +398,10 @@ async function serveRequest(
 				"access-control-allow-headers",
 				"content-type, x-hero-id",
 			);
-			response.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+			response.setHeader(
+				"access-control-allow-methods",
+				"GET, POST, DELETE, OPTIONS",
+			);
 		}
 		if (request.method === "OPTIONS") {
 			response.writeHead(204);
@@ -406,7 +411,11 @@ async function serveRequest(
 	}
 	if (url.pathname === "/api/devlog/requests") {
 		if (request.method === "GET") {
-			json(response, 200, { requests: await devlogRequests.list() });
+			const accountId = activeAccountId(request, isActiveAccount);
+			json(response, 200, {
+				requests: await devlogRequests.list(),
+				isModerator: Boolean(accountId && isModerator(accountId)),
+			});
 			return;
 		}
 		if (request.method === "POST") {
@@ -430,6 +439,35 @@ async function serveRequest(
 			return;
 		}
 		methodNotAllowed(response, "GET, POST");
+		return;
+	}
+	const deleteMatch = url.pathname.match(
+		/^\/api\/devlog\/requests\/([0-9a-f-]+)$/i,
+	);
+	if (deleteMatch) {
+		if (request.method !== "DELETE") {
+			methodNotAllowed(response, "DELETE");
+			return;
+		}
+		const accountId = activeModeratorAccountId(
+			request,
+			isActiveAccount,
+			isModerator,
+		);
+		if (!accountId) {
+			const activeAccount = activeAccountId(request, isActiveAccount);
+			json(response, activeAccount ? 403 : 401, {
+				error: activeAccount
+					? "Moderator access is required."
+					: "Log in to delete a request.",
+			});
+			return;
+		}
+		if (!(await devlogRequests.delete(deleteMatch[1]))) {
+			json(response, 404, { error: "Request not found." });
+			return;
+		}
+		json(response, 200, { deleted: true });
 		return;
 	}
 	const voteMatch = url.pathname.match(
@@ -500,6 +538,15 @@ export function activeAccountId(
 	const value = request.headers["x-hero-id"];
 	const playerId = (Array.isArray(value) ? value[0] : value)?.trim();
 	return playerId && isActiveAccount(playerId) ? playerId : undefined;
+}
+
+export function activeModeratorAccountId(
+	request: Pick<IncomingMessage, "headers">,
+	isActiveAccount: (playerId: PlayerId) => boolean,
+	isModerator: (playerId: PlayerId) => boolean,
+): PlayerId | undefined {
+	const accountId = activeAccountId(request, isActiveAccount);
+	return accountId && isModerator(accountId) ? accountId : undefined;
 }
 
 async function readJson(

@@ -399,6 +399,7 @@ export function isSkillId(value: string): value is SkillId {
 		"frostOrb",
 		"blizzard",
 		"fireBreath",
+		"swamp",
 		"rapidRegen",
 		"voodoo",
 		"healing",
