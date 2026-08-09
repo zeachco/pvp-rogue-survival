@@ -15,6 +15,11 @@ export const ELBO_HEIGHT = 0.8;
 export const FORCE_FIELD_ANIMATION_DURATION = 0.9;
 export const FORCE_FIELD_LIGHT_FADE_DURATION = 1;
 export const FORCE_FIELD_LIGHT_INTENSITY = 45;
+export const HEALING_GROUND_DURATION = 1;
+export const HEALING_LIGHT_LINGER_DURATION = 1;
+export const HEALING_UPLIGHT_INTENSITY = 320;
+export const HEALING_AURA_FILL_MAX_OPACITY = 0.1;
+export const HEALING_AURA_RING_MAX_OPACITY = 0.55;
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -70,7 +75,7 @@ export class SpellEffect extends GameObject {
 	private readonly source?: { position: Vector2 };
 
 	private readonly effectGroup: THREE.Group;
-	private readonly spellLight?: THREE.PointLight;
+	readonly heroOwned: boolean;
 
 	constructor(
 		kind: SpellEffectKind,
@@ -79,6 +84,7 @@ export class SpellEffect extends GameObject {
 		range = 0,
 		lifetime?: number,
 		source?: { position: Vector2 },
+		heroOwned = false,
 	) {
 		super();
 		this.kind = kind;
@@ -86,10 +92,11 @@ export class SpellEffect extends GameObject {
 		this.facing = facing;
 		this.range = range;
 		this.source = source;
+		this.heroOwned = heroOwned;
 		this.lifetime =
 			lifetime ??
 			(kind === "healing"
-				? 1
+				? HEALING_GROUND_DURATION + HEALING_LIGHT_LINGER_DURATION
 				: kind === "arcaneBolt" || kind === "arcaneBoltExplosion"
 					? 0.65
 					: kind === "orbitingHammers"
@@ -108,17 +115,6 @@ export class SpellEffect extends GameObject {
 			);
 		this.effectGroup.renderOrder = Z_EFFECT;
 		this.mesh.add(this.effectGroup);
-		const lightColor = spellEffectLightColor(kind);
-		if (lightColor !== undefined) {
-			this.spellLight = new THREE.PointLight(
-				lightColor,
-				kind === "arcaneBoltExplosion" ? 90 : kind === "gravityPull" ? 45 : 20,
-				spellEffectLightDistance(kind, range),
-				1,
-			);
-			this.spellLight.position.z = 18;
-			this.mesh.add(this.spellLight);
-		}
 		this.mesh.renderOrder = Z_EFFECT;
 	}
 
@@ -131,31 +127,40 @@ export class SpellEffect extends GameObject {
 		if (this.age >= this.lifetime) this.active = false;
 	}
 
+	lightIntensity(time: number): number {
+		if (!this.heroOwned) return 0;
+		if (this.kind === "healing") return healingUplightIntensity(this.age);
+		if (this.source) return 16 + 6 * (0.5 + 0.5 * Math.sin(time * 7));
+		if (this.kind === "gravityPull")
+			return this.age >=
+				FORCE_FIELD_ANIMATION_DURATION + FORCE_FIELD_LIGHT_FADE_DURATION
+				? 0
+				: FORCE_FIELD_LIGHT_INTENSITY *
+						Math.max(
+							0,
+							1 -
+								Math.max(0, this.age - FORCE_FIELD_ANIMATION_DURATION) /
+									FORCE_FIELD_LIGHT_FADE_DURATION,
+						);
+		return (
+			(this.kind === "arcaneBoltExplosion" ? 90 : 20) *
+			(1 - Math.min(1, this.age / this.lifetime))
+		);
+	}
+
+	lightDistance(): number {
+		return spellEffectLightDistance(this.kind, this.range);
+	}
+
 	override updateVisuals(_time: number): void {
 		super.updateVisuals(_time);
 		const animationDuration =
 			this.kind === "gravityPull"
 				? FORCE_FIELD_ANIMATION_DURATION
-				: this.lifetime;
+				: this.kind === "healing"
+					? HEALING_GROUND_DURATION
+					: this.lifetime;
 		const progress = Math.min(1, this.age / animationDuration);
-		if (this.spellLight) {
-			const persistent = this.source !== undefined;
-			this.spellLight.intensity = persistent
-				? 16 + 6 * (0.5 + 0.5 * Math.sin(_time * 7))
-				: this.kind === "gravityPull"
-					? this.age >=
-						FORCE_FIELD_ANIMATION_DURATION + FORCE_FIELD_LIGHT_FADE_DURATION
-						? 0
-						: FORCE_FIELD_LIGHT_INTENSITY *
-							Math.max(
-								0,
-								1 -
-									Math.max(0, this.age - FORCE_FIELD_ANIMATION_DURATION) /
-										FORCE_FIELD_LIGHT_FADE_DURATION,
-							)
-					: (this.kind === "arcaneBoltExplosion" ? 90 : 20) * (1 - progress);
-		}
-
 		while (this.effectGroup.children.length > 0) {
 			const child = this.effectGroup.children[0];
 			this.effectGroup.remove(child);
@@ -430,7 +435,7 @@ function healing(group: THREE.Group, progress: number, radius: number): void {
 		new THREE.MeshBasicMaterial({
 			color: 0x42e883,
 			transparent: true,
-			opacity: auraOpacity * 0.22,
+			opacity: auraOpacity * HEALING_AURA_FILL_MAX_OPACITY,
 			blending: THREE.AdditiveBlending,
 			depthWrite: false,
 		}),
@@ -444,7 +449,7 @@ function healing(group: THREE.Group, progress: number, radius: number): void {
 		new THREE.MeshBasicMaterial({
 			color: 0x72f2a7,
 			transparent: true,
-			opacity: auraOpacity,
+			opacity: auraOpacity * HEALING_AURA_RING_MAX_OPACITY,
 			blending: THREE.AdditiveBlending,
 			depthWrite: false,
 		}),
@@ -491,6 +496,21 @@ export function healingPlusOpacity(progress: number): number {
 	const bounded = Math.max(0, Math.min(1, progress));
 	if (bounded < 0.25) return 0;
 	return (1 - bounded) / 0.75;
+}
+
+export function healingUplightIntensity(age: number): number {
+	const boundedAge = Math.max(
+		0,
+		Math.min(HEALING_GROUND_DURATION + HEALING_LIGHT_LINGER_DURATION, age),
+	);
+	if (boundedAge <= 0.25)
+		return HEALING_UPLIGHT_INTENSITY * (boundedAge / 0.25);
+	return (
+		HEALING_UPLIGHT_INTENSITY *
+		(1 -
+			(boundedAge - 0.25) /
+				(HEALING_GROUND_DURATION + HEALING_LIGHT_LINGER_DURATION - 0.25))
+	);
 }
 
 let cachedHealingPlusTexture: THREE.DataTexture | undefined;

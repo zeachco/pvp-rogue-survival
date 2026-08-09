@@ -39,6 +39,12 @@ import {
 	FORCE_FIELD_ANIMATION_DURATION,
 	FORCE_FIELD_LIGHT_FADE_DURATION,
 	FORCE_FIELD_LIGHT_INTENSITY,
+	HEALING_AURA_FILL_MAX_OPACITY,
+	HEALING_AURA_RING_MAX_OPACITY,
+	HEALING_GROUND_DURATION,
+	HEALING_LIGHT_LINGER_DURATION,
+	HEALING_UPLIGHT_INTENSITY,
+	healingUplightIntensity,
 	ELBO_HEIGHT,
 	elbowHeight,
 	rentSlashAngle,
@@ -50,6 +56,7 @@ import {
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import { Blizzard } from "../src/game/Blizzard";
+import { HeroSpellLightPool } from "../src/game/render/HeroSpellLightPool";
 import {
 	COIN_BOB_AMPLITUDE,
 	COIN_BOB_SPEED,
@@ -1466,14 +1473,20 @@ describe("arena systems", () => {
 			),
 		).toHaveLength(1);
 
-		const rent = new SpellEffect("rent", hero.position);
-		const rentLights = rent.mesh.getObjectsByProperty(
-			"type",
-			"PointLight",
-		) as THREE.PointLight[];
-		expect(rentLights).toHaveLength(1);
-		expect(rentLights[0].color.getHex()).toBe(0xff2448);
-		expect(rentLights[0].position.z).toBeGreaterThan(0);
+		const scene = new THREE.Scene();
+		const lightPool = new HeroSpellLightPool(scene);
+		const rent = new SpellEffect(
+			"rent",
+			hero.position,
+			0,
+			0,
+			undefined,
+			undefined,
+			true,
+		);
+		expect(rent.mesh.getObjectsByProperty("type", "PointLight")).toHaveLength(
+			0,
+		);
 		expect(ELBO_HEIGHT).toBe(0.8);
 		expect(elbowHeight(CHARACTER_MODEL_MANIFESTS.hero.footprint)).toBe(40);
 		expect(rent.mesh.children[0].position.z).toBe(40);
@@ -1481,9 +1494,13 @@ describe("arena systems", () => {
 		expect(rentSlashAngle(0.25)).toBeCloseTo(-Math.PI / 4);
 		expect(rentSlashAngle(0.5)).toBeCloseTo((-3 * Math.PI) / 4);
 		expect(rentSlashAngle(0.75)).toBeCloseTo((-5 * Math.PI) / 4);
-		expect(rentLights[0].distance).toBe(spellEffectLightDistance("rent", 0));
 		rent.update(0.35);
 		rent.updateVisuals(0.35);
+		lightPool.sync(["rent"], [rent], 0.35);
+		const rentLight = lightPool.light("rent") as THREE.PointLight;
+		expect(rentLight.color.getHex()).toBe(0xff2448);
+		expect(rentLight.position.z).toBeGreaterThan(0);
+		expect(rentLight.distance).toBe(spellEffectLightDistance("rent", 0));
 		const rentVisuals = rent.mesh.children[0] as THREE.Group;
 		expect(rentVisuals.getObjectByName("rent-slash-trail")).toBeInstanceOf(
 			THREE.Mesh,
@@ -1491,32 +1508,44 @@ describe("arena systems", () => {
 		expect(rentVisuals.getObjectByName("rent-magic-sword")).toBeInstanceOf(
 			THREE.Mesh,
 		);
-		expect(rentLights[0].intensity).toBeCloseTo(10);
+		expect(rentLight.intensity).toBeCloseTo(10);
 
-		const forceField = new SpellEffect("gravityPull", hero.position, 0, 320);
-		const forceFieldLights = forceField.mesh.getObjectsByProperty(
-			"type",
-			"PointLight",
-		) as THREE.PointLight[];
-		expect(forceFieldLights).toHaveLength(1);
-		expect(forceFieldLights[0].color.getHex()).toBe(0xb98cff);
-		expect(forceFieldLights[0].intensity).toBe(FORCE_FIELD_LIGHT_INTENSITY);
-		expect(forceFieldLights[0].distance).toBe(640);
-		expect(forceFieldLights[0].distance).toBe(
+		const forceField = new SpellEffect(
+			"gravityPull",
+			hero.position,
+			0,
+			320,
+			undefined,
+			undefined,
+			true,
+		);
+		lightPool.sync(["gravityPull"], [forceField], 0);
+		const forceFieldLight = lightPool.light("gravityPull") as THREE.PointLight;
+		expect(forceFieldLight.color.getHex()).toBe(0xb98cff);
+		expect(forceFieldLight.intensity).toBe(FORCE_FIELD_LIGHT_INTENSITY);
+		expect(forceFieldLight.distance).toBe(640);
+		expect(forceFieldLight.distance).toBe(
 			spellEffectLightDistance("gravityPull", 320),
 		);
 		forceField.update(FORCE_FIELD_ANIMATION_DURATION);
 		forceField.updateVisuals(FORCE_FIELD_ANIMATION_DURATION);
-		expect(forceFieldLights[0].intensity).toBe(FORCE_FIELD_LIGHT_INTENSITY);
+		lightPool.sync(
+			["gravityPull"],
+			[forceField],
+			FORCE_FIELD_ANIMATION_DURATION,
+		);
+		expect(forceFieldLight.intensity).toBe(FORCE_FIELD_LIGHT_INTENSITY);
 		expect(forceField.active).toBeTrue();
 		forceField.update(FORCE_FIELD_LIGHT_FADE_DURATION / 2);
 		forceField.updateVisuals(1.4);
-		expect(forceFieldLights[0].intensity).toBeCloseTo(
+		lightPool.sync(["gravityPull"], [forceField], 1.4);
+		expect(forceFieldLight.intensity).toBeCloseTo(
 			FORCE_FIELD_LIGHT_INTENSITY / 2,
 		);
 		forceField.update(FORCE_FIELD_LIGHT_FADE_DURATION / 2);
 		forceField.updateVisuals(1.9);
-		expect(forceFieldLights[0].intensity).toBe(0);
+		lightPool.sync(["gravityPull"], [forceField], 1.9);
+		expect(forceFieldLight.intensity).toBe(0);
 		expect(forceField.active).toBeFalse();
 
 		const whirlwind = new SpellEffect(
@@ -1548,24 +1577,47 @@ describe("arena systems", () => {
 			),
 		).toHaveLength(4);
 
-		for (const kind of [
-			"bash",
-			"sweep",
-			"flurry",
-			"shockwave",
-			"cleave",
-			"reflectiveSurge",
-			"fireBreath",
-			"whirlwind",
-			"healing",
-			"rapidRegen",
-		] as const)
-			expect(
-				new SpellEffect(kind, hero.position).mesh.getObjectsByProperty(
-					"type",
-					"PointLight",
-				),
-			).toHaveLength(1);
+		const firstRentLight = rentLight;
+		lightPool.sync([], [], 2);
+		expect(scene.children).not.toContain(firstRentLight);
+		lightPool.sync(["rent"], [], 3);
+		expect(lightPool.light("rent")).toBe(firstRentLight);
+		expect(firstRentLight.intensity).toBe(0);
+
+		const flashScene = new THREE.Scene();
+		const flashPool = new HeroSpellLightPool(flashScene);
+		const firstFlash = new SpellEffect(
+			"arcaneBoltExplosion",
+			{ x: 10, y: 20 },
+			0,
+			80,
+			undefined,
+			undefined,
+			true,
+		);
+		const latestFlash = new SpellEffect(
+			"arcaneBoltExplosion",
+			{ x: 30, y: 40 },
+			0,
+			100,
+			undefined,
+			undefined,
+			true,
+		);
+		const enemyFlash = new SpellEffect("arcaneBoltExplosion", {
+			x: 500,
+			y: 600,
+		});
+		flashPool.sync(["arcaneBolt"], [firstFlash, latestFlash, enemyFlash], 0);
+		const sharedFlash = flashPool.light(
+			"arcaneBoltExplosion",
+		) as THREE.PointLight;
+		expect(flashScene.getObjectsByProperty("type", "PointLight")).toHaveLength(
+			1,
+		);
+		expect(sharedFlash.position.x).toBe(30);
+		expect(sharedFlash.position.y).toBe(40);
+		expect(sharedFlash.distance).toBe(200);
 	});
 	test("bottom-aligns every projectile silhouette above the ground", () => {
 		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);
@@ -2390,12 +2442,15 @@ describe("arena systems", () => {
 		expect(explosionEffect.kind).toBe("arcaneBoltExplosion");
 		expect(
 			explosionEffect.mesh.getObjectsByProperty("type", "PointLight"),
-		).toHaveLength(1);
+		).toHaveLength(0);
 		explosionEffect.updateVisuals(0);
-		expect(
-			explosionEffect.mesh.getObjectByProperty("type", "PointLight")?.position
-				.z,
-		).toBeGreaterThan(0);
+		const lightPool = new HeroSpellLightPool(new THREE.Scene());
+		lightPool.sync(["arcaneBolt"], [explosionEffect], 0);
+		const explosionLight = lightPool.light(
+			"arcaneBoltExplosion",
+		) as THREE.PointLight;
+		expect(explosionLight.position.z).toBeGreaterThan(0);
+		expect(explosionLight.position.x).toBe(explosionEffect.position.x);
 		expect(creep.velocity.x).toBeGreaterThan(0);
 		const before = creep.position.x;
 		creep.pursue(hero.position, 1 / 60, 500, 500);
@@ -2991,16 +3046,30 @@ describe("arena systems", () => {
 			{ x: 5, y: 5 },
 			0,
 			healingRadius(99),
+			undefined,
+			undefined,
+			true,
 		);
+		const lightPool = new HeroSpellLightPool(new THREE.Scene());
 		effect.update(0.24);
 		effect.updateVisuals(0);
+		lightPool.sync(["healing"], [effect], 0);
 		const group = effect.mesh.children[0];
+		const uplight = lightPool.light("healing") as THREE.SpotLight;
+		expect(uplight).toBeInstanceOf(THREE.SpotLight);
+		expect(uplight.color.getHex()).toBe(0x72f2a7);
+		expect(uplight.position.z).toBe(1);
+		expect(uplight.target.position.z).toBe(HEALING_MAX_RADIUS);
+		expect(uplight.distance).toBe(HEALING_MAX_RADIUS * 2);
+		expect(uplight.intensity).toBeCloseTo(healingUplightIntensity(0.24));
 		expect(
 			group.children.some((child) => child.name === "healing-plus"),
 		).toBeFalse();
 
 		effect.update(0.01);
 		effect.updateVisuals(0);
+		lightPool.sync(["healing"], [effect], 0);
+		expect(uplight.intensity).toBe(HEALING_UPLIGHT_INTENSITY);
 		const initialPluses = group.children.filter(
 			(child) => child.name === "healing-plus",
 		);
@@ -3013,6 +3082,15 @@ describe("arena systems", () => {
 		);
 		const aura = group.children.find((child) => child.name === "healing-aura");
 		expect(aura?.geometry.parameters.outerRadius).toBe(HEALING_MAX_RADIUS);
+		expect((aura?.material as THREE.MeshBasicMaterial).opacity).toBe(
+			HEALING_AURA_RING_MAX_OPACITY,
+		);
+		const auraFill = group.children.find(
+			(child) => child.name === "healing-aura-light",
+		);
+		expect((auraFill?.material as THREE.MeshBasicMaterial).opacity).toBe(
+			HEALING_AURA_FILL_MAX_OPACITY,
+		);
 
 		effect.update(0.25);
 		effect.updateVisuals(0);
@@ -3032,7 +3110,17 @@ describe("arena systems", () => {
 		}
 		expect(effect.active).toBeTrue();
 		effect.update(0.5);
+		effect.updateVisuals(1);
+		lightPool.sync(["healing"], [effect], 1);
+		expect(effect.active).toBeTrue();
+		expect(uplight.intensity).toBeGreaterThan(0);
+		expect(healingAuraOpacity(1)).toBe(0);
+		effect.update(HEALING_LIGHT_LINGER_DURATION);
+		effect.updateVisuals(2);
+		lightPool.sync(["healing"], [effect], 2);
+		expect(uplight.intensity).toBe(0);
 		expect(effect.active).toBeFalse();
+		expect(HEALING_GROUND_DURATION).toBe(1);
 	});
 });
 

@@ -15,6 +15,7 @@ import {
 	CRITICAL_TEXT_COLOR,
 } from "../CombatText";
 import { clamp } from "../types";
+import { HeroSpellLightPool } from "./HeroSpellLightPool";
 
 const FORMER_MIN_ZOOM = 0.65;
 export const MIN_ZOOM = FORMER_MIN_ZOOM / 1.5;
@@ -240,6 +241,7 @@ export class ThreeRenderer {
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 	private readonly ambientLight: THREE.AmbientLight;
 	private readonly keyLight: THREE.DirectionalLight;
+	private readonly heroSpellLightPool: HeroSpellLightPool;
 	private lightingMode: LightingMode = DEFAULT_GRAPHICS_SETTINGS.lightingMode;
 	private shadowMode: ShadowMode = DEFAULT_GRAPHICS_SETTINGS.shadowMode;
 	private resolutionScale: number = DEFAULT_GRAPHICS_SETTINGS.resolutionScale;
@@ -261,6 +263,7 @@ export class ThreeRenderer {
 		);
 		this.keyLight.position.set(-80, -120, 220);
 		this.scene.add(this.ambientLight, this.keyLight);
+		this.heroSpellLightPool = new HeroSpellLightPool(this.scene);
 		this.camera = new THREE.PerspectiveCamera(52, 1, 1, 3000);
 		this.updateCameraTransform();
 		this.setLightingMode(DEFAULT_GRAPHICS_SETTINGS.lightingMode);
@@ -449,6 +452,11 @@ export class ThreeRenderer {
 				this.tracked.add(obj);
 			}
 		}
+		this.heroSpellLightPool.sync(
+			hero.skillLevels.keys(),
+			arena.spellEffects,
+			time,
+		);
 		this.heroLightRoot = hero.mesh;
 		applySceneLightingMode(
 			this.scene,

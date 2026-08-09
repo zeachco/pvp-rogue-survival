@@ -221,6 +221,8 @@ export function resolveCombat(
 								0,
 								radius,
 								0.65,
+								undefined,
+								projectile.owner === "hero",
 							),
 						);
 						for (const enemy of state.creeps)

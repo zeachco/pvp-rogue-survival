@@ -186,7 +186,15 @@ export class HeroCombatSystem {
 			hero.heal(healing.restoredHp);
 			const restored = hero.hp - hpBeforeHeal;
 			state.spellEffects.push(
-				new SpellEffect("healing", hero.position, 0, healingRadius(level)),
+				new SpellEffect(
+					"healing",
+					hero.position,
+					0,
+					healingRadius(level),
+					undefined,
+					undefined,
+					true,
+				),
 			);
 			if (
 				item?.definitionId === "mace" &&
@@ -231,7 +239,15 @@ export class HeroCombatSystem {
 				),
 			);
 			state.spellEffects.push(
-				new SpellEffect("rapidRegen", hero.position, 0, 0, rapidDuration, hero),
+				new SpellEffect(
+					"rapidRegen",
+					hero.position,
+					0,
+					0,
+					rapidDuration,
+					hero,
+					true,
+				),
 			);
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 			const duration = effectiveSkillCooldown(
@@ -585,6 +601,7 @@ export class HeroCombatSystem {
 					this.whirlwindRange,
 					this.whirlwindRemaining,
 					hero,
+					true,
 				),
 			);
 		} else if (activeSkill?.id === "fireBreath")
@@ -666,7 +683,15 @@ export class HeroCombatSystem {
 			activeSkill.id !== "swamp"
 		)
 			state.spellEffects.push(
-				new SpellEffect(activeSkill.id, hero.position, hero.facing, range),
+				new SpellEffect(
+					activeSkill.id,
+					hero.position,
+					hero.facing,
+					range,
+					undefined,
+					undefined,
+					true,
+				),
 			);
 		if (activeSkill) {
 			if (this.pendingWeaponProcs[0] === activeSkill.id)
