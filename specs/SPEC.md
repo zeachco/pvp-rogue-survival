@@ -165,7 +165,7 @@ Client to server:
 - `scoreSnapshot`: `{ score, health }` (reserved for future validation)
 - `leaveRealm`: `{}`
 - `enterRealm`: `{}`
-- `chat`: `{ text }`; sends a text message to every member of the sender's realm. The server ignores the message if the sender is not currently in a realm.
+- `chat`: `{ text }`; always rebroadcasts the text message to the sender. When the sender is currently in a realm, the server also sends it to every other realm member.
 
 Server to client:
 

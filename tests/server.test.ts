@@ -630,6 +630,40 @@ describe("realm game service", () => {
 		expect(carrier?.build.mainHand.definitionId).toBe(item.definitionId);
 		expect(carrier?.build.enemyRole).toBe("invader");
 	});
+	test("rebroadcasts realm chat to the sender and every other member", () => {
+		const { game, messages } = harness();
+		const one = game.join("One");
+		const two = game.join("Two");
+		enterPair(game, one, two);
+		messages.clear();
+
+		game.handle(one.id, { type: "chat", text: "Hello realm" });
+
+		const expected = {
+			type: "chatMessage",
+			senderId: one.id,
+			senderName: one.name,
+			text: "Hello realm",
+		};
+		expect(messages.get(one.id)).toEqual([expected]);
+		expect(messages.get(two.id)).toEqual([expected]);
+	});
+	test("rebroadcasts chat to its sender outside a competitive realm", () => {
+		const { game, messages } = harness();
+		const player = game.join("Solo");
+		messages.clear();
+
+		game.handle(player.id, { type: "chat", text: "Can anyone hear me?" });
+
+		expect(messages.get(player.id)).toEqual([
+			{
+				type: "chatMessage",
+				senderId: player.id,
+				senderName: player.name,
+				text: "Can anyone hear me?",
+			},
+		]);
+	});
 	test("resolves competitive units once and keeps Gold drops server-owned until collection", () => {
 		const { game, messages } = harness();
 		const one = game.join("One");

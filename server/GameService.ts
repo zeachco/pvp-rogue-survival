@@ -1813,18 +1813,19 @@ export class GameService {
 		});
 	}
 	private handleChat(player: Player, text: string): void {
+		const message: ServerMessage = {
+			type: "chatMessage",
+			senderId: player.id,
+			senderName: player.name,
+			text,
+		};
+		this.options.send(player.id, message);
 		const realmId = player.realmId;
 		if (!realmId) return;
 		const realm = this.realms.get(realmId);
 		if (!realm) return;
-		for (const memberId of [realm.soloId, ...realm.teamIds]) {
-			this.options.send(memberId, {
-				type: "chatMessage",
-				senderId: player.id,
-				senderName: player.name,
-				text,
-			});
-		}
+		for (const memberId of [realm.soloId, ...realm.teamIds])
+			if (memberId !== player.id) this.options.send(memberId, message);
 	}
 	private sendRealmSystem(realm: Realm, text: string): void {
 		for (const memberId of [realm.soloId, ...realm.teamIds])
