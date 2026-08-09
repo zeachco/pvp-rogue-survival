@@ -1,22 +1,23 @@
 {
 	"week": "2026-W30",
 	"label": "Week of July 20, 2026",
-	"generatedAt": "2026-08-09T18:42:12.877Z",
+	"generatedAt": "2026-08-09T19:04:46.252Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W30",
 			"label": "Week of July 20, 2026",
-			"summaryTitle": "Quality of Life Overhaul and Combat Adjustments",
+			"summaryTitle": "New mechanics and quality of life improvements",
 			"summary": {
 				"features": [
-					"Implemented 'Freeze Mechanics,' adding new status effects and crowd control possibilities to encounters.",
-					"Updated various spells and specialization files, allowing for deeper character customization and gameplay variation.",
-					"Added initial tutorial flow (FTUE) and overhauled certain UI elements while enhancing lore integration."
+					"Added freeze mechanics to combat",
+					"Reworked multiple spells and specialization files",
+					"Updated user experience elements and incorporated new lore into the game world",
+					"Improved the first-time user experience (FTUE) and general UI bugs"
 				],
 				"bugfixes": [
-					"Corrected issues related to amulet slot functionality across the game.",
-					"Fixed critical bugs affecting Force Field skill mechanics and execution."
+					"Resolved issues with amulet slots being unusable",
+					"Fixed the force field skill functionality"
 				]
 			},
 			"commits": [

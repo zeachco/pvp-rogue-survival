@@ -1,35 +1,24 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T18:42:12.918Z",
+	"generatedAt": "2026-08-09T19:04:46.296Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Spell System Overhaul & Combat Quality of Life",
+			"summaryTitle": "Combat Quality of Life and Controls Update",
 			"summary": {
 				"features": [
-					"Overhauled spell management with a dedicated window and support for editable spell loadouts (up to six slots).",
-					"Improved combat controls include manual casting, right-click auto-fire aiming, and persistent passive skills.",
-					"Enhanced camera interaction supports drag orbit controls without losing hero facing and new aim-with-camera functionality.",
-					"The interface saw additions of editable columns and a dedicated chat system for communication.",
-					"Implemented progressive 3D transforms and updated the main UI structure."
+					"The Spell Management Window has been added, allowing for organized spell management.",
+					"New combat controls feature editable spell loadouts with 1–6 persistent slots, supporting both manual casting and right-click auto-fire. Camera orbit now uses left-drag without disrupting hero facing, keeping the explicit aiming function intact.",
+					"Improved visual display includes rendering creep resource bars above overlapping units.",
+					"Gameplay improvements include aim-with-camera functionality and the ability to use progressive 3D transforms for environments.",
+					"General quality-of-life additions include dedicated full-screen mode and mouse move recentering, alongside new filtering columns in various interfaces."
 				],
 				"bugfixes": [
-					"Resolved multiple visual and rendering issues, including ground clipping problems and adjustments for mobile play.",
-					"Corrected errors related to positioning in 3D environments and general UI improvements.",
-					"Fixed bugs regarding spell management, such as making aura spells dropable."
-				],
-				"balance": [
-					"Minor changes were made across combat protocols and specs following the loadout overhaul."
-				],
-				"ux": [
-					"Improved resource visibility by rendering creep bars above overlapping units, while also removing unnecessary context menu options."
-				],
-				"graphics": [
-					"Integrated animated 3D models into the game world.",
-					"Enhanced map functionality with full-screen support and mouse recentering capabilities."
+					"Corrected instances where aura spells were incorrectly deemed non-dropable.",
+					"Multiple visual and positioning issues were addressed, including fixes for ground clipping, general 3D rendering/positioning artifacts, and adjustments needed for optimal mobile experience."
 				]
 			},
 			"commits": [
@@ -184,7 +173,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Balance", "UX", "Graphics"]
+			"categories": ["Features", "Bugfixes"]
 		}
 	]
 }
