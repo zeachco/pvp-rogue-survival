@@ -1488,8 +1488,9 @@ export class Hud {
 					autoFire,
 					shortcut,
 					procChancesOnAttacks,
+					providedByItemName,
 				}) =>
-					`${bar}:${id}:${label}:${level}:${resource}:${active}:${passive}:${autoFire}:${shortcut ?? ""}:${procChancesOnAttacks ?? ""}:${preview?.get(id) ?? ""}`,
+					`${bar}:${id}:${label}:${level}:${resource}:${active}:${passive}:${autoFire}:${shortcut ?? ""}:${procChancesOnAttacks ?? ""}:${providedByItemName ?? ""}:${preview?.get(id) ?? ""}`,
 			),
 		].join("|");
 		if (structure !== this.spellStructureSignature) {
@@ -1647,6 +1648,11 @@ export class Hud {
 								? `Equipped as ${spell.shortcut}. Press ${spell.shortcut} to cast; right-click toggles auto-fire.`
 								: "Click to equip this spell (maximum 6)."}
 				</span>
+				{spell.providedByItemName ? (
+					<span class="spell-tooltip-description">
+						Source: {spell.providedByItemName}
+					</span>
+				) : null}
 				{skillStatBonusDescription(spell.id) ? (
 					<span class="spell-tooltip-description">
 						{skillStatBonusDescription(spell.id)}
@@ -3199,9 +3205,8 @@ export function effectiveStatRows(
 		["Poison chance", percent(state.poisonChance)],
 		["Stun chance", percent(state.stunChance)],
 		["Gold gain", percent(state.goldGain)],
-		["Rarity boost", percent(state.rarityBoost)],
+		["Magic find", percent(state.magicFind)],
 		["Attraction Gold find", percent(state.attractionGoldFind)],
-		["Attraction Magic find", percent(state.attractionMagicFind)],
 		["Attraction", `${fmt(pixelsToMeters(state.attractionSpeed))} m/s`],
 		[
 			"Reflection",

@@ -825,6 +825,7 @@ export class HeroCombatSystem {
 			active: true,
 			passive: true,
 			procChancesOnAttacks: weaponProcTriggerChance(progress, id, level),
+			providedByItemName: progress.mainHand?.name,
 			autoFire: false,
 			bar: "geared" as const,
 		}));
@@ -1215,8 +1216,11 @@ export function weaponProcSkills(
 	progress: PlayerProgress,
 ): Array<{ id: SkillId; level: number }> {
 	if (progress.mainHand?.itemKind !== "weapon") return [];
+	const learned = new Set(learnedSkillIds(progress));
 	return [...new Set(progress.mainHand.skills)]
-		.filter((id) => !SKILLS[id].passive)
+		.filter(
+			(id) => !SKILLS[id].passive && (id === "healing" || !learned.has(id)),
+		)
 		.map((id) => ({
 			id,
 			level: cappedSkillLevel(progress.mainHand!.level),

@@ -179,7 +179,7 @@ export interface ItemModifiers {
 	lifeStealBase: number;
 	strengthRegenMultiplier: number;
 	goldGain: number;
-	rarityBoost: number;
+	magicFind: number;
 }
 export type PhysicalBonusKind =
 	| "frost"
@@ -231,11 +231,17 @@ export interface ItemGenerationFilters {
 
 type LegacyItemInstance = ItemInstance & {
 	staminaCost?: number;
+	modifiers: ItemModifiers & { rarityBoost?: number };
 	accessoryBonuses?: AccessoryBonuses & { staminaSkillLevels?: number };
 };
 
 export function migrateLegacyItem(item: ItemInstance): ItemInstance {
 	const legacy = item as LegacyItemInstance;
+	if (!Number.isFinite(item.modifiers.magicFind))
+		item.modifiers.magicFind = Number.isFinite(legacy.modifiers.rarityBoost)
+			? legacy.modifiers.rarityBoost!
+			: 0;
+	delete legacy.modifiers.rarityBoost;
 	if (!Number.isFinite(item.rageCost)) {
 		const legacyCost = legacy.staminaCost;
 		item.rageCost =
@@ -376,7 +382,7 @@ export function generateBuckler(
 			modifiers: {
 				...baseModifiers(1, 1),
 				goldGain: 0.05 * power,
-				rarityBoost: 0.02 * power,
+				magicFind: 0.02 * power,
 			},
 			skills: [
 				"blocking",
@@ -1114,7 +1120,7 @@ function baseModifiers(
 		lifeStealBase: 0,
 		strengthRegenMultiplier: 0,
 		goldGain: 0,
-		rarityBoost: 0,
+		magicFind: 0,
 	};
 }
 function applyAffix(

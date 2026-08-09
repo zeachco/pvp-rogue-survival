@@ -67,7 +67,7 @@ export interface UnitState {
 	poisonChance: number;
 	stunChance: number;
 	goldGain: number;
-	rarityBoost: number;
+	magicFind: number;
 	attractionSpeed: number;
 	attractionGoldFind: number;
 	attractionMagicFind: number;
@@ -285,7 +285,11 @@ export function defaultBaseState(input: UnitStateInput): UnitState {
 			(input.mainHand?.modifiers.poisonChance ?? 0) * mainEffectiveness,
 		stunChance: (input.mainHand?.modifiers.stunChance ?? 0) * mainEffectiveness,
 		goldGain: (buckler?.modifiers.goldGain ?? 0) * offEffectiveness,
-		rarityBoost: (buckler?.modifiers.rarityBoost ?? 0) * offEffectiveness,
+		magicFind: Math.min(
+			5,
+			(buckler?.modifiers.magicFind ?? 0) +
+				attractionFindBonus(attractionLevel),
+		),
 		attractionSpeed:
 			Math.max(
 				(input.mainHand?.attractionSpeed ?? 0) * mainEffectiveness,

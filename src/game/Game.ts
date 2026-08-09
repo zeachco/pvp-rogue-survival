@@ -547,8 +547,9 @@ export class Game {
 			this.player.gold = message.progress.gold;
 			const position = this.arena.defeatedPositions.get(message.unitId);
 			this.arena.defeatedPositions.delete(message.unitId);
-			if (message.drop && position)
-				this.drops.push(new ItemDrop(message.drop, { ...position }));
+			if (position)
+				for (const drop of message.drops)
+					this.drops.push(new ItemDrop(drop, { ...position }));
 			this.hero.applyProgress(message.progress, true);
 			this.syncHeroState();
 			this.hud.setPlayer(this.player);

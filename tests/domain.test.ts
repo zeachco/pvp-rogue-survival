@@ -1656,6 +1656,7 @@ test("projects item-provided Healing as a read-only weapon proc", () => {
 		active: true,
 		passive: true,
 		bar: "geared",
+		providedByItemName: state.mainHand?.name,
 		procChancesOnAttacks: expect.any(Number),
 	});
 	expect(
@@ -1718,6 +1719,11 @@ describe("amulets and charms", () => {
 		delete (legacy as Partial<typeof legacy>).rageCost;
 		legacy.staminaCost = 2.5;
 		legacy.accessoryBonuses = { staminaSkillLevels: 7 };
+		const legacyModifiers = legacy.modifiers as typeof legacy.modifiers & {
+			rarityBoost?: number;
+		};
+		legacyModifiers.rarityBoost = 0.12;
+		delete (legacyModifiers as Partial<typeof legacyModifiers>).magicFind;
 
 		migrateLegacyItem(legacy);
 
@@ -1725,6 +1731,8 @@ describe("amulets and charms", () => {
 		expect(legacy.accessoryBonuses.rageSkillLevels).toBe(7);
 		expect("staminaCost" in legacy).toBeFalse();
 		expect("staminaSkillLevels" in legacy.accessoryBonuses).toBeFalse();
+		expect(legacy.modifiers.magicFind).toBe(0.12);
+		expect("rarityBoost" in legacy.modifiers).toBeFalse();
 	});
 
 	test("rolls rarity-bounded accessories and equips amulets and charms independently", () => {
@@ -2011,15 +2019,13 @@ test("blood skills spend remaining HP, scale damage with the amount spent, and p
 	expect(bloodSkillDamage("vampiricBoomerang", 99, 20, 3)).toBe(52.7);
 	expect(skillHealthRequirementMet("bash", 1, 100)).toBeTrue();
 });
-test("grants Gold gain and rarity boost on bucklers by rarity", () => {
+test("grants Gold gain and Magic Find on bucklers by rarity", () => {
 	const common = generateBuckler(1, "common", 12);
 	const epic = generateBuckler(1, "epic", 12);
 	expect(common.modifiers.goldGain).toBeCloseTo(0.05);
-	expect(common.modifiers.rarityBoost).toBeCloseTo(0.02);
+	expect(common.modifiers.magicFind).toBeCloseTo(0.02);
 	expect(epic.modifiers.goldGain).toBeGreaterThan(common.modifiers.goldGain);
-	expect(epic.modifiers.rarityBoost).toBeGreaterThan(
-		common.modifiers.rarityBoost,
-	);
+	expect(epic.modifiers.magicFind).toBeGreaterThan(common.modifiers.magicFind);
 });
 describe("Force Field", () => {
 	test("always applies outward velocity and interrupts attacks", () => {

@@ -34,7 +34,7 @@ import {
 	type SkillId,
 	type WeaponClass,
 } from "../common/items.ts";
-import { ENEMY_BONUS_SKILLS, SKILLS } from "../common/content.ts";
+import { ENEMY_BONUS_SKILLS, SKILLS, WEAPONS } from "../common/content.ts";
 import {
 	attractionFindBonus,
 	cappedSkillLevel,
@@ -78,6 +78,41 @@ import {
 	spawnAtMs,
 } from "../common/waves.ts";
 import type { Player, PlayerRepository, QueuedEquipment } from "./domain.ts";
+
+export function magicFindExtraDropChance(
+	level: number,
+	role: NonNullable<UnitBuild["enemyRole"]>,
+	playerMagicFind: number,
+): number {
+	const roleRate = {
+		creep: 0,
+		champion: 0.01,
+		invader: 0.03,
+		clone: 0.03,
+		boss: 0.05,
+	}[role];
+	return (
+		Math.max(0, level) * roleRate * Math.max(0, Math.min(5, playerMagicFind))
+	);
+}
+
+export function magicFindExtraDropCount(chance: number, roll: number): number {
+	const guaranteed = Math.floor(Math.max(0, chance));
+	return guaranteed + (roll < chance - guaranteed ? 1 : 0);
+}
+
+export function magicFindRarityForRoll(roll: number): ItemInstance["rarity"] {
+	const weighted = Math.max(0, Math.min(1, roll)) * 31;
+	return weighted < 1
+		? "unique"
+		: weighted < 3
+			? "epic"
+			: weighted < 7
+				? "rare"
+				: weighted < 15
+					? "uncommon"
+					: "common";
+}
 
 export interface GameServiceOptions {
 	repository: PlayerRepository;
@@ -975,6 +1010,7 @@ export class GameService {
 				score: player.score,
 				progress: player.progress,
 				xpSendBuffs: this.xpSendBuffs(player),
+				drops: [],
 				reason: "Training kill: no rewards.",
 			});
 		const build = issued.build;
@@ -985,9 +1021,9 @@ export class GameService {
 			(issued.mode === "solo" ? 0.5 : 1);
 		const xp = Math.floor(baseXp * this.activeXpSendMultiplier(player));
 		this.grantXp(player, xp);
-		const drop = this.rollDrop(player, build);
-		const reason = drop
-			? `Gained ${xp} XP. A ${drop.kind} reward dropped.`
+		const drops = this.rollDrops(player, build);
+		const reason = drops.length
+			? `Gained ${xp} XP. ${drops.length} reward${drops.length === 1 ? "" : "s"} dropped.`
 			: `Gained ${xp} XP.`;
 		this.options.send(player.id, {
 			type: "creepDefeatResolved",
@@ -995,13 +1031,112 @@ export class GameService {
 			score: player.score,
 			progress: player.progress,
 			xpSendBuffs: this.xpSendBuffs(player),
-			drop,
+			drops,
 			reason,
 		});
 		this.broadcastRealms();
 	}
 
-	private rollDrop(player: Player, build: UnitBuild): GroundDrop | undefined {
+	private rollDrops(player: Player, build: UnitBuild): GroundDrop[] {
+		const magicFind = this.playerMagicFind(player);
+		const gold = this.rollGoldDrop(player, build);
+		const extraChance = magicFindExtraDropChance(
+			build.level,
+			build.enemyRole ?? (build.isRival ? "champion" : "creep"),
+			magicFind,
+		);
+		const extraCount =
+			extraChance > 0
+				? magicFindExtraDropCount(extraChance, this.options.random.next())
+				: 0;
+		const equipment =
+			extraCount > 0
+				? Array.from({ length: extraCount }, () =>
+						this.createEquipmentDrop(
+							player,
+							build,
+							this.generateMagicFindItem(build.level),
+							0,
+						),
+					)
+				: [];
+		if (!equipment.length) {
+			const fallback = this.rollEquippedItemDrop(player, build, magicFind);
+			if (fallback) equipment.push(fallback);
+		}
+		return [...(gold ? [gold] : []), ...equipment];
+	}
+
+	private playerMagicFind(player: Player): number {
+		const buckler =
+			player.progress.offHand?.itemKind === "buckler"
+				? player.progress.offHand
+				: undefined;
+		return Math.min(
+			5,
+			(buckler?.modifiers.magicFind ?? 0) +
+				attractionFindBonus(effectiveProgressSkillLevel(player, "attraction")),
+		);
+	}
+
+	private generateMagicFindItem(level: number): ItemInstance {
+		const seed = this.seed();
+		const rarity = magicFindRarityForRoll(this.options.random.next());
+		const category = Math.floor(this.options.random.next() * 5);
+		if (category === 1) return generateBuckler(level, rarity, seed, true);
+		if (category === 2) return generateRelic(level, rarity, seed);
+		if (category === 3) return generateAccessory(level, rarity, seed, "amulet");
+		if (category === 4) return generateAccessory(level, rarity, seed, "charm");
+		const classes = Object.keys(WEAPONS) as WeaponClass[];
+		return generateItem(level, rarity, seed, {
+			allowedClasses: [
+				classes[Math.floor(this.options.random.next() * classes.length)],
+			],
+		});
+	}
+
+	private createEquipmentDrop(
+		player: Player,
+		build: UnitBuild,
+		item: ItemInstance,
+		magicFind: number,
+	): GroundDrop {
+		const id = this.createId();
+		const promoted =
+			magicFind > 0 &&
+			nextRarity(item.rarity) &&
+			this.options.random.next() < Math.min(1, magicFind)
+				? changeItemRarity(item, nextRarity(item.rarity)!, this.seed())
+				: item;
+		if (this.options.random.next() < 0.25) {
+			const drop: GroundDrop = {
+				id,
+				kind: "scrap",
+				rarity: promoted.rarity,
+				amount: purgeYield(promoted),
+			};
+			player.groundDrops.set(id, drop);
+			return drop;
+		}
+		const droppedItem =
+			build.enemyRole === "boss" &&
+			promoted.rarity === "epic" &&
+			this.options.random.next() < 0.01
+				? changeItemRarity(promoted, "unique", this.seed())
+				: promoted;
+		const drop: GroundDrop = {
+			id,
+			kind: "item",
+			item: { ...droppedItem, id: `${promoted.id}-drop-${id}` },
+		};
+		player.groundDrops.set(id, drop);
+		return drop;
+	}
+
+	private rollGoldDrop(
+		player: Player,
+		build: UnitBuild,
+	): GroundDrop | undefined {
 		const buckler =
 			player.progress.offHand?.itemKind === "buckler"
 				? player.progress.offHand
@@ -1010,7 +1145,6 @@ export class GameService {
 			? itemRequirementMultiplier(buckler, player.progress.stats)
 			: 1;
 		const goldGain = (buckler?.modifiers.goldGain ?? 0) * effectiveness;
-		const rarityBoost = (buckler?.modifiers.rarityBoost ?? 0) * effectiveness;
 		const attractionBonus = attractionFindBonus(
 			effectiveProgressSkillLevel(player, "attraction"),
 		);
@@ -1028,6 +1162,13 @@ export class GameService {
 			player.groundDrops.set(drop.id, drop);
 			return drop;
 		}
+	}
+
+	private rollEquippedItemDrop(
+		player: Player,
+		build: UnitBuild,
+		magicFind: number,
+	): GroundDrop | undefined {
 		const sent = build.emitterId
 			? build.mainHand?.id.includes("sent")
 				? build.mainHand
@@ -1052,33 +1193,7 @@ export class GameService {
 				item.dropChance * this.options.balance.rewards.dropChanceMultiplier,
 			);
 			if (this.options.random.next() >= chance) continue;
-			const id = this.createId();
-			const promoted =
-				rarityBoost + attractionBonus > 0 &&
-				nextRarity(item.rarity) &&
-				this.options.random.next() < Math.min(1, rarityBoost + attractionBonus)
-					? changeItemRarity(item, nextRarity(item.rarity)!, this.seed())
-					: item;
-			if (this.options.random.next() < 0.25) {
-				const drop: GroundDrop = {
-					id,
-					kind: "scrap",
-					rarity: promoted.rarity,
-					amount: purgeYield(promoted),
-				};
-				player.groundDrops.set(id, drop);
-				return drop;
-			}
-			const droppedItem =
-				build.enemyRole === "boss" &&
-				promoted.rarity === "epic" &&
-				this.options.random.next() < 0.01
-					? changeItemRarity(promoted, "unique", this.seed())
-					: promoted;
-			const dropped = { ...droppedItem, id: `${promoted.id}-drop-${id}` };
-			const drop: GroundDrop = { id, kind: "item", item: dropped };
-			player.groundDrops.set(id, drop);
-			return drop;
+			return this.createEquipmentDrop(player, build, item, magicFind);
 		}
 	}
 

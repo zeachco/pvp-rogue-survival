@@ -11,7 +11,12 @@ import { cumulativeXpForLevel } from "../common/progression";
 import type { PlayerId, ServerMessage, UnitBuild } from "../common/protocol";
 import type { RandomSource } from "../common/random";
 import { InMemoryPlayerRepository } from "../server/domain";
-import { GameService } from "../server/GameService";
+import {
+	GameService,
+	magicFindExtraDropChance,
+	magicFindExtraDropCount,
+	magicFindRarityForRoll,
+} from "../server/GameService";
 
 class FixedRandom implements RandomSource {
 	constructor(private readonly value = 0) {}
@@ -56,6 +61,22 @@ function enterPair(
 }
 
 describe("realm game service", () => {
+	test("multiplies role discovery by capped player Magic Find", () => {
+		expect(magicFindExtraDropChance(4, "creep", 5)).toBe(0);
+		expect(magicFindExtraDropChance(4, "champion", 2)).toBeCloseTo(0.08);
+		expect(magicFindExtraDropChance(4, "clone", 2)).toBeCloseTo(0.24);
+		expect(magicFindExtraDropChance(4, "invader", 2)).toBeCloseTo(0.24);
+		expect(magicFindExtraDropChance(4, "boss", 2)).toBeCloseTo(0.4);
+		expect(magicFindExtraDropChance(4, "champion", 8)).toBeCloseTo(0.2);
+		expect(magicFindExtraDropCount(1.01, 0.009)).toBe(2);
+		expect(magicFindExtraDropCount(1.01, 0.02)).toBe(1);
+		expect(magicFindRarityForRoll(0)).toBe("unique");
+		expect(magicFindRarityForRoll(1 / 31)).toBe("epic");
+		expect(magicFindRarityForRoll(3 / 31)).toBe("rare");
+		expect(magicFindRarityForRoll(7 / 31)).toBe("uncommon");
+		expect(magicFindRarityForRoll(15 / 31)).toBe("common");
+		expect(1 - (30 / 31) ** 2).toBeCloseTo(0.0635, 4);
+	});
 	test("starts new players with Frozen Orb on the Staff and Attraction learned", () => {
 		const { game, messages } = harness();
 		const player = game.join("Starter");
@@ -442,7 +463,7 @@ describe("realm game service", () => {
 			carried: [],
 		};
 		player.issuedUnits.set(boss.id, { build: boss, mode: "competitive" });
-		random.set(0.9, 0.1, 0.9, 0.001);
+		random.set(0.9, 0.9, 0.1, 0.9, 0.001);
 		game.handle(player.id, { type: "creepDefeated", unitId: "boss-unit" });
 		const drop = [...player.groundDrops.values()][0];
 		expect(drop?.kind).toBe("item");
@@ -524,9 +545,10 @@ describe("realm game service", () => {
 		game.handle(one.id, { type: "creepDefeated", unitId });
 		expect(one.score).toBe(2);
 		expect(one.progress.xp).toBe(25);
-		expect(one.groundDrops.size).toBe(1);
-		const drop = [...one.groundDrops.values()][0];
-		expect(drop.kind).toBe("gold");
+		expect(one.groundDrops.size).toBe(2);
+		const drop = [...one.groundDrops.values()].find(
+			(candidate) => candidate.kind === "gold",
+		)!;
 		const gold = one.progress.gold;
 		game.handle(one.id, { type: "creepDefeated", unitId });
 		expect(one.score).toBe(2);
@@ -537,7 +559,7 @@ describe("realm game service", () => {
 		expect(one.progress.gold).toBe(
 			gold + (drop.kind === "gold" ? drop.amount : 0),
 		);
-		expect(one.groundDrops.size).toBe(0);
+		expect(one.groundDrops.size).toBe(1);
 	});
 	test("collects typed Scrap drops exactly once", () => {
 		const { game } = harness();

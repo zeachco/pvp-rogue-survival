@@ -490,11 +490,8 @@ function itemEffectSummary(
 			"gold",
 			`+${precise(item.modifiers.goldGain * effectiveness * 100)}% Gold gain`,
 		);
-	if (item.modifiers.rarityBoost > 0)
-		push(
-			"rarity",
-			`+${precise(item.modifiers.rarityBoost * effectiveness * 100)}% Rarity boost`,
-		);
+	if (item.modifiers.magicFind > 0)
+		push("rarity", `+${precise(item.modifiers.magicFind * 100)}% Magic find`);
 	if (item.reflectionComponents.length) {
 		const power = RARITY_POWER[item.rarity];
 		const parts: string[] = [];
