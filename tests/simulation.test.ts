@@ -218,7 +218,7 @@ describe("animated 3D characters", () => {
 		>;
 		applySceneShadowMode(renderer, scene, "dynamic");
 		expect(renderer.shadowMap.enabled).toBeTrue();
-		expect(renderer.shadowMap.type).toBe(THREE.PCFSoftShadowMap);
+		expect(renderer.shadowMap.type).toBe(THREE.PCFShadowMap);
 		expect(mesh.castShadow).toBeTrue();
 		expect(mesh.receiveShadow).toBeTrue();
 		expect(excludedMesh.castShadow).toBeFalse();

@@ -155,7 +155,7 @@ export function applySceneShadowMode(
 ): void {
 	const enabled = mode === "dynamic";
 	renderer.shadowMap.enabled = enabled;
-	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	renderer.shadowMap.type = THREE.PCFShadowMap;
 	scene.traverse((object) => {
 		if (object instanceof THREE.Mesh) {
 			object.castShadow = enabled && shadowEligibility(object, "castShadow");
