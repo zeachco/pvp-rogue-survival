@@ -2983,6 +2983,12 @@ input {
 	display: none;
 }
 
+@media (max-width: 1439px) {
+	.header-devlog {
+		display: none;
+	}
+}
+
 @media (max-width: 1099px) {
 	#game-canvas {
 		width: 100vw;
