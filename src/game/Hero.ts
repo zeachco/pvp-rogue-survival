@@ -72,16 +72,6 @@ export function turnAngleTowards(
 	return current + Math.sign(delta) * maxDelta;
 }
 
-let heroTexture: THREE.Texture | undefined;
-
-function loadHeroTexture(): THREE.Texture | undefined {
-	if (typeof document === "undefined") return undefined;
-	if (heroTexture) return heroTexture;
-	heroTexture = new THREE.TextureLoader().load("/assets/hero.png");
-	heroTexture.colorSpace = THREE.SRGBColorSpace;
-	return heroTexture;
-}
-
 export class Hero extends Unit {
 	readonly maxSpeed = 235;
 	readonly acceleration = 920;
@@ -115,22 +105,10 @@ export class Hero extends Unit {
 		this.characterLight.target.position.set(0, 0, 0);
 		this.mesh.add(this.characterLight, this.characterLight.target);
 
-		const texture = loadHeroTexture();
-		const bodyGeo = texture
-			? new THREE.PlaneGeometry(50, 50)
-			: new THREE.CircleGeometry(18, 32);
-		const bodyMat = new THREE.MeshStandardMaterial(
-			texture
-				? {
-						map: texture,
-						transparent: true,
-						alphaTest: 0.02,
-						depthWrite: false,
-					}
-				: { color: 0xdffeff },
-		);
+		const bodyGeo = new THREE.CircleGeometry(18, 32);
+		const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdffeff });
 		this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-		this.bodyMesh.position.z = texture ? 25 : 18;
+		this.bodyMesh.position.z = 18;
 		this.bodyMesh.renderOrder = Z_HERO;
 		this.mesh.add(this.bodyMesh);
 		this.animatedCharacter = new AnimatedCharacter("hero", this.bodyMesh, true);
@@ -389,11 +367,6 @@ export class Hero extends Unit {
 		const reflective = this.reflectiveSurgeRemaining > 0;
 		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
 		bodyMaterial.color.set(flash ? 0xffffff : reflective ? 0x8a9197 : 0xdffeff);
-		const bodyMap = reflective ? null : (loadHeroTexture() ?? null);
-		if (bodyMaterial.map !== bodyMap) {
-			bodyMaterial.map = bodyMap;
-			bodyMaterial.needsUpdate = true;
-		}
 		bodyMaterial.metalness = reflective ? 0.9 : 0;
 		bodyMaterial.roughness = reflective ? 0.35 : 1;
 		if (tint) {

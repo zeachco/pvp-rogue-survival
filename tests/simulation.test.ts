@@ -232,10 +232,14 @@ describe("animated 3D characters", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.hero.path).toBe("/assets/models/hero.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.hero.footprint).toBe(50);
 		expect(CHARACTER_MODEL_MANIFESTS.hero.facingOffset).toBe(Math.PI / 2);
+		expect(CHARACTER_MODEL_MANIFESTS.clone.path).toBe(
+			CHARACTER_MODEL_MANIFESTS.hero.path,
+		);
+		expect(CHARACTER_MODEL_MANIFESTS.clone.footprint).toBe(37.5);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.facingOffset).toBe(Math.PI / 2);
-		expect(enemyRoleModelKind("clone")).toBe("hero");
+		expect(enemyRoleModelKind("clone")).toBe("clone");
 	});
 
 	test("uses a dark global baseline and short-radius role lights", () => {
@@ -350,7 +354,7 @@ describe("animated 3D characters", () => {
 		expect(futureEffectLight.visible).toBeTrue();
 	});
 
-	test("centers fallback unit sprites above the zero-height floor", () => {
+	test("centers fallback unit bodies above the zero-height floor", () => {
 		const hero = new Hero({ x: 10, y: 20 });
 		hero.updateVisuals(0);
 		const heroBody = hero.mesh.children.find(

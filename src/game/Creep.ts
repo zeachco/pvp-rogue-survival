@@ -69,15 +69,6 @@ export function resourceBarWidth(
 	return Math.floor(barWidth * ratio);
 }
 
-const ENEMY_ASSET_PATHS: Record<EnemyRole, string> = {
-	creep: "/assets/enemies/creep.png",
-	champion: "/assets/enemies/champion.png",
-	invader: "/assets/enemies/invader.png",
-	clone: "/assets/enemies/clone.png",
-	boss: "/assets/enemies/boss.png",
-};
-const enemyTextures = new Map<EnemyRole, THREE.Texture>();
-
 function enemyRole(build: UnitBuild): EnemyRole {
 	return (
 		build.enemyRole ??
@@ -85,22 +76,12 @@ function enemyRole(build: UnitBuild): EnemyRole {
 	);
 }
 
-function enemyTexture(role: EnemyRole): THREE.Texture | undefined {
-	if (typeof document === "undefined") return undefined;
-	const existing = enemyTextures.get(role);
-	if (existing) return existing;
-	const texture = new THREE.TextureLoader().load(ENEMY_ASSET_PATHS[role]);
-	texture.colorSpace = THREE.SRGBColorSpace;
-	enemyTextures.set(role, texture);
-	return texture;
-}
-
 export function enemyRoleModelKind(
 	role: EnemyRole,
 ): CharacterModelKind | undefined {
 	if (role === "boss") return "boss";
 	if (role === "champion") return "champion";
-	if (role === "clone") return "hero";
+	if (role === "clone") return "clone";
 	if (role === "creep") return "creep";
 	return undefined;
 }
@@ -138,7 +119,6 @@ export class Creep extends Unit {
 	readonly threatArrow: THREE.Mesh;
 
 	private readonly bodyMesh: THREE.Mesh;
-	private readonly bodyTexture?: THREE.Texture;
 	private readonly spriteGroup = new THREE.Group();
 	private readonly animatedCharacter?: AnimatedCharacter;
 	private readonly modelKind?: CharacterModelKind;
@@ -214,8 +194,6 @@ export class Creep extends Unit {
 				? 0x8c7cff
 				: 0xff6f7d;
 		const strokeColorStr = build.isRival ? "#704d00" : "#501721";
-		const texture = enemyTexture(enemyRole(build));
-		this.bodyTexture = texture;
 		const sentItem = [
 			build.mainHand,
 			build.offHand,
@@ -223,31 +201,7 @@ export class Creep extends Unit {
 			build.charm,
 		].find((item) => item?.id.includes("sent"));
 
-		if (texture) {
-			const visualScale =
-				build.enemyRole === "boss"
-					? 3.2
-					: build.isRival
-						? 2.8
-						: build.enemyRole === "invader"
-							? 2.7
-							: 2.5;
-			this.presentationHeight = this.radius * visualScale;
-			this.spriteCenterHeight = this.presentationHeight / 2;
-			this.bodyMesh = new THREE.Mesh(
-				new THREE.PlaneGeometry(
-					this.radius * visualScale,
-					this.radius * visualScale,
-				),
-				new THREE.MeshStandardMaterial({
-					map: texture,
-					transparent: true,
-					alphaTest: 0.02,
-					depthWrite: false,
-					color: 0xdddddd,
-				}),
-			);
-		} else if (this.kind === "melee") {
+		if (this.kind === "melee") {
 			this.presentationHeight = this.radius * 2;
 			this.spriteCenterHeight = this.radius;
 			const shape = new THREE.Shape();
@@ -312,7 +266,7 @@ export class Creep extends Unit {
 			this.animatedCharacter = new AnimatedCharacter(
 				modelKind,
 				this.spriteGroup,
-				role === "clone",
+				true,
 			);
 			this.mesh.add(this.animatedCharacter.root);
 		}
@@ -755,11 +709,6 @@ export class Creep extends Unit {
 							: 0xff6f7d;
 		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);
 		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
-		const bodyMap = reflective ? null : (this.bodyTexture ?? null);
-		if (bodyMaterial.map !== bodyMap) {
-			bodyMaterial.map = bodyMap;
-			bodyMaterial.needsUpdate = true;
-		}
 		bodyMaterial.metalness = reflective ? 0.9 : 0;
 		bodyMaterial.roughness = reflective ? 0.35 : 1;
 

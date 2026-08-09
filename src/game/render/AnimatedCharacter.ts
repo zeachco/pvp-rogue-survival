@@ -2,7 +2,12 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
-export type CharacterModelKind = "hero" | "boss" | "creep" | "champion";
+export type CharacterModelKind =
+	| "hero"
+	| "clone"
+	| "boss"
+	| "creep"
+	| "champion";
 export type CharacterAnimationState =
 	| "idle"
 	| "move"
@@ -42,6 +47,20 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 		facingOffset: Math.PI / 2,
 		baseTint: 0xc9fff2,
 		renderOrder: 50,
+		clips: {
+			idle: ["Idle", "Look"],
+			move: ["Charging", "Idle"],
+			attack: ["Attack", "Charging"],
+			hit: ["Hit"],
+			death: ["TurnOff", "Death", "Hit"],
+		},
+	},
+	clone: {
+		path: "/assets/models/hero.glb",
+		footprint: 37.5,
+		facingOffset: Math.PI / 2,
+		baseTint: 0xc9fff2,
+		renderOrder: 40,
 		clips: {
 			idle: ["Idle", "Look"],
 			move: ["Charging", "Idle"],
