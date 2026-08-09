@@ -20,6 +20,8 @@ export const HEALING_LIGHT_LINGER_DURATION = 1;
 export const HEALING_UPLIGHT_INTENSITY = 320;
 export const HEALING_AURA_FILL_MAX_OPACITY = 0.1;
 export const HEALING_AURA_RING_MAX_OPACITY = 0.55;
+export const HOSTILE_SPELL_COLOR = 0xff334f;
+export const HERO_BLOOD_SPELL_COLOR = 0x9b5cff;
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -43,7 +45,7 @@ export function spellEffectLightColor(
 	)
 		return undefined;
 	if (kind === "arcaneBoltExplosion") return 0x73d7ff;
-	if (kind === "rent") return 0xff2448;
+	if (kind === "rent") return HERO_BLOOD_SPELL_COLOR;
 	if (kind === "healing" || kind === "rapidRegen") return 0x68ff9c;
 	if (kind === "fireBreath") return 0xff5a24;
 	if (kind === "gravityPull") return 0xb98cff;
@@ -200,13 +202,31 @@ export class SpellEffect extends GameObject {
 		} else if (this.kind === "fireBreath") {
 			fireBreath(this.effectGroup, progress);
 		} else if (this.kind === "rent") {
-			rentEdge(this.effectGroup, progress, this.range);
+			rentEdge(this.effectGroup, progress, this.range, this.heroOwned);
 		} else if (this.kind === "whirlwind") {
 			whirlwind(this.effectGroup, progress, this.range, _time);
-		} else {
+		} else if (this.kind === "healing") {
 			healing(this.effectGroup, progress, this.range || HEALING_MIN_RADIUS);
+		} else if (this.kind === "rapidRegen") {
+			impact(this.effectGroup, progress, "#68ff9c", 55, 6);
 		}
+		if (!this.heroOwned) tintSpellObject(this.effectGroup, HOSTILE_SPELL_COLOR);
 	}
+}
+
+export function tintSpellObject(object: THREE.Object3D, color: number): void {
+	object.traverse((child) => {
+		if (!(child instanceof THREE.Mesh || child instanceof THREE.Line)) return;
+		const materials = Array.isArray(child.material)
+			? child.material
+			: [child.material];
+		for (const material of materials) {
+			if ("color" in material && material.color instanceof THREE.Color)
+				material.color.setHex(color);
+			if ("emissive" in material && material.emissive instanceof THREE.Color)
+				material.emissive.setHex(color);
+		}
+	});
 }
 
 function hexToThree(hex: string): number {
@@ -565,7 +585,12 @@ function fireBreath(group: THREE.Group, progress: number): void {
 	}
 }
 
-function rentEdge(group: THREE.Group, progress: number, range: number): void {
+function rentEdge(
+	group: THREE.Group,
+	progress: number,
+	range: number,
+	heroOwned: boolean,
+): void {
 	const radius = Math.max(36, range * 0.82);
 	const headAngle = rentSlashAngle(progress);
 	const trailLength = Math.PI * (0.35 + 1.05 * Math.sin(progress * Math.PI));
@@ -636,7 +661,7 @@ function rentEdge(group: THREE.Group, progress: number, range: number): void {
 				void main() {
 					float edge = 1.0 - abs(vUv.y * 2.0 - 1.0);
 					float alpha = pow(1.0 - vUv.x, 1.35) * (0.35 + edge * 0.65) * uOpacity;
-					vec3 color = mix(vec3(0.48, 0.005, 0.025), vec3(1.0, 0.16, 0.28), edge);
+					vec3 color = mix(${heroOwned ? "vec3(0.18, 0.03, 0.30), vec3(0.61, 0.36, 1.0)" : "vec3(0.48, 0.005, 0.025), vec3(1.0, 0.16, 0.28)"}, edge);
 					gl_FragColor = vec4(color, alpha);
 				}
 			`,
@@ -650,8 +675,8 @@ function rentEdge(group: THREE.Group, progress: number, range: number): void {
 	const sword = new THREE.Mesh(
 		new THREE.ConeGeometry(6, 42, 4),
 		new THREE.MeshStandardMaterial({
-			color: 0xff183d,
-			emissive: 0xff0828,
+			color: heroOwned ? HERO_BLOOD_SPELL_COLOR : HOSTILE_SPELL_COLOR,
+			emissive: heroOwned ? 0x54218f : 0xff0828,
 			emissiveIntensity: 5,
 			metalness: 0.72,
 			roughness: 0.18,

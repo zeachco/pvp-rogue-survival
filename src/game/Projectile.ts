@@ -8,6 +8,11 @@ import type { ItemInstance, SkillId } from "../../common/items";
 import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
 import { rendingThrowTargetLimit } from "../../common/combat";
 import { Z_PROJECTILE } from "./render/ThreeRenderer";
+import {
+	HERO_BLOOD_SPELL_COLOR,
+	HOSTILE_SPELL_COLOR,
+	tintSpellObject,
+} from "./SpellEffect";
 
 export type ProjectileSkill = SkillId | "frostSpike";
 
@@ -44,8 +49,8 @@ export function projectileSpellLightColor(
 ): number | undefined {
 	if (skill === "arcaneBolt") return 0x73d7ff;
 	if (skill === "frostOrb") return 0x67c9ed;
-	if (skill === "vampiricBoomerang") return 0xff3152;
-	if (skill === "rendingThrow") return 0xff4c55;
+	if (skill === "vampiricBoomerang" || skill === "rendingThrow")
+		return HERO_BLOOD_SPELL_COLOR;
 	if (skill === "orbitingHammers") return 0xffd76a;
 	return undefined;
 }
@@ -183,6 +188,8 @@ export class Projectile extends GameObject {
 		}
 
 		this.bodyMesh = this.createMesh();
+		if (skill && owner === "creep")
+			tintSpellObject(this.bodyMesh, HOSTILE_SPELL_COLOR);
 		this.bodyMesh.renderOrder = Z_PROJECTILE;
 		this.billboardGroup.add(this.bodyMesh);
 		this.billboardGroup.position.z = projectilePresentationCenter(
@@ -191,7 +198,9 @@ export class Projectile extends GameObject {
 		);
 		this.mesh.add(this.billboardGroup);
 		const lightColor = emitsSpellLight
-			? projectileSpellLightColor(skill)
+			? skill && owner === "creep"
+				? HOSTILE_SPELL_COLOR
+				: projectileSpellLightColor(skill)
 			: undefined;
 		if (lightColor !== undefined) {
 			this.spellLight = new THREE.PointLight(
@@ -249,7 +258,7 @@ export class Projectile extends GameObject {
 			const arc = new THREE.Mesh(
 				new THREE.RingGeometry(30, 48, 20, 1, -0.9, 1.8),
 				new THREE.MeshBasicMaterial({
-					color: 0xff3152,
+					color: HERO_BLOOD_SPELL_COLOR,
 					side: THREE.DoubleSide,
 				}),
 			);
@@ -257,7 +266,7 @@ export class Projectile extends GameObject {
 			const inner = new THREE.Mesh(
 				new THREE.RingGeometry(33, 42, 20, 1, -0.9, 1.8),
 				new THREE.MeshBasicMaterial({
-					color: 0x850d26,
+					color: 0x3d1a63,
 					side: THREE.DoubleSide,
 				}),
 			);
@@ -274,7 +283,7 @@ export class Projectile extends GameObject {
 			const rending = this.skill === "rendingThrow";
 			const handle = new THREE.Mesh(
 				new THREE.PlaneGeometry(rending ? 24 : 18, rending ? 5 : 4),
-				new THREE.MeshBasicMaterial({ color: rending ? 0x4f1818 : 0x8a552f }),
+				new THREE.MeshBasicMaterial({ color: rending ? 0x3d1a63 : 0x8a552f }),
 			);
 			const bladeShape = new THREE.Shape();
 			bladeShape.moveTo(2, -3);
@@ -283,7 +292,9 @@ export class Projectile extends GameObject {
 			bladeShape.closePath();
 			const blade = new THREE.Mesh(
 				new THREE.ShapeGeometry(bladeShape),
-				new THREE.MeshBasicMaterial({ color: rending ? 0xff4c55 : 0xb9c4ca }),
+				new THREE.MeshBasicMaterial({
+					color: rending ? HERO_BLOOD_SPELL_COLOR : 0xb9c4ca,
+				}),
 			);
 			blade.position.x = 5;
 			const group = new THREE.Group();
@@ -294,7 +305,7 @@ export class Projectile extends GameObject {
 				const aura = new THREE.Mesh(
 					new THREE.RingGeometry(14, 18, 20),
 					new THREE.MeshBasicMaterial({
-						color: 0xc4142f,
+						color: 0x7138b8,
 						transparent: true,
 						opacity: 0.38,
 						side: THREE.DoubleSide,
@@ -378,6 +389,7 @@ export class Projectile extends GameObject {
 				});
 				object.material = Array.isArray(object.material) ? unlit : unlit[0];
 			});
+			if (this.owner === "creep") tintSpellObject(model, HOSTILE_SPELL_COLOR);
 			this.hammerModelRoot.position.z = ORBITING_HAMMER_MODEL.height;
 			this.hammerModelRoot.add(model);
 			this.mesh.add(this.hammerModelRoot);
@@ -460,7 +472,7 @@ export class Projectile extends GameObject {
 					y: this.position.y + Math.sin(angle),
 				},
 				this.damage,
-				"hero",
+				this.owner,
 				"frostSpike",
 				this.source,
 				this.presentation,

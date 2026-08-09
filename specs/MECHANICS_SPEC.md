@@ -4,6 +4,8 @@ This specification extends `specs/SPEC.md` and is authoritative for arena simula
 
 The HUD groups every timed hero effect above the Health bar: harmful statuses are red-outlined, while positive buffs are green-outlined. Positive timed buffs include XP Send, Reflective Surge, and Rapid Regeneration. This rule supersedes older placement descriptions elsewhere in this file.
 
+Spell presentation uses ownership color as its highest-priority readability cue. Enemy-authored spell effects, projectiles, cast flashes, telegraphs, and spell attack areas can never be greenish and are always tinted hostile red regardless of their ordinary elemental or resource color. Hero-authored spell effects, projectiles, cast flashes, telegraphs, and spell attack areas can never be reddish; formerly blood-red hero spells use a purple family, including Rent, Rending Throw, and Vampiric Boomerang. Red arena spell presentation therefore always communicates enemy ownership, while green presentation can never be mistaken for an enemy heal.
+
 Superseding the older hero-light height description below, the hero's warm-white spotlight sits at `z = 72`, safely above its complete 50-unit silhouette, and uses a 62-degree half-angle. Its roughly 135-unit floor radius is wider than the former pool, while the lower source produces longer, more readable shadows from nearby obstacles without placing the light inside the hero model.
 
 ## Unarmed Combat

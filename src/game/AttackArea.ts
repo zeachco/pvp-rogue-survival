@@ -167,18 +167,18 @@ export class AttackArea extends GameObject {
 		let strokeColor: number;
 		let fillOpacity: number;
 
-		if (fire) {
-			fillColor = this.resolved ? 0xff501e : 0xff501e;
-			strokeColor = 0xff6534;
-			fillOpacity = this.resolved ? 0.38 : 0.12;
-		} else if (hero) {
-			fillColor = 0x3affd4;
-			strokeColor = 0x3affd4;
-			fillOpacity = this.resolved ? 0.32 : 0.12;
-		} else {
+		if (!hero) {
 			fillColor = 0xff4b62;
 			strokeColor = 0xff4b62;
 			fillOpacity = this.resolved ? 0.38 : 0.13;
+		} else if (fire) {
+			fillColor = 0x8f4dcc;
+			strokeColor = 0xb76cff;
+			fillOpacity = this.resolved ? 0.38 : 0.12;
+		} else {
+			fillColor = 0x3affd4;
+			strokeColor = 0x3affd4;
+			fillOpacity = this.resolved ? 0.32 : 0.12;
 		}
 
 		(this.fillMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);

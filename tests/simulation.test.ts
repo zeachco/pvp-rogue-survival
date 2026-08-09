@@ -16,6 +16,7 @@ import {
 	ORBITING_HAMMER_MODEL,
 	orbitingHammerRotation,
 	projectilePresentationCenter,
+	projectileSpellLightColor,
 	projectileSpellLightRadius,
 	Projectile,
 	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
@@ -44,6 +45,8 @@ import {
 	HEALING_GROUND_DURATION,
 	HEALING_LIGHT_LINGER_DURATION,
 	HEALING_UPLIGHT_INTENSITY,
+	HERO_BLOOD_SPELL_COLOR,
+	HOSTILE_SPELL_COLOR,
 	healingUplightIntensity,
 	ELBO_HEIGHT,
 	elbowHeight,
@@ -51,6 +54,7 @@ import {
 	healingAuraOpacity,
 	healingPlusOpacity,
 	spellEffectLightDistance,
+	spellEffectLightColor,
 	SpellEffect,
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
@@ -1519,7 +1523,7 @@ describe("arena systems", () => {
 		rent.updateVisuals(0.35);
 		lightPool.sync(["rent"], [rent], 0.35);
 		const rentLight = lightPool.light("rent") as THREE.PointLight;
-		expect(rentLight.color.getHex()).toBe(0xff2448);
+		expect(rentLight.color.getHex()).toBe(HERO_BLOOD_SPELL_COLOR);
 		expect(rentLight.position.z).toBeGreaterThan(0);
 		expect(rentLight.distance).toBe(spellEffectLightDistance("rent", 0));
 		const rentVisuals = rent.mesh.children[0] as THREE.Group;
@@ -1665,6 +1669,93 @@ describe("arena systems", () => {
 
 		expect(body.rotation.z).not.toBe(initialRotation);
 		expect(aura?.scale.x).not.toBe(initialScale);
+	});
+	test("reserves red spell presentation for enemy ownership", () => {
+		expect(spellEffectLightColor("rent")).toBe(HERO_BLOOD_SPELL_COLOR);
+		expect(projectileSpellLightColor("vampiricBoomerang")).toBe(
+			HERO_BLOOD_SPELL_COLOR,
+		);
+		expect(projectileSpellLightColor("rendingThrow")).toBe(
+			HERO_BLOOD_SPELL_COLOR,
+		);
+
+		const enemyHealing = new SpellEffect("healing", { x: 0, y: 0 });
+		enemyHealing.updateVisuals(0);
+		const enemyColors: number[] = [];
+		enemyHealing.mesh.traverse((object) => {
+			if (!(object instanceof THREE.Mesh || object instanceof THREE.Line))
+				return;
+			const materials = Array.isArray(object.material)
+				? object.material
+				: [object.material];
+			for (const material of materials)
+				if ("color" in material && material.color instanceof THREE.Color)
+					enemyColors.push(material.color.getHex());
+		});
+		expect(enemyColors.length).toBeGreaterThan(0);
+		expect(
+			enemyColors.every((color) => color === HOSTILE_SPELL_COLOR),
+		).toBeTrue();
+		const rapidRegen = new SpellEffect(
+			"rapidRegen",
+			{ x: 0, y: 0 },
+			0,
+			0,
+			1,
+			undefined,
+			true,
+		);
+		rapidRegen.updateVisuals(0);
+		expect(rapidRegen.mesh.getObjectByName("healing-plus")).toBeUndefined();
+
+		const enemyProjectile = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 1, y: 0 },
+			1,
+			"creep",
+			"frostOrb",
+		);
+		const projectileColors: number[] = [];
+		enemyProjectile.mesh.traverse((object) => {
+			if (!(object instanceof THREE.Mesh)) return;
+			const materials = Array.isArray(object.material)
+				? object.material
+				: [object.material];
+			for (const material of materials)
+				if ("color" in material && material.color instanceof THREE.Color)
+					projectileColors.push(material.color.getHex());
+		});
+		expect(projectileColors.length).toBeGreaterThan(0);
+		expect(
+			projectileColors.every((color) => color === HOSTILE_SPELL_COLOR),
+		).toBeTrue();
+
+		const enemyArea = new AttackArea(
+			"creep",
+			{ x: 0, y: 0 },
+			0,
+			50,
+			Math.PI / 2,
+			0.1,
+			0.1,
+			1,
+			undefined,
+			"fireBreath",
+		);
+		enemyArea.updateVisuals(0);
+		const areaColors: number[] = [];
+		enemyArea.mesh.traverse((object) => {
+			if (!(object instanceof THREE.Mesh || object instanceof THREE.Line))
+				return;
+			const materials = Array.isArray(object.material)
+				? object.material
+				: [object.material];
+			for (const material of materials)
+				if ("color" in material && material.color instanceof THREE.Color)
+					areaColors.push(material.color.getHex());
+		});
+		expect(areaColors.length).toBeGreaterThan(0);
+		expect(areaColors.every((color) => color === 0xff4b62)).toBeTrue();
 	});
 	test("tumbles Orbiting Hammer models around all three axes", () => {
 		const first = orbitingHammerRotation(0.25, 0.4);
