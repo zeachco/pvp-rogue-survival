@@ -2154,7 +2154,12 @@ export class Hud {
 							aria-label={status.tooltip}
 						>
 							<span aria-hidden="true">{status.icon}</span>
-							{status.stacks > 1 ? <b>{status.stacks}</b> : null}
+							<small class="effect-time" aria-hidden="true">
+								{effectTimeLabel(status.remaining)}
+							</small>
+							{status.stacks > 1 ? (
+								<b class="effect-stacks">{status.stacks}</b>
+							) : null}
 							<span class="status-effect-tooltip" role="tooltip">
 								{status.tooltip}
 							</span>
@@ -2177,11 +2182,11 @@ export class Hud {
 		const rapidRegenLevel = this.player
 			? effectiveSkillLevel(this.player.progress, "rapidRegen")
 			: 0;
-		const rapidRegenTooltip = `Rapid Regeneration — ${fmt(rapidRegenMultiplier(rapidRegenLevel) * 100)}% normal regeneration + 0.1 HP/s · ${fmt(rapidRegenRemaining)}s remaining`;
+		const rapidRegenTooltip = `Rapid Regeneration — ${fmt(rapidRegenMultiplier(rapidRegenLevel) * 100)}% normal regeneration + 0.1 HP/s`;
 		const reflectiveSurgeLevel = this.player
 			? effectiveSkillLevel(this.player.progress, "reflectiveSurge")
 			: 0;
-		const reflectiveSurgeTooltip = `Reflective Surge — doubles returned damage and adds ${fmt(reflectiveSurgeBlockChanceBonus(reflectiveSurgeLevel) * 100)}% block chance · ${fmt(reflectiveSurgeRemaining)}s remaining`;
+		const reflectiveSurgeTooltip = `Reflective Surge — doubles returned damage and adds ${fmt(reflectiveSurgeBlockChanceBonus(reflectiveSurgeLevel) * 100)}% block chance`;
 		this.beneficialEffects.replaceChildren(
 			...(rapidRegenRemaining > 0
 				? [
@@ -2191,6 +2196,9 @@ export class Hud {
 							aria-label={rapidRegenTooltip}
 						>
 							<span aria-hidden="true">+</span>
+							<small class="effect-time" aria-hidden="true">
+								{effectTimeLabel(rapidRegenRemaining)}
+							</small>
 							<span class="beneficial-effect-tooltip" role="tooltip">
 								{rapidRegenTooltip}
 							</span>
@@ -2205,6 +2213,9 @@ export class Hud {
 							aria-label={reflectiveSurgeTooltip}
 						>
 							<span aria-hidden="true">◈</span>
+							<small class="effect-time" aria-hidden="true">
+								{effectTimeLabel(reflectiveSurgeRemaining)}
+							</small>
 							<span class="beneficial-effect-tooltip" role="tooltip">
 								{reflectiveSurgeTooltip}
 							</span>
@@ -2219,6 +2230,9 @@ export class Hud {
 							aria-label={buff.tooltip}
 						>
 							<b>{buff.label}</b>
+							<small class="effect-time" aria-hidden="true">
+								{effectTimeLabel(buff.remaining)}
+							</small>
 							<span class="beneficial-effect-tooltip" role="tooltip">
 								{buff.tooltip}
 							</span>
@@ -3692,19 +3706,27 @@ export interface XpSendBuffSummary {
 	label: string;
 	tooltip: string;
 }
+export function effectTimeLabel(remaining?: number): string {
+	if (remaining === undefined || !Number.isFinite(remaining)) return "";
+	const seconds = Math.max(0, Math.round(remaining));
+	if (seconds <= 99) return `${seconds}s`;
+	const minutes = Math.floor(seconds / 60);
+	const remainder = seconds % 60;
+	return `${minutes}m${remainder > 0 ? `${remainder}s` : ""}`;
+}
 export function xpSendBuffSummary(
 	buffs: PlayerState["xpSendBuffs"],
 	now = Date.now(),
 ): XpSendBuffSummary | undefined {
 	const buff = buffs.find((entry) => entry.expiresAt > now);
 	if (!buff) return undefined;
-	const remaining = Math.ceil((buff.expiresAt - now) / 1000);
+	const remaining = Math.max(0, Math.round((buff.expiresAt - now) / 1000));
 	const percent = Math.round(buff.multiplier * 100);
 	return {
 		multiplier: buff.multiplier,
 		remaining,
-		label: `x${fmt(buff.multiplier)} · ${remaining}s`,
-		tooltip: `XP Send bonus — ${percent}% XP for ${remaining}s remaining`,
+		label: `x${fmt(buff.multiplier)}`,
+		tooltip: `XP Send bonus — ${percent}% XP`,
 	};
 }
 const STATUS_EFFECT_PRESENTATION: Record<
@@ -3863,22 +3885,30 @@ export function statusEffectSummaries(
 	}
 	return [...summaries.values()].map((summary) => {
 		const name = STATUS_EFFECT_PRESENTATION[summary.kind].name;
-		const details = [`${fmt(Math.max(0, summary.remaining))}s remaining`];
+		const details: string[] = [];
 		if (summary.stacks > 1) details.push(`${summary.stacks} stacks`);
 		if (summary.damagePerSecond > 0)
 			details.push(`${fmt(summary.damagePerSecond)} damage/s`);
-		return { ...summary, tooltip: `${name} — ${details.join(" · ")}` };
+		return {
+			...summary,
+			tooltip: details.length > 0 ? `${name} — ${details.join(" · ")}` : name,
+		};
 	});
 }
 
 function creepStateBadges(states?: CreepTimedStates): HTMLElement {
 	const statuses = statusEffectSummaries(states?.statuses ?? []);
-	const entries: Array<{ className: string; icon: string; tooltip: string }> =
-		statuses.map((status) => ({
-			className: `status-effect-${status.kind}`,
-			icon: `${status.icon}${status.stacks > 1 ? ` ${status.stacks}` : ""}`,
-			tooltip: status.tooltip,
-		}));
+	const entries: Array<{
+		className: string;
+		icon: string;
+		tooltip: string;
+		remaining?: number;
+	}> = statuses.map((status) => ({
+		className: `status-effect-${status.kind}`,
+		icon: `${status.icon}${status.stacks > 1 ? ` ${status.stacks}` : ""}`,
+		tooltip: status.tooltip,
+		remaining: status.remaining,
+	}));
 	if (states?.regenerating)
 		entries.push({
 			className: "beneficial-effect-rapid-regen",
@@ -3889,7 +3919,8 @@ function creepStateBadges(states?: CreepTimedStates): HTMLElement {
 		entries.push({
 			className: "beneficial-effect-reflective-surge",
 			icon: "◆",
-			tooltip: `Reflective Surge — ${fmt(states!.reflectiveSurgeRemaining)}s remaining`,
+			tooltip: "Reflective Surge",
+			remaining: states!.reflectiveSurgeRemaining,
 		});
 	return (
 		<div class="creep-state-badges" aria-label="Active states">
@@ -3899,6 +3930,11 @@ function creepStateBadges(states?: CreepTimedStates): HTMLElement {
 					title={entry.tooltip}
 				>
 					{entry.icon}
+					{entry.remaining === undefined ? null : (
+						<small class="effect-time" aria-hidden="true">
+							{effectTimeLabel(entry.remaining)}
+						</small>
+					)}
 				</span>
 			))}
 		</div>

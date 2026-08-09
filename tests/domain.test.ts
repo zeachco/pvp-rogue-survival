@@ -204,6 +204,7 @@ import {
 } from "../src/ui/inventoryAvailability";
 import {
 	effectiveStatRows,
+	effectTimeLabel,
 	extractedLearnedLevel,
 	passiveSkillMetrics,
 	spellCatalogFilterMatches,
@@ -2013,6 +2014,14 @@ describe("Force Field", () => {
 	});
 });
 describe("hero status HUD summaries", () => {
+	test("formats rounded effect countdowns compactly and omits untimed suffixes", () => {
+		expect(effectTimeLabel()).toBe("");
+		expect(effectTimeLabel(0.4)).toBe("0s");
+		expect(effectTimeLabel(1.6)).toBe("2s");
+		expect(effectTimeLabel(99)).toBe("99s");
+		expect(effectTimeLabel(100)).toBe("1m40s");
+		expect(effectTimeLabel(120)).toBe("2m");
+	});
 	test("aggregates duplicate effects into stacks with their live duration and combined DPS", () => {
 		expect(
 			statusEffectSummaries([
@@ -2027,7 +2036,7 @@ describe("hero status HUD summaries", () => {
 				stacks: 2,
 				remaining: 3,
 				damagePerSecond: 1,
-				tooltip: "Poison — 3s remaining · 2 stacks · 1 damage/s",
+				tooltip: "Poison — 2 stacks · 1 damage/s",
 			},
 			{
 				kind: "stun",
@@ -2035,7 +2044,7 @@ describe("hero status HUD summaries", () => {
 				stacks: 1,
 				remaining: 0.35,
 				damagePerSecond: 0,
-				tooltip: "Stun — 0.35s remaining",
+				tooltip: "Stun",
 			},
 		]);
 	});
@@ -2051,8 +2060,8 @@ describe("hero status HUD summaries", () => {
 		).toEqual({
 			multiplier: 1.2,
 			remaining: 20,
-			label: "x1.2 · 20s",
-			tooltip: "XP Send bonus — 120% XP for 20s remaining",
+			label: "x1.2",
+			tooltip: "XP Send bonus — 120% XP",
 		});
 		expect(
 			xpSendBuffSummary(
@@ -2065,8 +2074,8 @@ describe("hero status HUD summaries", () => {
 		).toEqual({
 			multiplier: 3,
 			remaining: 10,
-			label: "x3 · 10s",
-			tooltip: "XP Send bonus — 300% XP for 10s remaining",
+			label: "x3",
+			tooltip: "XP Send bonus — 300% XP",
 		});
 	});
 });

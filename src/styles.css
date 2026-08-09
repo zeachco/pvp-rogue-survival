@@ -11,6 +11,7 @@
 	align-items: center;
 }
 .creep-state-badge {
+	position: relative;
 	min-width: 20px;
 	border: 1px solid rgba(255, 255, 255, 0.22);
 	border-radius: 10px;
@@ -18,6 +19,9 @@
 	font-size: 10px;
 	text-align: center;
 	background: rgba(8, 14, 17, 0.8);
+}
+.creep-state-badge:has(> .effect-time) {
+	margin-right: 8px;
 }
 
 :root {
@@ -2638,6 +2642,28 @@ input {
 .beneficial-effect > b {
 	font-weight: 700;
 }
+.beneficial-effect:has(> .effect-time),
+.status-effect:has(> .effect-time) {
+	margin-right: 8px;
+}
+.effect-time {
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: 1;
+	min-width: 13px;
+	padding: 1px 3px;
+	border-radius: 7px;
+	color: #fff;
+	font-size: 8px;
+	font-weight: 700;
+	line-height: 1.1;
+	text-align: center;
+	white-space: nowrap;
+	background: #101418;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+	transform: translate(55%, -45%);
+}
 .beneficial-effect-xp {
 	border-color: #c084fc;
 	color: #f3e8ff;
@@ -2688,7 +2714,7 @@ input {
 	outline: 2px solid #8ad8ff;
 	outline-offset: 2px;
 }
-.status-effect > b {
+.status-effect > .effect-stacks {
 	position: absolute;
 	right: -4px;
 	bottom: -4px;
