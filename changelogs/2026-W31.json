@@ -1,14 +1,14 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T14:16:20.357Z",
+	"generatedAt": "2026-08-09T14:38:38.891Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Feature Update and Visual Improvements",
-			"summary": "This week focused heavily on introducing new spell management features and significant visual and UI improvements. New features included a spell management window and the addition of editable spell loadouts, limiting active spell loadouts to six persisted slots while supporting manual casting, right-click auto-fire, and keeping passive skills permanently active, along with moving camera orbit controls to left-drag without changing hero facing. Visual enhancements involved rendering creep resource bars above overlapping units and implementing progressive 3D transforms. Furthermore, the system received numerous bug fixes and updates: auras spells were made dropable, ground clipping issues were resolved, 3D rendering and positioning were fixed, UI improvements were implemented, context menu options were removed, adjustments for visuals and mobile experience were made, and 3D animated models were added. Other notable changes included adding columns, aim with camera functionality, fullscreen/mouse move recenter support, healing spell effects, healing mechanics, chat system implementation, a long spell bar fix, and the integration of bonus XP via the send command.",
+			"summaryTitle": "Spell Management and Combat Controls",
+			"summary": "This week focused heavily on implementing advanced spell management and combat controls. New features included a spell management window and the ability to add editable spell loadouts, limiting active spell loadouts to six persisted slots. These loadouts support 1–6 manual casting and right-click auto-fire, while keeping passive skills permanently active. Camera orbit controls were moved to left-drag without affecting hero facing, and right-click was retained as the explicit aiming control. Visual improvements included rendering creep resource bars above overlapping units. Other changes involved fixing issues related to auras spells being dropable, implementing fullscreen and mouse move recenter functionality, adding columns, aim-with-camera support, removing context menu options, adjustments for visuals and mobile experience, ground clipping fixes, 3D rendering and positioning fixes, UI improvements, and progressive 3D transforms. The week also included significant rework of skills and spell files, addition of 3D animated models, a new chat system, autofilter implementation, and updates to healing spell effects and mechanics.",
 			"commits": [
 				{
 					"hash": "d38170abb885e2540ce8879b7ec9ec58ffa22517",

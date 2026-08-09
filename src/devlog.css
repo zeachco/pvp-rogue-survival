@@ -356,9 +356,16 @@ article p {
 	padding-top: 12px;
 }
 
-.commit-details > strong {
+.commit-details > summary {
 	color: #9fb8bf;
-	font-weight: 400;
+	cursor: pointer;
+	font-weight: 600;
+	user-select: none;
+}
+
+.commit-details > summary:hover,
+.commit-details > summary:focus-visible {
+	color: #dffeff;
 }
 li {
 	margin: 9px 0;
@@ -400,14 +407,13 @@ li small {
 	}
 
 	main {
-		grid-template-columns: 144px minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr);
 		height: auto;
 		min-height: 100vh;
 	}
 
 	header {
-		position: sticky;
-		top: 0;
+		display: none;
 	}
 
 	.devlog-columns {

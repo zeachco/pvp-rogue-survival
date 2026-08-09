@@ -1,15 +1,27 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T14:16:20.402Z",
+	"generatedAt": "2026-08-09T14:38:38.940Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Feature & Performance Reworks for Visuals and Systems",
-			"summary": "This week focused heavily on visual enhancements, performance optimization, and core system updates. New features included adding two-handed weapon classes and implementing a new spell called Blizzard. The rendering pipeline was optimized by creating a pool of light effects to reduce the cost of creating light objects and handling initial scaling and shadowing across different effects. Various graphical fixes were implemented, such as updating shadow and light handling for certain spells and setting default lights to all. Spell mechanics saw updates with increased mana drain for mana drain and fixed aim guides for spells. The core gameplay loop was refined by reworking the Boomrang spell, rage mechanisms, and implementing a reroll mechanism alongside unique item additions. Furthermore, significant UI and panel redesigns took place; inventory and character panels were adjusted to occupy better space, panels were pushed towards the edges, and chat/messages UI was displaced when panels are open. Authentication flow improvements involved extending server notices with explicit success or error tones and enhancing protocol compatibility, along with ensuring password persistence and secure login mechanisms using Bun-generated hashes. The realm presence header was reorganized, centralizing online and realm status alongside a player label. Finally, general fixes included addressing coin clipping underground, healing light displacement, and various visual adjustments to spell HUDs and gameplay feedback.",
+			"summaryTitle": "Feature and Performance Updates",
+			"summary": "This week focused on expanding game features, enhancing visual effects, and optimizing performance. New gameplay mechanics included adding two-handed weapon classes and the 'blizzard' spell, alongside overhauls to existing spells like 'boomrang' and 'rage mechanisms.' Gameplay was further refined with updated stamina mechanics and adjustments to spell cooldowns and costs. Visuals saw significant updates, including new models and reworked visuals for lights and skills, as well as improved spell effects and clearer HUD elements. Performance enhancements included creating a pool of light effects to reduce the cost of light object creation and managing shadows more efficiently, along with capping enemy spawning and queueing waves when full. Significant UI changes were implemented across realms and panels, including reorganizing realm presence headers, optimizing inventory and character panel space, updating authentication feedback, and implementing new visual styles for tooltips and spell previews.",
 			"commits": [
+				{
+					"hash": "b5180e2d7d3ba62487660fa02dfaeae17c8ae285",
+					"authoredAt": "2026-08-09T10:37:19-04:00",
+					"title": "ux: devlog improvments for mobile",
+					"description": ""
+				},
+				{
+					"hash": "db9e23aa42aba721906eef8c807814b05d7d2d87",
+					"authoredAt": "2026-08-09T10:33:22-04:00",
+					"title": "ux: equiping a 2 handed weapon now shows two slots being replaced",
+					"description": ""
+				},
 				{
 					"hash": "911ee0cc7338de031708ed937747d7b9755c0b9b",
 					"authoredAt": "2026-08-09T10:08:14-04:00",

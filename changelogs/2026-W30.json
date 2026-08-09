@@ -1,14 +1,14 @@
 {
 	"week": "2026-W30",
 	"label": "Week of July 20, 2026",
-	"generatedAt": "2026-08-09T14:16:20.311Z",
+	"generatedAt": "2026-08-09T14:38:38.849Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W30",
 			"label": "Week of July 20, 2026",
-			"summaryTitle": "UX and Lore Updates",
-			"summary": "This week focused on expanding the game's lore and improving the user experience. New content was introduced, along with various fixes targeting specific issues, including amulets slots and the force field skill functionality. Additionally, updates were made to address bugs related to FTUE and the overall UI.",
+			"summaryTitle": "UX and Lore Integration",
+			"summary": "This week focused on integrating new content and improving the player experience. New lore and user experience elements were added, along with specific bug fixes related to amulets slots and the force field skill.",
 			"commits": [
 				{
 					"hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",

@@ -1,14 +1,14 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-09T14:16:20.271Z",
+	"generatedAt": "2026-08-09T14:38:38.801Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Update Mechanics, Spells, and Server Infrastructure",
-			"summary": "This week focused heavily on expanding core game mechanics and implementing new systems. New content included rings, amulets, and various blood magic spells and mechanics. Several tweaks were applied to these auras and spells, along with server recovery features. The infrastructure saw a major update with the implementation of a database-based server using Bun SQL. Multiplayer functionality was also tweaked, alongside improvements for solo play and weapon mechanics. Furthermore, the leaderboard system, suicide options, and top player mechanics were introduced. Significant UX improvements were made by adding new panel information, updating inventory systems, and redesigning many mechanics and the UI itself, including detailed work on UI numbers and the weapon system.",
+			"summaryTitle": "Major System Overhaul and Feature Expansion",
+			"summary": "This week introduced extensive new gameplay features and deep system changes. New mechanics were added around blood magic, including rings, amulets, and new spells and mechanics. The leaderboard system was implemented, along with complex suicide and top player mechanics. The server now uses a database-based structure utilizing Bun SQL. Multiplayer tweaks, solo play improvements, and weapon tweaks were also implemented. Significant UI work included adding more panel information, UI diffs, inventory updates, character stats, item/spell additions, game mechanics adjustments, and various UI fixes, including redesigns of mechanics and UI numbers and the weapon system.",
 			"commits": [
 				{
 					"hash": "894c10cbe05bc63b58596e835256b7a77d107f6f",

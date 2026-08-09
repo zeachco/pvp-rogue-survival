@@ -62,7 +62,8 @@ function renderWeek(key: string, data: string | WeeklyDevlog): void {
 		tags.append(
 			...period.categories.map((category) => element("span", category)),
 		);
-		const details = element("section", undefined, "commit-details");
+		const details = element("details", undefined, "commit-details");
+		const commitCount = `${period.commits.length} source commit${period.commits.length === 1 ? "" : "s"}`;
 		const list = element("ul");
 		list.append(
 			...period.commits.map((commit) => {
@@ -72,13 +73,7 @@ function renderWeek(key: string, data: string | WeeklyDevlog): void {
 				return item;
 			}),
 		);
-		details.append(
-			element(
-				"strong",
-				`${period.commits.length} source commit${period.commits.length === 1 ? "" : "s"}`,
-			),
-			list,
-		);
+		details.append(element("summary", commitCount), list);
 		article.append(tags, details);
 		return article;
 	});
