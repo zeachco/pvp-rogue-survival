@@ -1,6 +1,7 @@
 import "./devlog.css";
 import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
+import { SessionStorage } from "./platform/SessionStorage";
 
 const files = import.meta.glob<string | WeeklyDevlog>("../changelogs/*.json", {
 	eager: true,
@@ -21,7 +22,7 @@ const requestStatus = document.querySelector("#request-status") as HTMLElement;
 const futureRequests = document.querySelector(
 	"#future-requests",
 ) as HTMLElement;
-const voterId = loadVoterId();
+const session = new SessionStorage().load();
 const voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
 
@@ -160,14 +161,17 @@ function voteButton(
 		"aria-pressed",
 		String(voteChoices[request.id] === value),
 	);
+	button.disabled = !session;
+	if (!session) button.title = "Log in from the game to vote.";
 	button.onclick = async () => {
+		if (!session) return;
 		const nextValue = voteChoices[request.id] === value ? 0 : value;
 		button.disabled = true;
 		try {
 			const response = await fetch(`/api/devlog/requests/${request.id}/vote`, {
 				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ voterId, value: nextValue }),
+				headers: authenticatedHeaders(),
+				body: JSON.stringify({ value: nextValue }),
 			});
 			const result = (await response.json()) as {
 				request?: DevlogRequest;
@@ -177,10 +181,7 @@ function voteButton(
 				throw new Error(result.error ?? "Vote failed.");
 			if (nextValue === 0) delete voteChoices[request.id];
 			else voteChoices[request.id] = nextValue;
-			localStorage.setItem(
-				"multi-line-hero.devlog-votes",
-				JSON.stringify(voteChoices),
-			);
+			localStorage.setItem(voteStorageKey(), JSON.stringify(voteChoices));
 			requests = requests
 				.map((entry) =>
 					entry.id === result.request?.id ? result.request : entry,
@@ -208,14 +209,17 @@ requestForm.addEventListener("submit", async (event) => {
 	requestStatus.className = "";
 	requestStatus.textContent = "Submitting…";
 	try {
+		if (!session) throw new Error("Log in from the game to submit a request.");
 		const values = new FormData(requestForm);
+		const kind = values.get("kind");
 		const response = await fetch("/api/devlog/requests", {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: authenticatedHeaders(),
 			body: JSON.stringify({
-				kind: values.get("kind"),
+				kind,
 				title: values.get("title"),
 				description: values.get("description"),
+				environment: kind === "bug" ? bugEnvironment() : undefined,
 			}),
 		});
 		const result = (await response.json()) as {
@@ -237,6 +241,20 @@ requestForm.addEventListener("submit", async (event) => {
 		submit.disabled = false;
 	}
 });
+
+if (!session) {
+	for (const field of requestForm.elements) {
+		if (
+			field instanceof HTMLInputElement ||
+			field instanceof HTMLTextAreaElement ||
+			field instanceof HTMLSelectElement ||
+			field instanceof HTMLButtonElement
+		)
+			field.disabled = true;
+	}
+	requestStatus.textContent =
+		"Log in from the game to submit requests or vote.";
+}
 
 void loadRequests();
 
@@ -262,23 +280,40 @@ async function loadRequests(): Promise<void> {
 	}
 }
 
-function loadVoterId(): string {
-	const key = "multi-line-hero.devlog-voter";
-	const existing = localStorage.getItem(key);
-	if (existing) return existing;
-	const created = crypto.randomUUID();
-	localStorage.setItem(key, created);
-	return created;
+function authenticatedHeaders(): Record<string, string> {
+	return {
+		"content-type": "application/json",
+		"x-hero-id": session?.heroId ?? "",
+	};
+}
+
+function bugEnvironment() {
+	const userAgent = navigator.userAgent;
+	const match = userAgent.match(/(Edg|Firefox|Chrome|Version)\/([\d.]+)/);
+	const browser =
+		match?.[1] === "Version" ? "Safari" : (match?.[1] ?? "Unknown");
+	return {
+		browser,
+		version: match?.[2] ?? "Unknown",
+		os: navigator.platform || "Unknown",
+		resolution: `${Math.round(screen.width * devicePixelRatio)}×${Math.round(screen.height * devicePixelRatio)}`,
+		devicePixelRatio: String(devicePixelRatio),
+	};
 }
 
 function loadVoteChoices(): Record<string, -1 | 1> {
 	try {
-		return JSON.parse(
-			localStorage.getItem("multi-line-hero.devlog-votes") ?? "{}",
-		) as Record<string, -1 | 1>;
+		return JSON.parse(localStorage.getItem(voteStorageKey()) ?? "{}") as Record<
+			string,
+			-1 | 1
+		>;
 	} catch {
 		return {};
 	}
+}
+
+function voteStorageKey(): string {
+	return `multi-line-hero.devlog-votes.${session?.heroId ?? "anonymous"}`;
 }
 
 if (weeks.length === 0) {

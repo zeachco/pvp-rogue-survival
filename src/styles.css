@@ -309,17 +309,6 @@ input {
 	font-weight: 800;
 }
 
-.canvas-overlay-top {
-	position: absolute;
-	z-index: 4;
-	top: var(--game-header-height);
-	left: 16px;
-	right: 16px;
-	height: 0;
-	overflow: visible;
-	pointer-events: none;
-}
-
 .spell-bar {
 	position: absolute;
 	bottom: 72px;
@@ -1409,42 +1398,40 @@ input {
 	color: #bbd2d9;
 }
 
-.wave-banner {
-	position: absolute;
-	top: 4px;
-	left: 50%;
-	display: grid;
-	width: min(360px, 36%);
-	gap: 2px;
-	border: 1px solid rgba(58, 255, 212, 0.5);
-	padding: 8px 14px;
+.death-modal {
+	position: fixed;
+	z-index: 40;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	padding: 24px;
+	background: rgba(0, 0, 0, 0.58);
 	text-align: center;
-	background: rgba(13, 20, 24, 0.9);
-	box-shadow: 0 18px 56px rgba(0, 0, 0, 0.42);
-	opacity: 0;
 	pointer-events: none;
-	transform: translateX(-50%) scale(0.98);
-	transition:
-		opacity 2600ms ease,
-		transform 2600ms ease;
 }
 
-.wave-banner strong {
-	color: #e8f9ff;
-	font-size: 18px;
-	line-height: 1.1;
+.death-modal strong {
+	color: #a20f0f;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: clamp(52px, 9vw, 112px);
+	font-weight: 400;
+	letter-spacing: 0.12em;
+	line-height: 0.95;
+	text-shadow:
+		0 0 8px rgba(255, 20, 20, 0.48),
+		0 2px 3px #000;
 }
 
-.wave-banner span {
-	color: #bbd2d9;
-}
-
-.wave-banner.is-visible {
-	opacity: 1;
-	transform: translateX(-50%) scale(1);
-	transition:
-		opacity 140ms ease,
-		transform 140ms ease;
+.death-modal span {
+	max-width: 620px;
+	color: #fff;
+	font-size: clamp(11px, 1.3vw, 15px);
+	letter-spacing: 0.04em;
+	line-height: 1.5;
+	text-shadow: 0 2px 4px #000;
 }
 
 .center-toast {

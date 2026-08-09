@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { parseDevlogRequestInput } from "../server/createApp";
+import { activeAccountId, parseDevlogRequestInput } from "../server/createApp";
 import {
 	nextUtcMonth,
 	SqlDevlogRequestStore,
@@ -54,11 +54,19 @@ describe("devlog requests", () => {
 				kind: "bug",
 				title: "  Stuck movement  ",
 				description: "  The hero remains stuck after opening inventory.  ",
+				environment: {
+					browser: "Firefox",
+					version: "141.0",
+					os: "Linux x86_64",
+					resolution: "3840×2160",
+					devicePixelRatio: "2",
+				},
 			}),
 		).toEqual({
 			kind: "bug",
 			title: "Stuck movement",
-			description: "The hero remains stuck after opening inventory.",
+			description:
+				"The hero remains stuck after opening inventory.\n\nEnvironment\nBrowser: Firefox 141.0\nOS: Linux x86_64\nScreen: 3840×2160 physical pixels (DPR 2)",
 		});
 		expect(
 			parseDevlogRequestInput({
@@ -67,6 +75,14 @@ describe("devlog requests", () => {
 				description: "too short",
 			}),
 		).toBeUndefined();
+	});
+
+	test("accepts only a currently active account identity", () => {
+		const request = { headers: { "x-hero-id": "hero-active" } };
+		expect(activeAccountId(request, (id) => id === "hero-active")).toBe(
+			"hero-active",
+		);
+		expect(activeAccountId(request, () => false)).toBeUndefined();
 	});
 });
 

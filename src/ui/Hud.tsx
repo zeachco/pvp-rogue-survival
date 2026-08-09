@@ -353,10 +353,19 @@ export class Hud {
 			placeholder="Chat..."
 		/>
 	) as HTMLInputElement;
-	private readonly waveBanner = (
-		<div class="wave-banner" aria-live="polite">
-			<strong />
-			<span />
+	private readonly deathModal = (
+		<div
+			class="death-modal is-hidden"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="death-modal-title"
+			aria-describedby="death-modal-detail"
+		>
+			<strong id="death-modal-title">YOU DIED</strong>
+			<span id="death-modal-detail">
+				Your legacy inherited your remaining resources and spellbooks and will
+				try to avenge you…
+			</span>
 		</div>
 	) as HTMLElement;
 	private readonly centerToast = (
@@ -386,7 +395,6 @@ export class Hud {
 	private readonly multiplayerIntroMask = (
 		<div class="multiplayer-intro-mask is-hidden" aria-hidden="true" />
 	) as HTMLElement;
-	private waveTimer?: number;
 	private centerToastTimer?: number;
 	private realmSignature = "";
 	private spellStructureSignature = "";
@@ -625,7 +633,7 @@ export class Hud {
 			<div class="game-hud">
 				{this.multiplayerIntroMask}
 				{this.multiplayerIntro}
-				<div class="canvas-overlay-top">{this.waveBanner}</div>
+				{this.deathModal}
 				{this.centerToast}
 				{this.creepPreview}
 				{this.aimReticle}
@@ -1957,16 +1965,11 @@ export class Hud {
 			</span>
 		) as HTMLElement;
 	}
-	showWaveBanner(title: string, detail: string): void {
-		clearTimeout(this.waveTimer);
-		(this.waveBanner.querySelector("strong") as HTMLElement).textContent =
-			title;
-		(this.waveBanner.querySelector("span") as HTMLElement).textContent = detail;
-		this.waveBanner.classList.add("is-visible");
-		this.waveTimer = window.setTimeout(
-			() => this.waveBanner.classList.remove("is-visible"),
-			3200,
-		);
+	showDeathModal(): void {
+		this.deathModal.classList.remove("is-hidden");
+	}
+	closeDeathModal(): void {
+		this.deathModal.classList.add("is-hidden");
 	}
 	private renderDynamicHud(): void {
 		if (!this.player) return;

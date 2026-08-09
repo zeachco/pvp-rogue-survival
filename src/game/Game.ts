@@ -574,12 +574,8 @@ export class Game {
 			this.hud.setPlayer(this.player);
 			this.hud.setNotice(message.reason);
 		} else if (message.type === "suicideResolved" && this.player) {
-			this.defeatCooldown = 0;
-			this.hud.showWaveBanner(
-				"Hero down",
-				"Your death echo was sent to the highest-ranked hero",
-			);
-			this.resetArena();
+			this.defeatCooldown = 1.8;
+			this.hud.showDeathModal();
 		} else if (message.type === "collectItemResult")
 			this.handleCollectResult(
 				message.dropId,
@@ -1043,12 +1039,10 @@ export class Game {
 			type: "heroDefeated",
 			sourceUnitId: this.hero.lastDamageSourceId,
 		});
-		this.hud.showWaveBanner(
-			"Hero down",
-			"Wave reduced; progress and inventory retained",
-		);
+		this.hud.showDeathModal();
 	}
 	private resetArena(): void {
+		this.hud.closeDeathModal();
 		this.arena.clear();
 		this.hoveredDrop = undefined;
 		this.hud.setGroundDropPreview();

@@ -98,17 +98,21 @@ export async function createApp(options: AppOptions) {
 			if (socket.readyState === WebSocket.OPEN) socket.send(message);
 	};
 	const server = createServer((request, response) => {
-		void serveRequest(request, response, publicRoot, devlogRequests).catch(
-			(error) => {
-				console.error(
-					"[MLH][devlog] request failed",
-					error instanceof Error ? error.message : error,
-				);
-				if (!response.headersSent)
-					json(response, 500, { error: "The request could not be completed." });
-				else response.end();
-			},
-		);
+		void serveRequest(
+			request,
+			response,
+			publicRoot,
+			devlogRequests,
+			(playerId) => hasSocket(sockets, playerId),
+		).catch((error) => {
+			console.error(
+				"[MLH][devlog] request failed",
+				error instanceof Error ? error.message : error,
+			);
+			if (!response.headersSent)
+				json(response, 500, { error: "The request could not be completed." });
+			else response.end();
+		});
 	});
 	const wss = new WebSocketServer({ server, path: "/ws" });
 	wss.on("connection", (socket: PlayerSocket) => {
@@ -377,6 +381,7 @@ async function serveRequest(
 	response: ServerResponse,
 	publicRoot: string,
 	devlogRequests: DevlogRequestStore,
+	isActiveAccount: (playerId: PlayerId) => boolean,
 ): Promise<void> {
 	const url = new URL(
 		request.url ?? "/",
@@ -388,6 +393,11 @@ async function serveRequest(
 			return;
 		}
 		if (request.method === "POST") {
+			const accountId = activeAccountId(request, isActiveAccount);
+			if (!accountId) {
+				json(response, 401, { error: "Log in to submit a request." });
+				return;
+			}
 			const input = await readJson(request);
 			const validated = parseDevlogRequestInput(input);
 			if (!validated) {
@@ -413,18 +423,18 @@ async function serveRequest(
 			methodNotAllowed(response, "POST");
 			return;
 		}
+		const accountId = activeAccountId(request, isActiveAccount);
+		if (!accountId) {
+			json(response, 401, { error: "Log in to vote." });
+			return;
+		}
 		const input = await readJson(request);
-		const voterId =
-			typeof input?.voterId === "string" ? input.voterId.trim() : "";
 		const value = input?.value;
-		if (
-			!/^[-_a-zA-Z0-9]{16,80}$/.test(voterId) ||
-			(value !== -1 && value !== 0 && value !== 1)
-		) {
+		if (value !== -1 && value !== 0 && value !== 1) {
 			json(response, 400, { error: "Invalid vote." });
 			return;
 		}
-		const updated = await devlogRequests.vote(voteMatch[1], voterId, value);
+		const updated = await devlogRequests.vote(voteMatch[1], accountId, value);
 		if (!updated) {
 			json(response, 404, { error: "Request not found." });
 			return;
@@ -452,6 +462,15 @@ async function serveRequest(
 		response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
 		response.end(index);
 	}
+}
+
+export function activeAccountId(
+	request: Pick<IncomingMessage, "headers">,
+	isActiveAccount: (playerId: PlayerId) => boolean,
+): PlayerId | undefined {
+	const value = request.headers["x-hero-id"];
+	const playerId = (Array.isArray(value) ? value[0] : value)?.trim();
+	return playerId && isActiveAccount(playerId) ? playerId : undefined;
 }
 
 async function readJson(
@@ -494,7 +513,39 @@ export function parseDevlogRequestInput(
 		description.length > 2_000
 	)
 		return undefined;
-	return { kind, title, description };
+	if (kind !== "bug") return { kind, title, description };
+	const environment = parseBugEnvironment(input?.environment);
+	if (!environment) return undefined;
+	return {
+		kind,
+		title,
+		description: `${description}\n\nEnvironment\nBrowser: ${environment.browser} ${environment.version}\nOS: ${environment.os}\nScreen: ${environment.resolution} physical pixels (DPR ${environment.devicePixelRatio})`,
+	};
+}
+
+function parseBugEnvironment(value: unknown) {
+	if (!value || typeof value !== "object") return undefined;
+	const input = value as Record<string, unknown>;
+	const browser = cleanEnvironmentValue(input.browser, 40);
+	const version = cleanEnvironmentValue(input.version, 40);
+	const os = cleanEnvironmentValue(input.os, 80);
+	const resolution = cleanEnvironmentValue(input.resolution, 30);
+	const devicePixelRatio = cleanEnvironmentValue(input.devicePixelRatio, 12);
+	if (
+		!browser ||
+		!version ||
+		!os ||
+		!/^\d+×\d+$/.test(resolution ?? "") ||
+		!devicePixelRatio
+	)
+		return undefined;
+	return { browser, version, os, resolution: resolution!, devicePixelRatio };
+}
+
+function cleanEnvironmentValue(value: unknown, maximum: number) {
+	if (typeof value !== "string") return undefined;
+	const cleaned = value.trim().replace(/[\r\n]+/g, " ");
+	return cleaned && cleaned.length <= maximum ? cleaned : undefined;
 }
 
 function json(
