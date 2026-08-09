@@ -56,7 +56,6 @@ export class ItemDrop extends GameObject {
 	private readonly bodyMesh: THREE.Object3D;
 	private readonly glowMesh?: THREE.Mesh;
 	private readonly coins: THREE.Mesh[] = [];
-	private readonly coinMaterials: THREE.MeshPhysicalMaterial[] = [];
 	private readonly resourceMesh?: THREE.Group;
 	private visualStartedAt?: number;
 
@@ -64,6 +63,10 @@ export class ItemDrop extends GameObject {
 		super();
 		this.drop = drop;
 		this.position = { ...position };
+		if (drop.kind !== "item") {
+			this.mesh.userData.castShadow = false;
+			this.mesh.userData.receiveShadow = false;
+		}
 
 		if (drop.kind === "gold") {
 			const cluster = new THREE.Group();
@@ -81,14 +84,8 @@ export class ItemDrop extends GameObject {
 				geometry.rotateZ(Math.PI / 2);
 				const coin = new THREE.Mesh(
 					geometry,
-					new THREE.MeshPhysicalMaterial({
+					new THREE.MeshBasicMaterial({
 						color: denomination?.color ?? 0x8b5a2b,
-						emissive: denomination?.color ?? 0x8b5a2b,
-						emissiveIntensity: 0.08,
-						metalness: 1,
-						roughness: 0.16,
-						clearcoat: 1,
-						clearcoatRoughness: 0.08,
 						side: THREE.DoubleSide,
 					}),
 				);
@@ -102,7 +99,6 @@ export class ItemDrop extends GameObject {
 					deterministicFraction(drop.id, index + 211) * Math.PI * 2;
 				coin.renderOrder = Z_DROP;
 				this.coins.push(coin);
-				this.coinMaterials.push(coin.material);
 				cluster.add(coin);
 			}
 			this.bodyMesh = cluster;
@@ -215,9 +211,6 @@ export class ItemDrop extends GameObject {
 				);
 				coin.rotation.y = time * COIN_SPIN_SPEED + phase;
 			}
-			for (const [index, material] of this.coinMaterials.entries())
-				material.emissiveIntensity =
-					0.06 + 0.08 * (0.5 + 0.5 * Math.sin(time * 4 + index * 1.7));
 		}
 		if (this.glowMesh) {
 			const pulse = 0.3 + Math.sin(time * 3) * 0.1;

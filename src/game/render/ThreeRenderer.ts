@@ -158,8 +158,9 @@ export function applySceneShadowMode(
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 	scene.traverse((object) => {
 		if (object instanceof THREE.Mesh) {
-			object.castShadow = enabled;
-			object.receiveShadow = enabled;
+			object.castShadow = enabled && shadowEligibility(object, "castShadow");
+			object.receiveShadow =
+				enabled && shadowEligibility(object, "receiveShadow");
 		}
 		if (
 			object instanceof THREE.DirectionalLight ||
@@ -175,6 +176,21 @@ export function applySceneShadowMode(
 			object.shadow.normalBias = 0.02;
 		}
 	});
+}
+
+function shadowEligibility(
+	object: THREE.Object3D,
+	property: "castShadow" | "receiveShadow",
+): boolean {
+	for (
+		let current: THREE.Object3D | null = object;
+		current;
+		current = current.parent
+	) {
+		const value = current.userData[property];
+		if (typeof value === "boolean") return value;
+	}
+	return true;
 }
 
 export function adjustedCameraTilt(

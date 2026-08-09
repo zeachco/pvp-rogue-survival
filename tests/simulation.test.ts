@@ -95,6 +95,7 @@ import {
 	ENEMY_ROLE_LIGHTS,
 	creepResourceBarAnchorY,
 	enemyRoleLight,
+	enemyRoleModelKind,
 	resourceBarWidth,
 } from "../src/game/Creep";
 import { BALANCE } from "../common/balance";
@@ -197,8 +198,16 @@ describe("animated 3D characters", () => {
 	test("toggles dynamic shadow maps for scene lights and meshes", () => {
 		const scene = new THREE.Scene();
 		const mesh = new THREE.Mesh(new THREE.BoxGeometry());
+		const excludedRoot = new THREE.Group();
+		excludedRoot.userData.castShadow = false;
+		excludedRoot.userData.receiveShadow = false;
+		const excludedMesh = new THREE.Mesh(new THREE.BoxGeometry());
+		excludedRoot.add(excludedMesh);
+		const floor = new THREE.Mesh(new THREE.PlaneGeometry());
+		floor.userData.castShadow = false;
+		floor.userData.receiveShadow = true;
 		const light = new THREE.SpotLight();
-		scene.add(mesh, light);
+		scene.add(mesh, excludedRoot, floor, light);
 		const renderer = { shadowMap: { enabled: false, type: 0 } } as Pick<
 			THREE.WebGLRenderer,
 			"shadowMap"
@@ -208,6 +217,10 @@ describe("animated 3D characters", () => {
 		expect(renderer.shadowMap.type).toBe(THREE.PCFSoftShadowMap);
 		expect(mesh.castShadow).toBeTrue();
 		expect(mesh.receiveShadow).toBeTrue();
+		expect(excludedMesh.castShadow).toBeFalse();
+		expect(excludedMesh.receiveShadow).toBeFalse();
+		expect(floor.castShadow).toBeFalse();
+		expect(floor.receiveShadow).toBeTrue();
 		expect(light.castShadow).toBeTrue();
 		applySceneShadowMode(renderer, scene, "off");
 		expect(renderer.shadowMap.enabled).toBeFalse();
@@ -222,6 +235,7 @@ describe("animated 3D characters", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.boss.path).toBe("/assets/models/boss.glb");
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.facingOffset).toBe(Math.PI / 2);
+		expect(enemyRoleModelKind("clone")).toBe("hero");
 	});
 
 	test("uses a dark global baseline and short-radius role lights", () => {
@@ -2178,20 +2192,15 @@ describe("arena systems", () => {
 					.children[0] as THREE.Mesh;
 				return [
 					denominationCoin.userData.goldValue,
-					(
-						denominationCoin.material as THREE.MeshPhysicalMaterial
-					).color.getHex(),
+					(denominationCoin.material as THREE.MeshBasicMaterial).color.getHex(),
 				];
 			}),
 		).toEqual(
 			GOLD_COIN_DENOMINATIONS.map(({ value, color }) => [value, color]),
 		);
 		for (const clusteredCoin of clusteredCoins) {
-			const material = clusteredCoin.material as THREE.MeshPhysicalMaterial;
-			expect(material).toBeInstanceOf(THREE.MeshPhysicalMaterial);
-			expect(material.metalness).toBe(1);
-			expect(material.roughness).toBe(0.16);
-			expect(material.clearcoat).toBe(1);
+			const material = clusteredCoin.material as THREE.MeshBasicMaterial;
+			expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
 		}
 		expect(
 			clusteredCoins.every(
@@ -2201,8 +2210,7 @@ describe("arena systems", () => {
 		expect(
 			clusteredCoins.every(
 				(child) =>
-					(child.material as THREE.MeshPhysicalMaterial).side ===
-					THREE.DoubleSide,
+					(child.material as THREE.MeshBasicMaterial).side === THREE.DoubleSide,
 			),
 		).toBeTrue();
 		expect(singleCoins[0].rotation.y).not.toBe(0);
@@ -2217,6 +2225,38 @@ describe("arena systems", () => {
 		expect(
 			clusteredCoins.some((child) => child.position.length() > 0),
 		).toBeTrue();
+	});
+	test("keeps spell projectiles and drops unlit and outside dynamic shadows", () => {
+		const projectile = new Projectile(
+			{ x: 0, y: 0 },
+			{ x: 1, y: 0 },
+			1,
+			"hero",
+			"frostOrb",
+		);
+		const drops = [
+			new ItemDrop({ id: "gold", kind: "gold", amount: 1 }, { x: 0, y: 0 }),
+			new ItemDrop(
+				{ id: "scrap", kind: "scrap", rarity: "rare", amount: 1 },
+				{ x: 0, y: 0 },
+			),
+		];
+		const scene = new THREE.Scene();
+		scene.add(projectile.mesh, ...drops.map((drop) => drop.mesh));
+		const renderer = { shadowMap: { enabled: false, type: 0 } } as Pick<
+			THREE.WebGLRenderer,
+			"shadowMap"
+		>;
+		applySceneShadowMode(renderer, scene, "dynamic");
+
+		for (const root of [projectile.mesh, ...drops.map((drop) => drop.mesh)]) {
+			root.traverse((object) => {
+				if (!(object instanceof THREE.Mesh)) return;
+				expect(object.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+				expect(object.castShadow).toBeFalse();
+				expect(object.receiveShadow).toBeFalse();
+			});
+		}
 	});
 	test("billboards complete pickup presentations toward the camera", () => {
 		const cameraRotation = new THREE.Quaternion().setFromEuler(
@@ -2557,6 +2597,13 @@ describe("arena systems", () => {
 		expect(floorMaterial.map).toBeNull();
 		const map = new GameMap(new SeededRandom(42));
 		map.buildMeshes();
+		const floor = map.mesh.children.find(
+			(child) =>
+				child instanceof THREE.Mesh &&
+				child.material instanceof THREE.MeshStandardMaterial,
+		) as THREE.Mesh;
+		expect(floor.userData.castShadow).toBeFalse();
+		expect(floor.userData.receiveShadow).toBeTrue();
 		expect(
 			map.mesh.children.some(
 				(child) =>
@@ -3076,6 +3123,9 @@ describe("arena systems", () => {
 		expect(initialPluses).toHaveLength(6);
 		expect(
 			initialPluses.every((child) => child instanceof THREE.Sprite),
+		).toBeTrue();
+		expect(
+			initialPluses.every((child) => child.castShadow === false),
 		).toBeTrue();
 		const initialPositions = initialPluses.map((child) =>
 			child.position.clone(),

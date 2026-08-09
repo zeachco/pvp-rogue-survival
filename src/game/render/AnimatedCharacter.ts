@@ -151,6 +151,7 @@ export class AnimatedCharacter {
 	constructor(
 		readonly kind: CharacterModelKind,
 		private readonly fallback?: THREE.Object3D,
+		private readonly detachFallbackOnLoad = false,
 	) {
 		this.manifest = CHARACTER_MODEL_MANIFESTS[kind];
 		if (typeof document !== "undefined") void this.load();
@@ -261,7 +262,10 @@ export class AnimatedCharacter {
 				this.play(this.moving ? "move" : "idle");
 			});
 			this.loaded = true;
-			if (this.fallback) this.fallback.visible = false;
+			if (this.fallback) {
+				this.fallback.visible = false;
+				if (this.detachFallbackOnLoad) this.fallback.removeFromParent();
+			}
 			if (this.dead) this.play("death", this.deathDuration);
 			else this.play(this.moving ? "move" : "idle");
 		} catch {

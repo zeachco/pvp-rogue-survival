@@ -133,7 +133,7 @@ export class Hero extends Unit {
 		this.bodyMesh.position.z = texture ? 25 : 18;
 		this.bodyMesh.renderOrder = Z_HERO;
 		this.mesh.add(this.bodyMesh);
-		this.animatedCharacter = new AnimatedCharacter("hero", this.bodyMesh);
+		this.animatedCharacter = new AnimatedCharacter("hero", this.bodyMesh, true);
 		this.mesh.add(this.animatedCharacter.root);
 
 		const strokeGeo = new THREE.RingGeometry(16, 20, 32);

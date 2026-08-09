@@ -149,6 +149,10 @@ export class Projectile extends GameObject {
 		this.presentation = presentation;
 		this.weapon = weapon;
 		this.position = { ...start };
+		if (skill) {
+			this.mesh.userData.castShadow = false;
+			this.mesh.userData.receiveShadow = false;
+		}
 		const direction = normalize({
 			x: target.x - start.x,
 			y: target.y - start.y,
@@ -211,17 +215,15 @@ export class Projectile extends GameObject {
 		if (this.skill === "frostOrb") {
 			const outerStar = new THREE.Mesh(
 				lowPolyStarGeometry(18),
-				new THREE.MeshStandardMaterial({
+				new THREE.MeshBasicMaterial({
 					color: 0x67c9ed,
-					roughness: 0.4,
 				}),
 			);
 			outerStar.renderOrder = Z_PROJECTILE;
 			const innerStar = new THREE.Mesh(
 				lowPolyStarGeometry(13),
-				new THREE.MeshStandardMaterial({
+				new THREE.MeshBasicMaterial({
 					color: 0xb7efff,
-					roughness: 0.3,
 				}),
 			);
 			innerStar.position.z = 2.5;
@@ -234,9 +236,8 @@ export class Projectile extends GameObject {
 		if (this.skill === "frostSpike") {
 			const mesh = new THREE.Mesh(
 				new THREE.ConeGeometry(4.5, 20, 5),
-				new THREE.MeshStandardMaterial({
+				new THREE.MeshBasicMaterial({
 					color: 0xbdefff,
-					roughness: 0.28,
 				}),
 			);
 			const group = new THREE.Group();
@@ -361,6 +362,21 @@ export class Projectile extends GameObject {
 				if (!(object instanceof THREE.Mesh)) return;
 				object.renderOrder = Z_PROJECTILE;
 				object.frustumCulled = false;
+				const materials = Array.isArray(object.material)
+					? object.material
+					: [object.material];
+				const unlit = materials.map((material) => {
+					const source = material as THREE.MeshStandardMaterial;
+					return new THREE.MeshBasicMaterial({
+						color: source.color ?? new THREE.Color(0xffd76a),
+						map: source.map ?? null,
+						transparent: source.transparent,
+						opacity: source.opacity,
+						alphaTest: source.alphaTest,
+						side: source.side,
+					});
+				});
+				object.material = Array.isArray(object.material) ? unlit : unlit[0];
 			});
 			this.hammerModelRoot.position.z = ORBITING_HAMMER_MODEL.height;
 			this.hammerModelRoot.add(model);

@@ -151,6 +151,8 @@ export class GameMap {
 		);
 		bg.position.set(this.width / 2, this.height / 2, MAP_Z);
 		bg.renderOrder = 0;
+		bg.userData.castShadow = false;
+		bg.userData.receiveShadow = true;
 		this.mesh.add(bg);
 
 		const gridMaterial = new THREE.LineBasicMaterial({

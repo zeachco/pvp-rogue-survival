@@ -95,6 +95,16 @@ function enemyTexture(role: EnemyRole): THREE.Texture | undefined {
 	return texture;
 }
 
+export function enemyRoleModelKind(
+	role: EnemyRole,
+): CharacterModelKind | undefined {
+	if (role === "boss") return "boss";
+	if (role === "champion") return "champion";
+	if (role === "clone") return "hero";
+	if (role === "creep") return "creep";
+	return undefined;
+}
+
 export type CreepAttack =
 	| {
 			type: "melee";
@@ -296,19 +306,13 @@ export class Creep extends Unit {
 			characterLight.position.z = this.spriteCenterHeight;
 			this.mesh.add(characterLight);
 		}
-		const modelKind: CharacterModelKind | undefined =
-			role === "boss"
-				? "boss"
-				: role === "champion"
-					? "champion"
-					: role === "creep"
-						? "creep"
-						: undefined;
+		const modelKind = enemyRoleModelKind(role);
 		this.modelKind = modelKind;
 		if (modelKind) {
 			this.animatedCharacter = new AnimatedCharacter(
 				modelKind,
 				this.spriteGroup,
+				role === "clone",
 			);
 			this.mesh.add(this.animatedCharacter.root);
 		}
