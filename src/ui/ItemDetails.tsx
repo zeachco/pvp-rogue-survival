@@ -440,7 +440,9 @@ function itemEffectSummary(
 		push("block", `${precise(item.blockChance * effectiveness * 100)}% block`);
 		push(
 			"blockcost",
-			`${fmt(bucklerBlockCost(item, effectiveStats))} rage/block`,
+			item.rarity === "unique"
+				? "1% max mana/block; no cooldown; grants 1 rage"
+				: `${fmt(bucklerBlockCost(item, effectiveStats))} rage/block`,
 		);
 	}
 	if (item.attractionSpeed > 0)

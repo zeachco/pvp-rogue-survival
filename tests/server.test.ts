@@ -348,7 +348,7 @@ describe("realm game service", () => {
 		expect(issued.build.level).toBe(4);
 		expect(issued.build.xpReward).toBe(37);
 		game.handle(player.id, { type: "creepDefeated", unitId });
-		expect(player.progress.xp).toBe(33);
+		expect(player.progress.xp).toBe(34);
 	});
 	test("reserves generated Scepter auras for post-intro champions", () => {
 		const { game } = harness(new FixedRandom(0.25));
@@ -837,16 +837,16 @@ describe("realm game service", () => {
 		]);
 		const firstUnit = sender.issuedUnits.keys().next().value as string;
 		game.handle(sender.id, { type: "creepDefeated", unitId: firstUnit });
-		expect(sender.progress.xp).toBe(35);
+		expect(sender.progress.xp).toBe(36);
 		now = 15_000;
 		const secondUnit = [...sender.issuedUnits.keys()][0]!;
 		game.handle(sender.id, { type: "creepDefeated", unitId: secondUnit });
-		expect(sender.progress.xp).toBe(65);
+		expect(sender.progress.xp).toBe(67);
 		expect(sender.xpSendBuffs).toEqual([{ multiplier: 3, expiresAt: 27_000 }]);
 		now = 27_000;
 		const thirdUnit = [...sender.issuedUnits.keys()][0]!;
 		game.handle(sender.id, { type: "creepDefeated", unitId: thirdUnit });
-		expect(sender.progress.xp).toBe(75);
+		expect(sender.progress.xp).toBe(77);
 		expect(sender.xpSendBuffs).toEqual([]);
 	});
 	test("extends an active matching XP buff immediately without delaying queued time", () => {

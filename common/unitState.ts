@@ -67,6 +67,7 @@ export interface UnitState {
 	poisonChance: number;
 	stunChance: number;
 	goldGain: number;
+	bonusXp: number;
 	magicFind: number;
 	attractionSpeed: number;
 	attractionGoldFind: number;
@@ -285,6 +286,7 @@ export function defaultBaseState(input: UnitStateInput): UnitState {
 			(input.mainHand?.modifiers.poisonChance ?? 0) * mainEffectiveness,
 		stunChance: (input.mainHand?.modifiers.stunChance ?? 0) * mainEffectiveness,
 		goldGain: (buckler?.modifiers.goldGain ?? 0) * offEffectiveness,
+		bonusXp: perks.bonusXp,
 		magicFind: Math.min(
 			5,
 			(buckler?.modifiers.magicFind ?? 0) +

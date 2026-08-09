@@ -219,10 +219,20 @@ export function weaponSkillTriggerChanceForHits(
 }
 export function bucklerBlockCost(item: ItemInstance, stats: Stats): number {
 	if (item.itemKind !== "buckler") return 0;
+	if (item.rarity === "unique") return 0;
 	if (!item.reflectionComponents.includes("return")) return 1;
 	const returnedFraction =
 		(0.15 + 0.004 * Math.max(0, stats.agility)) * RARITY_POWER[item.rarity];
 	return 1 + returnedFraction / (1 + 0.1 * Math.max(0, item.level));
+}
+
+export function bucklerBlockManaCost(
+	item: ItemInstance,
+	maxMana: number,
+): number {
+	return item.itemKind === "buckler" && item.rarity === "unique"
+		? Math.max(0, maxMana) * 0.01
+		: 0;
 }
 
 export function skillDamageMultiplier(skill: SkillId): number {

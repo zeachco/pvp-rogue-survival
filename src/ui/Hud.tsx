@@ -1737,7 +1737,10 @@ export class Hud {
 		);
 		const costLabel =
 			spell.id === "blocking" && progress && stats
-				? `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`
+				? progress.offHand?.itemKind === "buckler" &&
+					progress.offHand.rarity === "unique"
+					? "1% max Mana / block; no cooldown; +1 Rage"
+					: `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`
 				: spell.costLabel;
 		if (spell.procChancesOnAttacks !== undefined) {
 			const procChance = weaponSkillTriggerChance(cooldownSeconds);
@@ -3195,10 +3198,18 @@ export function effectiveStatRows(
 				: percent(state.resistances.bleed),
 		],
 		["Block chance", percent(state.blockChance)],
-		["Block cost", buckler ? `${fmt(state.blockCost)} rage` : "0"],
+		[
+			"Block cost",
+			buckler?.rarity === "unique"
+				? "1% max mana; no cooldown; +1 rage"
+				: buckler
+					? `${fmt(state.blockCost)} rage`
+					: "0",
+		],
 		["Health regen", `${fmt(state.healthRegen)}/s`],
 		["Mana regen", `${fmt(state.manaRegen)}/s`],
 		["Rage decay", `−${fmt(state.rageDecay)}/s`],
+		["Bonus XP", percent(state.bonusXp)],
 		["HP on kill", fmt(state.healthOnKill)],
 		["Mana on kill", fmt(state.manaOnKill)],
 		["Life steal", percent(state.lifeSteal)],

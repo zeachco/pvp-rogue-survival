@@ -130,6 +130,7 @@ import {
 	equippedImmunities,
 	equippedPerks,
 	equippedSkillLevelContribution,
+	equippedBonusXp,
 	generateAccessory,
 	generateBuckler,
 	generateItem,
@@ -1241,6 +1242,8 @@ describe("permanent inventory", () => {
 		expect(axe.skills).toContain("cleave");
 		expect(axe.skills).toContain("whirlwind");
 		const buckler = generateBuckler(40, "unique", 48);
+		expect(buckler.name).toBe("Manaforged Aegis");
+		expect(bucklerBlockCost(buckler, ZERO_STATS)).toBe(0);
 		expect([...buckler.reflectionComponents].sort()).toEqual([
 			"flat",
 			"return",
@@ -2356,6 +2359,26 @@ test("every generated equipment type has a positive direct attribute", () => {
 		expect(
 			STAT_KEYS.some((key) => (item.statBonuses[key] ?? 0) > 0),
 		).toBeTrue();
+});
+
+test("rolls level-scaled Bonus XP in the item perk pool", () => {
+	const levelZero = Array.from({ length: 100 }, (_, seed) =>
+		generateItem(0, "unique", seed),
+	).find((item) => item.perks?.bonusXp !== undefined);
+	expect(levelZero?.perks?.bonusXp).toBe(0.05);
+
+	const highLevel = Array.from({ length: 100 }, (_, seed) =>
+		generateItem(100, "unique", seed),
+	).find((item) => item.perks?.bonusXp !== undefined);
+	expect(highLevel?.perks?.bonusXp).toBeGreaterThanOrEqual(0.25);
+	expect(highLevel?.perks?.bonusXp).toBeLessThanOrEqual(2);
+
+	const requirementScaled = {
+		...levelZero!,
+		requirements: { strength: 10 },
+		perks: { bonusXp: 0.5 },
+	};
+	expect(equippedBonusXp(ZERO_STATS, requirementScaled)).toBeCloseTo(0.25);
 });
 test("upgrading a legacy item without attributes adds one attribute point", () => {
 	const base = { ...generateItem(1, "common", 41), statBonuses: {} };

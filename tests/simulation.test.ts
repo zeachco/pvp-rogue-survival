@@ -2917,6 +2917,30 @@ describe("arena systems", () => {
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.rage).toBe(3);
 	});
+	test("lets the Manaforged Aegis block without cooldown or Rage cost", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const aegis = { ...generateBuckler(0, "unique", 12), perks: {} };
+		hero.configureStats(
+			{ agility: 100, strength: 100, magic: 0, spirit: 0, intelligence: 45 },
+			aegis,
+		);
+		hero.rage = 0;
+		const manaCost = hero.maxMana * 0.01;
+		const mana = hero.mana;
+		const hp = hero.hp;
+		let rolls = [1, 0, 1, 0];
+		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
+		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
+		expect(hero.hp).toBe(hp);
+		expect(hero.mana).toBeCloseTo(mana - manaCost * 2);
+		expect(hero.rage).toBe(2);
+		expect(hero.blockCooldown).toBe(0);
+
+		hero.mana = manaCost - 0.001;
+		hero.receiveDamage(10, { next: () => 1 });
+		expect(hero.hp).toBe(hp - 10);
+		expect(hero.mana).toBeCloseTo(manaCost - 0.001);
+	});
 	test("adds one block-chance percentage point per effective Blocking level", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const buckler = { ...generateBuckler(0, "common", 12), perks: {} };

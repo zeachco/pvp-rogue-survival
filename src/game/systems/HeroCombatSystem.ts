@@ -1059,7 +1059,6 @@ export function skillAffordable(
 	hero: Hero,
 ): boolean {
 	const definition = SKILLS[skill];
-	if (definition.upkeep) return hero.isSkillOperational(skill);
 	const stats = statsWithItemBonuses(
 		progress.stats,
 		progress.mainHand,
@@ -1080,8 +1079,11 @@ export function skillAffordable(
 	if (skill === "blocking")
 		return (
 			progress.offHand?.itemKind === "buckler" &&
-			hero.rage >= bucklerBlockCost(progress.offHand, stats)
+			(progress.offHand.rarity === "unique"
+				? hero.mana >= hero.maxMana * 0.01
+				: hero.rage >= bucklerBlockCost(progress.offHand, stats))
 		);
+	if (definition.upkeep) return hero.isSkillOperational(skill);
 	if (definition.resource === "mana")
 		return (
 			hero.mana >=
@@ -1103,6 +1105,11 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 		progress.mainHand,
 		...accessories(progress),
 	);
+	if (skill === "blocking")
+		return progress.offHand?.itemKind === "buckler" &&
+			progress.offHand.rarity === "unique"
+			? "1% max Mana / block; no cooldown; +1 Rage"
+			: `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.passive && definition.upkeep)
 		return `${formatCost(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`;
 	if (skill === "healing") {
@@ -1111,8 +1118,6 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 			healingBaseManaCost(effectiveSkillLevel(progress, skill)) * multiplier;
 		return `${formatCost(baseCost)} Mana + ${formatCost(0.25 * multiplier)} Mana / HP`;
 	}
-	if (skill === "blocking")
-		return `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.resource === "mana")
 		return `${formatCost(skillManaCost(skill, effectiveSkillLevel(progress, skill)) * (1 - resourceReduction(progress, "mana", stats)))} Mana`;
 	if (definition.resource === "life")

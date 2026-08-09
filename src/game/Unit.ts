@@ -295,9 +295,13 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 
 	isSkillOperational(skill: SkillId): boolean {
 		const upkeep = SKILLS[skill].upkeep;
+		const uniqueBlocking =
+			skill === "blocking" &&
+			this.offHand?.itemKind === "buckler" &&
+			this.offHand.rarity === "unique";
 		return (
 			this.knownSkills.has(skill) &&
-			(!upkeep || !this.suspendedUpkeep.has(upkeep.resource))
+			(uniqueBlocking || !upkeep || !this.suspendedUpkeep.has(upkeep.resource))
 		);
 	}
 
@@ -388,14 +392,18 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		let blocked = false;
 		const buckler = this.offHand;
 		const blockCost = this.state.blockCost;
+		const uniqueBuckler =
+			buckler?.itemKind === "buckler" && buckler.rarity === "unique";
+		const blockManaCost = uniqueBuckler ? this.maxMana * 0.01 : 0;
 		const activateSurgeAfterHit = Boolean(
 			source && incomingAmount > 0 && this.reflectiveSurgeAutomatic,
 		);
 		if (
 			buckler?.itemKind === "buckler" &&
 			this.isSkillOperational("blocking") &&
-			this.blockCooldown === 0 &&
-			this.rage >= blockCost
+			(uniqueBuckler || this.blockCooldown === 0) &&
+			this.rage >= blockCost &&
+			this.mana >= blockManaCost
 		) {
 			const chance = Math.min(
 				this.state.blockChanceCap,
@@ -404,7 +412,8 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			if (random.next() < chance) {
 				blocked = true;
 				this.emitOutcome("block", "BLOCK");
-				this.spendRage(blockCost);
+				if (uniqueBuckler) this.spendMana(blockManaCost);
+				else this.spendRage(blockCost);
 				this.grantDefensiveRage("block");
 				const attackSpeed = this.mainHand
 					? weaponAttackSpeed(this.mainHand, this.stats)
@@ -416,7 +425,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 						? 1 / Math.max(0.01, attackSpeed)
 						: 1,
 				);
-				this.blockCooldown = this.blockCooldownMax;
+				this.blockCooldown = uniqueBuckler ? 0 : this.blockCooldownMax;
 				const beforeBlock = remaining;
 				remaining = Math.max(
 					0,
@@ -619,7 +628,13 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			const current = resource === "mana" ? this.mana : this.rage;
 			const rate = [...this.knownSkills].reduce((sum, skill) => {
 				const upkeep = SKILLS[skill].upkeep;
-				if (upkeep?.resource !== resource) return sum;
+				if (
+					upkeep?.resource !== resource ||
+					(skill === "blocking" &&
+						this.offHand?.itemKind === "buckler" &&
+						this.offHand.rarity === "unique")
+				)
+					return sum;
 				return (
 					sum +
 					skillUpkeepPerSecond(

@@ -24,6 +24,7 @@ import {
 	generateItem,
 	generateRelic,
 	equippedSkillLevelContribution,
+	equippedBonusXp,
 	itemRequirementMultiplier,
 	itemSkillLevelBonus,
 	itemStackKey,
@@ -1019,7 +1020,16 @@ export class GameService {
 			build.xpReward *
 			this.options.balance.rewards.xpMultiplier *
 			(issued.mode === "solo" ? 0.5 : 1);
-		const xp = Math.floor(baseXp * this.activeXpSendMultiplier(player));
+		const bonusXp = equippedBonusXp(
+			player.progress.stats,
+			player.progress.mainHand,
+			player.progress.offHand,
+			player.progress.amulet,
+			player.progress.charm,
+		);
+		const xp = Math.floor(
+			baseXp * this.activeXpSendMultiplier(player) * (1 + bonusXp),
+		);
 		this.grantXp(player, xp);
 		const drops = this.rollDrops(player, build);
 		const reason = drops.length

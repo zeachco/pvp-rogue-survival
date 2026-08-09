@@ -64,6 +64,7 @@ export type AffixId =
 export type ReflectionComponent = "flat" | "strength" | "return";
 export type ItemPerkId =
 	| "defense"
+	| "bonusXp"
 	| "physicalResist"
 	| "magicResist"
 	| "fireResist"
@@ -80,6 +81,7 @@ export type ItemImmunity =
 	| "bleed";
 export const ITEM_PERKS: ItemPerkId[] = [
 	"defense",
+	"bonusXp",
 	"physicalResist",
 	"magicResist",
 	"fireResist",
@@ -363,7 +365,10 @@ export function generateBuckler(
 			id: `buckler-${seed}-${Math.floor(source.next() * 1e8)}`,
 			itemKind: "buckler",
 			definitionId: "buckler",
-			name: `${spiked ? "Spiked " : holy ? "Holy " : ""}Buckler`,
+			name:
+				rarity === "unique"
+					? "Manaforged Aegis"
+					: `${spiked ? "Spiked " : holy ? "Holy " : ""}Buckler`,
 			level,
 			rarity,
 			seed,
@@ -993,6 +998,19 @@ export function equippedPerks(
 		]),
 	) as Record<ItemPerkId, number>;
 }
+
+export function equippedBonusXp(
+	stats: Stats,
+	...items: Array<ItemInstance | undefined>
+): number {
+	return items.reduce(
+		(sum, item) =>
+			sum +
+			(item?.perks?.bonusXp ?? 0) *
+				(item ? itemRequirementMultiplier(item, stats) : 1),
+		0,
+	);
+}
 export function equippedImmunities(
 	stats: Stats,
 	...items: Array<ItemInstance | undefined>
@@ -1184,6 +1202,7 @@ function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 	const requirements = { ...item.requirements };
 	const max: Record<ItemPerkId, number> = {
 		defense: 10,
+		bonusXp: 2,
 		physicalResist: 0.5,
 		magicResist: 0.5,
 		fireResist: 0.5,
@@ -1202,6 +1221,7 @@ function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 	};
 	const attrs: Record<ItemPerkId, StatKey[]> = {
 		defense: ["strength"],
+		bonusXp: [],
 		physicalResist: ["strength", "agility"],
 		magicResist: ["intelligence"],
 		fireResist: ["intelligence", "magic"],
@@ -1216,8 +1236,20 @@ function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 		const immunity = immunityFor[key];
 		if (item.level >= 25 && immunity && source.next() < 0.1)
 			immunities.push(immunity);
-		else perks[key] = max[key] * factor;
-		const need = Math.ceil((5 * item.level * factor) / attrs[key].length);
+		else
+			perks[key] =
+				key === "bonusXp"
+					? Math.min(
+							2,
+							Math.max(
+								0.05,
+								(item.level * (0.25 + 2.75 * source.next())) / 100,
+							),
+						)
+					: max[key] * factor;
+		const need = attrs[key].length
+			? Math.ceil((5 * item.level * factor) / attrs[key].length)
+			: 0;
 		for (const attr of attrs[key])
 			requirements[attr] = Math.min(
 				MAX_ITEM_REQUIREMENT,
