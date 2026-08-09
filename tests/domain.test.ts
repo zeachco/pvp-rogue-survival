@@ -20,6 +20,7 @@ import {
 } from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
 import {
+	equipSlotKeys,
 	panelShortcut,
 	panelToggleTooltip,
 	SOULS_TOOLTIP,
@@ -2373,6 +2374,18 @@ describe("XP presentation", () => {
 	});
 });
 describe("HUD preview values", () => {
+	test("highlights both hand slots for a two-handed equip preview", () => {
+		const staff = generateItem(1, "common", 1, {
+			allowedClasses: ["staff"],
+		});
+		const sword = generateItem(1, "common", 2, {
+			allowedClasses: ["sword"],
+		});
+
+		expect(equipSlotKeys(staff)).toEqual(["main-hand", "offhand"]);
+		expect(equipSlotKeys(sword)).toEqual(["main-hand"]);
+	});
+
 	test("formats projected and removed values from currentVal and nullable newVal", () => {
 		expect(formatPreviewValue({ currentVal: 10, newVal: 14 })).toBe("14");
 		expect(formatPreviewValue({ currentVal: 10, newVal: 10 })).toBe("10");

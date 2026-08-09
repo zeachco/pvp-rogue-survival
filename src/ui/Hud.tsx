@@ -2283,12 +2283,13 @@ export class Hud {
 		this.renderSpellSlots();
 	}
 	private highlightDestinationSlot(item?: ItemInstance): void {
+		const destinationSlots = new Set(item ? equipSlotKeys(item) : []);
 		for (const cell of this.loadoutNode.querySelectorAll<HTMLElement>(
 			".loadout-cell",
 		))
 			cell.classList.toggle(
 				"is-slot-preview",
-				Boolean(item && cell.dataset.equipSlot === equipSlotKey(item)),
+				destinationSlots.has(cell.dataset.equipSlot ?? ""),
 			);
 	}
 	private bindLoadoutHighlights(): void {
@@ -2977,14 +2978,16 @@ function loadoutCell(slot: string, item?: ItemInstance): HTMLElement {
 		</span>
 	) as HTMLElement;
 }
-function equipSlotKey(item: ItemInstance): string {
+export function equipSlotKeys(item: ItemInstance): string[] {
 	return item.itemKind === "weapon"
-		? "main-hand"
+		? item.hands === 2
+			? ["main-hand", "offhand"]
+			: ["main-hand"]
 		: item.itemKind === "amulet"
-			? "amulet"
+			? ["amulet"]
 			: item.itemKind === "charm"
-				? "charm"
-				: "offhand";
+				? ["charm"]
+				: ["offhand"];
 }
 function equipmentSummary(
 	item: ItemInstance | undefined,
