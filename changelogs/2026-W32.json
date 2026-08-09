@@ -1,17 +1,53 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T14:38:38.940Z",
+	"generatedAt": "2026-08-09T16:07:57.418Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Feature and Performance Updates",
-			"summary": "This week focused on expanding game features, enhancing visual effects, and optimizing performance. New gameplay mechanics included adding two-handed weapon classes and the 'blizzard' spell, alongside overhauls to existing spells like 'boomrang' and 'rage mechanisms.' Gameplay was further refined with updated stamina mechanics and adjustments to spell cooldowns and costs. Visuals saw significant updates, including new models and reworked visuals for lights and skills, as well as improved spell effects and clearer HUD elements. Performance enhancements included creating a pool of light effects to reduce the cost of light object creation and managing shadows more efficiently, along with capping enemy spawning and queueing waves when full. Significant UI changes were implemented across realms and panels, including reorganizing realm presence headers, optimizing inventory and character panel space, updating authentication feedback, and implementing new visual styles for tooltips and spell previews.",
+			"summaryTitle": "Reworked Spell Effects and UI",
+			"summary": "This week focused heavily on refining the visual and functional aspects of spells and character interaction. We clarified spell ownership colors by tinting enemy spell effects, projectiles, and attack areas red, recoloring hero blood spells purple, and introducing a distinct non-Healing effect for Rapid Regeneration. Features included adding two-handed weapon classes and rework visuals for lights and skills, alongside various balancing changes such as capping multi-hit spell proc chance and adjusting mana costs; the minimum level requirement for spells was removed while increasing their cost. New features introduced included a new spell called Blizzard and reworked the Boomrang spell and Rage mechanisms, along with implementing a reroll mechanism and stat UI fixes. The spell system received numerous refinements: filtering button logic, placing spell activation costs and proc behavior into computed tooltips, replacing catalog dropdowns with additive checkbox buttons, and adding a new badge for learning spells. Visual improvements included adding shadows and improving light for certain spells, setting default lights to all, and fixing rendering issues like throw and visual/spell fixes. Furthermore, the HUD was updated by grouping hero effects above health, and spell HUDs were fixed. Finally, work focused on ensuring items equipped with spells correctly add passive mechanics and that thorns from spells are displayed in the HUD.",
 			"commits": [
 				{
-					"hash": "b5180e2d7d3ba62487660fa02dfaeae17c8ae285",
+					"hash": "1e38261afd197304e45863fa55cbcaf50447ada5",
+					"authoredAt": "2026-08-09T12:06:25-04:00",
+					"title": "ux: panels visibility and back blur for text redability",
+					"description": ""
+				},
+				{
+					"hash": "8605c06258637d222b6946ab9372e24385fe1d11",
+					"authoredAt": "2026-08-09T12:03:10-04:00",
+					"title": "ux(spells): clarify spell ownership colors",
+					"description": "- tint enemy spell effects, projectiles, and attack areas red\n- recolor hero blood spells purple\n- give Rapid Regeneration a distinct non-Healing effect"
+				},
+				{
+					"hash": "4b2c67eb97ee4d63818193d361f4cc0fe3d05068",
+					"authoredAt": "2026-08-09T11:41:43-04:00",
+					"title": "fix: equiped items with spells now add procs passive",
+					"description": "some items would equip spells and not show it in the spell bar nor\nactivate them"
+				},
+				{
+					"hash": "dc0c328f91f1e41071886f9f56463ee9dc4f5d92",
+					"authoredAt": "2026-08-09T11:28:47-04:00",
+					"title": "balance: magic find and septers / auras",
+					"description": ""
+				},
+				{
+					"hash": "ca448a7b091e8d0f10cf9c122ea9b9bbdfaac709",
+					"authoredAt": "2026-08-09T11:06:09-04:00",
+					"title": "ux: skills provided by equipments are now shown in the skill list as passive with proc chance",
+					"description": ""
+				},
+				{
+					"hash": "1981064851aea7a95abb7a0db969b6f6c8bdeb60",
+					"authoredAt": "2026-08-09T10:51:20-04:00",
+					"title": "feat: devlog voting and submitting only for logged players",
+					"description": ""
+				},
+				{
+					"hash": "36bcdef0156459f2b910010134b95db2f75ec406",
 					"authoredAt": "2026-08-09T10:37:19-04:00",
 					"title": "ux: devlog improvments for mobile",
 					"description": ""
