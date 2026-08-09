@@ -82,6 +82,7 @@ export function enemyRoleModelKind(
 	if (role === "boss") return "boss";
 	if (role === "champion") return "champion";
 	if (role === "clone") return "clone";
+	if (role === "invader") return "hero";
 	if (role === "creep") return "creep";
 	return undefined;
 }

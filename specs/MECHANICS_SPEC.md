@@ -24,7 +24,7 @@ Floating combat numbers spawn at the visual center of the affected unit and rise
 
 Every camera-facing airborne projectile, including Arcane Bolt and fallback projectile art, is bottom-aligned above the gameplay plane using its complete visible bounds plus a 2-logical-pixel clearance. Gold, Scrap, and equipment pickups use the same clearance and include their outer glow in those bounds, so no visible portion intersects the rendered floor at any camera pitch.
 
-The loaded 3D hero uses the normal full 50-logical-pixel presentation footprint. Rival clones and death echoes reuse that exact hero model at 75% scale, for a 37.5-logical-pixel footprint. Their authored collision radii remain unchanged. Hero and clone presentation never creates or retains image-sprite planes; lightweight procedural geometry is used only while the model loads or after a load failure.
+The loaded 3D hero uses the normal full 50-logical-pixel presentation footprint. Player-sent invaders reuse that exact full-size hero model. Rival clones and death echoes reuse the hero model at 75% scale, for a 37.5-logical-pixel footprint. Their authored collision radii remain unchanged. Hero, invader, and clone presentation never creates or retains image-sprite planes; lightweight procedural geometry is used only while the model loads or after a load failure.
 
 Each creep's complete Health, Mana, and Rage bar stack billboards slightly in front of that creep along the camera-facing normal and ignores scene depth occlusion, preventing sprite silhouettes from intersecting or covering the bars.
 

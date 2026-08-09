@@ -240,6 +240,7 @@ describe("animated 3D characters", () => {
 		expect(CHARACTER_MODEL_MANIFESTS.boss.footprint).toBe(70);
 		expect(CHARACTER_MODEL_MANIFESTS.boss.facingOffset).toBe(Math.PI / 2);
 		expect(enemyRoleModelKind("clone")).toBe("clone");
+		expect(enemyRoleModelKind("invader")).toBe("hero");
 	});
 
 	test("uses a dark global baseline and short-radius role lights", () => {
