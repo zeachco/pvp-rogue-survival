@@ -1,15 +1,21 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T13:56:21.140Z",
+	"generatedAt": "2026-08-09T14:16:20.402Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Core Model Refinements and Performance Overhaul",
-			"summary": "This week focused heavily on optimizing performance, refining core mechanics, and improving user interface elements. Several model and graphics fixes were implemented, including reusing a smaller version of the hero's model and addressing issues like coins clipping underground and healing light displacement.\nPerformance improvements included creating a pool of light effects to reduce creation costs by pre-creating and sharing light instances across different effects, along with reducing shadow and fallback overhead by ensuring spell projectiles, Gold, and Scrap remain unlit, setting the arena floor to receive-only for dynamic shadows, and detaching redundant hero/clone presentations after model load.\nUI and experience enhancements focused on clarity and flow; passive block application was fixed in character stats and effect tooltips, xp bonus badges were reduced with added details, and a new tooltip was added around souls. The realm presence header was reorganized to consolidate controls, centrally displaying online/realm status, and the inventory/character panels were repositioned for better space utilization. Authentication flow was significantly improved by introducing explicit success/error tones, updating protocol compatibility to version 40, and implementing secure username login with enhanced password hashing and shared presence headers.\nVarious spell and item mechanics were also tweaked: multi-hit spell proc chance was capped, starting gear was changed, arcane bolt visuals were improved, new spells like Blizzard and reworked Boomrang were introduced, and mana drain for spell overmana was adjusted. Additionally, several fixes targeted visual consistency, such as default lights being set to all, persistent combat feedback, and clearing broken static lights options.",
+			"summaryTitle": "Feature & Performance Reworks for Visuals and Systems",
+			"summary": "This week focused heavily on visual enhancements, performance optimization, and core system updates. New features included adding two-handed weapon classes and implementing a new spell called Blizzard. The rendering pipeline was optimized by creating a pool of light effects to reduce the cost of creating light objects and handling initial scaling and shadowing across different effects. Various graphical fixes were implemented, such as updating shadow and light handling for certain spells and setting default lights to all. Spell mechanics saw updates with increased mana drain for mana drain and fixed aim guides for spells. The core gameplay loop was refined by reworking the Boomrang spell, rage mechanisms, and implementing a reroll mechanism alongside unique item additions. Furthermore, significant UI and panel redesigns took place; inventory and character panels were adjusted to occupy better space, panels were pushed towards the edges, and chat/messages UI was displaced when panels are open. Authentication flow improvements involved extending server notices with explicit success or error tones and enhancing protocol compatibility, along with ensuring password persistence and secure login mechanisms using Bun-generated hashes. The realm presence header was reorganized, centralizing online and realm status alongside a player label. Finally, general fixes included addressing coin clipping underground, healing light displacement, and various visual adjustments to spell HUDs and gameplay feedback.",
 			"commits": [
+				{
+					"hash": "911ee0cc7338de031708ed937747d7b9755c0b9b",
+					"authoredAt": "2026-08-09T10:08:14-04:00",
+					"title": "ux: effect badges",
+					"description": ""
+				},
 				{
 					"hash": "c30248f3e795b79d2e8ec67e19bcf0901f9c7eec",
 					"authoredAt": "2026-08-09T09:49:17-04:00",
@@ -491,7 +497,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["General fixes"]
+			"categories": ["General fixes", "Refactor"]
 		}
 	]
 }

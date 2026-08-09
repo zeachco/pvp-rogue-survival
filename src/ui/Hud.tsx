@@ -11,12 +11,8 @@ import {
 import { BALANCE } from "../../common/balance";
 import {
 	STAT_KEYS,
-	cumulativeXpForLevel,
 	integerAllocation,
-	lerpXpDisplay,
-	levelForXp,
 	scaledStats,
-	xpForNextLevel,
 	type Stats,
 } from "../../common/progression";
 import type {
@@ -29,11 +25,7 @@ import type {
 	RealmState,
 	UnitBuild,
 } from "../../common/protocol";
-import type {
-	CreepTimedStates,
-	PlayerState,
-	StatusEffectSnapshot,
-} from "../game/types";
+import type { CreepTimedStates, PlayerState } from "../game/types";
 import { h } from "./dom";
 import { GameSettings } from "./GameSettings";
 import {
@@ -109,6 +101,16 @@ import {
 } from "./preview";
 import { extractButtonStatus } from "./inventoryAvailability";
 import { viewportTooltipPosition } from "./tooltipPosition";
+import {
+	effectTimeLabel,
+	HeroResourceDock,
+	statusEffectSummaries,
+} from "./HeroResourceDock";
+export {
+	effectTimeLabel,
+	statusEffectSummaries,
+	xpSendBuffSummary,
+} from "./HeroResourceDock";
 import {
 	projectUnitState,
 	RapidRegenerationEffect,
@@ -262,11 +264,6 @@ export class Hud {
 		multiplayer: false,
 	};
 	private readonly realmPanel = (<div class="realm-panel" />) as HTMLElement;
-	private readonly trainingModeStatus = (
-		<div class="training-mode-status is-hidden">
-			[Training Grounds - No Rewards]
-		</div>
-	) as HTMLElement;
 	private readonly gameSettings: GameSettings;
 	private readonly aimReticle = (
 		<div class="aim-reticle is-hidden" aria-hidden="true">
@@ -346,9 +343,7 @@ export class Hud {
 	]);
 	private spellCatalogSearch = "";
 	private spellPreviewKind?: "extract" | "equipment";
-	private readonly resourceDock = (
-		<section class="resource-dock" />
-	) as HTMLElement;
+	private readonly heroResourceDock = new HeroResourceDock();
 	private readonly chatLog = (<div class="chat-log" />) as HTMLElement;
 	private readonly chatInput = (
 		<input
@@ -358,43 +353,6 @@ export class Hud {
 			placeholder="Chat..."
 		/>
 	) as HTMLInputElement;
-	private readonly healthBar = resourceBar("Health", "health");
-	private readonly statusEffects = (
-		<div class="status-effects" aria-label="Active status effects" />
-	) as HTMLElement;
-	private readonly beneficialEffects = (
-		<div class="beneficial-effects" aria-label="Active beneficial effects" />
-	) as HTMLElement;
-	private readonly timedEffects = (
-		<div class="timed-effects" />
-	) as HTMLElement;
-	private readonly manaBar = resourceBar("Mana", "mana");
-	private readonly rageLine = (
-		<div
-			class="rage-line"
-			role="progressbar"
-			aria-label="Rage"
-			aria-valuemin="0"
-		>
-			<span />
-		</div>
-	) as HTMLElement;
-	private readonly rageValue = (<small class="rage-value" />) as HTMLElement;
-	private readonly xpName = (<small />) as HTMLElement;
-	private readonly xpLevel = (<strong />) as HTMLElement;
-	private readonly xpBadge = (
-		<div
-			class="xp-badge"
-			role="progressbar"
-			aria-label="Experience"
-			aria-valuemin="0"
-		>
-			<div>
-				{this.xpName}
-				{this.xpLevel}
-			</div>
-		</div>
-	) as HTMLElement;
 	private readonly waveBanner = (
 		<div class="wave-banner" aria-live="polite">
 			<strong />
@@ -428,15 +386,8 @@ export class Hud {
 	private readonly multiplayerIntroMask = (
 		<div class="multiplayer-intro-mask is-hidden" aria-hidden="true" />
 	) as HTMLElement;
-	private readonly xpToast = (
-		<div class="xp-toast" role="status" aria-live="polite" />
-	) as HTMLElement;
 	private waveTimer?: number;
 	private centerToastTimer?: number;
-	private xpToastTimer?: number;
-	private displayedXp?: number;
-	private targetXp = 0;
-	private dynamicSignature = "";
 	private realmSignature = "";
 	private spellStructureSignature = "";
 	private allocationSignature = "";
@@ -648,25 +599,6 @@ export class Hud {
 			this.callbacks.onChattingChange(false);
 			this.chatInput.value = "";
 		});
-		this.resourceDock.append(
-			(
-				<div class="health-cluster">
-					{this.timedEffects}
-					{this.healthBar.node}
-					{this.rageLine}
-					{this.rageValue}
-				</div>
-			) as HTMLElement,
-			(
-				<div class="xp-cluster">
-					{this.xpToast}
-					{this.trainingModeStatus}
-					{this.xpBadge}
-				</div>
-			) as HTMLElement,
-			(<div class="mana-cluster">{this.manaBar.node}</div>) as HTMLElement,
-		);
-		this.timedEffects.append(this.statusEffects, this.beneficialEffects);
 		const dismissMultiplayer = (
 			<button type="button">Got it</button>
 		) as HTMLButtonElement;
@@ -703,7 +635,7 @@ export class Hud {
 					{this.chatLog}
 					{this.chatInput}
 				</section>
-				{this.resourceDock}
+				{this.heroResourceDock.node}
 				{this.characterPanel}
 				{this.inventoryPanel}
 				{this.itemHoverCard}
@@ -765,21 +697,10 @@ export class Hud {
 		);
 	}
 	showXpToast(message: string): void {
-		clearTimeout(this.xpToastTimer);
-		this.xpToast.textContent = message;
-		this.xpToast.classList.add("is-visible");
-		this.xpToastTimer = window.setTimeout(
-			() => this.xpToast.classList.remove("is-visible"),
-			3200,
-		);
+		this.heroResourceDock.showXpToast(message);
 	}
 	setPlayer(player: PlayerState): void {
 		this.player = player;
-		this.targetXp = player.progress.xp;
-		this.displayedXp =
-			this.displayedXp === undefined
-				? this.targetXp
-				: lerpXpDisplay(this.displayedXp, this.targetXp);
 		this.renderDynamicHud();
 		if (
 			this.staticProgress !== player.progress ||
@@ -1006,7 +927,7 @@ export class Hud {
 		this.characterCollapsedBeforeInspection = undefined;
 		this.setGroundDropPreview();
 		this.staticProgress = undefined;
-		this.dynamicSignature = "";
+		this.heroResourceDock.clear();
 		this.updateVisibility();
 	}
 	setInspection(
@@ -2050,11 +1971,6 @@ export class Hud {
 	private renderDynamicHud(): void {
 		if (!this.player) return;
 		const p = this.player.progress;
-		const shownXp = this.displayedXp ?? p.xp;
-		const shownLevel = levelForXp(shownXp);
-		const into = shownXp - cumulativeXpForLevel(shownLevel);
-		const needed = xpForNextLevel(shownLevel);
-		const xpRatio = needed > 0 ? Math.max(0, Math.min(1, into / needed)) : 0;
 		const compiled = projectUnitState({
 			baseStats: p.stats,
 			mainHand: p.mainHand,
@@ -2072,173 +1988,10 @@ export class Hud {
 			),
 		});
 		const healthRegen = this.player.healthRegen || compiled.healthRegen;
-		const manaRegen = compiled.manaRegen;
-		const signature = [
-			this.player.health,
-			this.player.maxHealth,
-			healthRegen,
-			this.player.rage,
-			this.player.maxRage,
-			this.player.mana,
-			this.player.maxMana,
-			manaRegen,
-			shownXp,
-			shownLevel,
-			this.player.name,
-			...this.player.statuses.flatMap((status) => [
-				status.kind,
-				Math.ceil(status.remaining * 10) / 10,
-				status.damagePerSecond,
-			]),
-			this.player.xpSendBuffs.map((buff) => buff.expiresAt).join(","),
-			this.player.xpSendBuffs.map((buff) => buff.multiplier).join(","),
-			xpSendBuffSummary(this.player.xpSendBuffs)?.remaining ?? 0,
-			Math.ceil(this.player.reflectiveSurgeRemaining * 10) / 10,
-			Math.ceil(this.player.rapidRegenRemaining * 10) / 10,
-		]
-			.map(flatValue)
-			.join("|");
-		if (signature !== this.dynamicSignature) {
-			this.dynamicSignature = signature;
-			updateResourceBar(
-				this.healthBar,
-				this.player.health,
-				this.player.maxHealth,
-				healthRegen,
-			);
-			this.renderStatusEffects(this.player.statuses);
-			this.renderBeneficialEffects(
-				this.player.xpSendBuffs,
-				this.player.reflectiveSurgeRemaining,
-				this.player.rapidRegenRemaining,
-			);
-			updateResourceBar(
-				this.manaBar,
-				this.player.mana,
-				this.player.maxMana,
-				manaRegen,
-			);
-			const rage = resourceRatio(this.player.rage, this.player.maxRage);
-			setText(this.xpName, this.player.name);
-			setText(this.xpLevel, String(shownLevel));
-			this.rageLine.setAttribute("aria-valuemax", String(this.player.maxRage));
-			this.rageLine.setAttribute("aria-valuenow", String(this.player.rage));
-			(this.rageLine.firstElementChild as HTMLElement).style.width =
-				`${rage * 100}%`;
-			setText(
-				this.rageValue,
-				`${fmt(this.player.rage)} / ${fmt(this.player.maxRage)}`,
-			);
-			this.xpBadge.style.setProperty("--xp-angle", `${xpRatio * 360}deg`);
-			this.xpBadge.setAttribute("aria-valuemax", String(needed));
-			this.xpBadge.setAttribute("aria-valuenow", String(into));
-		}
+		this.heroResourceDock.update(this.player, healthRegen, compiled.manaRegen);
 		this.activeMainHand?.style.setProperty(
 			"--attack-progress",
 			`${(this.inspected ? 1 : this.player.attackProgress) * 100}%`,
-		);
-	}
-	private renderStatusEffects(statuses: StatusEffectSnapshot[]): void {
-		if (
-			this.statusEffects.matches(":hover") ||
-			this.statusEffects.contains(document.activeElement)
-		)
-			return;
-		this.statusEffects.replaceChildren(
-			...statusEffectSummaries(statuses).map(
-				(status) =>
-					(
-						<span
-							class={`status-effect status-effect-${status.kind}`}
-							tabindex="0"
-							aria-label={status.tooltip}
-						>
-							<span aria-hidden="true">{status.icon}</span>
-							<small class="effect-time" aria-hidden="true">
-								{effectTimeLabel(status.remaining)}
-							</small>
-							{status.stacks > 1 ? (
-								<b class="effect-stacks">{status.stacks}</b>
-							) : null}
-							<span class="status-effect-tooltip" role="tooltip">
-								{status.tooltip}
-							</span>
-						</span>
-					) as HTMLElement,
-			),
-		);
-	}
-	private renderBeneficialEffects(
-		buffs: PlayerState["xpSendBuffs"],
-		reflectiveSurgeRemaining: number,
-		rapidRegenRemaining: number,
-	): void {
-		if (
-			this.beneficialEffects.matches(":hover") ||
-			this.beneficialEffects.contains(document.activeElement)
-		)
-			return;
-		const buff = xpSendBuffSummary(buffs);
-		const rapidRegenLevel = this.player
-			? effectiveSkillLevel(this.player.progress, "rapidRegen")
-			: 0;
-		const rapidRegenTooltip = `Rapid Regeneration — ${fmt(rapidRegenMultiplier(rapidRegenLevel) * 100)}% normal regeneration + 0.1 HP/s`;
-		const reflectiveSurgeLevel = this.player
-			? effectiveSkillLevel(this.player.progress, "reflectiveSurge")
-			: 0;
-		const reflectiveSurgeTooltip = `Reflective Surge — doubles returned damage and adds ${fmt(reflectiveSurgeBlockChanceBonus(reflectiveSurgeLevel) * 100)}% block chance`;
-		this.beneficialEffects.replaceChildren(
-			...(rapidRegenRemaining > 0
-				? [
-						<span
-							class="beneficial-effect beneficial-effect-rapid-regen"
-							tabindex="0"
-							aria-label={rapidRegenTooltip}
-						>
-							<span aria-hidden="true">+</span>
-							<small class="effect-time" aria-hidden="true">
-								{effectTimeLabel(rapidRegenRemaining)}
-							</small>
-							<span class="beneficial-effect-tooltip" role="tooltip">
-								{rapidRegenTooltip}
-							</span>
-						</span>,
-					]
-				: []),
-			...(reflectiveSurgeRemaining > 0
-				? [
-						<span
-							class="beneficial-effect beneficial-effect-reflective-surge"
-							tabindex="0"
-							aria-label={reflectiveSurgeTooltip}
-						>
-							<span aria-hidden="true">◈</span>
-							<small class="effect-time" aria-hidden="true">
-								{effectTimeLabel(reflectiveSurgeRemaining)}
-							</small>
-							<span class="beneficial-effect-tooltip" role="tooltip">
-								{reflectiveSurgeTooltip}
-							</span>
-						</span>,
-					]
-				: []),
-			...(buff
-				? [
-						<span
-							class="beneficial-effect beneficial-effect-xp"
-							tabindex="0"
-							aria-label={buff.tooltip}
-						>
-							<b>{buff.label}</b>
-							<small class="effect-time" aria-hidden="true">
-								{effectTimeLabel(buff.remaining)}
-							</small>
-							<span class="beneficial-effect-tooltip" role="tooltip">
-								{buff.tooltip}
-							</span>
-						</span>,
-					]
-				: []),
 		);
 	}
 	private renderStaticHud(): void {
@@ -2823,10 +2576,7 @@ export class Hud {
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
 				: `Wave ${this.player?.waveNumber ?? "—"}`;
 		this.realmPanel.classList.remove("is-hidden");
-		this.trainingModeStatus.classList.toggle(
-			"is-hidden",
-			r.mode !== "training",
-		);
+		this.heroResourceDock.setTrainingMode(r.mode === "training");
 		if (r.mode === "training") {
 			this.realmPanel.replaceChildren(action, devlog, options, logout);
 			return;
@@ -3598,149 +3348,6 @@ function currencyCell(
 		</div>
 	) as HTMLElement;
 }
-interface ResourceBar {
-	node: HTMLElement;
-	value: HTMLElement;
-	regen: HTMLElement;
-	fill: HTMLElement;
-	loss: HTMLElement;
-	overflow?: HTMLElement;
-	overflowFill?: HTMLElement;
-	previous?: number;
-	lossTimer?: ReturnType<typeof setTimeout>;
-}
-function resourceBar(label: string, kind: "health" | "mana"): ResourceBar {
-	const value = (<span />) as HTMLElement;
-	const regen = (<span class="resource-regen" />) as HTMLElement;
-	const loss = (<span class="resource-loss" />) as HTMLElement;
-	const fill = (<span class="resource-fill" />) as HTMLElement;
-	const overflowFill =
-		kind === "mana"
-			? ((<span class="resource-overfill" />) as HTMLElement)
-			: undefined;
-	const overflow = overflowFill
-		? ((
-				<div class="resource-overfill-track">{overflowFill}</div>
-			) as HTMLElement)
-		: undefined;
-	const node = (
-		<div
-			class={`resource-bar resource-${kind}`}
-			role="progressbar"
-			aria-label={label}
-			aria-valuemin="0"
-		>
-			<div class="resource-bar-header">
-				<strong>{label}</strong>
-				<span class="resource-bar-values">
-					{value}
-					{regen}
-				</span>
-			</div>
-			{overflow}
-			<div class="resource-bar-track">
-				{loss}
-				{fill}
-			</div>
-		</div>
-	) as HTMLElement;
-	return { node, value, regen, fill, loss, overflow, overflowFill };
-}
-function updateResourceBar(
-	bar: ResourceBar,
-	current: number,
-	maximum: number,
-	regen: number,
-): void {
-	const safeMaximum = Math.max(0, maximum);
-	const currentCap = bar.overflow ? safeMaximum * 3 : safeMaximum;
-	const safeCurrent = Math.max(0, Math.min(current, currentCap));
-	const ratio = resourceRatio(Math.min(safeCurrent, safeMaximum), safeMaximum);
-	const previous = bar.previous;
-	bar.node.setAttribute("aria-valuemax", String(safeMaximum));
-	bar.node.setAttribute("aria-valuenow", String(safeCurrent));
-	setText(bar.value, `${fmt(safeCurrent)} / ${fmt(safeMaximum)}`);
-	setText(bar.regen, `+${fmt(Math.max(0, regen))}/s`);
-	bar.fill.style.width = `${ratio * 100}%`;
-	if (bar.overflow && bar.overflowFill) {
-		const overfillRatio =
-			safeMaximum > 0
-				? Math.max(
-						0,
-						Math.min(1, (safeCurrent - safeMaximum) / (safeMaximum * 2)),
-					)
-				: 0;
-		bar.overflow.classList.toggle("is-visible", overfillRatio > 0);
-		bar.overflowFill.style.width = `${overfillRatio * 100}%`;
-	}
-	if (previous === undefined || safeCurrent >= previous) {
-		if (bar.lossTimer) clearTimeout(bar.lossTimer);
-		bar.lossTimer = undefined;
-		bar.loss.classList.remove("is-catching-up");
-		bar.loss.style.width = `${ratio * 100}%`;
-	} else {
-		bar.loss.classList.remove("is-catching-up");
-		if (bar.lossTimer) clearTimeout(bar.lossTimer);
-		bar.lossTimer = setTimeout(() => {
-			bar.loss.classList.add("is-catching-up");
-			bar.loss.style.width = `${ratio * 100}%`;
-			bar.lossTimer = undefined;
-		}, 420);
-	}
-	bar.previous = safeCurrent;
-}
-function resourceRatio(current: number, maximum: number): number {
-	return maximum > 0 ? Math.max(0, Math.min(1, current / maximum)) : 0;
-}
-export interface StatusEffectSummary {
-	kind: StatusEffectSnapshot["kind"];
-	icon: string;
-	stacks: number;
-	remaining: number;
-	damagePerSecond: number;
-	tooltip: string;
-}
-export interface XpSendBuffSummary {
-	multiplier: number;
-	remaining: number;
-	label: string;
-	tooltip: string;
-}
-export function effectTimeLabel(remaining?: number): string {
-	if (remaining === undefined || !Number.isFinite(remaining)) return "";
-	const seconds = Math.max(0, Math.round(remaining));
-	if (seconds <= 99) return `${seconds}s`;
-	const minutes = Math.floor(seconds / 60);
-	const remainder = seconds % 60;
-	return `${minutes}m${remainder > 0 ? `${remainder}s` : ""}`;
-}
-export function xpSendBuffSummary(
-	buffs: PlayerState["xpSendBuffs"],
-	now = Date.now(),
-): XpSendBuffSummary | undefined {
-	const buff = buffs.find((entry) => entry.expiresAt > now);
-	if (!buff) return undefined;
-	const remaining = Math.max(0, Math.round((buff.expiresAt - now) / 1000));
-	const percent = Math.round(buff.multiplier * 100);
-	return {
-		multiplier: buff.multiplier,
-		remaining,
-		label: `x${fmt(buff.multiplier)}`,
-		tooltip: `XP Send bonus — ${percent}% XP`,
-	};
-}
-const STATUS_EFFECT_PRESENTATION: Record<
-	StatusEffectSnapshot["kind"],
-	{ name: string; icon: string }
-> = {
-	bleed: { name: "Bleed", icon: "🩸" },
-	poison: { name: "Poison", icon: "☠" },
-	burn: { name: "Burn", icon: "🔥" },
-	stun: { name: "Stun", icon: "✦" },
-	freeze: { name: "Freeze", icon: "❄" },
-	shock: { name: "Shock", icon: "✦" },
-	curse: { name: "Curse", icon: "✧" },
-};
 export function passiveSkillMetrics(
 	skill: SkillId,
 	level: number,
@@ -3860,42 +3467,6 @@ export function passiveSkillMetrics(
 	}
 }
 
-export function statusEffectSummaries(
-	statuses: StatusEffectSnapshot[],
-): StatusEffectSummary[] {
-	const summaries = new Map<
-		StatusEffectSnapshot["kind"],
-		Omit<StatusEffectSummary, "tooltip">
-	>();
-	for (const status of statuses) {
-		const presentation = STATUS_EFFECT_PRESENTATION[status.kind];
-		const summary = summaries.get(status.kind);
-		if (summary) {
-			summary.stacks += 1;
-			summary.remaining = Math.max(summary.remaining, status.remaining);
-			summary.damagePerSecond += status.damagePerSecond;
-		} else
-			summaries.set(status.kind, {
-				kind: status.kind,
-				icon: presentation.icon,
-				stacks: 1,
-				remaining: status.remaining,
-				damagePerSecond: status.damagePerSecond,
-			});
-	}
-	return [...summaries.values()].map((summary) => {
-		const name = STATUS_EFFECT_PRESENTATION[summary.kind].name;
-		const details: string[] = [];
-		if (summary.stacks > 1) details.push(`${summary.stacks} stacks`);
-		if (summary.damagePerSecond > 0)
-			details.push(`${fmt(summary.damagePerSecond)} damage/s`);
-		return {
-			...summary,
-			tooltip: details.length > 0 ? `${name} — ${details.join(" · ")}` : name,
-		};
-	});
-}
-
 function creepStateBadges(states?: CreepTimedStates): HTMLElement {
 	const statuses = statusEffectSummaries(states?.statuses ?? []);
 	const entries: Array<{
@@ -3939,11 +3510,6 @@ function creepStateBadges(states?: CreepTimedStates): HTMLElement {
 			))}
 		</div>
 	) as HTMLElement;
-}
-function flatValue(value: string | number): string {
-	return typeof value === "number"
-		? String(Math.round(value * 100) / 100)
-		: value;
 }
 function setText(node: HTMLElement, value: string): void {
 	if (node.textContent !== value) node.textContent = value;

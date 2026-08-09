@@ -126,6 +126,7 @@ Inventory equipment cards reserve a compact fixed-width action column so item na
 - `src/game/Projectile.ts`: moving collision-based enemy bubbles.
 - `src/game/Map.ts`: fixed arena dimensions, bounds, edge spawning, and arena rendering.
 - `src/ui/`: stable DOM views driven by presentation models rather than simulation objects.
+- `src/ui/HeroResourceDock.tsx`: stable hero Health, Rage, level/XP, Mana, timed-effect, Training-state, and XP-toast presentation; `Hud.tsx` supplies projected regeneration values and the current player snapshot.
 - `src/net/SocketClient.ts`: validated WebSocket transport. Session storage is a separate browser adapter.
 - Local storage persists only the accepted opaque hero id and username for reconnect convenience, never authoritative progression or transient combat state. Logout erases that reference.
 
