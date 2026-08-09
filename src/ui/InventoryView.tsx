@@ -285,7 +285,12 @@ export function itemTile(
 		});
 	};
 	bindActionPreview(0, { gold: sellYield(item) });
-	bindActionPreview(1, { [item.rarity]: purgeYield(item) });
+	bindActionPreview(
+		1,
+		item.rarity === "unique"
+			? { souls: purgeYield(item) }
+			: { [item.rarity]: purgeYield(item) },
+	);
 	const upgradePreview = buttons[2] as HTMLButtonElement | undefined;
 	upgradePreview?.addEventListener("mouseenter", () =>
 		previewUpgradeCard(true),

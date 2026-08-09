@@ -200,7 +200,10 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("suicide") }),
 	z.object({ type: z.literal("requestWave") }),
 	z.object({ type: z.literal("leaveRealm") }),
-	z.object({ type: z.literal("enterRealm") }),
+	z.object({
+		type: z.literal("enterRealm"),
+		waveNumber: z.number().int().positive().optional(),
+	}),
 	z.object({
 		type: z.literal("scoreSnapshot"),
 		score: z.number(),
@@ -290,7 +293,8 @@ export type ClientMessage =
 	  }
 	| { type: "heroDefeated"; sourceUnitId?: string }
 	| { type: "suicide" }
-	| { type: "requestWave" | "leaveRealm" | "enterRealm" }
+	| { type: "requestWave" | "leaveRealm" }
+	| { type: "enterRealm"; waveNumber?: number }
 	| { type: "scoreSnapshot"; score: number; health: number }
 	| { type: "logout" | "listHeroes" }
 	| { type: "inspectHero"; heroId: string }

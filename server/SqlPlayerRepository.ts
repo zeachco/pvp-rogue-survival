@@ -243,6 +243,11 @@ function fromRow(row: HeroRow): Player | undefined {
 }
 
 export function migrateLegacyEquipment(progress: PlayerProgress): void {
+	const legacyUniqueScrap = progress.scraps.unique ?? 0;
+	if (legacyUniqueScrap > 0) {
+		progress.souls += legacyUniqueScrap;
+		progress.scraps.unique = 0;
+	}
 	if (progress.mainHand) migrateLegacyItem(progress.mainHand);
 	if (progress.offHand) migrateLegacyItem(progress.offHand);
 	if (progress.amulet) migrateLegacyItem(progress.amulet);

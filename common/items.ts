@@ -140,7 +140,7 @@ export const RARITY_POWER: Record<Rarity, number> = {
 	uncommon: 1.25,
 	rare: 1.6,
 	epic: 2.1,
-	unique: 2.7,
+	unique: 4,
 };
 export const MAX_ITEM_LEVEL: Record<Rarity, number> = {
 	common: 10,

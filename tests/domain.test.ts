@@ -22,8 +22,10 @@ import {
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
 import {
 	equipSlotKeys,
+	GOLD_TOOLTIP,
 	panelShortcut,
 	panelToggleTooltip,
+	scrapTooltip,
 	SOULS_TOOLTIP,
 } from "../src/ui/Hud";
 import {
@@ -147,6 +149,7 @@ import {
 	levelUpItem,
 	MAX_ITEM_LEVEL,
 	nextRarity,
+	RARITY_POWER,
 	rerollItem,
 	rerollPendingSeed,
 	starterClub,
@@ -342,7 +345,13 @@ test("shows current, next, and maximum spell tooltip levels", () => {
 
 test("explains how Souls are earned and spent", () => {
 	expect(SOULS_TOOLTIP).toBe(
-		"Earn Souls when a carrier equipped with an item you sent into another player's Realm kills that player. Spend Souls to upgrade Unique items or reroll item properties.",
+		"Purge Unique items to earn Souls. Every real death removes up to 1 Soul; a player killer always gains 1 Soul, even when the defeated player has none. Spend Souls to upgrade Unique items or reroll item properties.",
+	);
+	expect(GOLD_TOOLTIP).toBe(
+		"Used with matching Scrap to upgrade non-Unique items.",
+	);
+	expect(scrapTooltip("Epic")).toBe(
+		"Epic Scrap is used with Gold to upgrade Epic items.",
 	);
 });
 
@@ -1181,6 +1190,7 @@ describe("permanent inventory", () => {
 		});
 	});
 	test("unique items upgrade for one Soul per level with no Gold or Scrap", () => {
+		expect(RARITY_POWER.unique).toBe(4);
 		const item = { ...generateItem(40, "unique", 41), requirements: {} };
 		expect(upgradeCosts(item)).toEqual({ gold: 0, scraps: 0, souls: 1 });
 		const state = progress();
@@ -1203,6 +1213,20 @@ describe("permanent inventory", () => {
 		expect(result.changed).toBeTrue();
 		expect(state.souls).toBe(0);
 		expect(state.gold).toBe(1000);
+	});
+	test("purges Unique equipment into Souls instead of Unique Scrap", () => {
+		const item = { ...generateItem(7, "unique", 410), requirements: {} };
+		const state = progress();
+		collectIntoInventory(
+			state,
+			item,
+			() => `tile-${++id}`,
+			() => ++id,
+		);
+		const result = purgeFromInventory(state, state.inventoryTiles[0].id);
+		expect(result.changed).toBeTrue();
+		expect(state.souls).toBe(3);
+		expect(state.scraps.unique).toBe(0);
 	});
 	test("unique level 100 is final and cannot be upgraded", () => {
 		const item = { ...generateItem(100, "unique", 42), requirements: {} };

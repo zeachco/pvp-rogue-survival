@@ -176,7 +176,7 @@ export class Game {
 			onSetRarityAction: (rarity, action) =>
 				this.socket.send({ type: "setRarityAction", rarity, action }),
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
-			onEnterRealm: () => this.enterRealm(),
+			onEnterRealm: (waveNumber) => this.enterRealm(waveNumber),
 			onOpenDevlog,
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
@@ -462,14 +462,14 @@ export class Game {
 		);
 		this.hud.setNotice("Joining arena...");
 	}
-	private enterRealm(): void {
+	private enterRealm(waveNumber: number): void {
 		if (this.realmMode !== "training") return;
 		if (this.fullscreenMode === "on" && !document.fullscreenElement) {
 			const fullscreen = document.documentElement.requestFullscreen?.();
 			if (fullscreen) void fullscreen.catch(() => {});
 		}
 		this.realmMode = "waiting";
-		this.socket.send({ type: "enterRealm" });
+		this.socket.send({ type: "enterRealm", waveNumber });
 	}
 	private handleServerMessage(message: ServerMessage): void {
 		if (message.type === "welcome") {

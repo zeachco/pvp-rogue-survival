@@ -42,6 +42,8 @@ describe("Bun SQL player persistence", () => {
 			player.progress.xp = 250;
 			player.progress.level = 2;
 			player.progress.gold = 88;
+			player.progress.souls = 2;
+			player.progress.scraps.unique = 3;
 			player.panelTriggers.character = false;
 			await firstRepository.persist();
 			await firstRepository.close();
@@ -58,6 +60,8 @@ describe("Bun SQL player persistence", () => {
 			expect(restored?.waveNumber).toBe(2);
 			expect(restored?.maxWaveReached).toBe(9);
 			expect(restored?.progress.gold).toBe(88);
+			expect(restored?.progress.souls).toBe(5);
+			expect(restored?.progress.scraps.unique).toBe(0);
 			expect(restored?.panelTriggers).toEqual({
 				character: false,
 				inventory: true,

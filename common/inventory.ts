@@ -119,10 +119,14 @@ export function applyAutoAction(
 	}
 	if (action === "auto-purge") {
 		const amount = purgeYield(item);
-		progress.scraps[item.rarity] += amount;
+		if (item.rarity === "unique") progress.souls += amount;
+		else progress.scraps[item.rarity] += amount;
 		return {
 			changed: true,
-			reason: `Auto-purged ${item.name} for ${amount} ${item.rarity} scrap.`,
+			reason:
+				item.rarity === "unique"
+					? `Auto-purged ${item.name} for ${amount} ${amount === 1 ? "Soul" : "Souls"}.`
+					: `Auto-purged ${item.name} for ${amount} ${item.rarity} scrap.`,
 		};
 	}
 	return "send";
@@ -225,11 +229,15 @@ export function purgeFromInventory(
 	if (!tile) return missing();
 	tile.quantity -= 1;
 	const amount = purgeYield(tile.item);
-	progress.scraps[tile.item.rarity] += amount;
+	if (tile.item.rarity === "unique") progress.souls += amount;
+	else progress.scraps[tile.item.rarity] += amount;
 	removeEmptyInventoryTiles(progress);
 	return {
 		changed: true,
-		reason: `Purged ${tile.item.name} for ${amount} ${tile.item.rarity} scrap.`,
+		reason:
+			tile.item.rarity === "unique"
+				? `Purged ${tile.item.name} for ${amount} ${amount === 1 ? "Soul" : "Souls"}.`
+				: `Purged ${tile.item.name} for ${amount} ${tile.item.rarity} scrap.`,
 	};
 }
 export function sendFromInventory(
@@ -457,13 +465,16 @@ export function promoteScraps(
 	target: Rarity,
 	bulk = false,
 ): ScrapPromotionResult {
-	const rarities: Rarity[] = ["common", "uncommon", "rare", "epic", "unique"];
+	const rarities: Rarity[] = ["common", "uncommon", "rare", "epic"];
 	const source = rarities[rarities.indexOf(target) - 1];
 	if (!source)
 		return {
 			changed: false,
 			promotions: 0,
-			reason: "Common scrap cannot be promoted.",
+			reason:
+				target === "unique"
+					? "Unique items use Souls, not Scrap."
+					: "Common scrap cannot be promoted.",
 		};
 	const available = Math.floor(scraps[source] / SCRAP_PROMOTION_COST);
 	const promotions = bulk ? available : Math.min(1, available);

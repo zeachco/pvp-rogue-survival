@@ -16,7 +16,7 @@ export interface HudCallbacks {
 	onPromoteScrap(target: Rarity, bulk: boolean): void;
 	onSetRarityAction(rarity: Rarity, action: RarityAction): void;
 	onLeaveRealm(): void;
-	onEnterRealm(): void;
+	onEnterRealm(waveNumber: number): void;
 	onOpenDevlog(): void;
 	onBack(): void;
 	onLogout(): void;

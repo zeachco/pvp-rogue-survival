@@ -385,6 +385,21 @@ describe("realm game service", () => {
 		).toBe(1);
 		expect(player.maxWaveReached).toBe(12);
 	});
+	test("enters an explicit best wave and rejects any other requested wave", () => {
+		const { game, messages } = harness();
+		const player = game.join("WaveChooser");
+		player.maxWaveReached = 12;
+		game.handle(player.id, { type: "enterRealm", waveNumber: 12 });
+		expect(player.waveNumber).toBe(12);
+		const invalid = game.join("InvalidWaveChooser");
+		invalid.maxWaveReached = 12;
+		game.handle(invalid.id, { type: "enterRealm", waveNumber: 7 });
+		expect(invalid.realmOptedIn).toBeFalse();
+		expect(messages.get(invalid.id)?.at(-1)).toMatchObject({
+			type: "serverNotice",
+			message: "Choose wave 1 or your current best wave.",
+		});
+	});
 	test("keeps level-one inventory overflow as collectible Training Grounds drops", () => {
 		const { game, messages } = harness();
 		const player = game.join("Overflowed");
@@ -733,6 +748,10 @@ describe("realm game service", () => {
 		game.handle(player.id, { type: "promoteScrap", target: "common" });
 		expect(player.progress.scraps).toEqual(before);
 		expect(messages.get(player.id)?.at(-1)?.type).toBe("serverNotice");
+		player.progress.scraps.epic = 100;
+		game.handle(player.id, { type: "promoteScrap", target: "unique" });
+		expect(player.progress.scraps.epic).toBe(100);
+		expect(player.progress.scraps.unique).toBe(0);
 	});
 	test("defers pushed equipment and returns it to the same player next wave", () => {
 		const { game } = harness();
@@ -1143,6 +1162,7 @@ describe("realm game service", () => {
 		killer.progress.level = 5;
 		killer.progress.xp = cumulativeXpForLevel(5);
 		victim.progress.level = 5;
+		victim.progress.souls = 4;
 		const item = generateItem(2, "rare", 88);
 		killer.progress.inventoryTiles.push({
 			id: "tile",
@@ -1159,6 +1179,17 @@ describe("realm game service", () => {
 		expect(killer.progress.xp).toBe(cumulativeXpForLevel(5));
 		expect(killer.progress.level).toBe(5);
 		expect(killer.progress.souls).toBe(1);
+		expect(victim.progress.souls).toBe(3);
+		expect(
+			messages
+				.get(killer.id)
+				?.some(
+					(message) =>
+						message.type === "chatMessage" &&
+						message.text ===
+							"Victim was defeated by a creep sent by Killer; Killer gained 1 Soul.",
+				),
+		).toBeTrue();
 		expect(victim.realmId).toBeUndefined();
 		expect(victim.realmId).not.toBe(oldRealm);
 		expect(victim.realmOptedIn).toBeFalse();
@@ -1192,6 +1223,7 @@ describe("realm game service", () => {
 			intelligence: 3,
 		};
 		victim.progress.gold = 11;
+		victim.progress.souls = 2;
 		const weapon = generateItem(4, "rare", 123);
 		victim.progress.mainHand = weapon;
 		game.handle(victim.id, { type: "suicide" });
@@ -1205,6 +1237,7 @@ describe("realm game service", () => {
 			intelligence: 1,
 		});
 		expect(victim.progress.gold).toBe(6);
+		expect(victim.progress.souls).toBe(1);
 		expect(victim.progress.mainHand).toEqual(weapon);
 		expect(sovereign.deathEchoes).toHaveLength(1);
 		expect(sovereign.deathEchoes[0]).toMatchObject({

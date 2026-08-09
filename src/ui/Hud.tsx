@@ -292,13 +292,12 @@ export class Hud {
 	private readonly inventoryHeader = (
 		<div class="inventory-header">
 			<div class="currency-grid">
-				{currencyCell("Gold", 0, "gold")}
+				{currencyCell("Gold", 0, "gold", GOLD_TOOLTIP)}
 				{currencyCell("Souls", 0, "souls", SOULS_TOOLTIP)}
-				{currencyCell("Common", 0, "common")}
-				{currencyCell("Uncommon", 0, "uncommon")}
-				{currencyCell("Rare", 0, "rare")}
-				{currencyCell("Epic", 0, "epic")}
-				{currencyCell("Unique", 0, "unique")}
+				{currencyCell("Common", 0, "common", scrapTooltip("Common"))}
+				{currencyCell("Uncommon", 0, "uncommon", scrapTooltip("Uncommon"))}
+				{currencyCell("Rare", 0, "rare", scrapTooltip("Rare"))}
+				{currencyCell("Epic", 0, "epic", scrapTooltip("Epic"))}
 			</div>
 			{this.loadoutNode}
 			{this.inventoryCount}
@@ -576,7 +575,7 @@ export class Hud {
 			if (this.player) this.renderInventory(this.player.progress);
 		};
 		this.rarityFilterNode.prepend(slotFilter);
-		for (const target of ["uncommon", "rare", "epic", "unique"] as const) {
+		for (const target of ["uncommon", "rare", "epic"] as const) {
 			this.bindScrapPromotion(target);
 		}
 		this.characterToggle.onclick = () =>
@@ -2435,7 +2434,10 @@ export class Hud {
 		if (!cell) return;
 		cell.tabIndex = 0;
 		cell.setAttribute("role", "button");
-		cell.setAttribute("aria-label", `Promote scrap to ${target}`);
+		cell.setAttribute(
+			"aria-label",
+			`Promote scrap to ${target}. ${scrapTooltip(capitalize(target))}`,
+		);
 		cell.title = `Click: convert ${SCRAP_PROMOTION_COST} lower-tier scrap into 1 ${target} scrap. Shift-click: convert all complete batches.`;
 		cell.classList.add("is-scrap-promotion");
 		cell.onclick = (event) =>
@@ -2535,6 +2537,7 @@ export class Hud {
 		const signature = [
 			r.mode,
 			this.player?.waveNumber ?? "",
+			this.player?.maxWaveReached ?? "",
 			Number(r.canLeave),
 			r.outgoingQueued,
 			r.incomingQueued,
@@ -2553,14 +2556,27 @@ export class Hud {
 				}
 				type="button"
 			>
-				{r.mode === "training" ? "Enter Realm" : "Leave to Lobby"}
+				{r.mode === "training"
+					? `Enter wave ${Math.max(1, this.player?.maxWaveReached ?? 1)}`
+					: "Leave to Lobby"}
 			</button>
 		) as HTMLButtonElement;
+		const enterWaveOne = (
+			<button class="header-control enter-realm" type="button">
+				Enter wave 1
+			</button>
+		) as HTMLButtonElement;
+		enterWaveOne.onclick = () => {
+			this.closeGameplayPanels();
+			this.callbacks.onEnterRealm(1);
+		};
 		action.onclick =
 			r.mode === "training"
 				? () => {
 						this.closeGameplayPanels();
-						this.callbacks.onEnterRealm();
+						this.callbacks.onEnterRealm(
+							Math.max(1, this.player?.maxWaveReached ?? 1),
+						);
 					}
 				: this.callbacks.onLeaveRealm;
 		action.disabled = r.mode !== "training" && !r.canLeave;
@@ -2589,7 +2605,13 @@ export class Hud {
 		this.realmPanel.classList.remove("is-hidden");
 		this.heroResourceDock.setTrainingMode(r.mode === "training");
 		if (r.mode === "training") {
-			this.realmPanel.replaceChildren(action, devlog, options, logout);
+			this.realmPanel.replaceChildren(
+				action,
+				enterWaveOne,
+				devlog,
+				options,
+				logout,
+			);
 			return;
 		}
 		this.realmPanel.replaceChildren(
@@ -3352,7 +3374,11 @@ function effectiveStatSheet(
 	) as HTMLElement;
 }
 export const SOULS_TOOLTIP =
-	"Earn Souls when a carrier equipped with an item you sent into another player's Realm kills that player. Spend Souls to upgrade Unique items or reroll item properties.";
+	"Purge Unique items to earn Souls. Every real death removes up to 1 Soul; a player killer always gains 1 Soul, even when the defeated player has none. Spend Souls to upgrade Unique items or reroll item properties.";
+export const GOLD_TOOLTIP =
+	"Used with matching Scrap to upgrade non-Unique items.";
+export const scrapTooltip = (rarity: string): string =>
+	`${rarity} Scrap is used with Gold to upgrade ${rarity} items.`;
 
 function currencyCell(
 	label: string,

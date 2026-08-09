@@ -380,7 +380,11 @@ export class GameService {
 				case "leaveRealm":
 					return this.leaveRealm(player);
 				case "enterRealm":
-					return this.enterRealm(player);
+					return this.enterRealm(
+						player,
+						message.waveNumber ?? player.waveNumber,
+						message.waveNumber === undefined,
+					);
 				case "scoreSnapshot":
 				case "logout":
 				case "listHeroes":
@@ -1119,7 +1123,7 @@ export class GameService {
 			this.options.random.next() < Math.min(1, magicFind)
 				? changeItemRarity(item, nextRarity(item.rarity)!, this.seed())
 				: item;
-		if (this.options.random.next() < 0.25) {
+		if (promoted.rarity !== "unique" && this.options.random.next() < 0.25) {
 			const drop: GroundDrop = {
 				id,
 				kind: "scrap",
@@ -1380,24 +1384,24 @@ export class GameService {
 		const activeRealm = player.realmId
 			? this.realms.get(player.realmId)
 			: undefined;
+		const lostGold = Math.floor(player.progress.gold / 2);
+		const lostSouls = Math.min(1, player.progress.souls);
 		if (activeRealm)
 			this.sendRealmSystem(
 				activeRealm,
 				killer
-					? `${player.name} was defeated by a creep sent by ${killer.name}.`
-					: `${player.name} was defeated.`,
+					? `${player.name} was defeated by a creep sent by ${killer.name}; ${killer.name} gained 1 Soul.`
+					: `${player.name} was defeated and lost ${lostSouls} ${lostSouls === 1 ? "Soul" : "Souls"}.`,
 			);
-		const lostGold = Math.floor(player.progress.gold / 2);
-		const lostSouls = Math.floor(player.progress.souls / 2);
 		player.progress.gold -= lostGold;
 		player.progress.souls -= lostSouls;
 		if (killer) {
 			killer.progress.gold += lostGold;
-			killer.progress.souls += lostSouls;
+			killer.progress.souls += 1;
 			this.options.repository.markDirty(killer.id);
 			this.sendProgress(
 				killer,
-				`Defeat spoils: gained ${lostGold} Gold and ${lostSouls} Souls.`,
+				`Defeat spoils: gained ${lostGold} Gold and 1 Soul.`,
 			);
 		}
 		player.progress.xp = cumulativeXpForLevel(1);
@@ -1430,11 +1434,6 @@ export class GameService {
 		const defeatedRealmId = player.realmId;
 		player.realmOptedIn = false;
 		if (defeatedRealmId) {
-			if (killer) {
-				killer.progress.souls += 1;
-				this.options.repository.markDirty(killer.id);
-				this.sendProgress(killer, "Realm defeated: gained 1 Soul.");
-			}
 			this.dissolveRealm(defeatedRealmId);
 			for (const created of this.matchWaitingPlayers())
 				this.activateRealm(created);
@@ -1538,7 +1537,15 @@ export class GameService {
 		this.dispatchCurrentWave(player, "training");
 		this.broadcastRealms();
 	}
-	private enterRealm(player: Player): void {
+	private enterRealm(
+		player: Player,
+		waveNumber: number,
+		legacyRequest = false,
+	): void {
+		const bestWave = Math.max(1, player.maxWaveReached);
+		if (!legacyRequest && waveNumber !== 1 && waveNumber !== bestWave)
+			return this.notice(player, "Choose wave 1 or your current best wave.");
+		player.waveNumber = waveNumber;
 		player.realmOptedIn = true;
 		player.waitingSince = Date.now();
 		const created = this.matchWaitingPlayers();
