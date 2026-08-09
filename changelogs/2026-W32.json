@@ -1,42 +1,48 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T18:34:05.069Z",
+	"generatedAt": "2026-08-09T18:42:12.957Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "New Content & System Overhaul",
+			"summaryTitle": "Updates & Polishes",
 			"summary": {
 				"features": [
-					"A new unique buckler and its associated attributes have been added to the game.",
-					"The Devlog has been significantly upgraded, moving history into a fully featured section with modern navigation (SPA routing, browser back support) and supporting realm-safe warnings. Voting and submitting content is now restricted to logged-in players.",
-					"Improved functionality for item drops when inventory overflows, allowing dropped items to appear on the ground.",
-					"Added dedicated admin controls to streamline feature request processes and general system stability."
+					"Added a new unique buckler with improved attributes and controls for feature suggestions via the Devlog voting system.",
+					"The Devlog interface received significant updates, including move history into the game client (with SPA routing), browser back support, and dedicated update categories for better readability."
 				],
 				"bugfixes": [
-					"Self-messaging issues have been resolved, ensuring that a player sees their own messages correctly alongside those of others in chat.",
-					"Fixed instances where spells or inventory menus were inaccessible while open.",
-					"Addressed the rendering issue of coins clipping through underground geometry.",
-					"Resolved glitches related to 'healing light' displacement and visual errors from item models (e.g., invader model)."
+					"Echo self messages are now correctly displayed in chat, showing both player's own messages and those of others.",
+					"Fixed issues related to spell ownership colors and visual clarity, giving enemy effects a distinct red tint and clarifying different magical sources.",
+					"The game client now handles inventory operations more robustly, preventing spells or data loss when accessing the inventory from other panels.",
+					"Resolved cosmetic bugs such as coins clipping underground and improper healing light displacement.",
+					"Fixed issues with items equipping spells not appearing in the spell bar or activating correctly."
 				],
 				"performance": [
-					"Optimized rendering by limiting redundant overhead, ensuring spell projectiles, gold, and scrap remain unlit and outside dynamic shadow maps. Redundant hero fallback presentations are detached after model loading.",
-					"Implemented a light effect pooling system to drastically reduce performance costs associated with creating and managing numerous transient light objects."
+					"Implemented a specialized object pooling system for light effects to dramatically reduce resource overhead and improve stability during high-intensity combat."
 				],
 				"balance": [
-					"Tuned combat balance by making Katar's abilities capable of blocking, and redesigning the Swamp spell into a more consistent circular attack pattern.",
-					"Adjusted global spell mechanics including improvements to 'Magic Find' and changes related to Scepters/Auras consistency."
+					"Adjustments were made across various systems, including restructuring Katar's abilities and modifying the movement pattern of the Swamp spell. Also tuned Magic Find generation related to Septers/Auras and capped multi-hit spell proc chances."
 				],
 				"ux": [
-					"The Devlog interface received major quality-of-life improvements, separating content into dedicated update categories for better readability and featuring mobile responsiveness enhancements.",
-					"Refinements to the user experience across panels, including making character and inventory tooltips clearer (e.g., showing proc chances/passive blocks) and adding effect badges for better status visualization.",
-					"Color ownership clarification was added for spells: enemy effects are now tinted red, hero blood magic is purple, and distinct colors were assigned for non-healing Rapid Regeneration effects.",
-					"Improved panel visibility through modern masking techniques and back blur to enhance text readability across the board. The general UI layout has also been refined."
+					"The Devlog experience was greatly enhanced for readability and usability, implementing a mask close button and mobile view improvements.",
+					"Spell ownership visuals were clarified, giving distinct colors for enemy effects (red) and hero blood spells (purple).",
+					"UI elements like passive skills on equipped gear are now displayed clearly in the skill list with proc chances.",
+					"Improved various panels across the game client, such as displaying advanced stat details (like Block values) and providing better context around souls."
+				],
+				"graphics": [
+					"Optimized rendering performance by making non-essential dynamic objects (like Gold, projectiles, and scrap) unlit and excluding them from shadow maps where appropriate."
 				]
 			},
 			"commits": [
+				{
+					"hash": "8c67c86c736f788385ae7a17bc2a134f5650d08c",
+					"authoredAt": "2026-08-09T14:41:40-04:00",
+					"title": "ux: devlog responsiveness ui",
+					"description": ""
+				},
 				{
 					"hash": "040b8fe366be318ddb307b5225fbb89b31da113c",
 					"authoredAt": "2026-08-09T14:28:02-04:00",
@@ -626,7 +632,14 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics"
+			]
 		}
 	]
 }

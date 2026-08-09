@@ -1,23 +1,35 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T18:34:05.016Z",
+	"generatedAt": "2026-08-09T18:42:12.918Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Enhanced Spell System and Core Experience Polish",
+			"summaryTitle": "Spell System Overhaul & Combat Quality of Life",
 			"summary": {
 				"features": [
-					"A comprehensive spell management window was added, allowing users to customize up to six equipped spell slots for manual casting or right-click auto-fire. New functionality includes the ability to aim spells using the camera view, and visible resource bars now render above multiple overlapping units."
+					"Overhauled spell management with a dedicated window and support for editable spell loadouts (up to six slots).",
+					"Improved combat controls include manual casting, right-click auto-fire aiming, and persistent passive skills.",
+					"Enhanced camera interaction supports drag orbit controls without losing hero facing and new aim-with-camera functionality.",
+					"The interface saw additions of editable columns and a dedicated chat system for communication.",
+					"Implemented progressive 3D transforms and updated the main UI structure."
 				],
 				"bugfixes": [
-					"The system has been corrected to allow auras spells to be dropped in the inventory.",
-					"Multiple visual bugs were resolved across rendering and UI elements, including fixes for ground clipping, 3D positioning issues, and general mobile experience adjustments."
+					"Resolved multiple visual and rendering issues, including ground clipping problems and adjustments for mobile play.",
+					"Corrected errors related to positioning in 3D environments and general UI improvements.",
+					"Fixed bugs regarding spell management, such as making aura spells dropable."
+				],
+				"balance": [
+					"Minor changes were made across combat protocols and specs following the loadout overhaul."
 				],
 				"ux": [
-					"Improvements were made to various user interfaces, including column additions and updated controls. Fullscreen support was added alongside a mouse movement feature that recenters the view for better usability."
+					"Improved resource visibility by rendering creep bars above overlapping units, while also removing unnecessary context menu options."
+				],
+				"graphics": [
+					"Integrated animated 3D models into the game world.",
+					"Enhanced map functionality with full-screen support and mouse recentering capabilities."
 				]
 			},
 			"commits": [
@@ -172,7 +184,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "UX"]
+			"categories": ["Features", "Bugfixes", "Balance", "UX", "Graphics"]
 		}
 	]
 }

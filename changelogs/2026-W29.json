@@ -1,24 +1,27 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-09T18:21:46.671Z",
+	"generatedAt": "2026-08-09T18:42:12.837Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Blood Magic and Gameplay Overhaul",
+			"summaryTitle": "Blood Magic Integration & Gameplay Overhaul",
 			"summary": {
 				"features": [
-					"Added rings, amulets, and new spells centered around blood magic.",
-					"Introduced a leaderboard system along with suicide mechanics for top player ranking.",
-					"Implemented server recovery improvements and major tweaks to enhance solo play experience.",
-					"Equipped multiple enhancements including refined weapon systems and detailed character stat displays (HUI).",
-					"Revamped core game mechanics and UI components, alongside general inventory and panel UX improvements."
+					"Revamped gameplay featuring new spells, mechanics, and the addition of rings and amulets centered around blood magic.",
+					"Introduced robust systems for solo play, along with general multiplayer tweaks for improved cooperative experiences.",
+					"Added a persistent leaderboard system to track player progress and top performers.",
+					"Updated various equipment slots through general weapon and item tweaks, expanding core spell functionality.",
+					"Implemented significant User Experience overhauls across the inventory, UI elements, and informational panels."
 				],
 				"bugfixes": [
-					"Corrected issues with rent and scepter auras mechanics.",
-					"Fixed a persistent button extraction bug."
+					"Fixed existing issues concerning scepter auras and rent mechanics.",
+					"Corrected an error related to button extraction/functionality."
+				],
+				"ux": [
+					"Multiple improvements implemented for overall UI consistency, panel information display, and general player experience flow."
 				]
 			},
 			"commits": [
@@ -161,7 +164,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes"]
+			"categories": ["Features", "Bugfixes", "UX"]
 		}
 	]
 }
