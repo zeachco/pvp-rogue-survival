@@ -171,11 +171,13 @@ input {
 	position: absolute;
 	z-index: 5;
 	top: 0;
-	left: 16px;
-	right: 16px;
+	left: 0;
+	right: 0;
 	height: var(--game-header-height);
 	border-bottom: 1px solid rgba(138, 216, 255, 0.28);
-	background: #101418;
+	background: rgba(16, 20, 24, 0.72);
+	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px);
 	overflow: visible;
 	pointer-events: none;
 }
@@ -221,18 +223,18 @@ input {
 }
 
 .character-panel-toggle {
-	left: 0;
+	left: 16px;
 }
 
 .inventory-panel-toggle {
-	right: 0;
+	right: 16px;
 }
 
 .hud-top {
 	position: absolute;
 	top: 4px;
-	left: 46px;
-	right: 46px;
+	left: 62px;
+	right: 62px;
 }
 
 .online-count {
@@ -268,7 +270,7 @@ input {
 .header-login-actions {
 	position: absolute;
 	top: 6px;
-	left: 0;
+	left: 16px;
 	display: flex;
 	gap: 8px;
 	pointer-events: auto;
@@ -1604,6 +1606,9 @@ input {
 	padding: 10px;
 	overflow-y: auto;
 	border-radius: 10px;
+	background: rgba(13, 20, 24, 0.72);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
 	pointer-events: auto;
 	transform: translateX(0);
 	transform-origin: left center;
@@ -1629,7 +1634,9 @@ input {
 	overflow: hidden;
 	border: 1px solid rgba(138, 216, 255, 0.35);
 	border-radius: 10px;
-	background: rgba(13, 20, 24, 0.9);
+	background: rgba(13, 20, 24, 0.8);
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
 	pointer-events: auto;
 	transform: translateX(0);
 	transform-origin: right center;
