@@ -374,6 +374,35 @@
 		line-height: 1.65;
 	}
 
+	.devlog-summary {
+		display: grid;
+		gap: 16px;
+	}
+
+	.legacy-summary hr {
+		border: 0;
+		border-top: 1px solid #274750;
+		margin: 16px 0;
+	}
+
+	.summary-section h4 {
+		margin: 0 0 6px;
+		color: #6fffe2;
+		font-size: 0.82rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.summary-section ul {
+		margin: 0;
+		padding-left: 20px;
+	}
+
+	.summary-section li {
+		margin: 5px 0;
+		color: #c4d9de;
+	}
+
 	.tags {
 		display: flex;
 		flex-wrap: wrap;

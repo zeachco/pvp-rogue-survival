@@ -1,14 +1,31 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-09T14:38:38.801Z",
-	"model": "gemma4:e2b",
+	"generatedAt": "2026-08-09T17:18:58.359Z",
+	"model": "gemma4:e4b",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Major System Overhaul and Feature Expansion",
-			"summary": "This week introduced extensive new gameplay features and deep system changes. New mechanics were added around blood magic, including rings, amulets, and new spells and mechanics. The leaderboard system was implemented, along with complex suicide and top player mechanics. The server now uses a database-based structure utilizing Bun SQL. Multiplayer tweaks, solo play improvements, and weapon tweaks were also implemented. Significant UI work included adding more panel information, UI diffs, inventory updates, character stats, item/spell additions, game mechanics adjustments, and various UI fixes, including redesigns of mechanics and UI numbers and the weapon system.",
+			"summaryTitle": "Build Enhancements & Blood Magic Focus",
+			"summary": {
+				"features": [
+					"New rings, amulets, and blood magic spells have been added. Added new customizable spells and various aura tweaks to deepen combat variety. The leaderboard system is now live, alongside expanded player mechanics including top player titles and suicide features for dramatic play. Multiplayer experiences and solo gameplay have received significant tweaks across the board. Significant mechanical updates include enhancements to weapon systems, the introduction of detailed character stats (like Hui Char), and general additions of new items and spells."
+				],
+				"bugfixes": [
+					"Fixed issues related to rent and scepter auras mechanics. Resolved an extract button bug."
+				],
+				"performance": [
+					"Implemented DB-based server architecture using Bun SQL for stability and scale."
+				],
+				"balance": [
+					"General adjustments made to core game mechanics, including various tweaks to existing systems."
+				],
+				"ux": [
+					"Received several general UX improvements, notably updates to the inventory system and new panel information has been added for better user experience. UI elements were polished extensively with multiple redesigns and enhancements."
+				],
+				"graphics": []
+			},
 			"commits": [
 				{
 					"hash": "894c10cbe05bc63b58596e835256b7a77d107f6f",
@@ -149,7 +166,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["General fixes", "Refactor"]
+			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
 		}
 	]
 }

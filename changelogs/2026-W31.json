@@ -1,14 +1,29 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T16:07:57.303Z",
+	"generatedAt": "2026-08-09T17:18:58.466Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Spell Management and UI Overhaul",
-			"summary": "This week focused on extensive updates to spell management and overall user experience. New features included a dedicated spell management window and the addition of editable spell loadouts, which limits active spell loadouts to six persisted slots while supporting manual casting, right-click auto-fire, and keeping passive skills permanently active. The combat controls were refined with new camera orbit controls using left-drag without changing hero facing, retaining right-click as the explicit aiming control. Visual elements were updated with rendered creep resource bars above overlapping units. Additional features included fullscreen mode, mouse move recenter functionality, added columns, aim-with-camera capabilities, and a progressive 3D transform. Several fixes addressed visual and technical issues, including making auras spells dropable, fixing ground clipping and 3D rendering/positioning, improving UI elements, removing context menu options, and addressing adjustments for visuals and mobile experience. Auras spells were also fixed to be dropable, and general visual and chat bugs were resolved alongside camera zoom fixes.",
+			"summaryTitle": "Major Spell Management and Combat Updates",
+			"summary": {
+				"features": [
+					"Added editable spell loadouts limited to six slots with support for manual casting, auto-fire, and persistent passive skills. Introduced new aiming controls via camera movement and aimed with camera functionality. Implemented a new chat system and bonus XP system for sending messages. Added healing spell effects and freeze mechanics. Updated UI and skills mechanics. New feature for rendering creep resource bars above overlapping units."
+				],
+				"bugfixes": [
+					"Fixed issues with auras spells being droppable, ground clipping, 3D rendering and positioning bugs, and various visual/chat bugs. Fixed long spell bar issue and general healing related fixes."
+				],
+				"performance": [],
+				"balance": [],
+				"ux": [
+					"Improved UI elements and mechanics. Reworked several spells and specification files. Added autofilter functionality to the chat system."
+				],
+				"graphics": [
+					"Introduced 3D animated models and a progressive 3D transform for improved spatial interaction."
+				]
+			},
 			"commits": [
 				{
 					"hash": "d38170abb885e2540ce8879b7ec9ec58ffa22517",
@@ -173,7 +188,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["General fixes", "Refactor"]
+			"categories": ["Features", "Bugfixes", "UX", "Graphics"]
 		}
 	]
 }

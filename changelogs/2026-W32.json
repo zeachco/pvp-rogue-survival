@@ -1,15 +1,52 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T16:07:57.418Z",
+	"generatedAt": "2026-08-09T17:18:58.511Z",
 	"model": "gemma4:e2b",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Reworked Spell Effects and UI",
-			"summary": "This week focused heavily on refining the visual and functional aspects of spells and character interaction. We clarified spell ownership colors by tinting enemy spell effects, projectiles, and attack areas red, recoloring hero blood spells purple, and introducing a distinct non-Healing effect for Rapid Regeneration. Features included adding two-handed weapon classes and rework visuals for lights and skills, alongside various balancing changes such as capping multi-hit spell proc chance and adjusting mana costs; the minimum level requirement for spells was removed while increasing their cost. New features introduced included a new spell called Blizzard and reworked the Boomrang spell and Rage mechanisms, along with implementing a reroll mechanism and stat UI fixes. The spell system received numerous refinements: filtering button logic, placing spell activation costs and proc behavior into computed tooltips, replacing catalog dropdowns with additive checkbox buttons, and adding a new badge for learning spells. Visual improvements included adding shadows and improving light for certain spells, setting default lights to all, and fixing rendering issues like throw and visual/spell fixes. Furthermore, the HUD was updated by grouping hero effects above health, and spell HUDs were fixed. Finally, work focused on ensuring items equipped with spells correctly add passive mechanics and that thorns from spells are displayed in the HUD.",
+			"summaryTitle": "Spell System and UI Overhaul",
+			"summary": {
+				"features": [
+					"Introduced new unique bucklers and attributes. Added a new spell called Blizzard, reworked the Boomrang spell, and revamped Rage mechanisms. Introduced reroll mechanics and unique items. Implemented systems for proposing features and submitting bugs via a voting system."
+				],
+				"bugfixes": [
+					"Fixed issues with equipped items applying passive procs. Resolved coin clipping underground. Addressed visual and game mechanics related to spells and HUDs. Improved server-side disconnect logging."
+				],
+				"performance": [
+					"Created a pool of light effects to reduce rendering costs by sharing instances across different effects. Reduced shadow and fallback overhead by making spell projectiles, Gold, and Scrap unlit/outside shadow maps, and detaching redundant hero/clone presentations."
+				],
+				"balance": [
+					"Adjusted magic find and septers/auras. Capped multi-hit spell proc chance. Removed minimum level requirement for spells but increased cost. Balanced spells and cooldowns. Updated stamina mechanics. Changed starting gear. Reworked the Arcane Bolt starting skill. Adjusted spell and cooldown values."
+				],
+				"ux": [
+					"Clarified spell ownership colors (enemy spells/projectiles tinted red; hero blood spells purple; Rapid Regeneration distinct non-Healing effect). Provided context around souls via tooltips. Reworked spell previews by moving costs/procs to computed properties, replacing catalog dropdowns with checkboxes. Improved new player lore positioning and modals. Enhanced panel space and positioning for inventory and character views. Added effect badges with detailed tooltips. Refined general UI layout, including the Devlog structure and panel visibility."
+				],
+				"graphics": [
+					"Implemented shadow and improved light rendering for certain spells. Defaulted all lights to off or dynamic settings. Reworked spell and skill visuals, including lights and effects. Added new models and updated coin graphics."
+				]
+			},
 			"commits": [
+				{
+					"hash": "9ddca12ec4ade5686d9f821433a8dc67db788914",
+					"authoredAt": "2026-08-09T12:46:09-04:00",
+					"title": "feat: added some admin controls for feature requests",
+					"description": "also some refactors and fixes around gooey swamp"
+				},
+				{
+					"hash": "0b7e576edd3e87e65a42b8571d396173220f792f",
+					"authoredAt": "2026-08-09T12:27:35-04:00",
+					"title": "feat: new unique buckler and attributes",
+					"description": ""
+				},
+				{
+					"hash": "38b085fbbe48de0469e207052a0c20c1f5c78689",
+					"authoredAt": "2026-08-09T12:19:47-04:00",
+					"title": "feat(devlog): move history into the game",
+					"description": "- add SPA routing with browser back support and realm-safe navigation warnings\n- keep the translucent Devlog available in every realm state\n- load requests and votes from the selected WebSocket server"
+				},
 				{
 					"hash": "1e38261afd197304e45863fa55cbcaf50447ada5",
 					"authoredAt": "2026-08-09T12:06:25-04:00",
@@ -545,7 +582,14 @@
 					"description": ""
 				}
 			],
-			"categories": ["General fixes", "Refactor"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics"
+			]
 		}
 	]
 }

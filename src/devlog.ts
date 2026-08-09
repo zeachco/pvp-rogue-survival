@@ -1,4 +1,9 @@
 import "./devlog.css";
+import {
+	DEVLOG_SUMMARY_BUCKETS,
+	type DevlogSummary,
+	type DevlogSummaryBucket,
+} from "../common/devlog";
 import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
 import { SessionStorage } from "./platform/SessionStorage";
@@ -39,6 +44,39 @@ function element<K extends keyof HTMLElementTagNameMap>(
 	return node;
 }
 
+const summaryBucketLabels: Record<DevlogSummaryBucket, string> = {
+	features: "Features",
+	bugfixes: "Bugfixes",
+	performance: "Performance",
+	balance: "Balance",
+	ux: "UX",
+	graphics: "Graphics",
+};
+
+function renderSummary(summary: DevlogSummary | string): HTMLElement {
+	const container = element("div", undefined, "devlog-summary");
+	if (typeof summary === "string") {
+		const paragraph = element("p", undefined, "legacy-summary");
+		for (const part of summary.split(/(\n\n+|\n)/)) {
+			if (/^\n\n+$/.test(part)) paragraph.append(element("hr"));
+			else if (part === "\n") paragraph.append(element("br"));
+			else if (part) paragraph.append(document.createTextNode(part));
+		}
+		container.append(paragraph);
+		return container;
+	}
+	for (const bucket of DEVLOG_SUMMARY_BUCKETS) {
+		const updates = summary[bucket];
+		if (!updates?.length) continue;
+		const section = element("section", undefined, "summary-section");
+		const list = element("ul");
+		list.append(...updates.map((update) => element("li", update)));
+		section.append(element("h4", summaryBucketLabels[bucket]), list);
+		container.append(section);
+	}
+	return container;
+}
+
 function renderWeek(key: string, data: string | WeeklyDevlog): void {
 	for (const button of calendar.querySelectorAll("button"))
 		button.classList.toggle("is-selected", button.dataset.week === key);
@@ -59,7 +97,7 @@ function renderWeek(key: string, data: string | WeeklyDevlog): void {
 		article.append(
 			element("small", period.label),
 			element("h3", period.summaryTitle),
-			element("p", period.summary),
+			renderSummary(period.summary),
 		);
 		const tags = element("div", undefined, "tags");
 		tags.append(

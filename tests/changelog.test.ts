@@ -38,35 +38,59 @@ describe("generated devlog history", () => {
 			},
 		]);
 
-		expect(prompt).toContain("synthesize every supplied reportable commit");
+		expect(prompt).toContain(
+			"Prioritize completeness for features and bugfixes",
+		);
 		expect(prompt).toContain("regardless of its position in the log");
+		expect(prompt).toContain(
+			"features for new player-facing functionality, bugfixes for fixed bugs",
+		);
+		expect(prompt).toContain("performance for what became faster");
+		expect(prompt).toContain("balance for tuning");
+		expect(prompt).toContain("ux for design or experience changes");
+		expect(prompt).toContain(
+			"graphics for rendering or visual-presentation work",
+		);
+		expect(prompt).toContain(
+			"Every distinct player-facing feature and every distinct fixed problem must appear",
+		);
+		expect(prompt).toContain(
+			"preserve important standalone systems such as authentication",
+		);
+		expect(prompt).toContain(
+			"For performance, balance, ux, and graphics, provide an abstract higher-level recap",
+		);
+		expect(prompt).toContain("Use no more than three concise lines per bucket");
+		expect(prompt).toContain("only its primary player-facing bucket");
 		expect(prompt).toContain("feat: add realms");
 		expect(prompt).toContain("fix: preserve drops");
 	});
 
-	test("schema-validates generated periods", () => {
+	test("schema-validates structured summary buckets", () => {
 		expect(
 			extractPeriods(
-				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":"Added realms and preserved drops.","categories":["Features"]}]}',
-			),
-		).toHaveLength(1);
-		expect(
-			extractPeriods(
-				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":"Added realms and preserved drops."}],"categories":["Features"]}',
+				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":{"features":["Added realms."],"bugfixes":["Preserved drops."]}}]}',
 			),
 		).toEqual([
 			{
 				key: "2026-W32",
 				title: "Realm work",
-				summary: "Added realms and preserved drops.",
-				categories: ["Features"],
+				summary: {
+					features: ["Added realms."],
+					bugfixes: ["Preserved drops."],
+				},
 			},
 		]);
 		expect(() =>
 			extractPeriods(
-				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":"","categories":"Features"}]}',
+				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":{}}]}',
 			),
 		).toThrow("Ollama returned invalid changelog JSON");
+		expect(() =>
+			extractPeriods(
+				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":{"other":["Unstructured update."]}}]}',
+			),
+		).toThrow('Unrecognized key: "other"');
 	});
 
 	test("retries an invalid week with progressively larger models", async () => {
@@ -87,7 +111,7 @@ describe("generated devlog history", () => {
 				async (model) => {
 					attempts.push(model);
 					if (model !== "gemma4:latest") return '{"periods":[{"periods":[]}]}';
-					return '{"periods":[{"key":"2026-W32","title":"Started","summary":"Initialized the project."}]}';
+					return '{"periods":[{"key":"2026-W32","title":"Started","summary":{"features":["Initialized the project."]}}]}';
 				},
 			);
 
@@ -140,8 +164,10 @@ describe("generated devlog history", () => {
 					{
 						key: week.key,
 						title: "Started the project",
-						summary: "Initialized the complete project foundation.",
-						categories: [],
+						summary: {
+							features: ["Initialized the complete project foundation."],
+							graphics: ["Established the arena presentation."],
+						},
 					},
 				],
 			]),
@@ -154,6 +180,7 @@ describe("generated devlog history", () => {
 		expect(periodKeys.indexOf("summary")).toBeLessThan(
 			periodKeys.indexOf("commits"),
 		);
+		expect(document.periods[0].categories).toEqual(["Features", "Graphics"]);
 	});
 
 	test("parses commit titles and descriptions without diff content", () => {

@@ -2,6 +2,11 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { $ } from "bun";
 import { z } from "zod";
+import {
+	DEVLOG_SUMMARY_BUCKETS,
+	type DevlogSummary,
+	type DevlogSummaryBucket,
+} from "../common/devlog";
 
 export interface CommitEntry {
 	hash: string;
@@ -14,10 +19,19 @@ export interface DevlogPeriod {
 	key: string;
 	label: string;
 	summaryTitle: string;
-	summary: string;
+	summary: DevlogSummary | string;
 	commits: CommitEntry[];
 	categories: string[];
 }
+
+const SUMMARY_BUCKET_LABELS: Record<DevlogSummaryBucket, string> = {
+	features: "Features",
+	bugfixes: "Bugfixes",
+	performance: "Performance",
+	balance: "Balance",
+	ux: "UX",
+	graphics: "Graphics",
+};
 
 export interface WeeklyDevlog {
 	week: string;
@@ -34,24 +48,31 @@ export interface WeekSource {
 	projectInitialized: boolean;
 }
 
+const summaryLineSchema = z.string().trim().min(1);
+const generatedSummarySchema = z
+	.strictObject({
+		features: z.array(summaryLineSchema).optional(),
+		bugfixes: z.array(summaryLineSchema).optional(),
+		performance: z.array(summaryLineSchema).optional(),
+		balance: z.array(summaryLineSchema).optional(),
+		ux: z.array(summaryLineSchema).optional(),
+		graphics: z.array(summaryLineSchema).optional(),
+	})
+	.refine(
+		(summary) =>
+			DEVLOG_SUMMARY_BUCKETS.some((bucket) => summary[bucket]?.length),
+		"At least one summary bucket must contain an update.",
+	);
+
 const generatedPeriodSchema = z.strictObject({
 	key: z.string().regex(/^\d{4}-W\d{2}$/),
 	title: z.string().trim().min(1),
-	summary: z.string().trim().min(1),
-	categories: z.array(z.string().trim().min(1)).optional(),
+	summary: generatedSummarySchema,
 });
 
-const generatedResponseSchema = z
-	.strictObject({
-		periods: z.array(generatedPeriodSchema),
-		categories: z.array(z.string().trim().min(1)).optional(),
-	})
-	.transform(({ periods, categories }) => ({
-		periods: periods.map((period) => ({
-			...period,
-			categories: period.categories ?? categories ?? [],
-		})),
-	}));
+const generatedResponseSchema = z.strictObject({
+	periods: z.array(generatedPeriodSchema),
+});
 
 type GeneratedPeriod = z.output<
 	typeof generatedResponseSchema
@@ -198,9 +219,12 @@ export function promptFor(weeks: WeekSource[]): string {
 		.join("\n\n");
 
 	return `Write detailed, gamer-facing development changelogs from only the supplied semantic Git commit titles and descriptions. Do not invent details or mention commit hashes.
-Use balance for balance-change descriptions, fix for bugs fixed, feat for features added, ux for design or experience changes, and perf for what became faster. General fixes and Refactor are presence-only weekly categories: mention each at most once and never infer or enumerate its underlying work.
-For each week, the summary must synthesize every supplied reportable commit into one detailed paragraph. Give every commit meaningful coverage, regardless of its position in the log; do not focus on or summarize only the newest or last commit.
-Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":"one detailed paragraph covering all supplied reportable commits","categories":["concise category"]}]}.
+Use features for new player-facing functionality, bugfixes for fixed bugs, performance for what became faster or more efficient, balance for tuning, ux for design or experience changes, and graphics for rendering or visual-presentation work. Ignore grouped General fixes and Refactor entries; they provide context only and must not become summary lines.
+Prioritize completeness for features and bugfixes. Before writing, account for every feat and fix commit regardless of its position in the log. Every distinct player-facing feature and every distinct fixed problem must appear in its corresponding bucket; never omit one because another change seems newer, larger, or more relevant.
+Regroup related feat and fix commits into concise concepts instead of listing commits individually. Fold follow-up implementation, polish, and repairs into the parent concept when they concern the same feature, but preserve important standalone systems such as authentication, multiplayer, progression, equipment, spells, and major Devlog capabilities as distinct summary lines. Consolidate closely related commits without losing distinct feature additions or distinct bugs fixed.
+For performance, balance, ux, and graphics, provide an abstract higher-level recap. Combine related work aggressively and summarize its overall player-facing effect rather than covering every commit separately. Use no more than three concise lines per bucket unless substantially different systems require more.
+Place each change in only its primary player-facing bucket. Do not repeat information across buckets and do not copy semantic commit prefixes.
+Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":{"features":["Feature recap"],"bugfixes":["Bug-fix recap"],"performance":["Performance recap"],"balance":["Balance recap"],"ux":["UX recap"],"graphics":["Graphics recap"]}}]}. Omit empty summary buckets.
 Return exactly one period for every requested week, in this order: ${requestedKeys.join(", ")}.
 
 Git logs for the requested weeks:
@@ -239,11 +263,9 @@ export function buildDocument(
 ): WeeklyDevlog {
 	const result = generated.get(week.key);
 	if (!result) throw new Error(`Ollama omitted or invalidated ${week.key}.`);
-	const categories = [...result.categories];
-	for (const category of week.groupedCategories)
-		if (!categories.includes(category)) categories.push(category);
-	if (week.projectInitialized && !categories.includes("Project initialization"))
-		categories.push("Project initialization");
+	const categories = DEVLOG_SUMMARY_BUCKETS.filter(
+		(bucket) => result.summary[bucket]?.length,
+	).map((bucket) => SUMMARY_BUCKET_LABELS[bucket]);
 	const periods: DevlogPeriod[] = [
 		{
 			key: week.key,
