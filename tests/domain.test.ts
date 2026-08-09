@@ -1630,6 +1630,8 @@ test("keeps weapon actives as cooldown-weighted procs", () => {
 	expect(effectiveSkillLevel(state, "bash")).toBe(0);
 	expect(effectiveSkillLevel(state, "thorns")).toBe(1);
 	expect(weaponProcSkills(state)).toEqual([{ id: "bash", level: 7 }]);
+	state.level = 4;
+	expect(weaponProcSkills(state)).toEqual([{ id: "bash", level: 4 }]);
 	expect(weaponSkillTriggerChance(10)).toBe(0.1);
 	expect(weaponSkillTriggerChance(1)).toBe(1);
 	expect(weaponSkillTriggerChance(0.5)).toBe(1);

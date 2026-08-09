@@ -27,6 +27,8 @@ Healing is the only spell globally bound to a newly created hero. Extraction upg
 
 ## Items and Skills
 
+- A non-passive skill carried by the equipped main-hand weapon retains its basic-attack proc independently of permanent learning or active-slot assignment. Its base proc level matches the weapon's item level, then the ordinary hero-level restriction caps its effective level; a level-6 Scepter therefore uses level 6, or the hero's lower level when below 6. The proc remains represented once as a passive/read-only spell-rail entry with its item source and trigger chance; learning the same skill never disables the item's proc.
+
 - Force Field uses twice its former base push: its outward launch is up to 7.2 m/s and diminishes linearly to zero at its level-scaled radius. Pushed enemies remain constrained inside the arena.
 
 - Spells have no minimum hero-level requirements. Once learned permanently or supplied by equipment, a spell can be equipped, assigned, active, and cast immediately. Spells that formerly required a hero level instead convert that old threshold into a higher authored Mana cost equal to the hero's maximum Mana at matching Intelligence, using `5 + 2 * Intelligence`: Orbiting Hammers costs 25 Mana (former level 10), Frozen Orb costs 45 Mana (former level 20), and Blizzard starts at 55 Mana (former level 25) before its skill-level scaling.

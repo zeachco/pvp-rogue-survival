@@ -1082,9 +1082,11 @@ describe("arena systems", () => {
 		);
 		expect(combat.attacking).toBeTrue();
 		expect(
-			combat.spellSlots(progress, hero).find((slot) => slot.id === "bash")
-				?.castProgress,
-		).toBe(0);
+			combat.spellSlots(progress, hero).find((slot) => slot.id === "bash"),
+		).toMatchObject({
+			passive: true,
+			procChancesOnAttacks: expect.any(Number),
+		});
 		expect(state.attacks).toHaveLength(1);
 		expect(state.attacks[0].skill).toBeUndefined();
 		expect(hero.rage).toBe(rage + BASIC_ATTACK_RAGE_GAIN);
@@ -1285,8 +1287,8 @@ describe("arena systems", () => {
 			scraps: emptyScraps(),
 			mainHand: staff,
 			inventoryTiles: [],
-			learnedSkills: [],
-			learnedSkillLevels: {},
+			learnedSkills: ["arcaneBolt" as const],
+			learnedSkillLevels: { arcaneBolt: 1 },
 			universalSkills: [],
 			equippedSkills: [],
 			autoFireSkills: [],

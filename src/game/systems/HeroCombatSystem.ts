@@ -166,6 +166,11 @@ export class HeroCombatSystem {
 			healing.manaCost *
 			(1 - resourceReduction(progress, "mana", effectiveStats));
 		const autoFire = new Set(autoFireSkillIds(progress));
+		if (
+			this.manualSkill &&
+			!equippedActiveSkillIds(progress).includes(this.manualSkill)
+		)
+			this.manualSkill = undefined;
 		if (this.manualSkill === "reflectiveSurge") {
 			if (!autoFire.has("reflectiveSurge")) hero.activateReflectiveSurge();
 			this.manualSkill = undefined;
@@ -1216,14 +1221,13 @@ export function weaponProcSkills(
 	progress: PlayerProgress,
 ): Array<{ id: SkillId; level: number }> {
 	if (progress.mainHand?.itemKind !== "weapon") return [];
-	const learned = new Set(learnedSkillIds(progress));
 	return [...new Set(progress.mainHand.skills)]
-		.filter(
-			(id) => !SKILLS[id].passive && (id === "healing" || !learned.has(id)),
-		)
+		.filter((id) => !SKILLS[id].passive)
 		.map((id) => ({
 			id,
-			level: cappedSkillLevel(progress.mainHand!.level),
+			level: cappedSkillLevel(
+				Math.min(progress.mainHand!.level, progress.level),
+			),
 		}));
 }
 export function weaponProcTriggerChance(
