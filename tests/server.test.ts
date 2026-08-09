@@ -385,6 +385,48 @@ describe("realm game service", () => {
 		).toBe(1);
 		expect(player.maxWaveReached).toBe(12);
 	});
+	test("keeps level-one inventory overflow as collectible Training Grounds drops", () => {
+		const { game, messages } = harness();
+		const player = game.join("Overflowed");
+		player.progress.level = 100;
+		for (let seed = 10; seed < 21; seed += 1) {
+			const item = generateItem(seed, "common", seed, {
+				allowedClasses: ["sword"],
+			});
+			player.progress.inventoryTiles.push({
+				id: `overflow-${seed}`,
+				key: itemStackKey(item),
+				item,
+				quantity: 1,
+			});
+		}
+		const newest = player.progress.inventoryTiles.at(-1)!;
+		game.handle(player.id, { type: "suicide" });
+		expect(player.progress.level).toBe(1);
+		expect(
+			player.progress.inventoryTiles.some((tile) => tile.id === newest.id),
+		).toBeFalse();
+		const overflow = [...player.groundDrops.values()];
+		expect(overflow.length).toBeGreaterThan(0);
+		expect(overflow.every((drop) => drop.kind === "item")).toBeTrue();
+		expect(
+			messages
+				.get(player.id)
+				?.some(
+					(message) =>
+						message.type === "incomingWave" && message.wave.mode === "training",
+				),
+		).toBeTrue();
+		const first = overflow[0];
+		const availableTile = player.progress.inventoryTiles.find(
+			(tile) =>
+				tile.key !== itemStackKey(player.progress.mainHand!) &&
+				tile.key !== itemStackKey(player.progress.offHand!),
+		)!;
+		game.handle(player.id, { type: "sellItem", tileId: availableTile.id });
+		game.handle(player.id, { type: "collectDrop", dropId: first.id });
+		expect(player.groundDrops.has(first.id)).toBeFalse();
+	});
 	test("omits early champions and authors later champion difficulty from the wave", () => {
 		const { game } = harness();
 		const player = game.join("EliteHunter");

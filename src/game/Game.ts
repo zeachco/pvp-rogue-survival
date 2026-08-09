@@ -94,6 +94,7 @@ export class Game {
 	private lastAnimationFrameAt = this.lastTimestamp;
 	private accumulator = 0;
 	private defeatCooldown = 0;
+	private defeatDropPosition?: Vector2;
 	private isChatting = false;
 	private orbitingCamera = false;
 	private aimingHero = false;
@@ -582,6 +583,7 @@ export class Game {
 			this.hud.setPlayer(this.player);
 			this.hud.setNotice(message.reason);
 		} else if (message.type === "suicideResolved" && this.player) {
+			this.defeatDropPosition ??= { ...this.hero.position };
 			this.defeatCooldown = 1.8;
 			this.hud.showDeathModal();
 		} else if (message.type === "collectItemResult")
@@ -1006,7 +1008,13 @@ export class Game {
 		);
 		for (const drop of drops)
 			if (!existing.has(drop.id))
-				this.drops.push(new ItemDrop(drop, { ...this.hero.position }));
+				this.drops.push(
+					new ItemDrop(
+						drop,
+						reconciledDropPosition(this.hero.position, this.defeatDropPosition),
+					),
+				);
+		this.defeatDropPosition = undefined;
 	}
 
 	private spawnCreep(build: UnitBuild): void {
@@ -1042,6 +1050,7 @@ export class Game {
 	}
 	private handleDefeat(): void {
 		if (this.waveMode === "training") return;
+		this.defeatDropPosition = { ...this.hero.position };
 		this.defeatCooldown = 1.8;
 		this.socket.send({
 			type: "heroDefeated",
@@ -1063,6 +1072,7 @@ export class Game {
 		this.hero.applyProgress(this.player!.progress);
 		this.clearInspection();
 		this.socket.send({ type: "requestWave" });
+		this.reconcileDrops();
 	}
 	private syncHeroState(): void {
 		if (!this.player) return;
@@ -1232,4 +1242,11 @@ export function serverCloseLogMessage(
 		? `code ${event.code}: ${event.reason.trim()}`
 		: `code ${event.code}`;
 	return `Server closed the connection (${detail}). Reconnecting...`;
+}
+
+export function reconciledDropPosition(
+	heroPosition: Vector2,
+	defeatPosition?: Vector2,
+): Vector2 {
+	return { ...(defeatPosition ?? heroPosition) };
 }

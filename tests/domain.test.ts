@@ -26,7 +26,10 @@ import {
 	panelToggleTooltip,
 	SOULS_TOOLTIP,
 } from "../src/ui/Hud";
-import { serverCloseLogMessage } from "../src/game/Game";
+import {
+	reconciledDropPosition,
+	serverCloseLogMessage,
+} from "../src/game/Game";
 
 import {
 	auraRadius,
@@ -1885,6 +1888,16 @@ test("drops newest unequipped overflow stacks after a death-level capacity reduc
 		state.inventoryTiles.some((tile) => tile.key === protectedTile.key),
 	).toBeTrue();
 	expect(dropped).toHaveLength(2);
+});
+test("reconciles post-defeat drops at the previous death position", () => {
+	expect(reconciledDropPosition({ x: 100, y: 100 }, { x: 12, y: 34 })).toEqual({
+		x: 12,
+		y: 34,
+	});
+	expect(reconciledDropPosition({ x: 100, y: 100 })).toEqual({
+		x: 100,
+		y: 100,
+	});
 });
 describe("Epic skill extraction", () => {
 	test("binds already learned skills globally from Epic equipment, then permits lower-rarity upgrades", () => {

@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
 	buildDocument,
+	CHANGELOG_MODEL,
 	extractPeriods,
 	generatePeriods,
-	MODEL_FALLBACKS,
 	parseGitLog,
+	PROJECT_INITIALIZATION_MODEL,
 	promptFor,
 	projectInitializationCommit,
 	selectChangelogCommits,
@@ -137,59 +138,83 @@ describe("generated devlog history", () => {
 		]);
 	});
 
-	test("retries an invalid week with progressively larger models", async () => {
+	test("uses only gemma4:latest for generation", async () => {
 		const attempts: string[] = [];
-		const errors: string[] = [];
-		const originalError = console.error;
-		console.error = (message?: unknown) => errors.push(String(message));
-		try {
-			const result = await generatePeriods(
+		const result = await generatePeriods(
+			[
+				{
+					key: "2026-W32",
+					commits: [
+						{
+							hash: "feature",
+							authoredAt: "2026-08-07T10:00:00Z",
+							title: "feat: added realms",
+							description: "",
+						},
+					],
+					groupedCategories: [],
+					projectInitialized: false,
+				},
+			],
+			async (model) => {
+				attempts.push(model);
+				return '{"periods":[{"key":"2026-W32","title":"Started","summary":{"features":["Initialized the project."]}}]}';
+			},
+		);
+
+		expect(attempts).toEqual([CHANGELOG_MODEL]);
+		expect(result.models.get("2026-W32")).toBe(CHANGELOG_MODEL);
+	});
+
+	test("generates an initialization-only week without Ollama", async () => {
+		let calls = 0;
+		const result = await generatePeriods(
+			[
+				{
+					key: "2026-W28",
+					commits: [projectInitializationCommit("2026-07-07T10:00:00Z")],
+					groupedCategories: [],
+					projectInitialized: true,
+				},
+			],
+			async () => {
+				calls += 1;
+				return "not used";
+			},
+		);
+
+		expect(calls).toBe(0);
+		expect(result.models.get("2026-W28")).toBe(PROJECT_INITIALIZATION_MODEL);
+		expect(result.periods.get("2026-W28")).toEqual({
+			key: "2026-W28",
+			title: "Initialized project",
+			summary: { features: ["Established the project foundation."] },
+		});
+	});
+
+	test("fails clearly when gemma4:latest rejects the week", async () => {
+		await expect(
+			generatePeriods(
 				[
 					{
 						key: "2026-W32",
-						commits: [projectInitializationCommit("2026-08-07T10:00:00Z")],
+						commits: [
+							{
+								hash: "feature",
+								authoredAt: "2026-08-07T10:00:00Z",
+								title: "feat: added realms",
+								description: "",
+							},
+						],
 						groupedCategories: [],
-						projectInitialized: true,
+						projectInitialized: false,
 					},
 				],
-				async (model) => {
-					attempts.push(model);
-					if (model !== "gemma4:latest") return '{"periods":[{"periods":[]}]}';
-					return '{"periods":[{"key":"2026-W32","title":"Started","summary":{"features":["Initialized the project."]}}]}';
-				},
-			);
-
-			expect(attempts).toEqual(MODEL_FALLBACKS);
-			expect(result.models.get("2026-W32")).toBe("gemma4:latest");
-			expect(errors[0]).toContain("2026-W32 with gemma4:e2b");
-			expect(errors[0]).toContain('Unrecognized key: "periods"');
-		} finally {
-			console.error = originalError;
-		}
-	});
-
-	test("fails clearly after every model rejects the week", async () => {
-		const originalError = console.error;
-		console.error = () => {};
-		try {
-			await expect(
-				generatePeriods(
-					[
-						{
-							key: "2026-W32",
-							commits: [projectInitializationCommit("2026-08-07T10:00:00Z")],
-							groupedCategories: [],
-							projectInitialized: true,
-						},
-					],
-					async () => "not json",
-				),
-			).rejects.toThrow(
-				"Changelog generation failed for 2026-W32 after trying gemma4:e2b, gemma4:e4b, gemma4:latest",
-			);
-		} finally {
-			console.error = originalError;
-		}
+				async () => "not json",
+			),
+		).rejects.toThrow(
+			"Changelog generation failed for 2026-W32 with gemma4:latest",
+		);
 	});
 
 	test("serializes the summary before its source commits", () => {
