@@ -59,7 +59,7 @@ export class HeroSpellLightPool {
 			light.position.set(
 				effect.position.x,
 				effect.position.y,
-				effect.kind === "healing" ? 1 : 18,
+				effect.kind === "healing" ? 6 : 18,
 			);
 			light.distance = effect.lightDistance();
 			light.intensity = effect.lightIntensity(time);
@@ -98,10 +98,12 @@ export class HeroSpellLightPool {
 		if (existing) return existing;
 		const color = spellEffectLightColor(kind);
 		if (color === undefined) return undefined;
-		const light =
-			kind === "healing"
-				? new THREE.SpotLight(0x72f2a7, 0, 0, Math.PI / 2, 0.35, 1)
-				: new THREE.PointLight(color, 0, 0, 1);
+		const light = new THREE.PointLight(
+			kind === "healing" ? 0x72f2a7 : color,
+			0,
+			0,
+			1,
+		);
 		light.name = `hero-spell-light-${kind}`;
 		if (light instanceof THREE.SpotLight)
 			light.target.name = "hero-spell-light-healing-target";

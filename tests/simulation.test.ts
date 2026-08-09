@@ -3106,11 +3106,10 @@ describe("arena systems", () => {
 		effect.updateVisuals(0);
 		lightPool.sync(["healing"], [effect], 0);
 		const group = effect.mesh.children[0];
-		const uplight = lightPool.light("healing") as THREE.SpotLight;
-		expect(uplight).toBeInstanceOf(THREE.SpotLight);
+		const uplight = lightPool.light("healing") as THREE.PointLight;
+		expect(uplight).toBeInstanceOf(THREE.PointLight);
 		expect(uplight.color.getHex()).toBe(0x72f2a7);
-		expect(uplight.position.z).toBe(1);
-		expect(uplight.target.position.z).toBe(HEALING_MAX_RADIUS);
+		expect(uplight.position.z).toBe(6);
 		expect(uplight.distance).toBe(HEALING_MAX_RADIUS * 2);
 		expect(uplight.intensity).toBeCloseTo(healingUplightIntensity(0.24));
 		expect(
