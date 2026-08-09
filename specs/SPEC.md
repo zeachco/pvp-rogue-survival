@@ -248,6 +248,8 @@ The current client intentionally uses the proven legacy Three.js WebGL renderer 
 - `specs/SPEC.md`, `specs/MECHANICS_SPEC.md`, and `specs/PROGRESSION_SPEC.md` are the source-of-truth specification set. Update the relevant spec before implementing behavior not already covered.
 - Keep filenames, runtime choices, protocols, mechanics, progression rules, and UX synchronized with implementation.
 - Use Bun for project scripts and tooling.
+- `bun run release-check` fails when the working tree contains staged, unstaged, or untracked changes, then compares `HEAD` with the newest commit that touched `changelogs/`. A clean matching repository reports that new commits are not missing from the tracked changelogs; a mismatch fails the check.
+- `bun run release-push` stages every change under `changelogs/`, commits it as `docs(automation): release changelog update`, and pushes the current branch. Any failed step stops the release push.
 - Dependency installation configures the repository's commit hooks only in local development: the automatic prepare step skips CI and environments without a Git worktree. `bun run hooks:install` remains the explicit local command for installing the hooks.
 - `bun run reset` deletes every hero from the local development SQLite database at `server-data/players.sqlite` while preserving its schema. Stop the local server before resetting so its in-memory players cannot be persisted back into the database. The reset command never uses `DATABASE_URL` and therefore cannot target production.
 - Debug builds may expose `window.__mltDebug` and concise `[MLH][player]` logs for socket, wave, spawn, combat, defeat, and score events.

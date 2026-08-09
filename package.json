@@ -9,6 +9,8 @@
 		"test": "bun test",
 		"changelog": "bun scripts/changelog.ts",
 		"changelogs": "bun scripts/changelog.ts --all",
+		"release-check": "sh scripts/release-check.sh",
+		"release-push": "sh scripts/release-push.sh",
 		"reset": "bun server/resetLocalDatabase.ts",
 		"dev": "bun run --watch --parallel client server",
 		"client": "bunx vite --host 0.0.0.0",
