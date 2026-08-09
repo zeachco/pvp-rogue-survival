@@ -188,6 +188,7 @@ import {
 	skillHealthRequirementMet,
 } from "../src/game/systems/HeroCombatSystem";
 import { gameSocketUrl } from "../src/net/SocketClient";
+import { gameApiUrl, routeUrl } from "../src/navigation";
 import {
 	itemRequirementRows,
 	itemSkillDescription,
@@ -2759,6 +2760,22 @@ test("uses the production WebSocket shortcut unless an explicit endpoint is prov
 			search: "?prod&ip=legacy.test",
 		} as Location),
 	).toBe("wss://legacy.test/ws");
+});
+
+test("routes the Devlog without dropping the selected game server", () => {
+	expect(routeUrl("/devlog", "?prod")).toBe("/devlog?prod");
+	expect(
+		gameApiUrl(
+			{ host: "localhost:5173", protocol: "http:", search: "?prod" },
+			"/api/devlog/requests",
+		),
+	).toBe("https://pvp.up.railway.app/api/devlog/requests");
+	expect(
+		gameApiUrl(
+			{ host: "localhost:5173", protocol: "http:", search: "" },
+			"/api/devlog/requests",
+		),
+	).toBe("http://localhost:5173/api/devlog/requests");
 });
 
 test("describes a server-side WebSocket close in the client log", () => {

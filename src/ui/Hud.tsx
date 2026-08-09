@@ -177,14 +177,9 @@ export class Hud {
 	private readonly onlineCount = (<div class="online-count" />) as HTMLElement;
 	private readonly loginHeaderActions = (
 		<nav class="header-login-actions" aria-label="Login links">
-			<a
-				class="header-control header-devlog"
-				href="devlog.html"
-				target="_blank"
-				rel="noopener noreferrer"
-			>
+			<button class="header-control header-devlog" type="button">
 				Devlog
-			</a>
+			</button>
 			<button class="header-control" type="button">
 				Options
 			</button>
@@ -435,8 +430,15 @@ export class Hud {
 			</form>
 		) as HTMLElement;
 		(
-			this.loginHeaderActions.querySelector("button") as HTMLButtonElement
+			this.loginHeaderActions.querySelector(
+				"button:last-child",
+			) as HTMLButtonElement
 		).onclick = () => this.gameSettings.open();
+		(
+			this.loginHeaderActions.querySelector(
+				"button:first-child",
+			) as HTMLButtonElement
+		).onclick = callbacks.onOpenDevlog;
 		this.joinPanel = (
 			<section class="join-panel">
 				{joinForm}
@@ -2572,15 +2574,11 @@ export class Hud {
 		) as HTMLButtonElement;
 		options.onclick = () => this.gameSettings.open();
 		const devlog = (
-			<a
-				class="header-control header-devlog"
-				href="devlog.html"
-				target="_blank"
-				rel="noopener noreferrer"
-			>
+			<button class="header-control header-devlog" type="button">
 				Devlog
-			</a>
-		) as HTMLAnchorElement;
+			</button>
+		) as HTMLButtonElement;
+		devlog.onclick = this.callbacks.onOpenDevlog;
 		const title =
 			r.mode === "waiting"
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
@@ -2591,7 +2589,12 @@ export class Hud {
 			this.realmPanel.replaceChildren(action, devlog, options, logout);
 			return;
 		}
-		this.realmPanel.replaceChildren(options, action, <strong>{title}</strong>);
+		this.realmPanel.replaceChildren(
+			options,
+			devlog,
+			action,
+			<strong>{title}</strong>,
+		);
 	}
 	private renderPresenceSummary(): void {
 		const countLabel = `${this.onlinePlayerCount} ${this.onlinePlayerCount === 1 ? "player" : "players"} online`;

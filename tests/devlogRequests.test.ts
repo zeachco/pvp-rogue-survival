@@ -2,7 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { activeAccountId, parseDevlogRequestInput } from "../server/createApp";
+import {
+	activeAccountId,
+	isLocalDevelopmentOrigin,
+	parseDevlogRequestInput,
+} from "../server/createApp";
 import {
 	nextUtcMonth,
 	SqlDevlogRequestStore,
@@ -83,6 +87,12 @@ describe("devlog requests", () => {
 			"hero-active",
 		);
 		expect(activeAccountId(request, () => false)).toBeUndefined();
+	});
+
+	test("allows production request APIs from local development origins only", () => {
+		expect(isLocalDevelopmentOrigin("http://localhost:5173")).toBeTrue();
+		expect(isLocalDevelopmentOrigin("https://127.0.0.1:4173")).toBeTrue();
+		expect(isLocalDevelopmentOrigin("https://example.com")).toBeFalse();
 	});
 });
 

@@ -2,6 +2,7 @@ import "./devlog.css";
 import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
 import { SessionStorage } from "./platform/SessionStorage";
+import { gameApiUrl } from "./navigation";
 
 const files = import.meta.glob<string | WeeklyDevlog>("../changelogs/*.json", {
 	eager: true,
@@ -22,8 +23,8 @@ const requestStatus = document.querySelector("#request-status") as HTMLElement;
 const futureRequests = document.querySelector(
 	"#future-requests",
 ) as HTMLElement;
-const session = new SessionStorage().load();
-const voteChoices = loadVoteChoices();
+const sessionStorage = new SessionStorage();
+let voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -161,18 +162,21 @@ function voteButton(
 		"aria-pressed",
 		String(voteChoices[request.id] === value),
 	);
-	button.disabled = !session;
-	if (!session) button.title = "Log in from the game to vote.";
+	button.disabled = !activeSession();
+	if (!activeSession()) button.title = "Log in from the game to vote.";
 	button.onclick = async () => {
-		if (!session) return;
+		if (!activeSession()) return;
 		const nextValue = voteChoices[request.id] === value ? 0 : value;
 		button.disabled = true;
 		try {
-			const response = await fetch(`/api/devlog/requests/${request.id}/vote`, {
-				method: "POST",
-				headers: authenticatedHeaders(),
-				body: JSON.stringify({ value: nextValue }),
-			});
+			const response = await fetch(
+				apiUrl(`/api/devlog/requests/${request.id}/vote`),
+				{
+					method: "POST",
+					headers: authenticatedHeaders(),
+					body: JSON.stringify({ value: nextValue }),
+				},
+			);
 			const result = (await response.json()) as {
 				request?: DevlogRequest;
 				error?: string;
@@ -209,10 +213,11 @@ requestForm.addEventListener("submit", async (event) => {
 	requestStatus.className = "";
 	requestStatus.textContent = "Submitting…";
 	try {
-		if (!session) throw new Error("Log in from the game to submit a request.");
+		if (!activeSession())
+			throw new Error("Log in from the game to submit a request.");
 		const values = new FormData(requestForm);
 		const kind = values.get("kind");
-		const response = await fetch("/api/devlog/requests", {
+		const response = await fetch(apiUrl("/api/devlog/requests"), {
 			method: "POST",
 			headers: authenticatedHeaders(),
 			body: JSON.stringify({
@@ -242,7 +247,8 @@ requestForm.addEventListener("submit", async (event) => {
 	}
 });
 
-if (!session) {
+function updateAuthenticationState(): void {
+	const disabled = !activeSession();
 	for (const field of requestForm.elements) {
 		if (
 			field instanceof HTMLInputElement ||
@@ -250,17 +256,24 @@ if (!session) {
 			field instanceof HTMLSelectElement ||
 			field instanceof HTMLButtonElement
 		)
-			field.disabled = true;
+			field.disabled = disabled;
 	}
-	requestStatus.textContent =
-		"Log in from the game to submit requests or vote.";
+	requestStatus.textContent = disabled
+		? "Log in from the game to submit requests or vote."
+		: "";
 }
 
+updateAuthenticationState();
 void loadRequests();
+window.addEventListener("devlogopen", () => {
+	voteChoices = loadVoteChoices();
+	updateAuthenticationState();
+	void loadRequests();
+});
 
 async function loadRequests(): Promise<void> {
 	try {
-		const response = await fetch("/api/devlog/requests");
+		const response = await fetch(apiUrl("/api/devlog/requests"));
 		const result = (await response.json()) as {
 			requests?: DevlogRequest[];
 			error?: string;
@@ -283,8 +296,16 @@ async function loadRequests(): Promise<void> {
 function authenticatedHeaders(): Record<string, string> {
 	return {
 		"content-type": "application/json",
-		"x-hero-id": session?.heroId ?? "",
+		"x-hero-id": activeSession()?.heroId ?? "",
 	};
+}
+
+function activeSession() {
+	return sessionStorage.load();
+}
+
+function apiUrl(path: string): string {
+	return gameApiUrl(window.location, path);
 }
 
 function bugEnvironment() {
@@ -313,7 +334,7 @@ function loadVoteChoices(): Record<string, -1 | 1> {
 }
 
 function voteStorageKey(): string {
-	return `multi-line-hero.devlog-votes.${session?.heroId ?? "anonymous"}`;
+	return `multi-line-hero.devlog-votes.${activeSession()?.heroId ?? "anonymous"}`;
 }
 
 if (weeks.length === 0) {

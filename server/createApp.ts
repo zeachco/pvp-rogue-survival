@@ -387,6 +387,23 @@ async function serveRequest(
 		request.url ?? "/",
 		`http://${request.headers.host ?? "localhost"}`,
 	);
+	if (url.pathname.startsWith("/api/")) {
+		const origin = request.headers.origin;
+		if (origin && isLocalDevelopmentOrigin(origin)) {
+			response.setHeader("access-control-allow-origin", origin);
+			response.setHeader("vary", "Origin");
+			response.setHeader(
+				"access-control-allow-headers",
+				"content-type, x-hero-id",
+			);
+			response.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+		}
+		if (request.method === "OPTIONS") {
+			response.writeHead(204);
+			response.end();
+			return;
+		}
+	}
 	if (url.pathname === "/api/devlog/requests") {
 		if (request.method === "GET") {
 			json(response, 200, { requests: await devlogRequests.list() });
@@ -461,6 +478,18 @@ async function serveRequest(
 		const index = await readFile(join(publicRoot, "index.html"));
 		response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
 		response.end(index);
+	}
+}
+
+export function isLocalDevelopmentOrigin(origin: string): boolean {
+	try {
+		const url = new URL(origin);
+		return (
+			["http:", "https:"].includes(url.protocol) &&
+			["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+		);
+	} catch {
+		return false;
 	}
 }
 

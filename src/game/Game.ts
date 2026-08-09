@@ -136,6 +136,7 @@ export class Game {
 	constructor(
 		private readonly canvas: HTMLCanvasElement,
 		hudRoot: HTMLDivElement,
+		onOpenDevlog: () => void,
 	) {
 		this.map.buildMeshes();
 		this.renderer = new ThreeRenderer(this.canvas);
@@ -175,6 +176,7 @@ export class Game {
 				this.socket.send({ type: "setRarityAction", rarity, action }),
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
 			onEnterRealm: () => this.enterRealm(),
+			onOpenDevlog,
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
 			onSetFullscreenMode: (mode) => {
@@ -435,6 +437,11 @@ export class Game {
 			this.hud.setNotice("Server disconnected. Reconnecting...");
 		});
 		this.socket.onMessage((message) => this.handleServerMessage(message));
+		window.addEventListener("beforeunload", (event) => {
+			if (this.realmMode === "training") return;
+			event.preventDefault();
+			event.returnValue = "";
+		});
 		this.socket.connect();
 		requestAnimationFrame((timestamp) => this.animationFrame(timestamp));
 		this.scheduleBackgroundFrameCheck();

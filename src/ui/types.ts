@@ -17,6 +17,7 @@ export interface HudCallbacks {
 	onSetRarityAction(rarity: Rarity, action: RarityAction): void;
 	onLeaveRealm(): void;
 	onEnterRealm(): void;
+	onOpenDevlog(): void;
 	onBack(): void;
 	onLogout(): void;
 	onSetFullscreenMode(mode: "on" | "off"): void;
