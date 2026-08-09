@@ -82,11 +82,8 @@ interface ChangelogOptions {
 	all: boolean;
 }
 
-export const MODEL_FALLBACKS = [
-	"gemma4:e2b",
-	"gemma4:e4b",
-	"gemma4:latest",
-] as const;
+export const CHANGELOG_MODEL = "gemma4:latest";
+export const PROJECT_INITIALIZATION_MODEL = "deterministic";
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
 const INDIVIDUAL_CHANGE_TYPES = new Set([
 	"balance",
@@ -131,6 +128,15 @@ export function projectInitializationCommit(authoredAt: string): CommitEntry {
 
 function hasUpdates(week: WeekSource): boolean {
 	return week.commits.length > 0 || week.groupedCategories.length > 0;
+}
+
+function isInitializationOnly(week: WeekSource): boolean {
+	return (
+		week.projectInitialized &&
+		week.groupedCategories.length === 0 &&
+		week.commits.length === 1 &&
+		week.commits[0]?.hash === "project-initialization"
+	);
 }
 
 export function startOfWeek(date: Date): Date {
@@ -224,11 +230,62 @@ Prioritize completeness for features and bugfixes. Before writing, account for e
 Regroup related feat and fix commits into concise concepts instead of listing commits individually. Fold follow-up implementation, polish, and repairs into the parent concept when they concern the same feature, but preserve important standalone systems such as authentication, multiplayer, progression, equipment, spells, and major Devlog capabilities as distinct summary lines. Consolidate closely related commits without losing distinct feature additions or distinct bugs fixed.
 For performance, balance, ux, and graphics, provide an abstract higher-level recap. Combine related work aggressively and summarize its overall player-facing effect rather than covering every commit separately. Use no more than three concise lines per bucket unless substantially different systems require more.
 Place each change in only its primary player-facing bucket. Do not repeat information across buckets and do not copy semantic commit prefixes.
-Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":{"features":["Feature recap"],"bugfixes":["Bug-fix recap"],"performance":["Performance recap"],"balance":["Balance recap"],"ux":["UX recap"],"graphics":["Graphics recap"]}}]}. Omit empty summary buckets.
+Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":{"features":["Feature recap"],"bugfixes":["Bug-fix recap"]}}]}. All six bucket keys belong inside summary, and every present bucket value must be an array of non-empty strings. Omit buckets with no updates entirely; never return empty strings or empty arrays as placeholders.
 Return exactly one period for every requested week, in this order: ${requestedKeys.join(", ")}.
 
 Git logs for the requested weeks:
 ${logs}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeBucket(value: unknown): unknown {
+	if (typeof value === "string") {
+		const line = value.trim();
+		return line ? [line] : undefined;
+	}
+	if (!Array.isArray(value)) return value;
+	if (value.some((line) => typeof line !== "string")) return value;
+	const lines = value
+		.filter((line): line is string => typeof line === "string")
+		.map((line) => line.trim())
+		.filter(Boolean);
+	return lines.length ? lines : undefined;
+}
+
+function normalizeGeneratedPeriod(value: unknown): unknown {
+	if (!isRecord(value)) return value;
+	const keys = Object.keys(value);
+	if (keys.length === 1 && keys[0] === "periods") {
+		const nested = value.periods;
+		if (Array.isArray(nested) && nested.length === 1)
+			return normalizeGeneratedPeriod(nested[0]);
+	}
+
+	const period = { ...value };
+	const summary = isRecord(period.summary)
+		? { ...period.summary }
+		: period.summary;
+	if (isRecord(summary)) {
+		for (const bucket of DEVLOG_SUMMARY_BUCKETS) {
+			const normalized = normalizeBucket(period[bucket] ?? summary[bucket]);
+			delete period[bucket];
+			if (normalized === undefined) delete summary[bucket];
+			else summary[bucket] = normalized;
+		}
+		period.summary = summary;
+	}
+	return period;
+}
+
+function normalizeGeneratedResponse(value: unknown): unknown {
+	if (!isRecord(value) || !Array.isArray(value.periods)) return value;
+	return {
+		...value,
+		periods: value.periods.map(normalizeGeneratedPeriod),
+	};
 }
 
 export function extractPeriods(raw: string): GeneratedPeriod[] {
@@ -247,7 +304,9 @@ export function extractPeriods(raw: string): GeneratedPeriod[] {
 			`Ollama returned invalid changelog JSON: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
-	const parsed = generatedResponseSchema.safeParse(json);
+	const parsed = generatedResponseSchema.safeParse(
+		normalizeGeneratedResponse(json),
+	);
 	if (!parsed.success)
 		throw new Error(
 			`Ollama returned invalid changelog JSON: ${z.prettifyError(parsed.error)}`,
@@ -259,7 +318,7 @@ export function buildDocument(
 	week: WeekSource,
 	start: Date,
 	generated: Map<string, GeneratedPeriod>,
-	model: string = MODEL_FALLBACKS[0],
+	model: string = CHANGELOG_MODEL,
 ): WeeklyDevlog {
 	const result = generated.get(week.key);
 	if (!result) throw new Error(`Ollama omitted or invalidated ${week.key}.`);
@@ -346,28 +405,29 @@ export async function generatePeriods(
 	const models = new Map<string, string>();
 	for (const week of weeks) {
 		if (!hasUpdates(week)) continue;
-		const prompt = promptFor([week]);
-		let lastReason = "unknown error";
-		for (const model of MODEL_FALLBACKS) {
-			try {
-				const periods = extractPeriods(await runModel(model, prompt));
-				const period = periods.find(({ key }) => key === week.key);
-				if (!period)
-					throw new Error(`Ollama omitted expected period ${week.key}.`);
-				generated.set(week.key, period);
-				models.set(week.key, model);
-				break;
-			} catch (error) {
-				lastReason = error instanceof Error ? error.message : String(error);
-				console.error(
-					`Changelog generation failed for ${week.key} with ${model}: ${lastReason}`,
-				);
-			}
+		if (isInitializationOnly(week)) {
+			generated.set(week.key, {
+				key: week.key,
+				title: "Initialized project",
+				summary: { features: ["Established the project foundation."] },
+			});
+			models.set(week.key, PROJECT_INITIALIZATION_MODEL);
+			continue;
 		}
-		if (!generated.has(week.key))
+		const prompt = promptFor([week]);
+		try {
+			const periods = extractPeriods(await runModel(CHANGELOG_MODEL, prompt));
+			const period = periods.find(({ key }) => key === week.key);
+			if (!period)
+				throw new Error(`Ollama omitted expected period ${week.key}.`);
+			generated.set(week.key, period);
+			models.set(week.key, CHANGELOG_MODEL);
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : String(error);
 			throw new Error(
-				`Changelog generation failed for ${week.key} after trying ${MODEL_FALLBACKS.join(", ")}. Final reason: ${lastReason}`,
+				`Changelog generation failed for ${week.key} with ${CHANGELOG_MODEL}: ${reason}`,
 			);
+		}
 	}
 	return { periods: generated, models };
 }

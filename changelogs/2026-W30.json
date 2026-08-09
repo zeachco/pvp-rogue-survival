@@ -1,22 +1,37 @@
 {
 	"week": "2026-W30",
 	"label": "Week of July 20, 2026",
-	"generatedAt": "2026-08-09T17:18:58.414Z",
-	"model": "gemma4:e2b",
+	"generatedAt": "2026-08-09T18:02:44.989Z",
+	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W30",
 			"label": "Week of July 20, 2026",
-			"summaryTitle": "New Lore and UI Updates",
+			"summaryTitle": "Refined abilities and updated user experience",
 			"summary": {
-				"features": ["New lore content implementation"],
-				"bugfixes": [
-					"Fixed issues related to amulet slots and force field skills",
-					"Fixed various UI bugs"
+				"features": [
+					"Added initial gameplay tutorial (FTUE) to guide new players through the game's systems.",
+					"Improved overall UI presentation and incorporated additional lore into the character experience."
 				],
-				"ux": ["Updated user interface based on new lore elements"]
+				"bugfixes": [
+					"Resolved an issue where amulets slots were not displaying correctly.",
+					"Fixed a bug impacting the force field skill functionality across various combat scenarios."
+				],
+				"balance": [
+					"Refined several spells and character specializations (specs) for better gameplay balance."
+				],
+				"ux": [
+					"Overhauled the User Experience, adding lore elements and improving UI flows.",
+					"Addressed various UI bugs to smooth out the player's overall interaction with the game."
+				]
 			},
 			"commits": [
+				{
+					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
+					"authoredAt": "2026-07-27T12:55:53-04:00",
+					"title": "feat: reworked a few spells and spec files",
+					"description": ""
+				},
 				{
 					"hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",
 					"authoredAt": "2026-07-27T08:46:50-04:00",
@@ -42,7 +57,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "UX"]
+			"categories": ["Features", "Bugfixes", "Balance", "UX"]
 		}
 	]
 }

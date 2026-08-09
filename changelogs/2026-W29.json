@@ -1,30 +1,26 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-09T17:18:58.359Z",
-	"model": "gemma4:e4b",
+	"generatedAt": "2026-08-09T18:02:44.949Z",
+	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Build Enhancements & Blood Magic Focus",
+			"summaryTitle": "Blood Magic & Major System Overhaul",
 			"summary": {
 				"features": [
-					"New rings, amulets, and blood magic spells have been added. Added new customizable spells and various aura tweaks to deepen combat variety. The leaderboard system is now live, alongside expanded player mechanics including top player titles and suicide features for dramatic play. Multiplayer experiences and solo gameplay have received significant tweaks across the board. Significant mechanical updates include enhancements to weapon systems, the introduction of detailed character stats (like Hui Char), and general additions of new items and spells."
+					"New blood magic spells and systems are introduced along with the addition of rings and amulets.",
+					"The leaderboard system has been implemented, alongside new mechanics for top players and suicide actions.",
+					"General gameplay tweaks include improvements to solo play, weapon tuning, and revamped game mechanics across the board.",
+					"UX was heavily improved with UI overhauls, inventory updates, added panel information, and detailed stat display (HUI/Character stats).",
+					"Multiplayer capabilities received several general tweaks.",
+					"The core server backend has been upgraded using a database-driven setup for better stability and recovery."
 				],
 				"bugfixes": [
-					"Fixed issues related to rent and scepter auras mechanics. Resolved an extract button bug."
-				],
-				"performance": [
-					"Implemented DB-based server architecture using Bun SQL for stability and scale."
-				],
-				"balance": [
-					"General adjustments made to core game mechanics, including various tweaks to existing systems."
-				],
-				"ux": [
-					"Received several general UX improvements, notably updates to the inventory system and new panel information has been added for better user experience. UI elements were polished extensively with multiple redesigns and enhancements."
-				],
-				"graphics": []
+					"Fixed issues related to rent and scepter aura mechanics.",
+					"Resolved the specific button extraction bug."
+				]
 			},
 			"commits": [
 				{
@@ -166,7 +162,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
+			"categories": ["Features", "Bugfixes"]
 		}
 	]
 }

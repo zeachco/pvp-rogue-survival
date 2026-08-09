@@ -1,27 +1,33 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T17:18:58.466Z",
-	"model": "gemma4:e2b",
+	"generatedAt": "2026-08-09T18:02:45.030Z",
+	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Major Spell Management and Combat Updates",
+			"summaryTitle": "Combat and UI Overhaul",
 			"summary": {
 				"features": [
-					"Added editable spell loadouts limited to six slots with support for manual casting, auto-fire, and persistent passive skills. Introduced new aiming controls via camera movement and aimed with camera functionality. Implemented a new chat system and bonus XP system for sending messages. Added healing spell effects and freeze mechanics. Updated UI and skills mechanics. New feature for rendering creep resource bars above overlapping units."
+					"New spell management window allows for editable loadouts of up to six active spells.",
+					"Improved combat controls include manual casting options, right-click aiming (which remains explicit), and rendering visible resource bars above overlapping units.",
+					"Core gameplay enhancements feature the ability to aim directly with the camera control system, alongside progressive 3D transformations.",
+					"Expanded UI functionality includes added columns and a redesigned spell management interface.",
+					"Improved user experience features include fullscreen mode support and mouse movement that can recenter the view."
 				],
 				"bugfixes": [
-					"Fixed issues with auras spells being droppable, ground clipping, 3D rendering and positioning bugs, and various visual/chat bugs. Fixed long spell bar issue and general healing related fixes."
+					"Resolved several visual glitches affecting mobile experiences and general 3D rendering/positioning. Auras spells are now correctly droppable.",
+					"Fixed various UI elements, including improvements to spell bars, removal of unnecessary context menu options, and addressing ground clipping issues.",
+					"Addressed camera zoom bugs and inconsistencies in 3D model representation."
 				],
-				"performance": [],
-				"balance": [],
+				"performance": ["N/A"],
+				"balance": ["N/A"],
 				"ux": [
-					"Improved UI elements and mechanics. Reworked several spells and specification files. Added autofilter functionality to the chat system."
+					"Improved the overall player experience with updated UI mechanics, better visibility of resources, and adjustments to camera controls."
 				],
 				"graphics": [
-					"Introduced 3D animated models and a progressive 3D transform for improved spatial interaction."
+					"Significant visual upgrades including support for 3D animated models, progressive 3D transformations, and asset integration into the environment."
 				]
 			},
 			"commits": [
@@ -180,15 +186,16 @@
 					"authoredAt": "2026-07-27T14:17:45-04:00",
 					"title": "feat: freeze mechanics",
 					"description": ""
-				},
-				{
-					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
-					"authoredAt": "2026-07-27T12:55:53-04:00",
-					"title": "feat: reworked a few spells and spec files",
-					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "UX", "Graphics"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics"
+			]
 		}
 	]
 }

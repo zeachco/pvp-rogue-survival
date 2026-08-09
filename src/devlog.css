@@ -224,6 +224,11 @@
 		padding: 16px;
 	}
 
+	.request-copy {
+		min-width: 0;
+		flex: 1;
+	}
+
 	.request-copy h4 {
 		margin: 7px 0;
 		font-size: 1.05rem;

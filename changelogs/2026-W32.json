@@ -1,34 +1,52 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T17:18:58.511Z",
-	"model": "gemma4:e2b",
+	"generatedAt": "2026-08-09T18:02:45.071Z",
+	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Spell System and UI Overhaul",
+			"summaryTitle": "Aura Updates and Devlog Polish",
 			"summary": {
 				"features": [
-					"Introduced new unique bucklers and attributes. Added a new spell called Blizzard, reworked the Boomrang spell, and revamped Rage mechanisms. Introduced reroll mechanics and unique items. Implemented systems for proposing features and submitting bugs via a voting system."
+					"Introduced a new unique buckler and associated attributes.",
+					"Developed major Devlog capabilities, allowing users to navigate history within the game client with persistent routing support. The Devlog remains available across all realms while loading requests and votes from the selected WebSocket server.",
+					"Implemented player-only voting and submission features for better community interaction.",
+					"The system was updated to handle two-handed weapons, which now occupy separate dedicated slots in equipment display areas."
 				],
 				"bugfixes": [
-					"Fixed issues with equipped items applying passive procs. Resolved coin clipping underground. Addressed visual and game mechanics related to spells and HUDs. Improved server-side disconnect logging."
+					"Fixed an issue where equipped items with spells were not correctly registering or activating their passive effects.",
+					"Resolved several visual glitches including coins clipping underground, healing light displacement, and issues surrounding the invader model's appearance.",
+					"Corrected visibility errors regarding 'block' passives within character statistics panels and effect tooltips.",
+					"Addressed various performance concerns by implementing a pool system for dynamic light effects and optimizing shadow rendering overhead for better stability."
 				],
 				"performance": [
-					"Created a pool of light effects to reduce rendering costs by sharing instances across different effects. Reduced shadow and fallback overhead by making spell projectiles, Gold, and Scrap unlit/outside shadow maps, and detaching redundant hero/clone presentations."
+					"Optimized rendering by detaching redundant hero/clone fallback presentations after model load and creating a shared pool for light effect instances to reduce runtime overhead."
 				],
 				"balance": [
-					"Adjusted magic find and septers/auras. Capped multi-hit spell proc chance. Removed minimum level requirement for spells but increased cost. Balanced spells and cooldowns. Updated stamina mechanics. Changed starting gear. Reworked the Arcane Bolt starting skill. Adjusted spell and cooldown values."
+					"Tuned existing spells and mechanics, including modifications to the Katar kit (now blocking) and making the Swamp spell circular. Also made adjustments to Magic Find and Septers/Auras.",
+					"Updated stamina mechanics and applied general balancing across various spells and cooldowns."
 				],
 				"ux": [
-					"Clarified spell ownership colors (enemy spells/projectiles tinted red; hero blood spells purple; Rapid Regeneration distinct non-Healing effect). Provided context around souls via tooltips. Reworked spell previews by moving costs/procs to computed properties, replacing catalog dropdowns with checkboxes. Improved new player lore positioning and modals. Enhanced panel space and positioning for inventory and character views. Added effect badges with detailed tooltips. Refined general UI layout, including the Devlog structure and panel visibility."
-				],
-				"graphics": [
-					"Implemented shadow and improved light rendering for certain spells. Defaulted all lights to off or dynamic settings. Reworked spell and skill visuals, including lights and effects. Added new models and updated coin graphics."
+					"Significant overhaul of the Devlog experience, allowing users to separate changelogs into clear update categories for better readability and implementing mobile-specific improvements. The UI now features clearer spell ownership color coding (e.g., enemy effects are red, hero blood magic is purple) and revised panel visibility logic.",
+					"Improved user experience across various panels and the main game interface: character/inventory panels use flatter slide-and-fade animations, the realms presence header was reorganized for conciseness, and tooltip context around Souls was added.",
+					"Updated the structure of spell previews to move activation costs and proc behaviors into computed tooltips, allowing viewing of unequipped weapon procs, while also ensuring that advanced stats display passive effects correctly."
 				]
 			},
 			"commits": [
+				{
+					"hash": "ac25b8d288f19ddfb5ea943f1dca8ada68a3fcc4",
+					"authoredAt": "2026-08-09T13:32:58-04:00",
+					"title": "balance: katar now blocks and swamp spell is circular",
+					"description": ""
+				},
+				{
+					"hash": "a9f351610da0c5a1103f907cd6746dcae38b6f1c",
+					"authoredAt": "2026-08-09T13:20:34-04:00",
+					"title": "ux: devlog changes",
+					"description": "separated changelogs into update categories for better readability"
+				},
 				{
 					"hash": "9ddca12ec4ade5686d9f821433a8dc67db788914",
 					"authoredAt": "2026-08-09T12:46:09-04:00",
@@ -582,14 +600,7 @@
 					"description": ""
 				}
 			],
-			"categories": [
-				"Features",
-				"Bugfixes",
-				"Performance",
-				"Balance",
-				"UX",
-				"Graphics"
-			]
+			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
 		}
 	]
 }
