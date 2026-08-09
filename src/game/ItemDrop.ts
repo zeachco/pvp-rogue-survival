@@ -25,6 +25,66 @@ export const GOLD_COIN_DENOMINATIONS = [
 	{ value: 1, color: 0x8b5a2b },
 ] as const;
 
+let resourceMatcapTexture: THREE.DataTexture | undefined;
+
+export function createResourceMatcapTexture(): THREE.DataTexture {
+	if (resourceMatcapTexture) return resourceMatcapTexture;
+	const size = 64;
+	const data = new Uint8Array(size * size * 4);
+	for (let y = 0; y < size; y++) {
+		for (let x = 0; x < size; x++) {
+			const nx = (x / (size - 1)) * 2 - 1;
+			const ny = (y / (size - 1)) * 2 - 1;
+			const radial = Math.max(0, 1 - Math.hypot(nx, ny));
+			const broadHighlight = Math.max(
+				0,
+				1 - Math.hypot(nx + 0.35, ny - 0.3) * 1.7,
+			);
+			const sharpHighlight = Math.max(
+				0,
+				1 - Math.hypot(nx + 0.48, ny - 0.42) * 5,
+			);
+			const rim = Math.max(0, Math.hypot(nx, ny) - 0.72) * 0.6;
+			const shade = Math.round(
+				255 *
+					Math.min(
+						1,
+						0.2 +
+							radial * 0.32 +
+							broadHighlight * 0.32 +
+							sharpHighlight * 0.65 +
+							rim,
+					),
+			);
+			const offset = (y * size + x) * 4;
+			data[offset] = shade;
+			data[offset + 1] = shade;
+			data[offset + 2] = shade;
+			data[offset + 3] = 255;
+		}
+	}
+	resourceMatcapTexture = new THREE.DataTexture(
+		data,
+		size,
+		size,
+		THREE.RGBAFormat,
+	);
+	resourceMatcapTexture.colorSpace = THREE.SRGBColorSpace;
+	resourceMatcapTexture.needsUpdate = true;
+	return resourceMatcapTexture;
+}
+
+export function resourceDropMaterial(
+	color: THREE.ColorRepresentation,
+	options: { transparent?: boolean; opacity?: number; side?: THREE.Side } = {},
+): THREE.MeshMatcapMaterial {
+	return new THREE.MeshMatcapMaterial({
+		color,
+		matcap: createResourceMatcapTexture(),
+		...options,
+	});
+}
+
 export function goldCoinDenominations(amount: number): number[] {
 	const coins: number[] = [];
 	let remainder = Math.max(0, Math.floor(amount));
@@ -84,8 +144,7 @@ export class ItemDrop extends GameObject {
 				geometry.rotateZ(Math.PI / 2);
 				const coin = new THREE.Mesh(
 					geometry,
-					new THREE.MeshBasicMaterial({
-						color: denomination?.color ?? 0x8b5a2b,
+					resourceDropMaterial(denomination?.color ?? 0x8b5a2b, {
 						side: THREE.DoubleSide,
 					}),
 				);
@@ -111,11 +170,12 @@ export class ItemDrop extends GameObject {
 
 			const square = new THREE.Mesh(
 				new THREE.PlaneGeometry(18, 18),
-				new THREE.MeshBasicMaterial({
-					color,
-					transparent: drop.kind === "scrap",
-					opacity: drop.kind === "scrap" ? 0 : 1,
-				}),
+				drop.kind === "scrap"
+					? resourceDropMaterial(color, {
+							transparent: true,
+							opacity: 0.18,
+						})
+					: new THREE.MeshBasicMaterial({ color }),
 			);
 			square.rotation.z = Math.PI / 4;
 			square.renderOrder = 0;

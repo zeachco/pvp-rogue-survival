@@ -2123,7 +2123,9 @@ describe("arena systems", () => {
 				child.type === "Mesh" && child.geometry.type === "PlaneGeometry",
 		);
 
-		expect(body?.material.opacity).toBe(0);
+		expect(body?.material).toBeInstanceOf(THREE.MeshMatcapMaterial);
+		expect(body?.material.opacity).toBe(0.18);
+		expect(body?.material.matcap).toBeDefined();
 		expect(
 			resource.children.some((child) => child.type === "LineSegments"),
 		).toBeTrue();
@@ -2197,15 +2199,18 @@ describe("arena systems", () => {
 					.children[0] as THREE.Mesh;
 				return [
 					denominationCoin.userData.goldValue,
-					(denominationCoin.material as THREE.MeshBasicMaterial).color.getHex(),
+					(
+						denominationCoin.material as THREE.MeshMatcapMaterial
+					).color.getHex(),
 				];
 			}),
 		).toEqual(
 			GOLD_COIN_DENOMINATIONS.map(({ value, color }) => [value, color]),
 		);
 		for (const clusteredCoin of clusteredCoins) {
-			const material = clusteredCoin.material as THREE.MeshBasicMaterial;
-			expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
+			const material = clusteredCoin.material as THREE.MeshMatcapMaterial;
+			expect(material).toBeInstanceOf(THREE.MeshMatcapMaterial);
+			expect(material.matcap).toBeDefined();
 		}
 		expect(
 			clusteredCoins.every(
@@ -2215,7 +2220,8 @@ describe("arena systems", () => {
 		expect(
 			clusteredCoins.every(
 				(child) =>
-					(child.material as THREE.MeshBasicMaterial).side === THREE.DoubleSide,
+					(child.material as THREE.MeshMatcapMaterial).side ===
+					THREE.DoubleSide,
 			),
 		).toBeTrue();
 		expect(singleCoins[0].rotation.y).not.toBe(0);
@@ -2261,7 +2267,10 @@ describe("arena systems", () => {
 		for (const root of [projectile.mesh, ...drops.map((drop) => drop.mesh)]) {
 			root.traverse((object) => {
 				if (!(object instanceof THREE.Mesh)) return;
-				expect(object.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+				expect(
+					object.material instanceof THREE.MeshBasicMaterial ||
+						object.material instanceof THREE.MeshMatcapMaterial,
+				).toBeTrue();
 				expect(object.castShadow).toBeFalse();
 				expect(object.receiveShadow).toBeFalse();
 			});
