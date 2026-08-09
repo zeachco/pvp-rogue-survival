@@ -192,6 +192,20 @@ export function bucklerBlockChance(
 	return Math.min(1, passiveChance + bucklerChance);
 }
 
+export function katarBlockChance(
+	item: ItemInstance | undefined,
+	stats: Stats,
+): number {
+	if (item?.itemKind !== "weapon" || item.definitionId !== "katars") return 0;
+	return Math.min(
+		1,
+		0.0001 *
+			Math.max(0, item.level) *
+			Math.max(0, stats.agility) *
+			itemRequirementMultiplier(item, stats),
+	);
+}
+
 export function reflectiveSurgeCooldown(level: number): number {
 	return 30 - (10 * (cappedSkillLevel(level) - 1)) / 98;
 }

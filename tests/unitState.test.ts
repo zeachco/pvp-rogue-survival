@@ -9,6 +9,7 @@ import {
 	type UnitState,
 } from "../common/unitState";
 import { Hero } from "../src/game/Hero";
+import { generateItem } from "../common/items";
 
 class TestTarget implements UnitEffectTarget {
 	state: UnitState = defaultBaseState({ baseStats: ZERO_STATS });
@@ -58,6 +59,18 @@ describe("unit state compiler", () => {
 			blockingLevel: 6,
 		});
 		expect(state.blockChance).toBeCloseTo(0.03);
+	});
+
+	test("projects level-and-Agility block chance from Katars", () => {
+		const katars = {
+			...generateItem(20, "epic", 103, { allowedClasses: ["katars"] }),
+			requirements: {},
+		};
+		const state = projectUnitState({
+			baseStats: { ...ZERO_STATS, agility: 50 },
+			mainHand: katars,
+		});
+		expect(state.blockChance).toBeCloseTo(0.1);
 	});
 
 	test("applies priorities first and application sequence for ties", () => {

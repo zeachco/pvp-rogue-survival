@@ -67,6 +67,7 @@ import {
 	healingCooldown,
 	healingFraction,
 	healingRadius,
+	katarBlockChance,
 	manaConversionFraction,
 	orbitingHammerDuration,
 	rapidRegenDuration,
@@ -617,6 +618,9 @@ describe("attack timing", () => {
 		expect(largeMace.skills[0]).toBe("shockwave");
 		expect(longsword.skills[0]).toBe("sweep");
 		expect(katars.skills[0]).toBe("flurry");
+		expect(
+			katarBlockChance(katars, { ...ZERO_STATS, agility: 50 }),
+		).toBeCloseTo(0.0001 * katars.level * 50);
 	});
 	test("keeps staff basics at two meters while preserving its spell", () => {
 		const staff = {

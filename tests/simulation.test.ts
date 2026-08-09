@@ -1950,6 +1950,12 @@ describe("arena systems", () => {
 			new SeededRandom(1),
 		);
 		const swamp = new GroundSwamp({ x: 0, y: 0 }, 100, hero);
+		const fill = swamp.mesh.children[1];
+		const ring = swamp.mesh.children[2];
+		expect(fill.scale.x).toBe(1);
+		expect(fill.scale.y).toBe(1);
+		expect(ring.scale.x).toBe(1);
+		expect(ring.scale.y).toBe(1);
 		swamp.update(1, [creep]);
 		expect(creep.statuses).toMatchObject([
 			{
@@ -2916,6 +2922,24 @@ describe("arena systems", () => {
 		hero.rage = 1;
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.rage).toBe(3);
+	});
+	test("lets Katars block without Blocking, Rage cost, or cooldown", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const katars = {
+			...generateItem(100, "unique", 103, { allowedClasses: ["katars"] }),
+			requirements: {},
+		};
+		hero.configureStats(
+			{ agility: 100, strength: 5, magic: 0, spirit: 0, intelligence: 0 },
+			undefined,
+			katars,
+		);
+		const hp = hero.hp;
+		const rage = hero.rage;
+		hero.receiveDamage(10, { next: () => 0.99 });
+		expect(hero.hp).toBe(hp - 5);
+		expect(hero.rage).toBe(rage + 1);
+		expect(hero.blockCooldown).toBe(0);
 	});
 	test("lets the Manaforged Aegis block without cooldown or Rage cost", () => {
 		const hero = new Hero({ x: 50, y: 50 });

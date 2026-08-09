@@ -5,6 +5,7 @@ import {
 	attractionSpeedMultiplier,
 	bucklerBlockChance,
 	bucklerBlockCost,
+	katarBlockChance,
 	reflectiveSurgeBlockChanceBonus,
 	RAGE_DECAY_PER_SECOND,
 } from "./combat";
@@ -254,11 +255,9 @@ export function defaultBaseState(input: UnitStateInput): UnitState {
 			bleed: Math.min(0.5, perks.bleedResist),
 		},
 		immunities,
-		blockChance: bucklerBlockChance(
-			buckler,
-			attributes,
-			input.blockingLevel ?? 0,
-		),
+		blockChance:
+			bucklerBlockChance(buckler, attributes, input.blockingLevel ?? 0) +
+			katarBlockChance(input.mainHand, attributes),
 		blockChanceCap: 1,
 		blockCost: buckler ? bucklerBlockCost(buckler, attributes) : 0,
 		lifeSteal,

@@ -62,6 +62,10 @@ describe("generated devlog history", () => {
 		);
 		expect(prompt).toContain("Use no more than three concise lines per bucket");
 		expect(prompt).toContain("only its primary player-facing bucket");
+		expect(prompt).toContain("All six bucket keys belong inside summary");
+		expect(prompt).toContain(
+			"never return empty strings or empty arrays as placeholders",
+		);
 		expect(prompt).toContain("feat: add realms");
 		expect(prompt).toContain("fix: preserve drops");
 	});
@@ -91,6 +95,46 @@ describe("generated devlog history", () => {
 				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":{"other":["Unstructured update."]}}]}',
 			),
 		).toThrow('Unrecognized key: "other"');
+	});
+
+	test("normalizes observed Ollama bucket shape drift", () => {
+		expect(
+			extractPeriods(
+				'{"periods":[{"key":"2026-W28","title":"Started","summary":{"features":["Project initialized"],"bugfixes":[""],"performance":[],"balance":["  "],"ux":[],"graphics":[]}}]}',
+			),
+		).toEqual([
+			{
+				key: "2026-W28",
+				title: "Started",
+				summary: { features: ["Project initialized"] },
+			},
+		]);
+		expect(
+			extractPeriods(
+				'{"periods":[{"key":"2026-W31","title":"Systems","summary":{"features":"Added realms"},"performance":"Faster rendering","balance":["Tuned waves"],"ux":"","graphics":[]}]}',
+			),
+		).toEqual([
+			{
+				key: "2026-W31",
+				title: "Systems",
+				summary: {
+					features: ["Added realms"],
+					performance: ["Faster rendering"],
+					balance: ["Tuned waves"],
+				},
+			},
+		]);
+		expect(
+			extractPeriods(
+				'{"periods":[{"periods":[{"key":"2026-W31","title":"Systems","summary":{"features":["Added realms"]}}]}]}',
+			),
+		).toEqual([
+			{
+				key: "2026-W31",
+				title: "Systems",
+				summary: { features: ["Added realms"] },
+			},
+		]);
 	});
 
 	test("retries an invalid week with progressively larger models", async () => {

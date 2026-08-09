@@ -11,6 +11,7 @@ import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
 import {
 	reflectiveSurgeDuration,
 	effectiveSkillCooldown,
+	katarBlockChance,
 	manaConversionFraction,
 	spellCooldownFloor,
 	spiritWoundsConversionFraction,
@@ -391,6 +392,9 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		let blockReflection = 0;
 		let blocked = false;
 		const buckler = this.offHand;
+		const katars =
+			this.mainHand?.itemKind === "weapon" &&
+			this.mainHand.definitionId === "katars";
 		const blockCost = this.state.blockCost;
 		const uniqueBuckler =
 			buckler?.itemKind === "buckler" && buckler.rarity === "unique";
@@ -399,33 +403,36 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			source && incomingAmount > 0 && this.reflectiveSurgeAutomatic,
 		);
 		if (
-			buckler?.itemKind === "buckler" &&
-			this.isSkillOperational("blocking") &&
-			(uniqueBuckler || this.blockCooldown === 0) &&
+			((buckler?.itemKind === "buckler" &&
+				this.isSkillOperational("blocking") &&
+				(uniqueBuckler || this.blockCooldown === 0)) ||
+				katars) &&
 			this.rage >= blockCost &&
 			this.mana >= blockManaCost
 		) {
-			const chance = Math.min(
-				this.state.blockChanceCap,
-				this.state.blockChance,
-			);
+			const chance = katars
+				? katarBlockChance(this.mainHand, this.stats)
+				: Math.min(this.state.blockChanceCap, this.state.blockChance);
 			if (random.next() < chance) {
 				blocked = true;
 				this.emitOutcome("block", "BLOCK");
 				if (uniqueBuckler) this.spendMana(blockManaCost);
-				else this.spendRage(blockCost);
+				else if (!katars) this.spendRage(blockCost);
 				this.grantDefensiveRage("block");
-				const attackSpeed = this.mainHand
-					? weaponAttackSpeed(this.mainHand, this.stats)
-					: 1;
-				const blockingLevel = this.skillLevels.get("blocking") ?? 1;
-				this.blockCooldownMax = Math.max(
-					spellCooldownFloor(blockingLevel),
-					buckler.reflectionComponents.includes("return")
-						? 1 / Math.max(0.01, attackSpeed)
-						: 1,
-				);
-				this.blockCooldown = uniqueBuckler ? 0 : this.blockCooldownMax;
+				if (!katars) {
+					const attackSpeed = this.mainHand
+						? weaponAttackSpeed(this.mainHand, this.stats)
+						: 1;
+					const blockingLevel = this.skillLevels.get("blocking") ?? 1;
+					this.blockCooldownMax = Math.max(
+						spellCooldownFloor(blockingLevel),
+						buckler!.reflectionComponents.includes("return")
+							? 1 / Math.max(0.01, attackSpeed)
+							: 1,
+					);
+				}
+				this.blockCooldown =
+					uniqueBuckler || katars ? 0 : this.blockCooldownMax;
 				const beforeBlock = remaining;
 				remaining = Math.max(
 					0,

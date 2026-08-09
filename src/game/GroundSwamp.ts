@@ -40,8 +40,6 @@ export class GroundSwamp extends GameObject {
 				depthWrite: false,
 			}),
 		);
-		mainShape.scale.y = 0.62;
-		mainShape.rotation.z = -0.16;
 		mainShape.renderOrder = Z_SWAMP;
 		this.mesh.add(mainShape);
 
@@ -55,8 +53,6 @@ export class GroundSwamp extends GameObject {
 				depthWrite: false,
 			}),
 		);
-		stroke.scale.y = 0.62;
-		stroke.rotation.z = -0.16;
 		stroke.renderOrder = Z_SWAMP + 0.001;
 		this.mesh.add(stroke);
 
@@ -77,7 +73,7 @@ export class GroundSwamp extends GameObject {
 			);
 			dot.position.set(
 				Math.cos(angle) * offset,
-				Math.sin(angle) * offset * 0.58,
+				Math.sin(angle) * offset,
 				0.001,
 			);
 			dot.scale.set(w / Math.max(w, h), h / Math.max(w, h), 1);

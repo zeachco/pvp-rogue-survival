@@ -445,6 +445,11 @@ function itemEffectSummary(
 				: `${fmt(bucklerBlockCost(item, effectiveStats))} rage/block`,
 		);
 	}
+	if (item.itemKind === "weapon" && item.definitionId === "katars")
+		push(
+			"block",
+			`${precise(0.01 * item.level * effectiveStats.agility * effectiveness)}% block (0.01%×level×AGI)`,
+		);
 	if (item.attractionSpeed > 0)
 		push(
 			"attraction",
