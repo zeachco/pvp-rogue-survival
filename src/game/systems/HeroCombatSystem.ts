@@ -765,48 +765,54 @@ export class HeroCombatSystem {
 	spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
 		const equipped = equippedActiveSkillIds(progress);
 		const autoFire = new Set(autoFireSkillIds(progress));
-		const ordinarySlots = orderedSkillIds(progress).map((id) => {
-			const cooldown = this.skillCooldowns.get(id);
-			return {
-				id,
-				label: skillLabel(id),
-				level: effectiveSkillLevel(progress, id),
-				actualLevel: actualSkillLevel(progress, id),
-				cooldown:
-					id === "healing"
-						? this.healingCooldown
-						: id === "blocking"
-							? hero.blockCooldown
-							: id === "reflectiveSurge"
-								? hero.reflectiveSurgeCooldown
-								: (cooldown?.remaining ?? 0),
-				cooldownMax:
-					id === "healing"
-						? this.healingCooldownMax
-						: id === "blocking"
-							? hero.blockCooldownMax
-							: id === "reflectiveSurge"
-								? hero.reflectiveSurgeCooldownMax
-								: (cooldown?.maximum ?? 0),
-				castProgress:
-					this.casting?.id === id
-						? Math.min(1, this.casting.elapsed / this.casting.total)
+		const procSkills = weaponProcSkills(progress);
+		const procSkillIds = new Set(procSkills.map(({ id }) => id));
+		const ordinarySlots = orderedSkillIds(progress)
+			.filter((id) => !procSkillIds.has(id))
+			.map((id) => {
+				const cooldown = this.skillCooldowns.get(id);
+				return {
+					id,
+					label: skillLabel(id),
+					level: effectiveSkillLevel(progress, id),
+					actualLevel: actualSkillLevel(progress, id),
+					cooldown:
+						id === "healing"
+							? this.healingCooldown
+							: id === "blocking"
+								? hero.blockCooldown
+								: id === "reflectiveSurge"
+									? hero.reflectiveSurgeCooldown
+									: (cooldown?.remaining ?? 0),
+					cooldownMax:
+						id === "healing"
+							? this.healingCooldownMax
+							: id === "blocking"
+								? hero.blockCooldownMax
+								: id === "reflectiveSurge"
+									? hero.reflectiveSurgeCooldownMax
+									: (cooldown?.maximum ?? 0),
+					castProgress:
+						this.casting?.id === id
+							? Math.min(1, this.casting.elapsed / this.casting.total)
+							: undefined,
+					affordable: SKILLS[id].upkeep
+						? hero.isSkillOperational(id)
+						: skillAffordable(id, progress, hero),
+					resource: SKILLS[id].resource,
+					costLabel: skillCostLabel(id, progress),
+					active: isSkillActive(progress, id),
+					passive: Boolean(SKILLS[id].passive),
+					autoFire: autoFire.has(id),
+					shortcut: equipped.includes(id)
+						? equipped.indexOf(id) + 1
 						: undefined,
-				affordable: SKILLS[id].upkeep
-					? hero.isSkillOperational(id)
-					: skillAffordable(id, progress, hero),
-				resource: SKILLS[id].resource,
-				costLabel: skillCostLabel(id, progress),
-				active: isSkillActive(progress, id),
-				passive: Boolean(SKILLS[id].passive),
-				autoFire: autoFire.has(id),
-				shortcut: equipped.includes(id) ? equipped.indexOf(id) + 1 : undefined,
-				bar: learnedSkillIds(progress).includes(id)
-					? ("learned" as const)
-					: ("geared" as const),
-			};
-		});
-		const procSlots = weaponProcSkills(progress).map(({ id, level }) => ({
+					bar: learnedSkillIds(progress).includes(id)
+						? ("learned" as const)
+						: ("geared" as const),
+				};
+			});
+		const procSlots = procSkills.map(({ id, level }) => ({
 			id,
 			label: skillLabel(id),
 			level,
@@ -1209,9 +1215,8 @@ export function weaponProcSkills(
 	progress: PlayerProgress,
 ): Array<{ id: SkillId; level: number }> {
 	if (progress.mainHand?.itemKind !== "weapon") return [];
-	const learned = new Set(learnedSkillIds(progress));
 	return [...new Set(progress.mainHand.skills)]
-		.filter((id) => !SKILLS[id].passive && !learned.has(id))
+		.filter((id) => !SKILLS[id].passive)
 		.map((id) => ({
 			id,
 			level: cappedSkillLevel(progress.mainHand!.level),

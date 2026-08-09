@@ -16,6 +16,7 @@ import {
 	aimGuideCenter,
 	aimGuideDimensions,
 	HERO_TURN_SPEED,
+	Hero,
 	turnAngleTowards,
 } from "../src/game/Hero";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
@@ -179,6 +180,7 @@ import {
 	forceField,
 	forceFieldFalloff,
 	forceFieldDamage,
+	HeroCombatSystem,
 	isSkillActive,
 	isSkillAvailable,
 	shouldAutoCastHealing,
@@ -1617,7 +1619,7 @@ describe("equipped skill levels", () => {
 		expect(effectiveSkillLevel(state, "gravityPull")).toBe(1);
 	});
 });
-test("keeps unlearned weapon actives off the rail while retaining them as cooldown-weighted procs", () => {
+test("keeps weapon actives as cooldown-weighted procs", () => {
 	const state = progress();
 	state.level = 20;
 	state.mainHand = {
@@ -1634,6 +1636,33 @@ test("keeps unlearned weapon actives off the rail while retaining them as cooldo
 	expect(weaponSkillTriggerChanceForHits(10, 3)).toBeCloseTo(0.3);
 	expect(weaponSkillTriggerChanceForHits(1, 3)).toBe(1);
 	expect(weaponSkillTriggerChanceForHits(10, 20)).toBe(1);
+});
+
+test("projects item-provided Healing as a read-only weapon proc", () => {
+	const state = progress();
+	state.level = 20;
+	state.mainHand = {
+		...state.mainHand!,
+		definitionId: "mace",
+		level: 7,
+		skills: ["healing"],
+	};
+	expect(weaponProcSkills(state)).toEqual([{ id: "healing", level: 7 }]);
+	const hero = new Hero({ x: 0, y: 0 });
+	const slot = new HeroCombatSystem()
+		.spellSlots(state, hero)
+		.find(({ id }) => id === "healing");
+	expect(slot).toMatchObject({
+		active: true,
+		passive: true,
+		bar: "geared",
+		procChancesOnAttacks: expect.any(Number),
+	});
+	expect(
+		new HeroCombatSystem()
+			.spellSlots(state, hero)
+			.filter(({ id }) => id === "healing"),
+	).toHaveLength(1);
 });
 
 test("scales Reflective Surge cooldown, duration, and block bonus to exact endpoints", () => {
