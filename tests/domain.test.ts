@@ -2679,7 +2679,7 @@ test("registers configurable Spirit relic perks", () => {
 	expect(passiveSkillMetrics("timeHarvest", 99, ZERO_STATS)).toEqual([
 		{ label: "Cooldown removal", value: "2s / kill" },
 	]);
-	expect(SKILLS.rapidRegen).toMatchObject({ cost: 4, cooldown: 20 });
+	expect(SKILLS.rapidRegen).toMatchObject({ cost: 4, cooldown: 40 });
 	expect(rapidRegenDuration(1)).toBe(10);
 	expect(rapidRegenDuration(99)).toBe(30);
 	expect(rapidRegenMultiplier(1)).toBeCloseTo(1.2);

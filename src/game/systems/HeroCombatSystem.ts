@@ -225,11 +225,12 @@ export class HeroCombatSystem {
 		const rapidRegenCost =
 			skillManaCost("rapidRegen") *
 			(1 - resourceReduction(progress, "mana", effectiveStats));
+		const manualRapidRegen = this.manualSkill === "rapidRegen";
 		if (
 			isSkillActive(progress, "rapidRegen") &&
-			(autoFire.has("rapidRegen") || this.manualSkill === "rapidRegen") &&
+			(autoFire.has("rapidRegen") || manualRapidRegen) &&
 			rapidRegenLevel > 0 &&
-			hero.hp < hero.maxHp &&
+			(manualRapidRegen || hero.hp < hero.maxHp) &&
 			hero.effectRemaining("rapidRegen") === 0 &&
 			(this.skillCooldowns.get("rapidRegen")?.remaining ?? 0) === 0 &&
 			hero.mana >= rapidRegenCost

@@ -3149,6 +3149,54 @@ describe("arena systems", () => {
 		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
 	});
 
+	test("manually activates Rapid Regeneration at full health while auto-fire waits for missing health", () => {
+		const rapidRegenProgress = (autoFire: boolean) => ({
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			inventoryTiles: [],
+			learnedSkills: ["rapidRegen" as const],
+			learnedSkillLevels: { rapidRegen: 1 },
+			universalSkills: [],
+			equippedSkills: ["rapidRegen" as const],
+			autoFireSkills: autoFire ? (["rapidRegen"] as const) : [],
+		});
+		const hero = new Hero({ x: 50, y: 50 });
+		hero.configureStats(ZERO_STATS);
+		const combat = new HeroCombatSystem();
+		const autoProgress = rapidRegenProgress(true);
+
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			new ArenaState(),
+			autoProgress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.effectRemaining("rapidRegen")).toBe(0);
+		expect(hero.mana).toBe(hero.maxMana);
+
+		const manualProgress = rapidRegenProgress(false);
+		combat.requestSpellSlot(0, manualProgress);
+		combat.update(
+			1 / 60,
+			{ x: 0, y: 0 },
+			hero,
+			new ArenaState(),
+			manualProgress,
+			BALANCE,
+			new SeededRandom(1),
+		);
+		expect(hero.effectRemaining("rapidRegen")).toBe(10);
+		expect(hero.mana).toBe(hero.maxMana - 4);
+	});
+
 	test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const club = starterClub();

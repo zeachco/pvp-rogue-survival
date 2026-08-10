@@ -370,7 +370,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "rapidRegen",
 		label: "Rapid Regeneration",
 		damageMultiplier: 0,
-		cooldown: 20,
+		cooldown: 40,
 		resource: "mana",
 		cost: 4,
 		description:
