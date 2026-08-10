@@ -472,6 +472,8 @@ export class ThreeRenderer {
 			hero.skillLevels.keys(),
 			arena.spellEffects,
 			time,
+			arena.swamps,
+			arena.blizzards,
 		);
 		this.heroLightRoot = hero.mesh;
 		applySceneLightingMode(

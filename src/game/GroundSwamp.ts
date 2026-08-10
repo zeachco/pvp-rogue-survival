@@ -9,7 +9,6 @@ import { MovementMultiplierEffect } from "../../common/unitState";
 export class GroundSwamp extends GameObject {
 	private remaining = 8;
 	private readonly occupancy = new Map<Creep, number>();
-	private readonly spellLight: THREE.PointLight;
 
 	readonly position: Vector2;
 	readonly radius: number;
@@ -27,9 +26,6 @@ export class GroundSwamp extends GameObject {
 		this.radius = radius;
 		this.source = source;
 		this.followSource = followSource;
-		this.spellLight = new THREE.PointLight(0x486f3b, 14, radius * 2, 1);
-		this.spellLight.position.z = 16;
-		this.mesh.add(this.spellLight);
 
 		const mainShape = new THREE.Mesh(
 			new THREE.CircleGeometry(radius, 32),
@@ -42,45 +38,6 @@ export class GroundSwamp extends GameObject {
 		);
 		mainShape.renderOrder = Z_SWAMP;
 		this.mesh.add(mainShape);
-
-		const stroke = new THREE.Mesh(
-			new THREE.RingGeometry(radius - 2, radius + 2, 32),
-			new THREE.MeshBasicMaterial({
-				color: 0x3e5d32,
-				transparent: true,
-				opacity: 0.7,
-				side: THREE.DoubleSide,
-				depthWrite: false,
-			}),
-		);
-		stroke.renderOrder = Z_SWAMP + 0.001;
-		this.mesh.add(stroke);
-
-		const decorMat = new THREE.MeshBasicMaterial({
-			color: 0x192d1b,
-			transparent: true,
-			opacity: 0.32,
-			depthWrite: false,
-		});
-		for (let index = 0; index < 11; index += 1) {
-			const angle = index * 2.399;
-			const offset = radius * (0.2 + (index % 4) * 0.16);
-			const w = 11 + (index % 3) * 6;
-			const h = 5 + (index % 2) * 4;
-			const dot = new THREE.Mesh(
-				new THREE.CircleGeometry(Math.max(w, h) / 2, 12),
-				decorMat,
-			);
-			dot.position.set(
-				Math.cos(angle) * offset,
-				Math.sin(angle) * offset,
-				0.001,
-			);
-			dot.scale.set(w / Math.max(w, h), h / Math.max(w, h), 1);
-			dot.rotation.z = angle;
-			dot.renderOrder = Z_SWAMP + 0.002;
-			this.mesh.add(dot);
-		}
 
 		this.mesh.renderOrder = Z_SWAMP;
 	}
@@ -128,7 +85,6 @@ export class GroundSwamp extends GameObject {
 	override updateVisuals(time: number): void {
 		super.updateVisuals(time);
 		this.mesh.position.set(this.position.x, this.position.y, 0);
-		this.spellLight.intensity = 11 + 5 * (0.5 + 0.5 * Math.sin(time * 4.2));
 	}
 
 	private applyPoison(creep: Creep): void {

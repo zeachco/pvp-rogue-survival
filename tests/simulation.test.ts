@@ -59,8 +59,16 @@ import {
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
-import { Blizzard } from "../src/game/Blizzard";
-import { HeroSpellLightPool } from "../src/game/render/HeroSpellLightPool";
+import { BLIZZARD_ICICLES_PER_VOLLEY, Blizzard } from "../src/game/Blizzard";
+import {
+	HeroSpellLightPool,
+	BLIZZARD_PROJECTILE_LIGHT_COLOR,
+	BLIZZARD_PROJECTILE_LIGHT_DISTANCE,
+	BLIZZARD_PROJECTILE_LIGHT_INTENSITY,
+	SWAMP_UPLIGHT_COLOR,
+	SWAMP_UPLIGHT_DEPTH,
+	SWAMP_UPLIGHT_INTENSITY,
+} from "../src/game/render/HeroSpellLightPool";
 import {
 	COIN_BOB_AMPLITUDE,
 	COIN_BOB_SPEED,
@@ -1950,12 +1958,21 @@ describe("arena systems", () => {
 			new SeededRandom(1),
 		);
 		const swamp = new GroundSwamp({ x: 0, y: 0 }, 100, hero);
-		const fill = swamp.mesh.children[1];
-		const ring = swamp.mesh.children[2];
+		const fill = swamp.mesh.children[0];
+		expect(swamp.mesh.children).toHaveLength(1);
+		expect(swamp.mesh.getObjectsByProperty("type", "PointLight")).toHaveLength(
+			0,
+		);
 		expect(fill.scale.x).toBe(1);
 		expect(fill.scale.y).toBe(1);
-		expect(ring.scale.x).toBe(1);
-		expect(ring.scale.y).toBe(1);
+		const swampScene = new THREE.Scene();
+		const swampLightPool = new HeroSpellLightPool(swampScene);
+		swampLightPool.sync(["swamp"], [], 0, [swamp]);
+		const swampLight = swampLightPool.light("swamp") as THREE.PointLight;
+		expect(swampLight.color.getHex()).toBe(SWAMP_UPLIGHT_COLOR);
+		expect(swampLight.intensity).toBe(SWAMP_UPLIGHT_INTENSITY);
+		expect(swampLight.distance).toBe(200);
+		expect(swampLight.position.z).toBe(SWAMP_UPLIGHT_DEPTH);
 		swamp.update(1, [creep]);
 		expect(creep.statuses).toMatchObject([
 			{
@@ -1997,18 +2014,58 @@ describe("arena systems", () => {
 		);
 		const hpBefore = creep.hp;
 		const blizzard = new Blizzard({ x: 0, y: 0 }, 100, 5, 1, 13, hero, false);
-		const stormLights = blizzard.mesh.getObjectsByProperty(
-			"type",
-			"SpotLight",
-		) as THREE.SpotLight[];
-		expect(stormLights).toHaveLength(1);
+		expect(
+			blizzard.mesh.getObjectsByProperty("type", "SpotLight"),
+		).toHaveLength(0);
 		expect(
 			blizzard.mesh.getObjectsByProperty("type", "PointLight"),
 		).toHaveLength(0);
-		expect(stormLights[0].position.z).toBeGreaterThan(0);
-		expect(stormLights[0].angle).toBeCloseTo(Math.atan(200 / 160));
-		expect(stormLights[0].distance).toBeCloseTo(Math.hypot(160, 200) + 20);
+		blizzard.update(0, [creep], new SeededRandom(2));
+		const fallingIcicles = blizzard.mesh.getObjectsByProperty(
+			"name",
+			"blizzard-icicle",
+		) as THREE.Mesh[];
+		expect(fallingIcicles).toHaveLength(BLIZZARD_ICICLES_PER_VOLLEY);
+		expect(
+			fallingIcicles.every((icicle) => {
+				const pointDirection = new THREE.Vector3(0, 1, 0).applyQuaternion(
+					icicle.quaternion,
+				);
+				return pointDirection.z < -0.999;
+			}),
+		).toBeTrue();
+		expect(fallingIcicles.filter((icicle) => icicle.visible)).toHaveLength(1);
+		expect(
+			new Set(
+				fallingIcicles.map(
+					(icicle) => `${icicle.position.x},${icicle.position.y}`,
+				),
+			).size,
+		).toBe(BLIZZARD_ICICLES_PER_VOLLEY);
+		const blizzardScene = new THREE.Scene();
+		const blizzardLightPool = new HeroSpellLightPool(blizzardScene);
+		blizzardLightPool.sync(["blizzard"], [], 0, [], [blizzard]);
+		const blizzardLight = blizzardLightPool.light(
+			"blizzard",
+		) as THREE.PointLight;
+		const firstLitPosition = blizzardLight.position.clone();
+		expect(blizzardLight.color.getHex()).toBe(BLIZZARD_PROJECTILE_LIGHT_COLOR);
+		expect(blizzardLight.intensity).toBe(BLIZZARD_PROJECTILE_LIGHT_INTENSITY);
+		expect(blizzardLight.distance).toBe(BLIZZARD_PROJECTILE_LIGHT_DISTANCE);
 		blizzard.update(0.36, [creep], new SeededRandom(2));
+		blizzardLightPool.sync(["blizzard"], [], 0.36, [], [blizzard]);
+		expect(blizzardLight.position.equals(firstLitPosition)).toBeFalse();
+		const nextTarget = blizzard.closestFallingIciclePosition();
+		expect(nextTarget).toBeDefined();
+		expect(blizzardLight.position.z).toBeGreaterThanOrEqual(10);
+		expect(
+			Math.abs(blizzardLight.position.z - (nextTarget?.z ?? 0)),
+		).toBeLessThan(
+			Math.hypot(
+				blizzardLight.position.x - (nextTarget?.x ?? 0),
+				blizzardLight.position.y - (nextTarget?.y ?? 0),
+			),
+		);
 		expect(creep.hp).toBeLessThan(hpBefore);
 		expect(creep.statuses).toMatchObject([
 			{ kind: "freeze", remaining: 4, damagePerSecond: 0, source: hero },

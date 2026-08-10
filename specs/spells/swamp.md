@@ -6,4 +6,4 @@
 
 **Unique variant (Unique Voodoo Doll relic):** the gooey swamp is cast centered on the caster instead of at the closest enemy, follows the caster for its full 8-second duration, and its radius is 4× the normal effective radius (16 m at level 1 to 40 m at level 99). Poison, slow, occupancy tracking, and duration are otherwise unchanged.
 
-**Presentation:** render the swamp as a large dark, irregular oval on the arena ground, before drops, creeps, attacks, projectiles, and units. It is distinct from the hero-centered aura fields and remains at its cast position.
+**Presentation:** render the swamp as one dark circular ground fill matching its overlap radius, with no ring or decorative artifacts, before drops, creeps, attacks, projectiles, and units. While active, it uses the shared hero spell-light pool to cast a strong radioactive-green point light upward from below the arena floor, lighting models standing over the swamp. It is distinct from the hero-centered aura fields and remains at its cast position.
