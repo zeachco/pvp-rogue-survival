@@ -301,16 +301,6 @@ input {
 	filter: brightness(0.94);
 }
 
-.header-devlog {
-	border-color: #ffd65a;
-	color: #211800;
-	background: linear-gradient(135deg, #fff074, #ffad32);
-	box-shadow:
-		0 3px 10px rgba(255, 178, 48, 0.42),
-		0 0 12px rgba(255, 214, 90, 0.2);
-	font-weight: 800;
-}
-
 .spell-bar {
 	position: absolute;
 	bottom: 72px;
@@ -2981,12 +2971,6 @@ input {
 
 .is-hidden {
 	display: none;
-}
-
-@media (max-width: 1439px) {
-	.header-devlog {
-		display: none;
-	}
 }
 
 @media (max-width: 1099px) {

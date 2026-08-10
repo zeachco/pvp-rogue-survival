@@ -177,7 +177,7 @@ export class Hud {
 	private readonly onlineCount = (<div class="online-count" />) as HTMLElement;
 	private readonly loginHeaderActions = (
 		<nav class="header-login-actions" aria-label="Login links">
-			<button class="header-control header-devlog" type="button">
+			<button class="header-control" type="button">
 				Devlog
 			</button>
 			<button class="header-control" type="button">
@@ -2593,7 +2593,7 @@ export class Hud {
 		) as HTMLButtonElement;
 		options.onclick = () => this.gameSettings.open();
 		const devlog = (
-			<button class="header-control header-devlog" type="button">
+			<button class="header-control" type="button">
 				Devlog
 			</button>
 		) as HTMLButtonElement;
