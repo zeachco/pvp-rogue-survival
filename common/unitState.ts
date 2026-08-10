@@ -24,6 +24,7 @@ import {
 import {
 	derivedStats,
 	heroTurnSpeedDegrees,
+	migrateLegacyStats,
 	type DerivedStats,
 	type Stats,
 } from "./progression";
@@ -161,6 +162,7 @@ export function compareUnitEffects(
 }
 
 export function defaultBaseState(input: UnitStateInput): UnitState {
+	const baseStats = migrateLegacyStats({ ...input.baseStats });
 	const equipment = [
 		input.mainHand,
 		input.offHand,
@@ -168,8 +170,8 @@ export function defaultBaseState(input: UnitStateInput): UnitState {
 		input.charm,
 	] as const;
 	const attributes = input.attributesAreEffective
-		? { ...input.baseStats }
-		: statsWithItemBonuses(input.baseStats, ...equipment);
+		? baseStats
+		: statsWithItemBonuses(baseStats, ...equipment);
 	const derived = derivedStats(attributes);
 	const attack = attackProfile(
 		input.mainHand,

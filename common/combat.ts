@@ -292,13 +292,13 @@ export function skillDamagePreview(
 		case "sunburnAura":
 			return {
 				kind: "percentage",
-				value: sunburnFraction(stats.magic),
+				value: sunburnFraction(stats.intelligence),
 				detail: "target HP / pulse",
 			};
 		case "thunderAura":
 			return {
 				kind: "flat",
-				value: thunderDamage(stats.magic),
+				value: thunderDamage(stats.intelligence),
 				detail: "lightning",
 			};
 	}
@@ -624,11 +624,13 @@ export function skillStatBonusDescription(skill: SkillId): string | undefined {
 			bonuses.push("Skill level increases cooldown removal per kill");
 			break;
 		case "sunburnAura":
-			bonuses.push("Magic increases damage; Spirit shortens pulse interval");
+			bonuses.push(
+				"Intelligence increases damage; Spirit shortens pulse interval",
+			);
 			break;
 		case "thunderAura":
 			bonuses.push(
-				"Magic increases lightning damage; Agility increases critical chance",
+				"Intelligence increases lightning damage; Agility increases critical chance",
 			);
 			break;
 		case "slowAura":

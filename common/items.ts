@@ -239,6 +239,22 @@ type LegacyItemInstance = ItemInstance & {
 
 export function migrateLegacyItem(item: ItemInstance): ItemInstance {
 	const legacy = item as LegacyItemInstance;
+	const legacyRequirements = item.requirements as typeof item.requirements & {
+		magic?: number;
+	};
+	const legacyBonuses = item.statBonuses as typeof item.statBonuses & {
+		magic?: number;
+	};
+	if (Number.isFinite(legacyRequirements.magic))
+		item.requirements.intelligence = Math.max(
+			item.requirements.intelligence ?? 0,
+			legacyRequirements.magic!,
+		);
+	if (Number.isFinite(legacyBonuses.magic))
+		item.statBonuses.intelligence =
+			(item.statBonuses.intelligence ?? 0) + legacyBonuses.magic!;
+	delete legacyRequirements.magic;
+	delete legacyBonuses.magic;
 	if (!Number.isFinite(item.modifiers.magicFind))
 		item.modifiers.magicFind = Number.isFinite(legacy.modifiers.rarityBoost)
 			? legacy.modifiers.rarityBoost!
@@ -1110,7 +1126,7 @@ export function statsWithItemBonuses(
 	return Object.fromEntries(
 		STAT_KEYS.map((key) => [
 			key,
-			stats[key] +
+			(stats[key] ?? 0) +
 				items.reduce(
 					(sum, item) =>
 						sum +
@@ -1224,7 +1240,7 @@ function rollItemPerks(item: ItemInstance, seed: number): ItemInstance {
 		bonusXp: [],
 		physicalResist: ["strength", "agility"],
 		magicResist: ["intelligence"],
-		fireResist: ["intelligence", "magic"],
+		fireResist: ["intelligence"],
 		frostResist: ["intelligence"],
 		poisonResist: ["spirit", "agility"],
 		bleedResist: ["strength", "agility"],

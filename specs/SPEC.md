@@ -62,6 +62,8 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 
 ## 7. Visual and UX Direction
 
+- Mobile and coarse-pointer layouts keep the real CSS viewport and never scale the complete HUD, so the bottom-centered login and both viewport-edge header controls remain visible without desktop-site mode.
+
 - HUD alignment refinement: the character and inventory overlays sit 12px from their respective side edges and 12px above the bottom; the spell rail, chat, and resource dock use the same 12px bottom anchor, with a further 12px separation from an open panel.
 
 - `All` is selected when no graphics preference exists. The selected valid Lights mode is stored in browser local storage rather than player state and restored whenever a new scene initializes.
@@ -149,8 +151,8 @@ Client to server:
 - `listHeroes`: `{}`; available before login and returns the public leaderboard.
 - `inspectHero`: `{ heroId }`; available before login and returns the public build projection for one hero.
 - `dismissPanelTrigger`: `{ panel: "character" | "inventory" | "multiplayer" }`; durably consumes that hero's pending one-time panel auto-open trigger or multiplayer introduction.
-- `updateAllocation`: `{ allocation: { agility, strength, magic, spirit, intelligence } }`
-- `respecStats`: `{ allocation: { agility, strength, magic, spirit, intelligence } }`; charges `100 * currentLevel`, saves the supplied valid five-point allocation, and reapplies it retroactively to every earned level.
+- `updateAllocation`: `{ allocation: { agility, strength, spirit, intelligence } }`
+- `respecStats`: `{ allocation: { agility, strength, spirit, intelligence } }`; charges `100 * currentLevel`, saves the supplied valid five-point allocation, and reapplies it retroactively to every earned level.
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
 - `reconcileDrops`: `{ activeDropIds, pendingDropIds }`; reports the client's current arena-drop view so transiently lost pickup requests and orphaned Gold, Scrap, or equipment can be repaired.

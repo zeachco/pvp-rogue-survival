@@ -135,7 +135,6 @@ export type GroundDrop =
 const statsSchema = z.object({
 	agility: z.number(),
 	strength: z.number(),
-	magic: z.number(),
 	spirit: z.number(),
 	intelligence: z.number(),
 });

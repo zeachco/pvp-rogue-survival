@@ -98,15 +98,6 @@ input {
 	display: block;
 }
 
-@media (pointer: coarse) and (max-width: 900px) {
-	#hud {
-		width: calc(100vw / 0.72);
-		height: calc(100vh / 0.72);
-		transform: scale(0.72);
-		transform-origin: top left;
-	}
-}
-
 .item-hover-card {
 	position: fixed;
 	z-index: 30;

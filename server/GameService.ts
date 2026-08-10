@@ -45,6 +45,7 @@ import {
 	cumulativeXpForLevel,
 	DEFAULT_ALLOCATION,
 	levelForXp,
+	migrateLegacyStats,
 	scaledStats,
 	STAT_KEYS,
 	validAllocation,
@@ -423,6 +424,10 @@ export class GameService {
 			? this.options.repository.get(heroId)
 			: this.options.repository.getByUsername(trimmed);
 		if (existing) {
+			existing.progress.stats = migrateLegacyStats(existing.progress.stats);
+			existing.progress.allocation = migrateLegacyStats(
+				existing.progress.allocation,
+			);
 			existing.connected = true;
 			existing.realmOptedIn = false;
 			existing.waitingSince = Date.now();

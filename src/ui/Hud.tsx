@@ -1713,7 +1713,6 @@ export class Hud {
 			stats ?? {
 				strength: 0,
 				agility: 0,
-				magic: 0,
 				spirit: 0,
 				intelligence: 0,
 			},
@@ -1727,7 +1726,6 @@ export class Hud {
 				stats ?? {
 					strength: 0,
 					agility: 0,
-					magic: 0,
 					spirit: 0,
 					intelligence: 0,
 				},
@@ -3489,7 +3487,7 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Damage / pulse",
-					value: `${fmt(sunburnFraction(effectiveStats.magic) * 100)}% enemy HP`,
+					value: `${fmt(sunburnFraction(effectiveStats.intelligence) * 100)}% enemy HP`,
 				},
 				{
 					label: "Pulse interval",
@@ -3501,7 +3499,7 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Lightning damage",
-					value: fmt(thunderDamage(effectiveStats.magic)),
+					value: fmt(thunderDamage(effectiveStats.intelligence)),
 				},
 				{ label: "Pulse interval", value: `${fmt(thunderInterval(level))}s` },
 				radius(),

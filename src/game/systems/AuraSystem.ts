@@ -92,7 +92,7 @@ export class AuraSystem {
 		if (sunLevel && this.sunburnRemaining <= 0) {
 			for (const creep of nearby("sunburnAura"))
 				creep.receiveDamage(
-					creep.maxHp * sunburnFraction(stats.magic),
+					creep.maxHp * sunburnFraction(stats.intelligence),
 					random,
 					hero,
 					false,
@@ -109,7 +109,7 @@ export class AuraSystem {
 			if (first) {
 				const critical =
 					random.next() < thunderCritChance(hero.state.critChance);
-				const damage = thunderDamage(stats.magic);
+				const damage = thunderDamage(stats.intelligence);
 				first.receiveDamage(
 					damage * (critical ? hero.state.critMultiplier : 1),
 					random,

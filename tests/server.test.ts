@@ -86,8 +86,7 @@ describe("realm game service", () => {
 		expect(player.progress.stats).toEqual({
 			agility: 1,
 			strength: 1,
-			magic: 1,
-			spirit: 1,
+			spirit: 2,
 			intelligence: 1,
 		});
 		expect(player.progress.mainHand?.definitionId).toBe("sword");
@@ -483,9 +482,8 @@ describe("realm game service", () => {
 		attacker.progress.allocation = {
 			agility: 2,
 			strength: 1,
-			magic: 1,
 			spirit: 1,
-			intelligence: 0,
+			intelligence: 1,
 		};
 		attacker.progress.mainHand = generateItem(7, "rare", 404, {
 			allowedClasses: ["axe"],
@@ -500,9 +498,8 @@ describe("realm game service", () => {
 		expect(clone.stats).toEqual({
 			agility: 22,
 			strength: 11,
-			magic: 11,
 			spirit: 11,
-			intelligence: 0,
+			intelligence: 11,
 		});
 		expect(clone.mainHand).toEqual(attacker.progress.mainHand);
 		expect(clone.carried).toEqual([]);
@@ -835,10 +832,9 @@ describe("realm game service", () => {
 		expect(carrier).toMatchObject({
 			level: 12,
 			stats: {
-				agility: 12,
+				agility: 15,
 				strength: 17,
-				magic: 12,
-				spirit: 12,
+				spirit: 15,
 				intelligence: 19,
 			},
 			xpReward: 22,
@@ -1134,9 +1130,8 @@ describe("realm game service", () => {
 		const allocation = {
 			agility: 2,
 			strength: 1,
-			magic: 1,
 			spirit: 1,
-			intelligence: 0,
+			intelligence: 1,
 		};
 		game.handle(player.id, { type: "respecStats", allocation });
 		expect(player.progress.gold).toBe(100);
@@ -1144,9 +1139,8 @@ describe("realm game service", () => {
 		expect(player.progress.stats).toEqual({
 			agility: 8,
 			strength: 4,
-			magic: 4,
 			spirit: 4,
-			intelligence: 0,
+			intelligence: 4,
 		});
 		const before = structuredClone(player.progress);
 		game.handle(player.id, { type: "respecStats", allocation });
@@ -1232,8 +1226,7 @@ describe("realm game service", () => {
 		expect(victim.progress.stats).toEqual({
 			agility: 1,
 			strength: 1,
-			magic: 1,
-			spirit: 1,
+			spirit: 2,
 			intelligence: 1,
 		});
 		expect(victim.progress.gold).toBe(6);

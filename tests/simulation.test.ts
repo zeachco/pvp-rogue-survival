@@ -3139,6 +3139,7 @@ describe("arena systems", () => {
 		const buckler = {
 			...generateBuckler(0, "common", 12),
 			perks: {},
+			statBonuses: {},
 			reflectionComponents: ["return" as const],
 		};
 		const stats = {
@@ -3177,10 +3178,12 @@ describe("arena systems", () => {
 		]);
 		const buckler = {
 			...generateBuckler(0, "common", 12),
+			perks: {},
+			statBonuses: {},
 			reflectionComponents: ["flat" as const],
 		};
 		defender.configureStats(
-			{ agility: 0, strength: 1, magic: 0, spirit: 0, intelligence: 0 },
+			{ agility: 0, strength: 1, spirit: 0, intelligence: 0 },
 			buckler,
 		);
 		texts.length = 0;

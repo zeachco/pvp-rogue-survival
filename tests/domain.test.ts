@@ -448,16 +448,12 @@ test("makes learned spells available without minimum hero levels", () => {
 
 test("projects a retroactive allocation across every current level", () => {
 	expect(
-		scaledStats(
-			{ agility: 0, strength: 2, magic: 1, spirit: 1, intelligence: 1 },
-			7,
-		),
+		scaledStats({ agility: 0, strength: 2, spirit: 1, intelligence: 2 }, 7),
 	).toEqual({
 		agility: 0,
 		strength: 14,
-		magic: 7,
 		spirit: 7,
-		intelligence: 7,
+		intelligence: 14,
 	});
 });
 
@@ -592,15 +588,14 @@ describe("attack timing", () => {
 	test("doubles direct attributes from two-handed weapons", () => {
 		const staff = {
 			...generateItem(1, "common", 19, { allowedClasses: ["staff"] }),
-			statBonuses: { strength: 2, magic: 3 },
+			statBonuses: { strength: 2, intelligence: 3 },
 			requirements: {},
 		};
 		expect(statsWithItemBonuses(ZERO_STATS, staff)).toEqual({
 			agility: 0,
 			strength: 4,
-			magic: 6,
 			spirit: 0,
-			intelligence: 0,
+			intelligence: 6,
 		});
 	});
 	test("generates distinct two-handed physical weapon profiles", () => {
@@ -942,7 +937,6 @@ test("derives health from Strength and mana from Intelligence", () => {
 	const advanced = derivedStats({
 		...ZERO_STATS,
 		strength: 3,
-		magic: 99,
 		intelligence: 2,
 	});
 	expect(advanced.maxHp).toBe(13);
@@ -954,13 +948,12 @@ test("keeps attribute roles distinct and caps critical and cooldown scaling", ()
 	const stats = derivedStats({
 		agility: 100,
 		strength: 0,
-		magic: 20,
 		spirit: 0,
-		intelligence: 100,
+		intelligence: 20,
 	});
 	expect(stats.critChance).toBe(0.5);
-	expect(stats.critMultiplier).toBe(3.5);
-	expect(stats.cooldownReduction).toBe(0.4);
+	expect(stats.critMultiplier).toBe(1.9);
+	expect(stats.cooldownReduction).toBe(0.1);
 	expect(stats.magicAmp).toBe(1.5);
 });
 describe("XP curve", () => {
@@ -2178,11 +2171,16 @@ describe("spell tooltip damage previews", () => {
 			detail: "target HP",
 		});
 		expect(
-			skillDamagePreview("sunburnAura", 1, { ...ZERO_STATS, magic: 100 })
-				?.value,
+			skillDamagePreview("sunburnAura", 1, {
+				...ZERO_STATS,
+				intelligence: 100,
+			})?.value,
 		).toBeCloseTo(0.02);
 		expect(
-			skillDamagePreview("thunderAura", 1, { ...ZERO_STATS, magic: 10 }),
+			skillDamagePreview("thunderAura", 1, {
+				...ZERO_STATS,
+				intelligence: 10,
+			}),
 		).toEqual({ kind: "flat", value: 6.5, detail: "lightning" });
 		expect(skillDamagePreview("healing", 1, ZERO_STATS)).toBeUndefined();
 	});

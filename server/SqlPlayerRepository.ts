@@ -1,6 +1,7 @@
 import { SQL } from "bun";
 import { SKILLS } from "../common/content.ts";
 import { itemStackKey, migrateLegacyItem } from "../common/items.ts";
+import { migrateLegacyStats } from "../common/progression.ts";
 import type { PanelTriggers, PlayerProgress } from "../common/protocol.ts";
 import type { HeroSummary } from "../common/protocol.ts";
 import { cumulativeXpForLevel } from "../common/progression.ts";
@@ -192,6 +193,8 @@ function fromRow(row: HeroRow): Player | undefined {
 	)
 		return undefined;
 	blob.progress.level = Number(row.level);
+	blob.progress.stats = migrateLegacyStats(blob.progress.stats);
+	blob.progress.allocation = migrateLegacyStats(blob.progress.allocation);
 	blob.progress.xp = Math.max(
 		blob.progress.xp,
 		cumulativeXpForLevel(blob.progress.level),

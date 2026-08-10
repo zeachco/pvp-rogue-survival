@@ -1,29 +1,21 @@
-export type StatKey =
-	| "agility"
-	| "strength"
-	| "magic"
-	| "spirit"
-	| "intelligence";
+export type StatKey = "agility" | "strength" | "spirit" | "intelligence";
 export type Stats = Record<StatKey, number>;
 
 export const STAT_KEYS: StatKey[] = [
 	"agility",
 	"strength",
-	"magic",
 	"spirit",
 	"intelligence",
 ];
 export const DEFAULT_ALLOCATION: Stats = {
 	agility: 1,
 	strength: 1,
-	magic: 1,
-	spirit: 1,
+	spirit: 2,
 	intelligence: 1,
 };
 export const ZERO_STATS: Stats = {
 	agility: 0,
 	strength: 0,
-	magic: 0,
 	spirit: 0,
 	intelligence: 0,
 };
@@ -68,11 +60,25 @@ export function derivedStats(stats: Stats): DerivedStats {
 		critChance: Math.min(0.5, stats.agility * 0.01),
 		critMultiplier: 1.5 + stats.intelligence * 0.02,
 		cooldownReduction: Math.min(0.4, stats.intelligence * 0.005),
-		magicAmp: 1 + stats.magic * 0.025,
+		magicAmp: 1 + stats.intelligence * 0.025,
 		hpRegen: 0.005 + stats.spirit * 0.005,
 		manaRegen: 0.2 + stats.spirit * 0.1,
 		rageRegen: 0,
 	};
+}
+
+export function migrateLegacyStats(value: Stats): Stats {
+	const legacy = value as Stats & { magic?: number };
+	const magic = Number.isFinite(legacy.magic) ? Math.max(0, legacy.magic!) : 0;
+	const result: Stats = {
+		agility: Number.isFinite(legacy.agility) ? legacy.agility : 0,
+		strength: Number.isFinite(legacy.strength) ? legacy.strength : 0,
+		spirit: Number.isFinite(legacy.spirit) ? legacy.spirit : 0,
+		intelligence:
+			(Number.isFinite(legacy.intelligence) ? legacy.intelligence : 0) + magic,
+	};
+	delete legacy.magic;
+	return result;
 }
 
 export function xpForNextLevel(level: number): number {

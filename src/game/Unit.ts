@@ -81,7 +81,6 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	private baseStats: Stats = {
 		agility: 0,
 		strength: 0,
-		magic: 0,
 		spirit: 0,
 		intelligence: 0,
 	};

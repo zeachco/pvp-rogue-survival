@@ -115,7 +115,7 @@ export const WEAPONS: Readonly<Record<WeaponClass, WeaponDefinition>> = {
 		damage: 0.8,
 		weight: 16,
 		rage: 0.1,
-		requirement: "magic",
+		requirement: "intelligence",
 		skill: "arcaneBolt",
 		range: 100,
 	},
@@ -457,7 +457,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		upkeep: { resource: "mana", perLevelPerSecond: 0.01 },
 		description:
-			"Burns every nearby foe; Spirit controls cadence and Magic raises damage.",
+			"Burns every nearby foe; Spirit controls cadence and Intelligence raises damage.",
 	},
 	thunderAura: {
 		id: "thunderAura",
