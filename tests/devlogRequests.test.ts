@@ -12,6 +12,11 @@ import {
 	nextUtcMonth,
 	SqlDevlogRequestStore,
 } from "../server/DevlogRequestRepository";
+import {
+	DEFAULT_API_BASE_URL,
+	fetchFeatureRequests,
+	submittedFeatures,
+} from "../scripts/listFeatureRequests";
 
 const cleanupDirectories: string[] = [];
 
@@ -54,6 +59,47 @@ describe("devlog requests", () => {
 		expect(await restored.delete(request.id)).toBeFalse();
 		expect(await restored.list()).toEqual([]);
 		await restored.close();
+	});
+
+	test("lists only player-submitted features in queue order", () => {
+		const feature = {
+			id: "feature-request",
+			kind: "feature" as const,
+			title: "Controller support",
+			description: "Allow heroes to be controlled with a gamepad.",
+			scheduledMonth: "2026-09",
+			createdAt: "2026-08-09T00:00:00.000Z",
+			upvotes: 2,
+			downvotes: 0,
+			score: 2,
+		};
+		const bug = { ...feature, id: "bug-report", kind: "bug" as const };
+		expect(submittedFeatures([feature, bug])).toEqual([feature]);
+	});
+
+	test("fetches feature submissions through the public request API", async () => {
+		const requestedUrls: string[] = [];
+		const requests = await fetchFeatureRequests(
+			DEFAULT_API_BASE_URL,
+			async (input) => {
+				requestedUrls.push(String(input));
+				return Response.json({
+					requests: [
+						{ kind: "feature", title: "Controller support" },
+						{ kind: "bug", title: "Stuck movement" },
+					],
+				});
+			},
+		);
+		expect(requestedUrls).toEqual([
+			"https://pvp.up.railway.app/api/devlog/requests",
+		]);
+		expect(requests).toEqual([
+			expect.objectContaining({
+				kind: "feature",
+				title: "Controller support",
+			}),
+		]);
 	});
 
 	test("normalizes valid public submissions and rejects invalid ones", () => {

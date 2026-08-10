@@ -23,6 +23,22 @@ Use Bun for project tooling and scripts.
 
 To run only the local client against the production server, open [http://localhost:3000/?prod](http://localhost:3000/?prod). The longer `?server=pvp.up.railway.app` form remains available for explicit endpoint overrides.
 
+### View pending requests
+
+`bun run features` fetches pending player-submitted feature requests from the public production API and prints them as JSON. Pass an API base URL as the first argument to query another deployment, for example `bun run features http://localhost:3000`.
+
+With `jq`, `fzf`, and GNU `base64` installed, use the following command to search request titles and preview the selected request's full description and vote totals:
+
+```bash
+bun run features |
+  jq -r '.[] | [.title, (. | @base64)] | @tsv' |
+  fzf \
+    --delimiter=$'\t' \
+    --with-nth=1 \
+    --preview-window='right:60%:wrap' \
+    --preview "printf '%s' {2} | base64 -d | jq -r '\"\(.title)\n\n\(.description)\n\nScore: \(.score)  ↑\(.upvotes)  ↓\(.downvotes)\nScheduled: \(.scheduledMonth)\"'"
+```
+
 ## Architecture
 
 - `common/` contains runtime protocol schemas and pure balance, content, combat, inventory, progression, item, random, and wave rules.
