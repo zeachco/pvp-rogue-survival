@@ -6,7 +6,7 @@ import { ArenaState } from "../src/game/ArenaState";
 import {
 	arenaFloorMaterial,
 	arenaObstacleMaterial,
-	arenaObstacleShape,
+	arenaObstacleConeSides,
 	GameMap,
 	generateArenaColumns,
 	resolveColumnCollision,
@@ -2693,18 +2693,19 @@ describe("arena systems", () => {
 	});
 
 	test("generates reproducible safe columns that block units and projectiles", () => {
-		const first = generateArenaColumns(1600, 1000, 10, new SeededRandom(42));
-		const second = generateArenaColumns(1600, 1000, 10, new SeededRandom(42));
+		const first = generateArenaColumns(1600, 1000, 15, new SeededRandom(42));
+		const second = generateArenaColumns(1600, 1000, 15, new SeededRandom(42));
 		expect(first).toEqual(second);
-		expect(first).toHaveLength(10);
+		expect(first).toHaveLength(15);
 		expect(
-			first.every((column) =>
-				["cube", "cylinder", "cone"].includes(column.shape),
-			),
-		).toBeTrue();
-		expect(arenaObstacleShape(0)).toBe("cube");
-		expect(arenaObstacleShape(0.5)).toBe("cylinder");
-		expect(arenaObstacleShape(0.99)).toBe("cone");
+			new Set(first.map((column) => column.coneSides)).size,
+		).toBeGreaterThan(1);
+		expect(new Set(first.map((column) => column.height)).size).toBeGreaterThan(
+			1,
+		);
+		expect(arenaObstacleConeSides(0)).toBe(3);
+		expect(arenaObstacleConeSides(0.5)).toBe(5);
+		expect(arenaObstacleConeSides(0.99)).toBe(7);
 		const obstacleMaterial = arenaObstacleMaterial();
 		expect(obstacleMaterial).toBeInstanceOf(THREE.MeshStandardMaterial);
 		expect(obstacleMaterial.roughness).toBe(0.55);
@@ -2714,6 +2715,21 @@ describe("arena systems", () => {
 		expect(floorMaterial.map).toBeNull();
 		const map = new GameMap(new SeededRandom(42));
 		map.buildMeshes();
+		expect(map.columns).toHaveLength(15);
+		const obstacleMeshes = map.mesh.children.filter(
+			(child) =>
+				child instanceof THREE.Mesh &&
+				child.geometry instanceof THREE.ConeGeometry,
+		);
+		expect(obstacleMeshes).toHaveLength(15);
+		expect(
+			map.mesh.children.some(
+				(child) =>
+					child instanceof THREE.Mesh &&
+					(child.geometry.type === "BoxGeometry" ||
+						child.geometry.type === "CylinderGeometry"),
+			),
+		).toBeFalse();
 		const floor = map.mesh.children.find(
 			(child) =>
 				child instanceof THREE.Mesh &&

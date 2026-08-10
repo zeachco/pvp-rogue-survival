@@ -5,15 +5,12 @@ import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
 
 export interface ArenaColumn extends Vector2 {
 	radius: number;
-	shape: ArenaObstacleShape;
+	coneSides: number;
+	height: number;
 }
 
-export type ArenaObstacleShape = "cube" | "cylinder" | "cone";
-
-export function arenaObstacleShape(value: number): ArenaObstacleShape {
-	if (value < 1 / 3) return "cube";
-	if (value < 2 / 3) return "cylinder";
-	return "cone";
+export function arenaObstacleConeSides(value: number): number {
+	return 3 + Math.min(4, Math.floor(value * 5));
 }
 
 export function arenaObstacleMaterial(): THREE.MeshStandardMaterial {
@@ -67,7 +64,11 @@ export function generateArenaColumns(
 			)
 		)
 			continue;
-		columns.push({ ...candidate, shape: arenaObstacleShape(random.next()) });
+		columns.push({
+			...candidate,
+			coneSides: arenaObstacleConeSides(random.next()),
+			height: 82 + random.next() * 54,
+		});
 	}
 	return columns;
 }
@@ -120,7 +121,7 @@ export class GameMap {
 	private built = false;
 
 	constructor(random: RandomSource = systemRandom) {
-		this.columns = generateArenaColumns(this.width, this.height, 10, random);
+		this.columns = generateArenaColumns(this.width, this.height, 15, random);
 	}
 
 	get center(): { x: number; y: number } {
@@ -225,26 +226,15 @@ export class GameMap {
 	}
 
 	private buildColumns(): void {
-		for (const [index, column] of this.columns.entries()) {
-			const height = 100 + (index % 3) * 18;
-			const geometry =
-				column.shape === "cube"
-					? new THREE.BoxGeometry(
-							column.radius * Math.SQRT2,
-							column.radius * Math.SQRT2,
-							height,
-						)
-					: column.shape === "cone"
-						? new THREE.ConeGeometry(column.radius, height, 10)
-						: new THREE.CylinderGeometry(
-								column.radius,
-								column.radius,
-								height,
-								10,
-							);
+		for (const column of this.columns) {
+			const geometry = new THREE.ConeGeometry(
+				column.radius,
+				column.height,
+				column.coneSides,
+			);
 			const body = new THREE.Mesh(geometry, arenaObstacleMaterial());
-			if (column.shape !== "cube") body.rotation.x = Math.PI / 2;
-			body.position.set(column.x, column.y, height / 2);
+			body.rotation.x = Math.PI / 2;
+			body.position.set(column.x, column.y, column.height / 2);
 			this.mesh.add(body);
 		}
 	}
