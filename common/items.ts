@@ -132,6 +132,27 @@ const GENERIC_TWO_HANDED_SKILL_POOL: readonly SkillId[] = [
 	"rendingThrow",
 	"orbitingHammers",
 ];
+interface RelicVariant {
+	name: string;
+	maxRoll: number;
+	skills: readonly SkillId[];
+}
+const RELIC_VARIANTS = [
+	{ name: "Voodoo Doll", maxRoll: 0.2, skills: ["voodoo", "swamp"] },
+	{ name: "Ember Idol", maxRoll: 0.4, skills: ["fireBreath"] },
+	{ name: "Spirit Wounds Idol", maxRoll: 0.55, skills: ["manaDrain"] },
+	{ name: "Penance Idol", maxRoll: 0.7, skills: ["penance"] },
+	{ name: "Renewal Idol", maxRoll: 0.85, skills: ["rapidRegen"] },
+	{ name: "Spirit Relic", maxRoll: 1, skills: [] },
+] as const satisfies readonly RelicVariant[];
+
+function relicVariantForRoll(roll: number): RelicVariant {
+	return (
+		RELIC_VARIANTS.find((variant) => roll < variant.maxRoll) ??
+		RELIC_VARIANTS[RELIC_VARIANTS.length - 1]
+	);
+}
+
 export function auraSkillForSeed(seed: number, divisor = 1): SkillId {
 	return AURA_SKILLS[Math.abs(Math.floor(seed / divisor)) % AURA_SKILLS.length];
 }
@@ -437,41 +458,18 @@ export function generateRelic(
 	const power = RARITY_POWER[rarity];
 	const attractionSpeed = source.next() < 0.5 ? 35 : 0;
 	const sustain = source.next();
-	const perkRoll = source.next();
+	const variant = relicVariantForRoll(source.next());
 	const modifiers = baseModifiers(1, 1);
 	if (sustain < 0.25) modifiers.lifeStealBase = 0.02;
 	else if (sustain < 0.5) modifiers.strengthRegenMultiplier = 0.002;
-	const perk: SkillId | undefined =
-		perkRoll < 0.2
-			? "voodoo"
-			: perkRoll < 0.4
-				? "fireBreath"
-				: perkRoll < 0.55
-					? "manaDrain"
-					: perkRoll < 0.7
-						? "penance"
-						: perkRoll < 0.85
-							? "rapidRegen"
-							: undefined;
 	const skills: SkillId[] = [
 		...(attractionSpeed ? ["attraction" as const, "gravityPull" as const] : []),
-		...(perk ? [perk] : []),
-		...(perk === "voodoo" ? ["swamp" as const] : []),
+		...variant.skills,
 	];
 	const name =
-		perk === "voodoo"
-			? "Voodoo Doll"
-			: perk === "fireBreath"
-				? "Ember Idol"
-				: perk === "manaDrain"
-					? "Spirit Wounds Idol"
-					: perk === "penance"
-						? "Penance Idol"
-						: perk === "rapidRegen"
-							? "Renewal Idol"
-							: attractionSpeed
-								? "Attracting Relic"
-								: "Spirit Relic";
+		variant.name === "Spirit Relic" && attractionSpeed
+			? "Attracting Relic"
+			: variant.name;
 	return rollItemPerks(
 		{
 			id: `relic-${seed}-${Math.floor(source.next() * 1e8)}`,

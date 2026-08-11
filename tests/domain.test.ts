@@ -108,6 +108,7 @@ import {
 	whirlwindRadius,
 } from "../common/combat";
 import { SKILLS, WEAPONS } from "../common/content";
+import { SeededRandom } from "../common/random";
 import { SPELL_SOURCES } from "../common/spellSources";
 import {
 	inventorySlotMatches,
@@ -2701,6 +2702,32 @@ test("registers configurable Spirit relic perks", () => {
 	expect(perks.some((skills) => skills.includes("manaDrain"))).toBeTrue();
 	expect(perks.some((skills) => skills.includes("penance"))).toBeTrue();
 	expect(perks.some((skills) => skills.includes("rapidRegen"))).toBeTrue();
+	const expectedVariants = [
+		{ maxRoll: 0.2, name: "Voodoo Doll", skills: ["voodoo", "swamp"] },
+		{ maxRoll: 0.4, name: "Ember Idol", skills: ["fireBreath"] },
+		{ maxRoll: 0.55, name: "Spirit Wounds Idol", skills: ["manaDrain"] },
+		{ maxRoll: 0.7, name: "Penance Idol", skills: ["penance"] },
+		{ maxRoll: 0.85, name: "Renewal Idol", skills: ["rapidRegen"] },
+	] as const;
+	for (let seed = 0; seed < 1_000; seed += 1) {
+		const source = new SeededRandom(seed);
+		const hasAttraction = source.next() < 0.5;
+		source.next();
+		const perkRoll = source.next();
+		const relic = generateRelic(3, "rare", seed);
+		const expected = expectedVariants.find(
+			(variant) => perkRoll < variant.maxRoll,
+		) ?? {
+			name: hasAttraction ? "Attracting Relic" : "Spirit Relic",
+			skills: [],
+		};
+		expect(relic.name).toBe(expected.name);
+		expect(
+			relic.skills.filter(
+				(skill) => skill !== "attraction" && skill !== "gravityPull",
+			),
+		).toEqual(expected.skills);
+	}
 });
 test("item skill rows reuse the skillbar descriptions", () => {
 	expect(itemSkillDescription("reflectiveSurge")).toEqual({
