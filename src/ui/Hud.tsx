@@ -175,6 +175,8 @@ export class Hud {
 	private readonly gameHud: HTMLElement;
 	private readonly nameInput: HTMLInputElement;
 	private onlinePlayerCount = 0;
+	private accountCharacters: HeroSummary[] = [];
+	private selectedAccountCharacterId?: string;
 	private readonly onlineCount = (<div class="online-count" />) as HTMLElement;
 	private readonly loginHeaderActions = (
 		<nav class="header-login-actions" aria-label="Login links">
@@ -237,6 +239,52 @@ export class Hud {
 	) as HTMLFormElement;
 	private readonly authenticationMask = (
 		<div class="authentication-mask is-hidden" aria-hidden="true" />
+	) as HTMLElement;
+	private readonly characterSelectorList = (
+		<div class="character-selector-list" />
+	) as HTMLElement;
+	private readonly newCharacterInput = (
+		<input
+			type="text"
+			minlength="1"
+			maxlength="20"
+			pattern="[A-Za-z0-9_-]+"
+			placeholder="New character name"
+			aria-label="New character name"
+		/>
+	) as HTMLInputElement;
+	private readonly switchCharacterButton = (
+		<button class="character-switch-action" type="button" />
+	) as HTMLButtonElement;
+	private readonly characterSelector = (
+		<section
+			class="character-selector is-hidden"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="character-selector-title"
+		>
+			<header>
+				<div>
+					<small>Account roster</small>
+					<h2 id="character-selector-title">Characters</h2>
+				</div>
+				<button
+					class="character-selector-close"
+					type="button"
+					aria-label="Close"
+				>
+					×
+				</button>
+			</header>
+			{this.characterSelectorList}
+			<footer>
+				{this.switchCharacterButton}
+				<div class="character-create-action">
+					{this.newCharacterInput}
+					<button type="button">Create new</button>
+				</div>
+			</footer>
+		</section>
 	) as HTMLElement;
 	private readonly leaderboardNode = (
 		<div class="leaderboard" />
@@ -486,6 +534,30 @@ export class Hud {
 					: undefined,
 			);
 		};
+		(
+			this.characterSelector.querySelector(
+				".character-selector-close",
+			) as HTMLButtonElement
+		).onclick = () => this.closeCharacterSelector();
+		this.switchCharacterButton.onclick = () => {
+			const selected = this.accountCharacters.find(
+				({ id }) => id === this.selectedAccountCharacterId,
+			);
+			if (!selected || selected.id === this.player?.id) return;
+			this.closeCharacterSelector();
+			this.callbacks.onSwitchCharacter(selected.id);
+		};
+		(
+			this.characterSelector.querySelector(
+				".character-create-action button",
+			) as HTMLButtonElement
+		).onclick = () => this.createCharacter();
+		this.newCharacterInput.onkeydown = (event) => {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				this.createCharacter();
+			}
+		};
 		const back = (
 			<button class="inspect-back is-hidden" type="button">
 				Back to hero
@@ -651,6 +723,7 @@ export class Hud {
 					{this.chatInput}
 				</section>
 				{this.heroResourceDock.node}
+				{this.characterSelector}
 				{this.characterPanel}
 				{this.inventoryPanel}
 				{this.itemHoverCard}
@@ -809,6 +882,19 @@ export class Hud {
 				return button;
 			}),
 		);
+	}
+	setAccountCharacters(characters: HeroSummary[]): void {
+		this.accountCharacters = characters;
+		if (!characters.some(({ id }) => id === this.selectedAccountCharacterId))
+			this.selectedAccountCharacterId = this.player?.id ?? characters[0]?.id;
+		this.renderCharacterSelector();
+		this.renderRealm();
+	}
+	openCharacterSelector(): void {
+		if (!this.player || this.realm?.mode !== "training") return;
+		this.selectedAccountCharacterId = this.player.id;
+		this.renderCharacterSelector();
+		this.characterSelector.classList.remove("is-hidden");
 	}
 	showAuthentication(username: string, mode: "create" | "login"): void {
 		this.authenticationMode = mode;
@@ -1055,6 +1141,7 @@ export class Hud {
 			realm.mode === "training";
 		const modeChanged = this.realm?.mode !== realm.mode;
 		this.realm = realm;
+		if (realm.mode !== "training") this.closeCharacterSelector();
 		if (startedNewRealm) {
 			this.swarmMode = false;
 			this.forceNextWavePending = false;
@@ -2636,6 +2723,12 @@ export class Hud {
 			</button>
 		) as HTMLButtonElement;
 		logout.onclick = this.callbacks.onLogout;
+		const characters = (
+			<button class="header-control" type="button">
+				Characters
+			</button>
+		) as HTMLButtonElement;
+		characters.onclick = () => this.openCharacterSelector();
 		const options = (
 			<button class="header-control" type="button">
 				Options
@@ -2660,6 +2753,7 @@ export class Hud {
 				enterWaveOne,
 				devlog,
 				options,
+				characters,
 				logout,
 			);
 			return;
@@ -3007,6 +3101,61 @@ export class Hud {
 			"inventory",
 			false,
 		);
+	}
+	private closeCharacterSelector(): void {
+		if (this.characterSelector.classList.contains("is-hidden")) return;
+		this.characterSelector.classList.add("is-hidden");
+		this.callbacks.onBack();
+	}
+	private createCharacter(): void {
+		const name = this.newCharacterInput.value.trim();
+		if (!name || !this.newCharacterInput.checkValidity()) {
+			this.newCharacterInput.reportValidity();
+			return;
+		}
+		this.closeCharacterSelector();
+		this.newCharacterInput.value = "";
+		this.callbacks.onCreateCharacter(name);
+	}
+	private renderCharacterSelector(): void {
+		this.characterSelectorList.replaceChildren(
+			...this.accountCharacters.map((hero) => {
+				const active = hero.id === this.player?.id;
+				const selected = hero.id === this.selectedAccountCharacterId;
+				const card = (
+					<button
+						class={`character-selector-card${selected ? " is-selected" : ""}`}
+						type="button"
+						aria-pressed={String(selected)}
+					>
+						<strong>{hero.username}</strong>
+						<span>Level {hero.level}</span>
+						<span>
+							{hero.souls} {hero.souls === 1 ? "Soul" : "Souls"}
+						</span>
+						{active ? <small>Current character</small> : null}
+					</button>
+				) as HTMLButtonElement;
+				card.onclick = () => {
+					this.selectedAccountCharacterId = hero.id;
+					this.renderCharacterSelector();
+				};
+				card.onmouseenter = () => {
+					if (active) this.callbacks.onBack();
+					else this.callbacks.onInspectHero(hero.id);
+				};
+				card.onmouseleave = this.callbacks.onBack;
+				return card;
+			}),
+		);
+		const selected = this.accountCharacters.find(
+			({ id }) => id === this.selectedAccountCharacterId,
+		);
+		this.switchCharacterButton.textContent = selected
+			? `Switch to ${selected.username}`
+			: "Select a character";
+		this.switchCharacterButton.disabled =
+			!selected || selected.id === this.player?.id;
 	}
 	private setPanelCollapsed(
 		panel: HTMLElement,

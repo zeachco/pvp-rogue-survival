@@ -183,6 +183,10 @@ export class Game {
 			onOpenDevlog,
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
+			onCreateCharacter: (name) =>
+				this.socket.send({ type: "createCharacter", name }),
+			onSwitchCharacter: (heroId) =>
+				this.socket.send({ type: "switchCharacter", heroId }),
 			onSetFullscreenMode: (mode) => {
 				saveFullscreenMode(localStorage, mode);
 				this.fullscreenMode = mode;
@@ -476,6 +480,12 @@ export class Game {
 	}
 	private handleServerMessage(message: ServerMessage): void {
 		if (message.type === "welcome") {
+			const openedAuthenticatedSession = !this.player;
+			if (this.player && this.player.id !== message.playerId) {
+				this.arena.clear();
+				this.pendingPickupAt.clear();
+				this.heroCombat.reset();
+			}
 			this.player = {
 				id: message.playerId,
 				name: message.player.name,
@@ -505,16 +515,18 @@ export class Game {
 			this.debugName = message.player.name;
 			this.savedSession = {
 				heroId: message.playerId,
-				username: message.player.name,
+				username: message.accountName,
 			};
 			this.sessionStorage.save(this.savedSession);
 			this.hud.configurePanelTriggers(message.panelTriggers);
+			this.hud.setAccountCharacters(message.accountCharacters);
 			this.hud.setPlayer(this.player);
 			this.hud.setPublicHero();
 			this.hud.setSpells(
 				this.heroCombat.spellSlots(message.progress, this.hero),
 			);
 			this.hud.setRealm(message.realm);
+			if (openedAuthenticatedSession) this.hud.openCharacterSelector();
 			this.hud.setNotice("");
 			this.hud.showCenterToast(
 				"WASD moves. Combat and skills cast automatically. Walk over glowing item drops.",

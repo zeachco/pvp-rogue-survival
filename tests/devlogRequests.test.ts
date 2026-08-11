@@ -181,6 +181,9 @@ describe("devlog requests", () => {
 			"hero-active",
 		);
 		expect(activeAccountId(request, () => false)).toBeUndefined();
+		expect(activeAccountId(request, () => "shared-account")).toBe(
+			"shared-account",
+		);
 	});
 
 	test("accepts request deletion only from an active moderator", () => {

@@ -62,6 +62,27 @@ function enterPair(
 }
 
 describe("realm game service", () => {
+	test("creates independent account characters backed by one shared stash", () => {
+		const { game, repository } = harness();
+		const first = game.join("Builder");
+		first.progress.level = 12;
+		first.progress.gold = 99;
+		const stash = first.progress.inventoryTiles;
+		const second = game.createCharacter(first, "BuilderAlt");
+
+		expect(second.accountId).toBe(first.accountId);
+		expect(second.accountName).toBe("Builder");
+		expect(second.progress.level).toBe(1);
+		expect(second.progress.gold).toBe(0);
+		expect(second.progress.inventoryTiles).toBe(stash);
+		expect(repository.getAccountPlayers(first.accountId)).toHaveLength(2);
+		expect(
+			game.accountCharacters(first).map(({ username }) => username),
+		).toEqual(["Builder", "BuilderAlt"]);
+		expect(() => game.createCharacter(first, "builderalt")).toThrow(
+			"Character name is already used.",
+		);
+	});
 	test("multiplies role discovery by capped player Magic Find", () => {
 		expect(magicFindExtraDropChance(4, "creep", 5)).toBe(0);
 		expect(magicFindExtraDropChance(4, "champion", 2)).toBeCloseTo(0.08);

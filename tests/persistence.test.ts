@@ -15,6 +15,40 @@ class FixedRandom implements RandomSource {
 }
 
 describe("Bun SQL player persistence", () => {
+	test("round-trips account siblings with one shared stash", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "multi-line-accounts-"));
+		const url = `sqlite://${join(directory, "players.sqlite")}`;
+		try {
+			const repository = await SqlPlayerRepository.open(url);
+			const game = new GameService({
+				repository,
+				balance: BALANCE,
+				random: new FixedRandom(),
+				send: () => {},
+			});
+			const first = game.join("AccountOwner");
+			const second = game.createCharacter(first, "Alternate");
+			first.progress.inventoryTiles[0].quantity = 7;
+			repository.markDirty(first.id);
+			await repository.persist();
+			await repository.close();
+
+			const restored = await SqlPlayerRepository.open(url);
+			const restoredFirst = restored.get(first.id)!;
+			const restoredSecond = restored.get(second.id)!;
+			expect(restored.getByUsername("accountowner")?.accountId).toBe(
+				first.accountId,
+			);
+			expect(restored.getByCharacterName("ALTERNATE")?.id).toBe(second.id);
+			expect(restoredSecond.progress.inventoryTiles).toBe(
+				restoredFirst.progress.inventoryTiles,
+			);
+			expect(restoredSecond.progress.inventoryTiles[0].quantity).toBe(7);
+			await restored.close();
+		} finally {
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
 	test("round-trips the indexed hero fields and serialized progression through SQLite", async () => {
 		const directory = mkdtempSync(join(tmpdir(), "multi-line-sql-"));
 		const url = `sqlite://${join(directory, "players.sqlite")}`;

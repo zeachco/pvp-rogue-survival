@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 44;
+export const PROTOCOL_VERSION = 45;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -211,6 +211,15 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 		health: z.number(),
 	}),
 	z.object({ type: z.literal("logout") }),
+	z.object({
+		type: z.literal("createCharacter"),
+		name: z
+			.string()
+			.min(1)
+			.max(20)
+			.regex(/^[A-Za-z0-9_-]+$/),
+	}),
+	z.object({ type: z.literal("switchCharacter"), heroId: z.string().min(1) }),
 	z.object({ type: z.literal("listHeroes") }),
 	z.object({ type: z.literal("inspectHero"), heroId: z.string().min(1) }),
 	z.object({
@@ -299,6 +308,8 @@ export type ClientMessage =
 	| { type: "enterRealm"; waveNumber?: number }
 	| { type: "scoreSnapshot"; score: number; health: number }
 	| { type: "logout" | "listHeroes" }
+	| { type: "createCharacter"; name: string }
+	| { type: "switchCharacter"; heroId: string }
 	| { type: "inspectHero"; heroId: string }
 	| { type: "dismissPanelTrigger"; panel: PanelTrigger }
 	| {
@@ -325,6 +336,8 @@ export type ServerMessage =
 			panelTriggers: PanelTriggers;
 			realm: RealmState;
 			config: ServerConfig;
+			accountName: string;
+			accountCharacters: HeroSummary[];
 	  }
 	| { type: "loggedOut" }
 	| {

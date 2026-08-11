@@ -22,6 +22,8 @@ export interface QueuedEquipment {
 export interface Player {
 	id: PlayerId;
 	name: string;
+	accountId: string;
+	accountName: string;
 	passwordHash?: string;
 	isModerator: boolean;
 	score: number;
@@ -46,6 +48,8 @@ export interface Player {
 export interface PlayerRepository {
 	get(id: PlayerId): Player | undefined;
 	getByUsername(username: string): Player | undefined;
+	getAccountPlayers(accountId: string): Player[];
+	getByCharacterName(name: string): Player | undefined;
 	findByLevel(minimum: number, maximum: number): Promise<HeroSummary[]>;
 	findBossCandidate(
 		minimum: number,
@@ -65,6 +69,17 @@ export class InMemoryPlayerRepository implements PlayerRepository {
 	}
 	getByUsername(username: string): Player | undefined {
 		const key = username.toLowerCase();
+		return [...this.players.values()].find(
+			(player) => player.accountName.toLowerCase() === key,
+		);
+	}
+	getAccountPlayers(accountId: string): Player[] {
+		return [...this.players.values()].filter(
+			(player) => player.accountId === accountId,
+		);
+	}
+	getByCharacterName(name: string): Player | undefined {
+		const key = name.toLowerCase();
 		return [...this.players.values()].find(
 			(player) => player.name.toLowerCase() === key,
 		);

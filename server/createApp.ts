@@ -105,7 +105,10 @@ export async function createApp(options: AppOptions) {
 			response,
 			publicRoot,
 			devlogRequests,
-			(playerId) => hasSocket(sockets, playerId),
+			(playerId) =>
+				hasSocket(sockets, playerId)
+					? (repository.get(playerId)?.accountId ?? false)
+					: false,
 			(playerId) => repository.get(playerId)?.isModerator === true,
 		).catch((error) => {
 			console.error(
@@ -156,7 +159,12 @@ export async function createApp(options: AppOptions) {
 					}
 					if (message.type === "join") {
 						const existing = game.findPlayer(message.heroId, message.name);
-						if (existing?.connected)
+						if (
+							existing &&
+							repository
+								.getAccountPlayers(existing.accountId)
+								.some((hero) => hero.connected)
+						)
 							return sendSocket(socket, {
 								type: "serverNotice",
 								message: "That username is already logged in.",
@@ -215,6 +223,45 @@ export async function createApp(options: AppOptions) {
 								message: message.heroId
 									? "That hero is unavailable."
 									: "Username must use 1-20 letters, digits, underscores, or hyphens.",
+								tone: "error",
+							});
+						}
+						return;
+					}
+					if (
+						message.type === "createCharacter" ||
+						message.type === "switchCharacter"
+					) {
+						const current = socket.playerId
+							? repository.get(socket.playerId)
+							: undefined;
+						if (!current)
+							return sendSocket(socket, {
+								type: "serverNotice",
+								message: "Join before choosing a character.",
+								tone: "error",
+							});
+						try {
+							const target =
+								message.type === "createCharacter"
+									? game.createCharacter(current, message.name)
+									: repository.get(message.heroId);
+							if (!target || target.accountId !== current.accountId)
+								throw new Error("That character is unavailable.");
+							if (target.id === current.id) return;
+							game.logout(current.id);
+							socket.playerId = undefined;
+							game.join("", target.id, (playerId) => {
+								socket.playerId = playerId;
+							});
+							broadcastLeaderboard();
+						} catch (error) {
+							sendSocket(socket, {
+								type: "serverNotice",
+								message:
+									error instanceof Error
+										? error.message
+										: "Unable to select that character.",
 								tone: "error",
 							});
 						}
@@ -384,7 +431,7 @@ async function serveRequest(
 	response: ServerResponse,
 	publicRoot: string,
 	devlogRequests: DevlogRequestStore,
-	isActiveAccount: (playerId: PlayerId) => boolean,
+	isActiveAccount: (playerId: PlayerId) => boolean | PlayerId,
 	isModerator: (playerId: PlayerId) => boolean,
 ): Promise<void> {
 	const url = new URL(
@@ -535,16 +582,18 @@ export function isLocalDevelopmentOrigin(origin: string): boolean {
 
 export function activeAccountId(
 	request: Pick<IncomingMessage, "headers">,
-	isActiveAccount: (playerId: PlayerId) => boolean,
+	isActiveAccount: (playerId: PlayerId) => boolean | PlayerId,
 ): PlayerId | undefined {
 	const value = request.headers["x-hero-id"];
 	const playerId = (Array.isArray(value) ? value[0] : value)?.trim();
-	return playerId && isActiveAccount(playerId) ? playerId : undefined;
+	if (!playerId) return undefined;
+	const active = isActiveAccount(playerId);
+	return typeof active === "string" ? active : active ? playerId : undefined;
 }
 
 export function activeModeratorAccountId(
 	request: Pick<IncomingMessage, "headers">,
-	isActiveAccount: (playerId: PlayerId) => boolean,
+	isActiveAccount: (playerId: PlayerId) => boolean | PlayerId,
 	isModerator: (playerId: PlayerId) => boolean,
 ): PlayerId | undefined {
 	const accountId = activeAccountId(request, isActiveAccount);

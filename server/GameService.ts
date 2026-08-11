@@ -187,6 +187,8 @@ export class GameService {
 				maxQueuedItems: MAX_QUEUE,
 				balance: publicBalance(this.options.balance),
 			},
+			accountName: player.accountName,
+			accountCharacters: this.accountCharacters(player),
 		});
 		this.broadcastRealms();
 		if (created.length) for (const realm of created) this.activateRealm(realm);
@@ -229,6 +231,35 @@ export class GameService {
 			: username
 				? this.options.repository.getByUsername(username)
 				: undefined;
+	}
+	accountCharacters(player: Player): HeroSummary[] {
+		return this.options.repository
+			.getAccountPlayers(player.accountId)
+			.map((hero) => ({
+				id: hero.id,
+				username: hero.name,
+				level: hero.progress.level,
+				souls: hero.progress.souls,
+				connected: hero.connected,
+				receivesDeathEchoes: false,
+			}));
+	}
+	createCharacter(current: Player, name: string): Player {
+		const trimmed = name.trim().slice(0, 20);
+		if (!/^[A-Za-z0-9_-]{1,20}$/.test(trimmed))
+			throw new Error("Invalid character name.");
+		if (this.options.repository.getByCharacterName(trimmed))
+			throw new Error("Character name is already used.");
+		const player = this.createPlayer(
+			trimmed,
+			current.accountId,
+			current.accountName,
+			current.passwordHash,
+			current.isModerator,
+			current.progress.inventoryTiles,
+		);
+		this.options.repository.save(player);
+		return player;
 	}
 	leaderboard(): HeroSummary[] {
 		return [...this.options.repository.values()]
@@ -473,6 +504,20 @@ export class GameService {
 		}
 		if (!/^[A-Za-z0-9_-]{1,20}$/.test(trimmed))
 			throw new Error("Invalid username.");
+		const player = this.createPlayer(trimmed, undefined, trimmed);
+		this.options.repository.save(player);
+		return player;
+	}
+
+	private createPlayer(
+		name: string,
+		accountId: string | undefined,
+		accountName = name,
+		passwordHash?: string,
+		isModerator = false,
+		sharedInventory?: Player["progress"]["inventoryTiles"],
+	): Player {
+		const id = this.createId();
 		const starterSword = generateItem(1, "common", 101, {
 			allowedClasses: ["sword"],
 		});
@@ -482,23 +527,27 @@ export class GameService {
 		});
 		starterStaff.skills = ["arcaneBolt", "frostOrb"];
 		const starterItems = [starterSword, starterBuckler, starterStaff];
-		const inventoryTiles: Player["progress"]["inventoryTiles"] = [];
-		for (const item of starterItems) {
-			const key = itemStackKey(item);
-			const existing = inventoryTiles.find((tile) => tile.key === key);
-			if (existing) existing.quantity += 1;
-			else
-				inventoryTiles.push({
-					id: `starter-random-tile-${inventoryTiles.length}`,
-					key,
-					item,
-					quantity: 1,
-				});
-		}
+		const inventoryTiles = sharedInventory ?? [];
+		if (!sharedInventory)
+			for (const item of starterItems) {
+				const key = itemStackKey(item);
+				const existing = inventoryTiles.find((tile) => tile.key === key);
+				if (existing) existing.quantity += 1;
+				else
+					inventoryTiles.push({
+						id: `starter-random-tile-${inventoryTiles.length}`,
+						key,
+						item,
+						quantity: 1,
+					});
+			}
 		const player: Player = {
-			id: this.createId(),
-			name: trimmed,
-			isModerator: false,
+			id,
+			name,
+			accountId: accountId ?? id,
+			accountName,
+			passwordHash,
+			isModerator,
 			score: 0,
 			waveNumber: 1,
 			maxWaveReached: 0,
@@ -534,7 +583,6 @@ export class GameService {
 				autoFireSkills: [],
 			},
 		};
-		this.options.repository.save(player);
 		return player;
 	}
 

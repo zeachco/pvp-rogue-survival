@@ -1590,6 +1590,12 @@ describe("protocol validation", () => {
 		).toBeUndefined();
 		expect(parseClientMessage({ type: "listHeroes" })?.type).toBe("listHeroes");
 		expect(
+			parseClientMessage({ type: "createCharacter", name: "Hero_2" }),
+		).toEqual({ type: "createCharacter", name: "Hero_2" });
+		expect(
+			parseClientMessage({ type: "switchCharacter", heroId: "hero-2" }),
+		).toEqual({ type: "switchCharacter", heroId: "hero-2" });
+		expect(
 			parseClientMessage({
 				type: "respecStats",
 				allocation: {

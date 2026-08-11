@@ -17,6 +17,8 @@ interface HeroBlob {
 interface HeroRow {
 	id: string;
 	username: string;
+	account_id?: string | null;
+	account_username?: string | null;
 	level: number;
 	password_hash?: string | null;
 	is_moderator?: number | boolean | null;
@@ -41,6 +43,17 @@ export class SqlPlayerRepository implements PlayerRepository {
 	}
 	getByUsername(username: string): Player | undefined {
 		const key = username.toLowerCase();
+		return [...this.players.values()].find(
+			(player) => player.accountName.toLowerCase() === key,
+		);
+	}
+	getAccountPlayers(accountId: string): Player[] {
+		return [...this.players.values()].filter(
+			(player) => player.accountId === accountId,
+		);
+	}
+	getByCharacterName(name: string): Player | undefined {
+		const key = name.toLowerCase();
 		return [...this.players.values()].find(
 			(player) => player.name.toLowerCase() === key,
 		);
@@ -87,7 +100,10 @@ export class SqlPlayerRepository implements PlayerRepository {
 		this.markDirty(player.id);
 	}
 	markDirty(playerId: string): void {
-		if (this.players.has(playerId)) this.dirtyPlayerIds.add(playerId);
+		const player = this.players.get(playerId);
+		if (!player) return;
+		for (const sibling of this.getAccountPlayers(player.accountId))
+			this.dirtyPlayerIds.add(sibling.id);
 	}
 	values(): IterableIterator<Player> {
 		return this.players.values();
@@ -107,9 +123,9 @@ export class SqlPlayerRepository implements PlayerRepository {
 				try {
 					for (const row of rows)
 						await this.sql`
-						  INSERT INTO heroes (id, username, level, password_hash, is_moderator, hero)
-						  VALUES (${row.id}, ${row.username}, ${row.level}, ${row.password_hash}, ${row.is_moderator}, ${row.hero})
-						  ON CONFLICT (id) DO UPDATE SET username = excluded.username, level = excluded.level, password_hash = excluded.password_hash, is_moderator = excluded.is_moderator, hero = excluded.hero
+						  INSERT INTO heroes (id, username, level, password_hash, is_moderator, account_id, account_username, hero)
+						  VALUES (${row.id}, ${row.username}, ${row.level}, ${row.password_hash}, ${row.is_moderator}, ${row.account_id}, ${row.account_username}, ${row.hero})
+						  ON CONFLICT (id) DO UPDATE SET username = excluded.username, level = excluded.level, password_hash = excluded.password_hash, is_moderator = excluded.is_moderator, account_id = excluded.account_id, account_username = excluded.account_username, hero = excluded.hero
         `;
 				} catch (error) {
 					for (const id of playerIds) this.dirtyPlayerIds.add(id);
@@ -148,15 +164,37 @@ export class SqlPlayerRepository implements PlayerRepository {
 			)
 				throw error;
 		}
+		for (const column of ["account_id TEXT", "account_username TEXT"]) {
+			try {
+				await this.sql.unsafe(`ALTER TABLE heroes ADD COLUMN ${column}`);
+			} catch (error) {
+				const message = String(error).toLowerCase();
+				if (
+					!message.includes("duplicate column") &&
+					!message.includes("already exists")
+				)
+					throw error;
+			}
+		}
 		await this
 			.sql`CREATE UNIQUE INDEX IF NOT EXISTS heroes_username_ci ON heroes (lower(username))`;
 		await this.sql`CREATE INDEX IF NOT EXISTS heroes_level ON heroes (level)`;
+		await this
+			.sql`CREATE INDEX IF NOT EXISTS heroes_account_id ON heroes (account_id)`;
+		await this
+			.sql`CREATE INDEX IF NOT EXISTS heroes_account_username_ci ON heroes (lower(account_username))`;
 		const rows = await this.sql<
 			HeroRow[]
-		>`SELECT id, username, level, password_hash, is_moderator, hero FROM heroes`;
+		>`SELECT id, username, level, password_hash, is_moderator, account_id, account_username, hero FROM heroes`;
 		for (const row of rows) {
 			const player = fromRow(row);
 			if (player) this.players.set(player.id, player);
+		}
+		const inventories = new Map<string, PlayerProgress["inventoryTiles"]>();
+		for (const player of this.players.values()) {
+			const shared = inventories.get(player.accountId);
+			if (shared) player.progress.inventoryTiles = shared;
+			else inventories.set(player.accountId, player.progress.inventoryTiles);
 		}
 	}
 }
@@ -176,6 +214,8 @@ function toRow(player: Player): HeroRow {
 	return {
 		id: player.id,
 		username: player.name,
+		account_id: player.accountId,
+		account_username: player.accountName,
 		level: player.progress.level,
 		password_hash: player.passwordHash ?? null,
 		is_moderator: player.isModerator ? 1 : 0,
@@ -225,6 +265,8 @@ function fromRow(row: HeroRow): Player | undefined {
 	return {
 		id: row.id,
 		name: row.username,
+		accountId: row.account_id ?? row.id,
+		accountName: row.account_username ?? row.username,
 		passwordHash: row.password_hash ?? undefined,
 		isModerator: row.is_moderator === true || Number(row.is_moderator) === 1,
 		score: blob.score,

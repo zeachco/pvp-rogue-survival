@@ -21,6 +21,8 @@ export interface HudCallbacks {
 	onOpenDevlog(): void;
 	onBack(): void;
 	onLogout(): void;
+	onCreateCharacter(name: string): void;
+	onSwitchCharacter(heroId: string): void;
 	onSetFullscreenMode(mode: "on" | "off"): void;
 	onSetResolutionScale(scale: number): void;
 	onSetLightingMode(mode: "off" | "hero" | "all"): void;
