@@ -6,6 +6,7 @@ import {
 	activeAccountId,
 	activeModeratorAccountId,
 	isLocalDevelopmentOrigin,
+	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	parseDevlogRequestInput,
 } from "../server/createApp";
 import {
@@ -127,6 +128,49 @@ describe("devlog requests", () => {
 				kind: "idea",
 				title: "x",
 				description: "too short",
+			}),
+		).toBeUndefined();
+		expect(
+			parseDevlogRequestInput({
+				kind: "feature",
+				title: "Oversized request",
+				description: "x".repeat(MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH + 1),
+			}),
+		).toBeUndefined();
+		expect(
+			parseDevlogRequestInput({
+				kind: "feature",
+				title: "Maximum request",
+				description: "x".repeat(MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH),
+			})?.description,
+		).toHaveLength(MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH);
+		const boundedBug = parseDevlogRequestInput({
+			kind: "bug",
+			title: "Bounded bug report",
+			description: "x".repeat(850),
+			environment: {
+				browser: "Firefox",
+				version: "141.0",
+				os: "Linux x86_64",
+				resolution: "3840×2160",
+				devicePixelRatio: "2",
+			},
+		});
+		expect(boundedBug?.description.length).toBeLessThanOrEqual(
+			MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
+		);
+		expect(
+			parseDevlogRequestInput({
+				kind: "bug",
+				title: "Oversized stored bug report",
+				description: "x".repeat(MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH),
+				environment: {
+					browser: "Firefox",
+					version: "141.0",
+					os: "Linux x86_64",
+					resolution: "3840×2160",
+					devicePixelRatio: "2",
+				},
 			}),
 		).toBeUndefined();
 	});

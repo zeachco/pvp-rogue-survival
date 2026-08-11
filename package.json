@@ -10,6 +10,7 @@
 		"changelog": "bun scripts/changelog.ts",
 		"changelogs": "bun scripts/changelog.ts --all",
 		"features": "bun scripts/listFeatureRequests.ts",
+		"feature-agent": "bun scripts/runFeatureAgent.ts",
 		"release-check": "sh scripts/release-check.sh",
 		"release-push": "sh scripts/release-push.sh",
 		"reset": "bun server/resetLocalDatabase.ts",

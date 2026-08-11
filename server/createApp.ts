@@ -20,10 +20,12 @@ import { SqlPlayerRepository } from "./SqlPlayerRepository.ts";
 import { GameService } from "./GameService.ts";
 import {
 	InMemoryDevlogRequestStore,
+	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	SqlDevlogRequestStore,
 	type DevlogRequestKind,
 	type DevlogRequestStore,
 } from "./DevlogRequestRepository.ts";
+export { MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH } from "./DevlogRequestRepository.ts";
 
 interface PlayerSocket extends WebSocket {
 	playerId?: PlayerId;
@@ -429,7 +431,7 @@ async function serveRequest(
 			if (!validated) {
 				json(response, 400, {
 					error:
-						"Choose feature or bug, use a 3-100 character title, and a 10-2000 character description.",
+						"Choose feature or bug, use a 3-100 character title, and a 10-1024 character description.",
 				});
 				return;
 			}
@@ -586,16 +588,19 @@ export function parseDevlogRequestInput(
 		title.length < 3 ||
 		title.length > 100 ||
 		description.length < 10 ||
-		description.length > 2_000
+		description.length > MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH
 	)
 		return undefined;
 	if (kind !== "bug") return { kind, title, description };
 	const environment = parseBugEnvironment(input?.environment);
 	if (!environment) return undefined;
+	const storedDescription = `${description}\n\nEnvironment\nBrowser: ${environment.browser} ${environment.version}\nOS: ${environment.os}\nScreen: ${environment.resolution} physical pixels (DPR ${environment.devicePixelRatio})`;
+	if (storedDescription.length > MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH)
+		return undefined;
 	return {
 		kind,
 		title,
-		description: `${description}\n\nEnvironment\nBrowser: ${environment.browser} ${environment.version}\nOS: ${environment.os}\nScreen: ${environment.resolution} physical pixels (DPR ${environment.devicePixelRatio})`,
+		description: storedDescription,
 	};
 }
 

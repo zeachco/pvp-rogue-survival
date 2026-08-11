@@ -39,6 +39,17 @@ bun run features |
     --preview "printf '%s' {2} | base64 -d | jq -r '\"\(.title)\n\n\(.description)\n\nScore: \(.score)  ↑\(.upvotes)  ↓\(.downvotes)\nScheduled: \(.scheduledMonth)\"'"
 ```
 
+### Run a feature agent
+
+`bun run feature-agent <harness>` launches an autonomous implementation workflow with `codex`, `claude`, `pi`, or `opencode`. It requires a clean worktree, randomly selects a pending feature, prints the request and any security warnings, then waits for an explicit `y` confirmation before the AI harness starts. The harness is instructed to implement, validate, and commit the selected request, but not push it.
+
+```bash
+bun run feature-agent codex
+bun run feature-agent claude
+bun run feature-agent pi
+bun run feature-agent opencode
+```
+
 ## Architecture
 
 - `common/` contains runtime protocol schemas and pure balance, content, combat, inventory, progression, item, random, and wave rules.
