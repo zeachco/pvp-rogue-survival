@@ -30,7 +30,7 @@ const EFFECT_KIND_BY_SKILL: Partial<Record<SkillId, SpellEffectKind>> = {
 
 export const SWAMP_UPLIGHT_COLOR = 0x39ff14;
 export const SWAMP_UPLIGHT_INTENSITY = 420;
-export const SWAMP_UPLIGHT_DEPTH = -8;
+export const SWAMP_UPLIGHT_HEIGHT = 8;
 export const BLIZZARD_PROJECTILE_LIGHT_COLOR = 0x8de7ff;
 export const BLIZZARD_PROJECTILE_LIGHT_INTENSITY = 95;
 export const BLIZZARD_PROJECTILE_LIGHT_DISTANCE = 150;
@@ -102,7 +102,7 @@ export class HeroSpellLightPool {
 			swampLight.position.set(
 				activeSwamp.position.x,
 				activeSwamp.position.y,
-				SWAMP_UPLIGHT_DEPTH,
+				SWAMP_UPLIGHT_HEIGHT,
 			);
 			swampLight.distance = activeSwamp.radius * 2;
 			swampLight.intensity = SWAMP_UPLIGHT_INTENSITY;

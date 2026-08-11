@@ -68,7 +68,7 @@ import {
 	BLIZZARD_PROJECTILE_LIGHT_DISTANCE,
 	BLIZZARD_PROJECTILE_LIGHT_INTENSITY,
 	SWAMP_UPLIGHT_COLOR,
-	SWAMP_UPLIGHT_DEPTH,
+	SWAMP_UPLIGHT_HEIGHT,
 	SWAMP_UPLIGHT_INTENSITY,
 } from "../src/game/render/HeroSpellLightPool";
 import {
@@ -2000,7 +2000,11 @@ describe("arena systems", () => {
 		expect(swampLight.color.getHex()).toBe(SWAMP_UPLIGHT_COLOR);
 		expect(swampLight.intensity).toBe(SWAMP_UPLIGHT_INTENSITY);
 		expect(swampLight.distance).toBe(200);
-		expect(swampLight.position.z).toBe(SWAMP_UPLIGHT_DEPTH);
+		expect(SWAMP_UPLIGHT_HEIGHT).toBeGreaterThan(0);
+		expect(swampLight.position.z).toBe(SWAMP_UPLIGHT_HEIGHT);
+		const swampSurface = new THREE.Vector3();
+		fill.getWorldPosition(swampSurface);
+		expect(swampLight.position.z).toBeGreaterThan(swampSurface.z);
 		swamp.update(1, [creep]);
 		expect(creep.statuses).toMatchObject([
 			{
