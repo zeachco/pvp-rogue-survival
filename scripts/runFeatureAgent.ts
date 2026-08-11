@@ -1,4 +1,3 @@
-import { createInterface } from "node:readline/promises";
 import {
 	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	type DevlogRequest,
@@ -94,24 +93,9 @@ async function cleanWorktree(): Promise<boolean> {
 	return result.stdout.toString().trim().length === 0;
 }
 
-async function confirmSelection(): Promise<boolean> {
+function requireInteractiveTerminal(): void {
 	if (!process.stdin.isTTY || !process.stdout.isTTY)
-		throw new Error(
-			"Feature-agent confirmation requires an interactive terminal.",
-		);
-	const terminal = createInterface({
-		input: process.stdin,
-		output: process.stdout,
-	});
-	try {
-		return (
-			(await terminal.question("Start this AI task? [y/N] "))
-				.trim()
-				.toLowerCase() === "y"
-		);
-	} finally {
-		terminal.close();
-	}
+		throw new Error("Feature-agent requires an interactive terminal.");
 }
 
 async function main(): Promise<void> {
@@ -124,6 +108,7 @@ async function main(): Promise<void> {
 		throw new Error(
 			`Harness executable not found: ${HARNESS_COMMANDS[harness][0]}`,
 		);
+	requireInteractiveTerminal();
 
 	const requests = await fetchFeatureRequests();
 	const selected = selectRandomFeature(requests);
@@ -148,11 +133,6 @@ async function main(): Promise<void> {
 			? `\nSECURITY WARNING: ${findings.join(", ")}. Review carefully before continuing.`
 			: "\nSecurity scan: no common prompt-injection indicators detected.",
 	);
-	if (!(await confirmSelection())) {
-		console.log("AI task cancelled.");
-		return;
-	}
-
 	const child = Bun.spawn(harnessCommand(harness, featurePrompt(selected)), {
 		cwd: process.cwd(),
 		stdin: "inherit",

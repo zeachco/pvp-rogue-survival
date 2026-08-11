@@ -41,7 +41,7 @@ bun run features |
 
 ### Run a feature agent
 
-`bun run feature-agent <harness>` launches an autonomous implementation workflow with `codex`, `claude`, `pi`, or `opencode`. It requires a clean worktree, randomly selects a pending feature, prints the request and any security warnings, then waits for an explicit `y` confirmation before the AI harness starts. The harness is instructed to implement, validate, and commit the selected request, but not push it.
+`bun run feature-agent <harness>` launches an autonomous implementation workflow with `codex`, `claude`, `pi`, or `opencode`. It requires a clean worktree and an interactive terminal, randomly selects a pending feature, prints the request and any security warnings, then starts the AI harness without another confirmation prompt. The harness is instructed to implement, validate, and commit the selected request, but not push it.
 
 ```bash
 bun run feature-agent codex
