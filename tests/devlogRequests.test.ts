@@ -75,7 +75,12 @@ describe("devlog requests", () => {
 			score: 2,
 		};
 		const bug = { ...feature, id: "bug-report", kind: "bug" as const };
-		expect(submittedFeatures([feature, bug])).toEqual([feature]);
+		const balance = {
+			...feature,
+			id: "balance-report",
+			kind: "balance" as const,
+		};
+		expect(submittedFeatures([feature, bug, balance])).toEqual([feature]);
 	});
 
 	test("fetches feature submissions through the public request API", async () => {
@@ -88,6 +93,7 @@ describe("devlog requests", () => {
 					requests: [
 						{ kind: "feature", title: "Controller support" },
 						{ kind: "bug", title: "Stuck movement" },
+						{ kind: "balance", title: "Overpowered katars" },
 					],
 				});
 			},
@@ -122,6 +128,17 @@ describe("devlog requests", () => {
 			title: "Stuck movement",
 			description:
 				"The hero remains stuck after opening inventory.\n\nEnvironment\nBrowser: Firefox 141.0\nOS: Linux x86_64\nScreen: 3840×2160 physical pixels (DPR 2)",
+		});
+		expect(
+			parseDevlogRequestInput({
+				kind: "balance",
+				title: "  Overpowered katars  ",
+				description: "  Katars block too many incoming attacks.  ",
+			}),
+		).toEqual({
+			kind: "balance",
+			title: "Overpowered katars",
+			description: "Katars block too many incoming attacks.",
 		});
 		expect(
 			parseDevlogRequestInput({

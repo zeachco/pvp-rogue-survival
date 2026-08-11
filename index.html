@@ -43,7 +43,7 @@
                 <p>Log in from the game to submit requests or vote on what matters most.</p>
               </div>
               <form id="request-form">
-                <label>Request type<select name="kind" required><option value="feature">Feature</option><option value="bug">Bug</option></select></label>
+                <label>Request type<select name="kind" required><option value="feature">Feature</option><option value="bug">Bug</option><option value="balance">Balance</option></select></label>
                 <label>Title<input name="title" type="text" minlength="3" maxlength="100" required placeholder="A short, specific summary" /></label>
                 <label>Details<textarea name="description" minlength="10" maxlength="1024" required placeholder="What should happen, or what went wrong?"></textarea></label>
                 <div class="form-actions"><button type="submit">Submit request</button><span id="request-status" role="status" aria-live="polite"></span></div>

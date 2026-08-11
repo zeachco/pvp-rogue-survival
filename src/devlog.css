@@ -288,6 +288,10 @@
     background: #ff8592;
   }
 
+  .request-kind.balance {
+    background: #f4c95d;
+  }
+
   .request-date {
     color: #718d94;
     font-size: 0.75rem;

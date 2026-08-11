@@ -478,7 +478,7 @@ async function serveRequest(
 			if (!validated) {
 				json(response, 400, {
 					error:
-						"Choose feature or bug, use a 3-100 character title, and a 10-1024 character description.",
+						"Choose feature, bug, or balance, use a 3-100 character title, and a 10-1024 character description.",
 				});
 				return;
 			}
@@ -622,7 +622,7 @@ async function readJson(
 }
 
 function isRequestKind(value: unknown): value is DevlogRequestKind {
-	return value === "feature" || value === "bug";
+	return value === "feature" || value === "bug" || value === "balance";
 }
 
 export function parseDevlogRequestInput(
