@@ -22,6 +22,8 @@ export const HEALING_AURA_FILL_MAX_OPACITY = 0.1;
 export const HEALING_AURA_RING_MAX_OPACITY = 0.55;
 export const HOSTILE_SPELL_COLOR = 0xff334f;
 export const HERO_BLOOD_SPELL_COLOR = 0x9b5cff;
+export const THUNDER_IMPACT_DURATION = 1.5;
+export const THUNDER_IMPACT_LIGHT_INTENSITY = 180;
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -50,6 +52,7 @@ export function spellEffectLightColor(
 	if (kind === "fireBreath") return 0xff5a24;
 	if (kind === "gravityPull") return 0xb98cff;
 	if (kind === "reflectiveSurge") return 0xffe46b;
+	if (kind === "thunderAura") return 0x9defff;
 	if (kind === "whirlwind") return 0xd8f4ff;
 	if (kind === "flurry") return 0xd9c2ff;
 	if (kind === "sweep") return 0xbafcff;
@@ -131,6 +134,11 @@ export class SpellEffect extends GameObject {
 
 	lightIntensity(time: number): number {
 		if (!this.heroOwned) return 0;
+		if (this.kind === "thunderAura")
+			return (
+				THUNDER_IMPACT_LIGHT_INTENSITY *
+				(1 - Math.min(1, this.age / THUNDER_IMPACT_DURATION))
+			);
 		if (this.kind === "healing") return healingUplightIntensity(this.age);
 		if (this.source) return 16 + 6 * (0.5 + 0.5 * Math.sin(time * 7));
 		if (this.kind === "gravityPull")
@@ -209,8 +217,50 @@ export class SpellEffect extends GameObject {
 			healing(this.effectGroup, progress, this.range || HEALING_MIN_RADIUS);
 		} else if (this.kind === "rapidRegen") {
 			impact(this.effectGroup, progress, "#68ff9c", 55, 6);
+		} else if (this.kind === "thunderAura") {
+			thunderImpact(this.effectGroup, progress, this.range);
 		}
 		if (!this.heroOwned) tintSpellObject(this.effectGroup, HOSTILE_SPELL_COLOR);
+	}
+}
+
+function thunderImpact(
+	group: THREE.Group,
+	progress: number,
+	radius: number,
+): void {
+	for (let arc = 0; arc < 6; arc += 1) {
+		const angle = (arc * Math.PI * 2) / 6 + arc * 0.19;
+		const points: number[] = [];
+		for (let step = 0; step <= 5; step += 1) {
+			const inward = step / 5;
+			const distance = radius * (1 - inward);
+			const jitter =
+				step === 0 || step === 5 ? 0 : ((arc + step) % 2 ? 1 : -1) * 7;
+			points.push(
+				Math.cos(angle) * distance + Math.cos(angle + Math.PI / 2) * jitter,
+				Math.sin(angle) * distance + Math.sin(angle + Math.PI / 2) * jitter,
+				0.75,
+			);
+		}
+		const geometry = new THREE.BufferGeometry();
+		geometry.setAttribute(
+			"position",
+			new THREE.Float32BufferAttribute(points, 3),
+		);
+		const line = new THREE.Line(
+			geometry,
+			new THREE.LineBasicMaterial({
+				color: 0xbef5ff,
+				transparent: true,
+				opacity: 1 - progress,
+				blending: THREE.AdditiveBlending,
+				depthWrite: false,
+			}),
+		);
+		line.name = `thunder-impact-arc-${arc}`;
+		line.renderOrder = Z_EFFECT;
+		group.add(line);
 	}
 }
 

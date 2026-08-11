@@ -58,6 +58,8 @@ import {
 	spellEffectLightDistance,
 	spellEffectLightColor,
 	SpellEffect,
+	THUNDER_IMPACT_DURATION,
+	THUNDER_IMPACT_LIGHT_INTENSITY,
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
 import { GroundSwamp } from "../src/game/GroundSwamp";
@@ -1678,6 +1680,37 @@ describe("arena systems", () => {
 		expect(sharedFlash.position.x).toBe(30);
 		expect(sharedFlash.position.y).toBe(40);
 		expect(sharedFlash.distance).toBe(200);
+
+		const thunderImpact = new SpellEffect(
+			"thunderAura",
+			{ x: 44, y: 55 },
+			0,
+			70,
+			THUNDER_IMPACT_DURATION,
+			undefined,
+			true,
+		);
+		thunderImpact.updateVisuals(0);
+		const thunderVisuals = thunderImpact.mesh.children[0] as THREE.Group;
+		expect(
+			thunderVisuals.children.filter((child) =>
+				child.name.startsWith("thunder-impact-arc-"),
+			),
+		).toHaveLength(6);
+		expect(
+			thunderVisuals.children.every(
+				(child) => child instanceof THREE.Line && child.position.z === 0,
+			),
+		).toBeTrue();
+		lightPool.sync(["thunderAura"], [thunderImpact], 0);
+		const thunderLight = lightPool.light("thunderAura") as THREE.PointLight;
+		expect(thunderLight.position.toArray()).toEqual([44, 55, 4]);
+		expect(thunderLight.intensity).toBe(THUNDER_IMPACT_LIGHT_INTENSITY);
+		thunderImpact.update(THUNDER_IMPACT_DURATION / 2);
+		lightPool.sync(["thunderAura"], [thunderImpact], 0.75);
+		expect(thunderLight.intensity).toBeCloseTo(
+			THUNDER_IMPACT_LIGHT_INTENSITY / 2,
+		);
 	});
 	test("bottom-aligns every projectile silhouette above the ground", () => {
 		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);

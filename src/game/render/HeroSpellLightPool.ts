@@ -26,6 +26,7 @@ const EFFECT_KIND_BY_SKILL: Partial<Record<SkillId, SpellEffectKind>> = {
 	rent: "rent",
 	swamp: "swamp",
 	blizzard: "blizzard",
+	thunderAura: "thunderAura",
 };
 
 export const SWAMP_UPLIGHT_COLOR = 0x39ff14;
@@ -79,7 +80,7 @@ export class HeroSpellLightPool {
 			light.position.set(
 				effect.position.x,
 				effect.position.y,
-				effect.kind === "healing" ? 6 : 18,
+				effect.kind === "thunderAura" ? 4 : effect.kind === "healing" ? 6 : 18,
 			);
 			light.distance = effect.lightDistance();
 			light.intensity = effect.lightIntensity(time);

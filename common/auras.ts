@@ -7,6 +7,9 @@ export function auraRadius(level: number, spirit = 0): number {
 		Math.min(300, 0.5 * capped * Math.max(0, spirit))
 	);
 }
+export function thunderAuraRadius(level: number, spirit = 0): number {
+	return auraRadius(level, spirit) * 2;
+}
 export function auraSlowMultiplier(level: number): number {
 	return 0.8 - (cappedAuraLevel(level) - 1) * (0.3 / 98);
 }
@@ -20,7 +23,7 @@ export function thunderInterval(level: number): number {
 	return 10 - (cappedAuraLevel(level) - 1) * (7 / 98);
 }
 export function thunderDamage(magic: number): number {
-	return 3 + Math.max(0, magic) * 0.35;
+	return 6 + Math.max(0, magic) * 0.7;
 }
 export function thunderCritChance(baseCritChance: number): number {
 	return Math.min(1, 0.1 + Math.max(0, baseCritChance));

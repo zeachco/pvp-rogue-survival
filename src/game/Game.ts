@@ -735,6 +735,7 @@ export class Game {
 			this.player.progress,
 			this.creeps,
 			systemRandom,
+			this.arena.spellEffects,
 		);
 		for (const swamp of this.arena.swamps)
 			swamp.update(deltaSeconds, this.creeps);

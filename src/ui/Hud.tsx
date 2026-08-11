@@ -85,6 +85,7 @@ import {
 	auraSlowMultiplier,
 	sunburnFraction,
 	sunburnInterval,
+	thunderAuraRadius,
 	thunderDamage,
 	thunderInterval,
 } from "../../common/auras";
@@ -3725,7 +3726,12 @@ export function passiveSkillMetrics(
 					value: fmt(thunderDamage(effectiveStats.intelligence)),
 				},
 				{ label: "Pulse interval", value: `${fmt(thunderInterval(level))}s` },
-				radius(),
+				{
+					label: "Radius",
+					value: `${fmt(
+						pixelsToMeters(thunderAuraRadius(level, effectiveStats.spirit)),
+					)} m`,
+				},
 			];
 		case "timeHarvest":
 			return [

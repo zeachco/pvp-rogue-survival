@@ -6,6 +6,7 @@ import {
 	thunderCritChance,
 	thunderDamage,
 	thunderInterval,
+	thunderAuraRadius,
 } from "../../../common/auras";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
@@ -13,6 +14,7 @@ import type { SkillId } from "../../../common/items";
 import { effectiveSkillLevel } from "./HeroCombatSystem";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
+import { SpellEffect, THUNDER_IMPACT_DURATION } from "../SpellEffect";
 import { distance } from "../types";
 import {
 	AttackSpeedMultiplierEffect,
@@ -65,6 +67,7 @@ export class AuraSystem {
 		progress: PlayerProgress,
 		creeps: Creep[],
 		random: RandomSource,
+		spellEffects: SpellEffect[],
 	): void {
 		const levelOf = (skill: SkillId) =>
 			hero.isSkillOperational(skill) ? effectiveSkillLevel(progress, skill) : 0;
@@ -82,7 +85,10 @@ export class AuraSystem {
 						(creep) =>
 							creep.active &&
 							distance(hero.position, creep.position) <=
-								auraRadius(level, hero.stats.spirit),
+								(skill === "thunderAura" ? thunderAuraRadius : auraRadius)(
+									level,
+									hero.stats.spirit,
+								),
 					)
 				: [];
 		};
@@ -118,12 +124,16 @@ export class AuraSystem {
 					false,
 					{ kind: "electric", critical },
 				);
+				spellEffects.push(thunderImpact(first));
 				if (critical) {
 					const others = targets.filter((target) => target !== first);
 					const chained = others[Math.floor(random.next() * others.length)];
-					chained?.receiveDamage(damage * 0.6, random, hero, false, false, {
-						kind: "electric",
-					});
+					if (chained) {
+						chained.receiveDamage(damage * 0.6, random, hero, false, false, {
+							kind: "electric",
+						});
+						spellEffects.push(thunderImpact(chained));
+					}
 				}
 			}
 			this.thunderRemaining = thunderInterval(thunderLevel);
@@ -166,4 +176,16 @@ export class AuraSystem {
 		this.sunburnRemaining = 0;
 		this.thunderRemaining = 0;
 	}
+}
+
+function thunderImpact(target: Creep): SpellEffect {
+	return new SpellEffect(
+		"thunderAura",
+		target.position,
+		0,
+		70,
+		THUNDER_IMPACT_DURATION,
+		undefined,
+		true,
+	);
 }

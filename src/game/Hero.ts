@@ -5,7 +5,7 @@ import type { PlayerProgress } from "../../common/protocol";
 import type { RandomSource } from "../../common/random";
 import { Z_HERO, Z_AURA, Z_ATTACK } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
-import { auraRadius } from "../../common/auras";
+import { auraRadius, thunderAuraRadius } from "../../common/auras";
 import { AnimatedCharacter } from "./render/AnimatedCharacter";
 import {
 	BASE_HERO_TURN_SPEED_DEGREES,
@@ -404,7 +404,10 @@ export class Hero extends Unit {
 				| "deathBurst"
 				| "sunburnAura"
 				| "thunderAura",
-		) => auraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit);
+		) =>
+			skill === "thunderAura"
+				? thunderAuraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit)
+				: auraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit);
 
 		if (this.isSkillOperational("slowAura")) {
 			const radius = r("slowAura");
@@ -502,18 +505,6 @@ export class Hero extends Unit {
 
 		if (this.isSkillOperational("thunderAura")) {
 			const radius = r("thunderAura");
-			const bg = new THREE.Mesh(
-				new THREE.PlaneGeometry(radius * 2, radius * 2),
-				new THREE.MeshBasicMaterial({
-					color: 0xffffff,
-					transparent: true,
-					opacity: 0.07,
-					depthWrite: false,
-				}),
-			);
-			bg.renderOrder = Z_AURA;
-			this.auraGroup.add(bg);
-
 			const pts: number[] = [];
 			for (let i = 0; i < 28; i += 1) {
 				const a = (i * Math.PI * 2) / 28;

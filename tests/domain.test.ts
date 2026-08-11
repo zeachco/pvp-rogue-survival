@@ -38,6 +38,7 @@ import {
 	auraSlowMultiplier,
 	sunburnFraction,
 	sunburnInterval,
+	thunderAuraRadius,
 	thunderCritChance,
 	thunderDamage,
 	thunderInterval,
@@ -2193,7 +2194,7 @@ describe("spell tooltip damage previews", () => {
 				...ZERO_STATS,
 				intelligence: 10,
 			}),
-		).toEqual({ kind: "flat", value: 6.5, detail: "lightning" });
+		).toEqual({ kind: "flat", value: 13, detail: "lightning" });
 		expect(skillDamagePreview("healing", 1, ZERO_STATS)).toBeUndefined();
 	});
 });
@@ -2311,13 +2312,15 @@ describe("aura equipment", () => {
 		expect(auraRadius(99)).toBe(300);
 		expect(auraRadius(1, 20)).toBe(190);
 		expect(auraRadius(100, 20)).toBe(600);
+		expect(thunderAuraRadius(1)).toBe(360);
+		expect(thunderAuraRadius(99)).toBe(600);
 		expect(auraSlowMultiplier(1)).toBeCloseTo(0.8);
 		expect(auraSlowMultiplier(99)).toBeCloseTo(0.5);
 		expect(sunburnInterval(100)).toBe(2);
 		expect(sunburnFraction(100)).toBeCloseTo(0.02);
 		expect(thunderInterval(1)).toBe(10);
 		expect(thunderInterval(99)).toBe(3);
-		expect(thunderDamage(10)).toBe(6.5);
+		expect(thunderDamage(10)).toBe(13);
 		expect(thunderCritChance(0.2)).toBeCloseTo(0.3);
 	});
 });
