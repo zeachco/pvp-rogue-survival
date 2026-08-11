@@ -6,7 +6,6 @@ import {
 	thunderCritChance,
 	thunderDamage,
 	thunderInterval,
-	thunderAuraRadius,
 } from "../../../common/auras";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
@@ -85,10 +84,7 @@ export class AuraSystem {
 						(creep) =>
 							creep.active &&
 							distance(hero.position, creep.position) <=
-								(skill === "thunderAura" ? thunderAuraRadius : auraRadius)(
-									level,
-									hero.stats.spirit,
-								),
+								auraRadius(level, hero.stats.spirit),
 					)
 				: [];
 		};

@@ -7,9 +7,6 @@ export function auraRadius(level: number, spirit = 0): number {
 		Math.min(300, 0.5 * capped * Math.max(0, spirit))
 	);
 }
-export function thunderAuraRadius(level: number, spirit = 0): number {
-	return auraRadius(level, spirit) * 2;
-}
 export function auraSlowMultiplier(level: number): number {
 	return 0.8 - (cappedAuraLevel(level) - 1) * (0.3 / 98);
 }

@@ -38,7 +38,6 @@ import {
 	auraSlowMultiplier,
 	sunburnFraction,
 	sunburnInterval,
-	thunderAuraRadius,
 	thunderCritChance,
 	thunderDamage,
 	thunderInterval,
@@ -2312,8 +2311,6 @@ describe("aura equipment", () => {
 		expect(auraRadius(99)).toBe(300);
 		expect(auraRadius(1, 20)).toBe(190);
 		expect(auraRadius(100, 20)).toBe(600);
-		expect(thunderAuraRadius(1)).toBe(360);
-		expect(thunderAuraRadius(99)).toBe(600);
 		expect(auraSlowMultiplier(1)).toBeCloseTo(0.8);
 		expect(auraSlowMultiplier(99)).toBeCloseTo(0.5);
 		expect(sunburnInterval(100)).toBe(2);

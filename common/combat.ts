@@ -9,12 +9,7 @@ import {
 	type ItemInstance,
 	type SkillId,
 } from "./items";
-import {
-	auraRadius,
-	sunburnFraction,
-	thunderAuraRadius,
-	thunderDamage,
-} from "./auras";
+import { auraRadius, sunburnFraction, thunderDamage } from "./auras";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 
@@ -341,7 +336,6 @@ export function skillRange(
 	if (skill === "healing") return healingRadius(level);
 	if (skill === "swamp") return swampRadius(level);
 	if (skill === "gravityPull") return forceFieldRange(level);
-	if (skill === "thunderAura") return thunderAuraRadius(level, spirit);
 	if (AURA_SKILLS.includes(skill)) return auraRadius(level, spirit);
 	if (skill === "whirlwind") return whirlwindRadius(level);
 	const base =

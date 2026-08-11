@@ -5,7 +5,7 @@ import type { PlayerProgress } from "../../common/protocol";
 import type { RandomSource } from "../../common/random";
 import { Z_HERO, Z_AURA, Z_ATTACK } from "./render/ThreeRenderer";
 import { updateStatusEffects } from "./render/statusEffects";
-import { auraRadius, thunderAuraRadius } from "../../common/auras";
+import { auraRadius } from "../../common/auras";
 import { AnimatedCharacter } from "./render/AnimatedCharacter";
 import {
 	BASE_HERO_TURN_SPEED_DEGREES,
@@ -391,6 +391,7 @@ export class Hero extends Unit {
 	}
 
 	updateAuraVisuals(time: number): void {
+		this.auraGroup.position.set(this.position.x, this.position.y, 0);
 		while (this.auraGroup.children.length > 0) {
 			const child = this.auraGroup.children[0];
 			this.auraGroup.remove(child);
@@ -404,10 +405,7 @@ export class Hero extends Unit {
 				| "deathBurst"
 				| "sunburnAura"
 				| "thunderAura",
-		) =>
-			skill === "thunderAura"
-				? thunderAuraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit)
-				: auraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit);
+		) => auraRadius(this.skillLevels.get(skill) ?? 1, this.stats.spirit);
 
 		if (this.isSkillOperational("slowAura")) {
 			const radius = r("slowAura");

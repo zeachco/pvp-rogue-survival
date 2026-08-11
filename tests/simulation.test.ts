@@ -295,6 +295,16 @@ describe("animated 3D characters", () => {
 		expect(enemyRoleLight("creep")).toBeUndefined();
 		expect(enemyRoleLight("invader")).toBeUndefined();
 	});
+	test("keeps the world-oriented aura presentation centered on its owner", () => {
+		const hero = new Hero({ x: 10, y: 20 });
+		hero.updateAuraVisuals(0);
+		expect(hero.auraGroup.position.toArray()).toEqual([10, 20, 0]);
+
+		hero.position.x = 90;
+		hero.position.y = 130;
+		hero.updateAuraVisuals(1);
+		expect(hero.auraGroup.position.toArray()).toEqual([90, 130, 0]);
+	});
 	test("stores lighting as a browser-local preference and defaults invalid values to all", () => {
 		const values = new Map<string, string>();
 		const storage = {
