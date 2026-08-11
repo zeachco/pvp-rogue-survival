@@ -102,6 +102,7 @@ import {
 	weaponUsesProjectile,
 	weaponSkillTriggerChance,
 	weaponSkillTriggerChanceForHits,
+	voodooPoisonMultiplier,
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
@@ -733,7 +734,7 @@ describe("equipment requirements", () => {
 		const surged = rows({ reflectiveSurge: { level: 1 } });
 		const baseChance = bucklerBlockChance(buckler, stats, 5);
 		const surgedChance = Math.min(
-			0.95,
+			0.9,
 			baseChance + reflectiveSurgeBlockChanceBonus(1),
 		);
 		expect(surged.get("Block chance")).toBe(
@@ -2660,6 +2661,14 @@ test("floors every active and reactive spell at three seconds at level one and o
 test("registers configurable Spirit relic perks", () => {
 	expect(SKILLS.fireBreath).toMatchObject({ enemyEligible: true, cost: 4 });
 	expect(SKILLS.voodoo.passive).toBeTrue();
+	expect(voodooPoisonMultiplier(1, 10)).toBeCloseTo(1.3);
+	expect(voodooPoisonMultiplier(99, 10)).toBeCloseTo(1.6);
+	expect(
+		passiveSkillMetrics("voodoo", 1, { ...ZERO_STATS, spirit: 10 }),
+	).toEqual([{ label: "Poison damage", value: "+30%" }]);
+	expect(
+		passiveSkillMetrics("voodoo", 99, { ...ZERO_STATS, spirit: 10 }),
+	).toEqual([{ label: "Poison damage", value: "+60%" }]);
 	expect(SKILLS.manaDrain.passive).toBeTrue();
 	expect(SKILLS.manaDrain.label).toBe("Spirit Wounds");
 	expect(SKILLS.manaDrain.upkeep).toBeUndefined();
@@ -2676,6 +2685,7 @@ test("registers configurable Spirit relic perks", () => {
 	);
 	expect(passiveSkillMetrics("penance", 9, ZERO_STATS)).toEqual([
 		{ label: "Conversion", value: "3.37%" },
+		{ label: "Minimum return", value: "1% max Mana" },
 	]);
 	expect(passiveSkillMetrics("timeHarvest", 99, ZERO_STATS)).toEqual([
 		{ label: "Cooldown removal", value: "2s / kill" },

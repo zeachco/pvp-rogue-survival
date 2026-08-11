@@ -872,7 +872,6 @@ describe("arena systems", () => {
 	test("Time Harvest removes every tracked hero cooldown after a kill", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.configureStats(ZERO_STATS);
-		hero.blockCooldown = 4;
 		const combat = new HeroCombatSystem();
 		const internal = combat as unknown as {
 			attackCooldown: number;
@@ -907,7 +906,6 @@ describe("arena systems", () => {
 		expect(internal.attackCooldown).toBe(4.75);
 		expect(internal.healingCooldown).toBe(2.75);
 		expect(internal.skillCooldowns.get("bash")?.remaining).toBe(1.75);
-		expect(hero.blockCooldown).toBe(3.75);
 	});
 	test("restores stacked requirement-adjusted accessory resources on kill", () => {
 		const hero = new Hero({ x: 0, y: 0 });
@@ -1355,7 +1353,6 @@ describe("arena systems", () => {
 		hero.mana = 0;
 		hero.rage = 0;
 		hero.velocity = { x: 9, y: 4 };
-		hero.blockCooldown = 1;
 		hero.reflectiveSurgeRemaining = 2;
 		hero.addStatus({ kind: "poison", remaining: 4, damagePerSecond: 1 });
 		hero.resetForRealm();
@@ -1364,7 +1361,6 @@ describe("arena systems", () => {
 		expect(hero.rage).toBe(5);
 		expect(hero.statuses).toHaveLength(0);
 		expect(hero.velocity).toEqual({ x: 0, y: 0 });
-		expect(hero.blockCooldown).toBe(0);
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
 	});
 	test("preserves mana and rage across active-wave progression updates", () => {
@@ -1937,6 +1933,7 @@ describe("arena systems", () => {
 		const hero = new Hero({ x: 0, y: 0 });
 		hero.configureStats({ ...ZERO_STATS, spirit: 10 });
 		hero.knownSkills.add("voodoo");
+		hero.skillLevels.set("voodoo", 99);
 		const creep = new Creep(
 			{
 				id: "swamped",
@@ -1978,10 +1975,10 @@ describe("arena systems", () => {
 			{
 				kind: "poison",
 				remaining: damageStatusDuration(8),
-				damagePerSecond: 0.52,
 				source: hero,
 			},
 		]);
+		expect(creep.statuses[0]?.damagePerSecond).toBeCloseTo(0.64);
 		creep.position.x = 200;
 		swamp.update(0.5, [creep]);
 		creep.position.x = 20;
@@ -2976,7 +2973,7 @@ describe("arena systems", () => {
 		expect(hero.active).toBeTrue();
 	});
 
-	test("allows 100% block chance and spends rage only on successful blocks", () => {
+	test("caps block chance at 90% and spends rage only on successful blocks", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
 		hero.configureStats(
@@ -2984,19 +2981,46 @@ describe("arena systems", () => {
 			buckler,
 		);
 		const hp = hero.hp;
-		let rolls = [1, 0.999];
+		let rolls = [1, 0.899];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
 		expect(hero.rage).toBe(5);
+		rolls = [1, 0.9];
+		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
+		expect(hero.hp).toBe(hp - 10);
 		hero.rage = 0;
 		hero.receiveDamage(10, { next: () => 1 });
-		expect(hero.hp).toBe(hp - 10);
+		expect(hero.hp).toBe(hp - 20);
 		expect(hero.rage).toBe(2);
 		hero.rage = 1;
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.rage).toBe(3);
 	});
-	test("lets Katars block without Blocking, Rage cost, or cooldown", () => {
+	test("Poison, Bleed, and Burn ticks cannot be blocked or dodged", () => {
+		for (const kind of ["poison", "bleed", "burn"] as const) {
+			const hero = new Hero({ x: 50, y: 50 });
+			const buckler = {
+				...generateBuckler(0, "common", 12),
+				requirements: {},
+				perks: { dodgeChance: 0.5 },
+			};
+			hero.configureStats(
+				{ agility: 100, strength: 100, magic: 0, spirit: 0, intelligence: 0 },
+				buckler,
+			);
+			hero.knownSkills.add("blocking");
+			hero.rage = 10;
+			hero.addStatus({ kind, remaining: 2, damagePerSecond: 4 });
+			const hp = hero.hp;
+			hero.compileState(1, { next: () => 0 });
+			hero.updateResources(1, { next: () => 0 });
+			hero.advanceEffects(1);
+			expect(hero.hp).toBeCloseTo(hp - 4);
+			expect(hero.rage).toBeCloseTo(8.999);
+			expect(hero.lastHitDodged).toBeFalse();
+		}
+	});
+	test("lets Katars block without Blocking or Rage cost", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const katars = {
 			...generateItem(100, "unique", 103, { allowedClasses: ["katars"] }),
@@ -3009,12 +3033,11 @@ describe("arena systems", () => {
 		);
 		const hp = hero.hp;
 		const rage = hero.rage;
-		hero.receiveDamage(10, { next: () => 0.99 });
+		hero.receiveDamage(10, { next: () => 0.899 });
 		expect(hero.hp).toBe(hp - 5);
 		expect(hero.rage).toBe(rage + 1);
-		expect(hero.blockCooldown).toBe(0);
 	});
-	test("lets the Manaforged Aegis block without cooldown or Rage cost", () => {
+	test("lets the Manaforged Aegis block without Rage cost", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const aegis = { ...generateBuckler(0, "unique", 12), perks: {} };
 		hero.configureStats(
@@ -3031,8 +3054,6 @@ describe("arena systems", () => {
 		expect(hero.hp).toBe(hp);
 		expect(hero.mana).toBeCloseTo(mana - manaCost * 2);
 		expect(hero.rage).toBe(2);
-		expect(hero.blockCooldown).toBe(0);
-
 		hero.mana = manaCost - 0.001;
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.hp).toBe(hp - 10);
@@ -3046,8 +3067,9 @@ describe("arena systems", () => {
 		hero.compileState(1 / 60);
 		const rage = hero.rage;
 		hero.receiveDamage(5, { next: () => 0.15 });
+		hero.receiveDamage(5, { next: () => 0.15 });
 		expect(hero.rage).toBe(rage);
-		expect(hero.blockCooldown).toBeCloseTo(3 - (2 * 9) / 98);
+		expect(hero.hp).toBe(hero.maxHp - 8);
 	});
 	test("restores Penance mana from damage prevented by a successful block", () => {
 		const hero = new Hero({ x: 0, y: 0 });
@@ -3064,6 +3086,18 @@ describe("arena systems", () => {
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.mana).toBeGreaterThan(29);
 		expect(hero.mana).toBeLessThan(60);
+
+		hero.configureStats(
+			{ agility: 0, strength: 100, magic: 0, spirit: 0, intelligence: 100 },
+			buckler,
+			starterClub(),
+		);
+		hero.mana = 0;
+		hero.knownSkills.add("penance");
+		hero.skillLevels.set("penance", 1);
+		rolls = [1, 0];
+		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
+		expect(hero.mana).toBeCloseTo(hero.maxMana * 0.01);
 	});
 
 	test("returns passive Thorns damage and doubles it during Reflective Surge", () => {
@@ -3254,7 +3288,7 @@ describe("arena systems", () => {
 		expect(hero.mana).toBe(hero.maxMana - 4);
 	});
 
-	test("puts successful blocking on cooldown and scales Return blocking by attack speed", () => {
+	test("allows consecutive successful Return blocks without a cooldown", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const club = starterClub();
 		const buckler = {
@@ -3275,11 +3309,9 @@ describe("arena systems", () => {
 		let rolls = [1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
-		expect(hero.blockCooldown).toBe(3);
-		hero.receiveDamage(10, { next: () => 1 });
-		expect(hero.hp).toBe(hp - 10);
-		hero.updateResources(hero.blockCooldown, { next: () => 1 });
-		expect(hero.blockCooldown).toBe(0);
+		rolls = [1, 0];
+		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
+		expect(hero.hp).toBe(hp);
 	});
 
 	test("emits typed damage, healing, and inherited shield-return numbers", () => {

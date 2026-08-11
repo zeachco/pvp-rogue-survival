@@ -785,19 +785,15 @@ export class HeroCombatSystem {
 					cooldown:
 						id === "healing"
 							? this.healingCooldown
-							: id === "blocking"
-								? hero.blockCooldown
-								: id === "reflectiveSurge"
-									? hero.reflectiveSurgeCooldown
-									: (cooldown?.remaining ?? 0),
+							: id === "reflectiveSurge"
+								? hero.reflectiveSurgeCooldown
+								: (cooldown?.remaining ?? 0),
 					cooldownMax:
 						id === "healing"
 							? this.healingCooldownMax
-							: id === "blocking"
-								? hero.blockCooldownMax
-								: id === "reflectiveSurge"
-									? hero.reflectiveSurgeCooldownMax
-									: (cooldown?.maximum ?? 0),
+							: id === "reflectiveSurge"
+								? hero.reflectiveSurgeCooldownMax
+								: (cooldown?.maximum ?? 0),
 					castProgress:
 						this.casting?.id === id
 							? Math.min(1, this.casting.elapsed / this.casting.total)
@@ -876,7 +872,6 @@ export class HeroCombatSystem {
 		);
 		this.attackCooldown = Math.max(0, this.attackCooldown - reduction);
 		this.healingCooldown = Math.max(0, this.healingCooldown - reduction);
-		hero.blockCooldown = Math.max(0, hero.blockCooldown - reduction);
 		for (const cooldown of this.skillCooldowns.values())
 			cooldown.remaining = Math.max(0, cooldown.remaining - reduction);
 		return reduction;
@@ -1109,7 +1104,7 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 	if (skill === "blocking")
 		return progress.offHand?.itemKind === "buckler" &&
 			progress.offHand.rarity === "unique"
-			? "1% max Mana / block; no cooldown; +1 Rage"
+			? "1% max Mana / block; +1 Rage"
 			: `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.passive && definition.upkeep)
 		return `${formatCost(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`;

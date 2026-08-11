@@ -73,6 +73,7 @@ import {
 	whirlwindDuration,
 	whirlwindMovementSpeed,
 	weaponSkillTriggerChance,
+	voodooPoisonMultiplier,
 	type SkillDamagePreview,
 } from "../../common/combat";
 import { derivedStats } from "../../common/progression";
@@ -3444,6 +3445,7 @@ export function passiveSkillMetrics(
 					label: "Conversion",
 					value: `${fmt(manaConversionFraction(level) * 100)}%`,
 				},
+				{ label: "Minimum return", value: "1% max Mana" },
 			];
 		case "blocking":
 			return [{ label: "Base block chance", value: `+${fmt(level * 0.5)}%` }];
@@ -3453,7 +3455,7 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Poison damage",
-					value: `+${fmt(Math.min(1.5, 0.03 * Math.max(0, effectiveStats.spirit)) * 100)}%`,
+					value: `+${fmt((voodooPoisonMultiplier(level, effectiveStats.spirit) - 1) * 100)}%`,
 				},
 			];
 		case "slowAura":

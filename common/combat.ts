@@ -178,6 +178,7 @@ export function weaponUsesProjectile(item: ItemInstance): boolean {
 		Boolean(WEAPONS[item.definitionId as keyof typeof WEAPONS].projectile)
 	);
 }
+export const MAX_BLOCK_CHANCE = 0.9;
 export function bucklerBlockChance(
 	item: ItemInstance | undefined,
 	stats: Stats,
@@ -189,7 +190,7 @@ export function bucklerBlockChance(
 			? (item.blockChance + 0.005 * (stats.strength + stats.agility)) *
 				itemRequirementMultiplier(item, stats)
 			: 0;
-	return Math.min(1, passiveChance + bucklerChance);
+	return Math.min(MAX_BLOCK_CHANCE, passiveChance + bucklerChance);
 }
 
 export function katarBlockChance(
@@ -198,7 +199,7 @@ export function katarBlockChance(
 ): number {
 	if (item?.itemKind !== "weapon" || item.definitionId !== "katars") return 0;
 	return Math.min(
-		1,
+		MAX_BLOCK_CHANCE,
 		0.0001 *
 			Math.max(0, item.level) *
 			Math.max(0, stats.agility) *
@@ -464,6 +465,10 @@ export function manaConversionFraction(level: number): number {
 export function spiritWoundsConversionFraction(level: number): number {
 	return 0.01 + (cappedSkillLevel(level) - 1) * (0.24 / 98);
 }
+export function voodooPoisonMultiplier(level: number, spirit: number): number {
+	const levelScale = 1 + (cappedSkillLevel(level) - 1) / 98;
+	return 1 + Math.min(1.5, 0.03 * Math.max(0, spirit)) * levelScale;
+}
 export function vampiricBoomerangHealingFraction(level: number): number {
 	return 0.01 + (cappedSkillLevel(level) - 1) * (0.79 / 98);
 }
@@ -610,7 +615,7 @@ export function skillStatBonusDescription(skill: SkillId): string | undefined {
 			);
 			break;
 		case "voodoo":
-			bonuses.push("Spirit increases poison amplification");
+			bonuses.push("Spirit and skill level increase poison amplification");
 			break;
 		case "manaDrain":
 			bonuses.push(

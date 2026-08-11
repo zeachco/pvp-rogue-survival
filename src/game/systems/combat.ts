@@ -13,6 +13,7 @@ import {
 	arcaneBoltExplosionRadius,
 	RENDING_THROW_BLEED_DURATION,
 	spellPower,
+	voodooPoisonMultiplier,
 } from "../../../common/combat";
 import { pushDrops } from "../ItemDrop";
 import { SpellEffect } from "../SpellEffect";
@@ -300,7 +301,10 @@ export function applyWeaponEffects(
 		});
 	if (random.next() < item.modifiers.poisonChance * effectiveness) {
 		const voodoo = source?.isSkillOperational("voodoo")
-			? 1 + Math.min(1.5, source.stats.spirit * 0.03)
+			? voodooPoisonMultiplier(
+					source.skillLevels.get("voodoo") ?? 1,
+					source.stats.spirit,
+				)
 			: 1;
 		target.addStatus({
 			kind: "poison",

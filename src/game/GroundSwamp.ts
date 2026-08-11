@@ -5,6 +5,7 @@ import type { Hero } from "./Hero";
 import type { Creep } from "./Creep";
 import { Z_SWAMP } from "./render/ThreeRenderer";
 import { MovementMultiplierEffect } from "../../common/unitState";
+import { voodooPoisonMultiplier } from "../../common/combat";
 
 export class GroundSwamp extends GameObject {
 	private remaining = 8;
@@ -89,7 +90,10 @@ export class GroundSwamp extends GameObject {
 
 	private applyPoison(creep: Creep): void {
 		const voodoo = this.source.isSkillOperational("voodoo")
-			? 1 + Math.min(1.5, this.source.stats.spirit * 0.03)
+			? voodooPoisonMultiplier(
+					this.source.skillLevels.get("voodoo") ?? 1,
+					this.source.stats.spirit,
+				)
 			: 1;
 		creep.addStatus({
 			kind: "poison",

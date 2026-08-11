@@ -260,8 +260,6 @@ export class Hero extends Unit {
 		this.healthRegenMultiplier = 1;
 		this.healthRegenFlat = 0;
 		this.lastDamageSourceId = undefined;
-		this.blockCooldown = 0;
-		this.blockCooldownMax = 0;
 		this.reflectiveSurgeRemaining = 0;
 		this.reflectiveSurgeCooldown = 0;
 		this.reflectiveSurgeCooldownMax = 0;

@@ -13,10 +13,8 @@ import {
 	effectiveSkillCooldown,
 	katarBlockChance,
 	manaConversionFraction,
-	spellCooldownFloor,
 	spiritWoundsConversionFraction,
 	skillUpkeepPerSecond,
-	weaponAttackSpeed,
 	MAX_RAGE,
 	RAGE_DECAY_PER_SECOND,
 } from "../../common/combat";
@@ -100,8 +98,6 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	charm?: ItemInstance;
 	lastDamageSourceId?: string;
 	damageFloorOne = false;
-	blockCooldown = 0;
-	blockCooldownMax = 0;
 	reflectiveSurgeRemaining = 0;
 	reflectiveSurgeCooldown = 0;
 	reflectiveSurgeCooldownMax = 0;
@@ -249,6 +245,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			false,
 			this.effectInvulnerable,
 			{ kind: isDamageKind(kind) ? kind : "physical" },
+			false,
 		);
 	}
 
@@ -333,6 +330,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		reflectable = true,
 		invulnerable = false,
 		presentation: DamagePresentation = { kind: "physical" },
+		blockable = true,
 	): number {
 		if (this.immunityRemaining > 0) return 0;
 		this.lastHitDodged = false;
@@ -402,9 +400,9 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			source && incomingAmount > 0 && this.reflectiveSurgeAutomatic,
 		);
 		if (
+			blockable &&
 			((buckler?.itemKind === "buckler" &&
-				this.isSkillOperational("blocking") &&
-				(uniqueBuckler || this.blockCooldown === 0)) ||
+				this.isSkillOperational("blocking")) ||
 				katars) &&
 			this.rage >= blockCost &&
 			this.mana >= blockManaCost
@@ -418,20 +416,6 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 				if (uniqueBuckler) this.spendMana(blockManaCost);
 				else if (!katars) this.spendRage(blockCost);
 				this.grantDefensiveRage("block");
-				if (!katars) {
-					const attackSpeed = this.mainHand
-						? weaponAttackSpeed(this.mainHand, this.stats)
-						: 1;
-					const blockingLevel = this.skillLevels.get("blocking") ?? 1;
-					this.blockCooldownMax = Math.max(
-						spellCooldownFloor(blockingLevel),
-						buckler!.reflectionComponents.includes("return")
-							? 1 / Math.max(0.01, attackSpeed)
-							: 1,
-					);
-				}
-				this.blockCooldown =
-					uniqueBuckler || katars ? 0 : this.blockCooldownMax;
 				const beforeBlock = remaining;
 				remaining = Math.max(
 					0,
@@ -439,9 +423,12 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 				);
 				if (this.isSkillOperational("penance"))
 					this.restoreMana(
-						Math.max(0, beforeBlock - remaining) *
-							Math.max(0, this.stats.spirit) *
-							manaConversionFraction(this.skillLevels.get("penance") ?? 1),
+						Math.max(
+							this.maxMana * 0.01,
+							Math.max(0, beforeBlock - remaining) *
+								Math.max(0, this.stats.spirit) *
+								manaConversionFraction(this.skillLevels.get("penance") ?? 1),
+						),
 					);
 				if (reflectable && source)
 					blockReflection =
@@ -582,7 +569,6 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		this.immunityRemaining = Math.max(0, this.immunityRemaining - deltaSeconds);
 		if (this.mana <= 0) this.suspendedUpkeep.add("mana");
 		if (this.rage <= 0) this.suspendedUpkeep.add("rage");
-		this.blockCooldown = Math.max(0, this.blockCooldown - deltaSeconds);
 		this.reflectiveSurgeCooldown = Math.max(
 			0,
 			this.reflectiveSurgeCooldown - deltaSeconds,

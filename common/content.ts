@@ -300,7 +300,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		upkeep: { resource: "rage", perLevelPerSecond: 0.002 },
 		description:
-			"Sustains its vigil with Rage. After a successful buckler block, restores Mana equal to blocked damage × Spirit × level conversion (1% at level 1, up to 30% at level 99). Cannot exceed maximum Mana.",
+			"Sustains its vigil with Rage. After a successful buckler block, restores Mana equal to blocked damage × Spirit × level conversion (1% at level 1, up to 30% at level 99), with a minimum return of 1% maximum Mana. Cannot exceed maximum Mana.",
 	},
 	thorns: {
 		id: "thorns",
@@ -385,7 +385,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		upkeep: { resource: "mana", perLevelPerSecond: 0.005 },
 		description:
-			"Passive: Spirit amplifies poison damage applied by this unit.",
+			"Passive: Spirit and skill level amplify poison damage applied by this unit.",
 	},
 	healing: {
 		id: "healing",
