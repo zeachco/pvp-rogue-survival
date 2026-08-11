@@ -52,6 +52,7 @@ export class SqlPlayerRepository implements PlayerRepository {
 		return rows.map((row) => ({
 			...row,
 			level: Number(row.level),
+			souls: this.players.get(row.id)?.progress.souls ?? 0,
 			connected: this.players.get(row.id)?.connected ?? false,
 			receivesDeathEchoes: false,
 		}));
@@ -69,12 +70,17 @@ export class SqlPlayerRepository implements PlayerRepository {
 		const rows = await this.sql<
 			Array<{ id: string; username: string; level: number }>
 		>`SELECT id, username, level FROM heroes ORDER BY level DESC, username ASC`;
-		return rows.map((row) => ({
-			...row,
-			level: Number(row.level),
-			connected: this.players.get(row.id)?.connected ?? false,
-			receivesDeathEchoes: false,
-		}));
+		return rows
+			.map((row) => ({
+				...row,
+				level: Number(row.level),
+				souls: this.players.get(row.id)?.progress.souls ?? 0,
+				connected: this.players.get(row.id)?.connected ?? false,
+				receivesDeathEchoes: false,
+			}))
+			.sort(
+				(a, b) => b.souls - a.souls || a.username.localeCompare(b.username),
+			);
 	}
 	save(player: Player): void {
 		this.players.set(player.id, player);

@@ -76,7 +76,7 @@ describe("Bun SQL player persistence", () => {
 		}
 	});
 
-	test("looks up usernames without case and orders leaderboard by level then name", async () => {
+	test("looks up usernames without case and orders leaderboard by Souls then name", async () => {
 		const repository = await SqlPlayerRepository.open(":memory:");
 		const game = new GameService({
 			repository,
@@ -88,9 +88,11 @@ describe("Bun SQL player persistence", () => {
 		low.connected = false;
 		const highB = game.join("Beta");
 		highB.progress.level = 3;
+		highB.progress.souls = 2;
 		highB.connected = false;
 		const highA = game.join("alpha");
 		highA.progress.level = 3;
+		highA.progress.souls = 2;
 		expect(repository.getByUsername("BETA")?.id).toBe(highB.id);
 		expect(game.leaderboard().map((hero) => hero.username)).toEqual([
 			"alpha",

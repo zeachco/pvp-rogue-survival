@@ -87,7 +87,7 @@ export class InMemoryPlayerRepository implements PlayerRepository {
 		return [...this.players.values()]
 			.map(summary)
 			.sort(
-				(a, b) => b.level - a.level || a.username.localeCompare(b.username),
+				(a, b) => b.souls - a.souls || a.username.localeCompare(b.username),
 			);
 	}
 	save(player: Player): void {
@@ -104,6 +104,7 @@ function summary(player: Player): HeroSummary {
 		id: player.id,
 		username: player.name,
 		level: player.progress.level,
+		souls: player.progress.souls,
 		connected: player.connected,
 		receivesDeathEchoes: false,
 	};

@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 43;
+export const PROTOCOL_VERSION = 44;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -54,6 +54,7 @@ export interface HeroSummary {
 	id: PlayerId;
 	username: string;
 	level: number;
+	souls: number;
 	connected: boolean;
 	receivesDeathEchoes: boolean;
 }

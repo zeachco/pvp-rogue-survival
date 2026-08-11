@@ -799,7 +799,10 @@ export class Hud {
 						<strong>
 							{rankedName(hero.username, hero.receivesDeathEchoes)}
 						</strong>
-						<span>Level {hero.level}</span>
+						<span>
+							{hero.souls} {hero.souls === 1 ? "Soul" : "Souls"} · Level{" "}
+							{hero.level}
+						</span>
 					</button>
 				) as HTMLButtonElement;
 				button.onclick = () => this.callbacks.onInspectHero(hero.id);

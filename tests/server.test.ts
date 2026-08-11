@@ -1249,6 +1249,7 @@ describe("realm game service", () => {
 		const sovereign = game.join("Sovereign");
 		const victim = game.join("Victim");
 		sovereign.progress.level = 8;
+		sovereign.progress.souls = 3;
 		victim.progress.level = 5;
 		victim.progress.xp = cumulativeXpForLevel(5);
 		victim.progress.stats = {
@@ -1300,31 +1301,35 @@ describe("realm game service", () => {
 		const alpha = game.join("alpha");
 		beta.progress.level = 3;
 		alpha.progress.level = 3;
+		beta.progress.souls = 2;
+		alpha.progress.souls = 4;
 		game.disconnect(beta.id);
 		expect(
 			game
 				.leaderboard()
-				.map(({ username, connected, receivesDeathEchoes }) => [
+				.map(({ username, souls, connected, receivesDeathEchoes }) => [
 					username,
+					souls,
 					connected,
 					receivesDeathEchoes,
 				]),
 		).toEqual([
-			["alpha", true, true],
-			["beta", false, false],
+			["alpha", 4, true, true],
+			["beta", 2, false, false],
 		]);
 	});
 	test("limits the leaderboard to the top 100 while counting every online player", () => {
 		const { game } = harness();
 		for (let index = 0; index < 105; index += 1) {
 			const player = game.join(`Player${String(index).padStart(3, "0")}`);
-			player.progress.level = index + 1;
+			player.progress.level = 105 - index;
+			player.progress.souls = index + 1;
 		}
 		const leaderboard = game.leaderboard();
 		expect(leaderboard).toHaveLength(100);
 		expect(leaderboard[0]).toMatchObject({
 			username: "Player104",
-			level: 105,
+			souls: 105,
 			receivesDeathEchoes: true,
 		});
 		expect(leaderboard.at(-1)?.username).toBe("Player005");

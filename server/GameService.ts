@@ -236,10 +236,11 @@ export class GameService {
 				id: player.id,
 				username: player.name,
 				level: player.progress.level,
+				souls: player.progress.souls,
 				connected: player.connected,
 				receivesDeathEchoes: false,
 			}))
-			.sort((a, b) => b.level - a.level || a.username.localeCompare(b.username))
+			.sort((a, b) => b.souls - a.souls || a.username.localeCompare(b.username))
 			.slice(0, 100)
 			.map((hero, index) => ({ ...hero, receivesDeathEchoes: index === 0 }));
 	}
@@ -1486,7 +1487,7 @@ export class GameService {
 	private queueDeathEcho(player: Player): void {
 		const recipient = [...this.options.repository.values()].sort(
 			(a, b) =>
-				b.progress.level - a.progress.level || a.name.localeCompare(b.name),
+				b.progress.souls - a.progress.souls || a.name.localeCompare(b.name),
 		)[0];
 		if (!recipient || recipient.id === player.id) return;
 		const p = player.progress;
