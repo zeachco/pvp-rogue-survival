@@ -1,46 +1,79 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-09T19:04:46.336Z",
+	"generatedAt": "2026-08-11T01:05:09.101Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Refined combat systems and Devlog features",
+			"summaryTitle": "Major Quality of Life and Game System Updates",
 			"summary": {
 				"features": [
-					"A new 'Souls' unique item economy has been introduced, replacing Unique Scrap to increase rarity power. Players can now stake Souls on defeat for killer rewards.",
-					"Added comprehensive functionality to the Devlog: history is fully integrated into-game with proper SPA routing and browser support, allowing translucent access in all realms. Players can also request and vote on features directly through the Devlog.",
-					"New equipment tiers include a unique buckler with its own attributes.",
-					"The game settings menu has been expanded to allow users to select rendering scales and disable auto-fullscreen functionality.",
-					"Implemented new two-handed weapon classes for combat variety."
+					"A new unique item economy is introduced with 'Souls,' replacing Unique Scrap to increase item rarity power. Stakes can now be placed on defeated players, awarding player-killer rewards.",
+					"Added a functional Devlog within the game itself, featuring SPA routing for back support and maintaining visibility across realms.",
+					"New cosmetic gear, including a unique buckler, has been added.",
+					"Added robust admin controls for feature requests and general gameplay area polish.",
+					"Implemented new in-game systems such as two-handed weapon classes.",
+					"Players can now manage account security with enhanced username login and password persistence rules.",
+					"Improved the game settings interface, allowing customization of rendering scale and auto fullscreen behavior."
 				],
 				"bugfixes": [
-					"Fixed issues where players would see their own messages in the chat system, preventing incorrect display of message logs. Chat and inventory are now stable even when overlapping or open during gameplay.",
-					"Corrected several visual glitches including coins clipping underground, displaced healing lights, and issues with invader model rendering.",
-					"Resolved issues related to item overflow, ensuring excessive items dropping on death fall correctly onto the ground rather than causing game state errors."
+					"Fixed issues where characters displayed outdated messages instead of showing their own chat text.",
+					"Corrected various inventory bugs related to spell access when panels were open.",
+					"Addressed graphical warnings and visual discrepancies in combat effects (e.g., 'blizzard' spells).",
+					"Fixed pathing issues for map obstacles, making them more naturally circular.",
+					"Resolved persistent authentication bugs regarding password persistence and display of errors within the login modal.",
+					"Corrected coin clipping through underground geometry.",
+					"Fixed light displacement during healing procedures.",
+					"Updated character and inventory panel visibility to prevent overlap with chat/messages when panels are open."
 				],
 				"performance": [
-					"Optimizations implemented for dynamic lighting and shadow casting by creating a pooled resource system for light effects. This significantly reduces overhead associated with initializing and managing many light instances in active gameplay areas.",
-					"Rendering improvements were made, including keeping projectiles, gold, and scrap unlit and outside shadow maps to enhance rendering stability without performance loss."
+					"Optimized rendering by reducing shadow overhead, keeping critical elements like projectiles and gold unlit. Implemented a shared pool for light effects to drastically cut the performance cost of lighting calculations."
 				],
 				"balance": [
-					"Adjustments were made to spell mechanics (e.g., the Swamp spell now operates in a circular pattern) and attribute scaling (Magic Find/Septers).",
-					"The unique item economy requires further balancing with changes to skill proc chances.",
-					"Changes were implemented to combat consistency, such as adjusting cooldowns and capping multi-hit spell proc chance."
+					"Major tuning adjustments were made across character systems: rapid regeneration was introduced, the magic stat has been retired in favor of Intelligence, katar received blocking abilities, and general spell mechanics were tuned (e.g., making swamp spells circular)."
 				],
 				"ux": [
-					"Devlog experience underwent significant improvements, including better responsiveness across devices and dedicated sections for update categories. The Devlog is now usable outside of limited viewing contexts (e.g., mobile optimization).",
-					"The user interface features enhanced visual feedback: spell ownership colors are clearly marked, equipment skills now appear in the skill list as passives, and effect badges have been added to clarify status.",
-					"Improved usability across panels (inventory/character) and general UI elements, including refining how two-handed weapons slots are displayed and adding specific tooltips for Souls context.",
-					"Login and realm presence displays were reorganized for cleaner information delivery."
+					"The user experience for Devlogs, changelogs, and modals saw significant improvements, including better readability, mobile responsiveness, and structural reorganization of realm status headers.",
+					"Advanced character customization and combat visibility are improved: passive effects and gear-provided skills now appear correctly in the character stat panel. Spell ownership colors have been clarified for enemy attacks (red) and hero blood spells (purple).",
+					"Added tooltips to clarify game systems like Souls, block statistics, and XP bonuses, making gameplay information more accessible."
 				],
 				"graphics": [
-					"General graphics warnings were addressed to improve the visual stability of the game client. Default lighting settings were stabilized across the board."
+					"Improvements were made to spell visuals, including advanced shadow casting capabilities for certain abilities, alongside general graphics cleanups in the game environment."
 				]
 			},
 			"commits": [
+				{
+					"hash": "f5ddcd0da5d801ce61d8163b5309f123ac6fe5b7",
+					"authoredAt": "2026-08-10T16:01:47-04:00",
+					"title": "fix(graphics): blizzard spell",
+					"description": ""
+				},
+				{
+					"hash": "f4cf34888bf478f15d9a2cd3be9da55bb67c0e76",
+					"authoredAt": "2026-08-09T22:06:26-04:00",
+					"title": "balance: rapid regen",
+					"description": ""
+				},
+				{
+					"hash": "4e098a25bd5413ac93fcb32431e093b2ca15e792",
+					"authoredAt": "2026-08-09T21:05:48-04:00",
+					"title": "fix: map obstacle are more circulars",
+					"description": ""
+				},
+				{
+					"hash": "c2987f4a12ad265233c4adea5fefff90eb7b6523",
+					"authoredAt": "2026-08-09T20:59:09-04:00",
+					"title": "balance: removed magic stat, fallback to intelligence",
+					"description": ""
+				},
+				{
+					"hash": "e70df340d7c80b83689a425410e2aa71cbecf820",
+					"authoredAt": "2026-08-09T20:49:40-04:00",
+					"title": "ux: CSS changes",
+					"description": ""
+				},
 				{
 					"hash": "29a64e7ee005161024bee5bb8e54715f3081e78f",
 					"authoredAt": "2026-08-09T15:02:57-04:00",
@@ -615,36 +648,6 @@
 					"hash": "64a4d5032c5b6f0c42d8bced7805a2ced2a6acf7",
 					"authoredAt": "2026-08-04T08:34:28-04:00",
 					"title": "ux: spells max level info",
-					"description": ""
-				},
-				{
-					"hash": "4758072625cf05b5dfaea8c704b65e3db6e57009",
-					"authoredAt": "2026-08-03T19:49:34-04:00",
-					"title": "feat: boosted healing",
-					"description": ""
-				},
-				{
-					"hash": "bff3022889aae22fe8ece4aaebf156c0f6e4f393",
-					"authoredAt": "2026-08-03T19:41:32-04:00",
-					"title": "balance: spells and cooldowns",
-					"description": ""
-				},
-				{
-					"hash": "81dddee7fec65fac8f0f1a591358e3b8e5c95ef0",
-					"authoredAt": "2026-08-03T19:37:07-04:00",
-					"title": "fix: rendering throw",
-					"description": ""
-				},
-				{
-					"hash": "60fc2fce1ebd94113a7cc066386a9f8dd4de90e4",
-					"authoredAt": "2026-08-03T19:29:22-04:00",
-					"title": "fix: visual and spells",
-					"description": ""
-				},
-				{
-					"hash": "e826d63700cf2ef4c6c6f9892da8d460f18dcfa1",
-					"authoredAt": "2026-08-03T19:19:29-04:00",
-					"title": "fix: spells hud",
 					"description": ""
 				}
 			],
