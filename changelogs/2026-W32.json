@@ -1,55 +1,47 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-11T01:05:09.101Z",
+	"generatedAt": "2026-08-11T12:09:28.217Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Major Quality of Life and Game System Updates",
+			"summaryTitle": "Patch Week",
 			"summary": {
 				"features": [
-					"A new unique item economy is introduced with 'Souls,' replacing Unique Scrap to increase item rarity power. Stakes can now be placed on defeated players, awarding player-killer rewards.",
-					"Added a functional Devlog within the game itself, featuring SPA routing for back support and maintaining visibility across realms.",
-					"New cosmetic gear, including a unique buckler, has been added.",
-					"Added robust admin controls for feature requests and general gameplay area polish.",
-					"Implemented new in-game systems such as two-handed weapon classes.",
-					"Players can now manage account security with enhanced username login and password persistence rules.",
-					"Improved the game settings interface, allowing customization of rendering scale and auto fullscreen behavior."
+					"Introduced the Souls economy system, replacing Unique Scrap with a new resource that can be staked for player-killer rewards.",
+					"Added new unique equipment, including a dedicated buckler and corresponding attributes.",
+					"Improved devlog functionality by moving history into the game's core experience, adding better routing support, and maintaining visibility across all realm states.",
+					"Implemented admin controls to streamline development process through feature requests.",
+					"Expanded item capabilities with two-handed weapon classes."
 				],
 				"bugfixes": [
-					"Fixed issues where characters displayed outdated messages instead of showing their own chat text.",
-					"Corrected various inventory bugs related to spell access when panels were open.",
-					"Addressed graphical warnings and visual discrepancies in combat effects (e.g., 'blizzard' spells).",
-					"Fixed pathing issues for map obstacles, making them more naturally circular.",
-					"Resolved persistent authentication bugs regarding password persistence and display of errors within the login modal.",
-					"Corrected coin clipping through underground geometry.",
-					"Fixed light displacement during healing procedures.",
-					"Updated character and inventory panel visibility to prevent overlap with chat/messages when panels are open."
+					"Fixed an issue where players would not see their own sent messages in the chat.",
+					"Resolved conflicts allowing spells and chat to remain accessible when the inventory is open.",
+					"Corrected model issues for invader characters and minor visual clipping errors (e.g., coins underground, healing light displacement).",
+					"Addressed problems with equipping items that incorrectly failed to show or activate associated passive spells."
 				],
 				"performance": [
-					"Optimized rendering by reducing shadow overhead, keeping critical elements like projectiles and gold unlit. Implemented a shared pool for light effects to drastically cut the performance cost of lighting calculations."
+					"Optimized rendering performance by adjusting lighting calculations, keeping key elements unlit, and pooling common light effects to drastically reduce overhead.",
+					"Reduced system load by detaching redundant hero and clone fallback presentations after model loading."
 				],
 				"balance": [
-					"Major tuning adjustments were made across character systems: rapid regeneration was introduced, the magic stat has been retired in favor of Intelligence, katar received blocking abilities, and general spell mechanics were tuned (e.g., making swamp spells circular)."
+					"Tuned combat mechanics across multiple systems: refined the rapid regeneration function, updated core spell geometry (e.g., making Katar's attacks block-based and Swamp's effects circular), and adjusted magic stat calculations.",
+					"Revised resource economy by transitioning away from 'Magic Find' in favor of intelligence scaling for various spells and auras."
 				],
 				"ux": [
-					"The user experience for Devlogs, changelogs, and modals saw significant improvements, including better readability, mobile responsiveness, and structural reorganization of realm status headers.",
-					"Advanced character customization and combat visibility are improved: passive effects and gear-provided skills now appear correctly in the character stat panel. Spell ownership colors have been clarified for enemy attacks (red) and hero blood spells (purple).",
-					"Added tooltips to clarify game systems like Souls, block statistics, and XP bonuses, making gameplay information more accessible."
+					"Significantly overhauled the Devlog interface, adding update categories, improving responsiveness across all devices (including mobile), and implementing detailed search features.",
+					"Enhanced UI clarity: standardized color coding for spell effects to distinguish ownership (e.g., enemy red, hero purple) and clarified how passive spells are displayed on equipment.",
+					"Improved in-game quality of life by refining the user experience of devlog viewing, making panels more readable, and optimizing general UI flow (e.g., updating realm presence headers).",
+					"Streamlined player account management with updated login feedback to provide clear success or error messages."
 				],
 				"graphics": [
-					"Improvements were made to spell visuals, including advanced shadow casting capabilities for certain abilities, alongside general graphics cleanups in the game environment."
+					"Addressed minor graphical warning issues detected by the system.",
+					"Improved visual fidelity for resource drops, making them more accurate and visually robust."
 				]
 			},
 			"commits": [
-				{
-					"hash": "f5ddcd0da5d801ce61d8163b5309f123ac6fe5b7",
-					"authoredAt": "2026-08-10T16:01:47-04:00",
-					"title": "fix(graphics): blizzard spell",
-					"description": ""
-				},
 				{
 					"hash": "f4cf34888bf478f15d9a2cd3be9da55bb67c0e76",
 					"authoredAt": "2026-08-09T22:06:26-04:00",
@@ -648,6 +640,36 @@
 					"hash": "64a4d5032c5b6f0c42d8bced7805a2ced2a6acf7",
 					"authoredAt": "2026-08-04T08:34:28-04:00",
 					"title": "ux: spells max level info",
+					"description": ""
+				},
+				{
+					"hash": "4758072625cf05b5dfaea8c704b65e3db6e57009",
+					"authoredAt": "2026-08-03T19:49:34-04:00",
+					"title": "feat: boosted healing",
+					"description": ""
+				},
+				{
+					"hash": "bff3022889aae22fe8ece4aaebf156c0f6e4f393",
+					"authoredAt": "2026-08-03T19:41:32-04:00",
+					"title": "balance: spells and cooldowns",
+					"description": ""
+				},
+				{
+					"hash": "81dddee7fec65fac8f0f1a591358e3b8e5c95ef0",
+					"authoredAt": "2026-08-03T19:37:07-04:00",
+					"title": "fix: rendering throw",
+					"description": ""
+				},
+				{
+					"hash": "60fc2fce1ebd94113a7cc066386a9f8dd4de90e4",
+					"authoredAt": "2026-08-03T19:29:22-04:00",
+					"title": "fix: visual and spells",
+					"description": ""
+				},
+				{
+					"hash": "e826d63700cf2ef4c6c6f9892da8d460f18dcfa1",
+					"authoredAt": "2026-08-03T19:19:29-04:00",
+					"title": "fix: spells hud",
 					"description": ""
 				}
 			],

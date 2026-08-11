@@ -1,1 +1,49 @@
-"No updates."
+{
+	"week": "2026-W33",
+	"label": "Week of August 10, 2026",
+	"generatedAt": "2026-08-11T12:09:28.261Z",
+	"model": "gemma4:latest",
+	"periods": [
+		{
+			"key": "2026-W33",
+			"label": "Week of August 10, 2026",
+			"summaryTitle": "New Swarm Mode and Combat Overhauls",
+			"summary": {
+				"features": [
+					"Introduced 'Swarm Mode' playstyle featuring a realm-header toggle with countdown, tooltips, force queued enemies, and wave-scaled server cooldowns for dynamic challenge.",
+					"Revised status effects by ensuring Poison, Bleed, and Burn ticks now bypass dodge mechanics."
+				],
+				"bugfixes": [
+					"Resolved graphical issues associated with blizzard spells."
+				],
+				"balance": [
+					"Overhauled status effect rules: Voodoo poison amplification scales significantly up to level 99. Poison, Bleed, and Burn ticks now ignore player dodging and blocking.",
+					"Updated the Blocking mechanic by removing reactive cooldowns for consecutive block rolls and ensuring Penance restores a guaranteed minimum of 1% max Mana per successful block.",
+					"Adjusted defensive gear stats: Block chance caps are now set at 90% for specific pieces (buckler, Katar, Reflective Surge)."
+				],
+				"graphics": ["Fixed visual glitches related to blizzard spell effects."]
+			},
+			"commits": [
+				{
+					"hash": "8a53521f2a719d3ba71018f5a07e0d427c26bd48",
+					"authoredAt": "2026-08-11T08:08:16-04:00",
+					"title": "feat(waves): add swarm mode",
+					"description": "- add a realm-header toggle with countdown and tooltip\n- force queued enemies and advance waves below the active-enemy cap\n- enforce wave-scaled server cooldowns and reset the mode for new realms"
+				},
+				{
+					"hash": "47a4715f2e496ab56c1302c04759af135c6e2727",
+					"authoredAt": "2026-08-11T07:41:32-04:00",
+					"title": "balance(combat): revise status and blocking rules",
+					"description": "- scale Voodoo poison amplification from 1x at level 1 to 2x at level 99\n\n- make Poison, Bleed, and Burn ticks bypass dodge and block\n\n- remove Blocking's reactive cooldown and allow consecutive block rolls\n\n- guarantee Penance restores at least 1% of maximum Mana per successful block\n\n- cap buckler, Katar, and Reflective Surge block chance at 90%\n\n- synchronize combat projections, tooltips, specs, and boundary tests"
+				},
+				{
+					"hash": "f5ddcd0da5d801ce61d8163b5309f123ac6fe5b7",
+					"authoredAt": "2026-08-10T16:01:47-04:00",
+					"title": "fix(graphics): blizzard spell",
+					"description": ""
+				}
+			],
+			"categories": ["Features", "Bugfixes", "Balance", "Graphics"]
+		}
+	]
+}
