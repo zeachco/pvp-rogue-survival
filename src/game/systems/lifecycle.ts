@@ -3,6 +3,12 @@ import type { ArenaState } from "../ArenaState";
 
 export const MAX_ACTIVE_CREEPS = 100;
 
+export function activeEnemyCountAllowsAutoForce(
+	activeEnemyCount: number,
+): boolean {
+	return activeEnemyCount < MAX_ACTIVE_CREEPS;
+}
+
 export function enqueueWave(
 	state: ArenaState,
 	wave: CreepWave,
@@ -27,6 +33,9 @@ export function releaseReadySpawns(
 	const build = state.waveQueue[index].build;
 	state.waveQueue.splice(index, 1);
 	return [build];
+}
+export function releaseAllQueuedSpawns(state: ArenaState): UnitBuild[] {
+	return state.waveQueue.splice(0).map((entry) => entry.build);
 }
 export function removeInactive<T extends { active: boolean }>(
 	items: T[],

@@ -392,6 +392,11 @@ export class Hud {
 	) as HTMLElement;
 	private centerToastTimer?: number;
 	private realmSignature = "";
+	private forceNextWaveReadyAt = 0;
+	private forceNextWaveButton?: HTMLButtonElement;
+	private forceNextWaveLabel?: HTMLElement;
+	private swarmMode = false;
+	private forceNextWavePending = false;
 	private spellStructureSignature = "";
 	private allocationSignature = "";
 	private allocationPreview?: "next" | "respec";
@@ -711,6 +716,7 @@ export class Hud {
 	}
 	setPlayer(player: PlayerState): void {
 		this.player = player;
+		this.updateForceNextWaveButton();
 		this.renderDynamicHud();
 		if (
 			this.staticProgress !== player.progress ||
@@ -1038,15 +1044,36 @@ export class Hud {
 		this.renderStaticHud();
 	}
 	setRealm(realm: RealmState): void {
+		const startedNewRealm =
+			this.realm?.mode === "training" && realm.mode !== "training";
 		const returnedToLobby =
 			this.realm !== undefined &&
 			this.realm.mode !== "training" &&
 			realm.mode === "training";
 		const modeChanged = this.realm?.mode !== realm.mode;
 		this.realm = realm;
+		if (startedNewRealm) {
+			this.swarmMode = false;
+			this.forceNextWavePending = false;
+		}
 		this.renderRealm();
 		if (returnedToLobby) this.openLobbyPanels();
 		if (modeChanged && this.player) this.renderInventory(this.player.progress);
+	}
+	setForceNextWaveReadyAt(readyAt: number): void {
+		this.forceNextWaveReadyAt = readyAt;
+		this.forceNextWavePending = false;
+		this.updateForceNextWaveButton();
+	}
+	trySwarmMode(): void {
+		if (
+			this.realm?.mode === "training" ||
+			!this.swarmMode ||
+			this.forceNextWavePending ||
+			Date.now() < this.forceNextWaveReadyAt
+		)
+			return;
+		this.requestForceNextWave();
 	}
 	focusChat(): void {
 		this.chatInput.focus();
@@ -2560,6 +2587,27 @@ export class Hud {
 					: "Leave to Lobby"}
 			</button>
 		) as HTMLButtonElement;
+		const forceNextWave = (
+			<button
+				class="header-control swarm-mode-control"
+				type="button"
+				aria-pressed="false"
+			>
+				<span class="swarm-mode-label">Release the warm!</span>
+				<span role="tooltip">
+					Swarm mode automatically releases every pending enemy and starts the
+					next wave when fewer than 100 enemies are active and the wave cooldown
+					is ready.
+				</span>
+			</button>
+		) as HTMLButtonElement;
+		forceNextWave.onclick = () => {
+			this.swarmMode = !this.swarmMode;
+			this.updateForceNextWaveButton();
+		};
+		this.forceNextWaveButton = forceNextWave;
+		this.forceNextWaveLabel = forceNextWave.querySelector(".swarm-mode-label")!;
+		this.updateForceNextWaveButton();
 		const enterWaveOne = (
 			<button class="header-control enter-realm" type="button">
 				Enter wave 1
@@ -2616,9 +2664,30 @@ export class Hud {
 		this.realmPanel.replaceChildren(
 			options,
 			devlog,
+			forceNextWave,
 			action,
 			<strong>{title}</strong>,
 		);
+	}
+	private requestForceNextWave(): void {
+		if (this.forceNextWavePending) return;
+		this.forceNextWavePending = true;
+		this.updateForceNextWaveButton();
+		this.callbacks.onForceNextWave();
+	}
+	private updateForceNextWaveButton(): void {
+		if (!this.forceNextWaveButton || !this.forceNextWaveLabel) return;
+		const remaining = Math.max(
+			0,
+			Math.ceil((this.forceNextWaveReadyAt - Date.now()) / 1000),
+		);
+		this.forceNextWaveButton.setAttribute(
+			"aria-pressed",
+			String(this.swarmMode),
+		);
+		this.forceNextWaveLabel.textContent = this.swarmMode
+			? `Next wave in ${remaining}s`
+			: "Release the warm!";
 	}
 	private renderPresenceSummary(): void {
 		const countLabel = `${this.onlinePlayerCount} ${this.onlinePlayerCount === 1 ? "player" : "players"} online`;

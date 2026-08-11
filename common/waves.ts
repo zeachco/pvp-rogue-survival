@@ -1,5 +1,9 @@
 import type { BalanceConfig } from "./balance";
 
+export function forceNextWaveCooldownSeconds(waveNumber: number): number {
+	return Math.max(10, Math.min(60, waveNumber));
+}
+
 export function regularCount(
 	waveNumber: number,
 	balance: BalanceConfig,

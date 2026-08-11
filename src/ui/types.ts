@@ -17,6 +17,7 @@ export interface HudCallbacks {
 	onSetRarityAction(rarity: Rarity, action: RarityAction): void;
 	onLeaveRealm(): void;
 	onEnterRealm(waveNumber: number): void;
+	onForceNextWave(): void;
 	onOpenDevlog(): void;
 	onBack(): void;
 	onLogout(): void;

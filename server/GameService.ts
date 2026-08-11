@@ -71,6 +71,7 @@ import { randomSeed, type RandomSource } from "../common/random.ts";
 import {
 	championCount,
 	creepsWithSpellsCount,
+	forceNextWaveCooldownSeconds,
 	isIntroWave,
 	realmCloneLevel,
 	regularCount,
@@ -154,6 +155,7 @@ export class GameService {
 	private readonly now: () => number;
 	private readonly realms = new Map<string, Realm>();
 	private readonly waveDispatches = new Map<PlayerId, number>();
+	private readonly forceNextWaveReadyAt = new Map<PlayerId, number>();
 	private lastDispatchAt = Date.now();
 	constructor(private readonly options: GameServiceOptions) {
 		this.createId = options.createId ?? (() => crypto.randomUUID());
@@ -316,6 +318,8 @@ export class GameService {
 					return this.options.send(player.id, { type: "suicideResolved" });
 				case "requestWave":
 					return this.dispatchCurrentWave(player, this.waveMode(player));
+				case "forceNextWave":
+					return this.forceNextWave(player);
 				case "equipItem":
 					return this.applyInventoryResult(
 						player,
@@ -415,6 +419,38 @@ export class GameService {
 	}
 
 	refreshRealmStates(): void {
+		this.broadcastRealms();
+	}
+
+	private forceNextWave(player: Player): void {
+		const now = this.now();
+		const readyAt = this.forceNextWaveReadyAt.get(player.id) ?? 0;
+		if (!player.realmOptedIn || this.waveMode(player) === "training") {
+			this.options.send(player.id, {
+				type: "forceNextWaveResult",
+				accepted: false,
+				readyAt,
+			});
+			return this.notice(player, "Enter a realm before forcing the next wave.");
+		}
+		if (now < readyAt) {
+			this.options.send(player.id, {
+				type: "forceNextWaveResult",
+				accepted: false,
+				readyAt,
+			});
+			return this.notice(player, "Force next wave is still on cooldown.");
+		}
+		const nextReadyAt =
+			now + forceNextWaveCooldownSeconds(player.waveNumber) * 1000;
+		this.forceNextWaveReadyAt.set(player.id, nextReadyAt);
+		this.options.send(player.id, {
+			type: "forceNextWaveResult",
+			accepted: true,
+			readyAt: nextReadyAt,
+		});
+		player.waveNumber += 1;
+		this.dispatchCurrentWave(player, this.waveMode(player));
 		this.broadcastRealms();
 	}
 

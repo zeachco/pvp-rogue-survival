@@ -175,6 +175,7 @@ import {
 	championCount,
 	creepMaxHealth,
 	creepsWithSpellsCount,
+	forceNextWaveCooldownSeconds,
 	realmCloneLevel,
 	regularCount,
 	regularLevel,
@@ -525,6 +526,9 @@ describe("balance and waves", () => {
 		expect(creepsWithSpellsCount(8, 26)).toBe(0);
 		expect(creepsWithSpellsCount(9, 28)).toBe(2);
 		expect(creepsWithSpellsCount(15, 40)).toBe(3);
+		expect(forceNextWaveCooldownSeconds(0)).toBe(10);
+		expect(forceNextWaveCooldownSeconds(30)).toBe(30);
+		expect(forceNextWaveCooldownSeconds(99)).toBe(60);
 	});
 	test("divides defender level evenly across realm-attacker clones", () => {
 		expect(realmCloneLevel(11, 1)).toBe(11);

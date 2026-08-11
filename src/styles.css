@@ -292,6 +292,41 @@ input {
 	filter: brightness(0.94);
 }
 
+.swarm-mode-control {
+	position: relative;
+}
+
+.swarm-mode-control[aria-pressed="true"] {
+	border-color: #f0ce72;
+	color: #f0ce72;
+}
+
+.swarm-mode-control [role="tooltip"] {
+	position: absolute;
+	z-index: 30;
+	top: calc(100% + 8px);
+	left: 50%;
+	display: none;
+	width: 300px;
+	transform: translateX(-50%);
+	border: 1px solid #56717a;
+	border-radius: 5px;
+	padding: 7px 9px;
+	color: #dbeef2;
+	background: #09151b;
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+	font-size: 12px;
+	font-weight: 400;
+	line-height: 1.4;
+	white-space: normal;
+	pointer-events: none;
+}
+
+.swarm-mode-control:hover [role="tooltip"],
+.swarm-mode-control:focus-visible [role="tooltip"] {
+	display: block;
+}
+
 .spell-bar {
 	position: absolute;
 	bottom: 72px;

@@ -399,6 +399,48 @@ describe("realm game service", () => {
 			message: "Choose wave 1 or your current best wave.",
 		});
 	});
+	test("forces the next wave once per wave-scaled cooldown", () => {
+		let now = 1_000;
+		const { game, messages } = harness(new FixedRandom(0), () => now);
+		const player = game.join("WaveForcer");
+		player.maxWaveReached = 5;
+		game.handle(player.id, { type: "enterRealm", waveNumber: 5 });
+
+		game.handle(player.id, { type: "forceNextWave" });
+		expect(player.waveNumber).toBe(6);
+		expect(
+			messages
+				.get(player.id)
+				?.filter((message) => message.type === "forceNextWaveResult")
+				.at(-1),
+		).toEqual({
+			type: "forceNextWaveResult",
+			accepted: true,
+			readyAt: 11_000,
+		});
+
+		game.handle(player.id, { type: "forceNextWave" });
+		expect(player.waveNumber).toBe(6);
+		expect(messages.get(player.id)?.at(-2)).toEqual({
+			type: "forceNextWaveResult",
+			accepted: false,
+			readyAt: 11_000,
+		});
+
+		now = 11_000;
+		game.handle(player.id, { type: "forceNextWave" });
+		expect(player.waveNumber).toBe(7);
+		expect(
+			messages
+				.get(player.id)
+				?.filter((message) => message.type === "forceNextWaveResult")
+				.at(-1),
+		).toEqual({
+			type: "forceNextWaveResult",
+			accepted: true,
+			readyAt: 21_000,
+		});
+	});
 	test("keeps level-one inventory overflow as collectible Training Grounds drops", () => {
 		const { game, messages } = harness();
 		const player = game.join("Overflowed");

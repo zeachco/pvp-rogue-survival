@@ -29,7 +29,9 @@ import { Projectile } from "./Projectile";
 import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import {
+	activeEnemyCountAllowsAutoForce,
 	enqueueWave,
+	releaseAllQueuedSpawns,
 	releaseReadySpawns,
 	removeInactive,
 } from "./systems/lifecycle";
@@ -177,6 +179,7 @@ export class Game {
 				this.socket.send({ type: "setRarityAction", rarity, action }),
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
 			onEnterRealm: (waveNumber) => this.enterRealm(waveNumber),
+			onForceNextWave: () => this.socket.send({ type: "forceNextWave" }),
 			onOpenDevlog,
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
@@ -547,6 +550,11 @@ export class Game {
 			}
 			this.hud.setRealm(message.realm);
 			if (this.player) this.hud.setPlayer(this.player);
+		} else if (message.type === "forceNextWaveResult") {
+			this.hud.setForceNextWaveReadyAt(message.readyAt);
+			if (message.accepted)
+				for (const build of releaseAllQueuedSpawns(this.arena))
+					this.spawnCreep(build);
 		} else if (message.type === "incomingWave") this.enqueueWave(message.wave);
 		else if (message.type === "creepDefeatResolved" && this.player) {
 			this.player.score = message.score;
@@ -901,6 +909,12 @@ export class Game {
 		removeInactive(this.attacks);
 		removeInactive(this.projectiles);
 		removeInactive(this.creeps);
+		if (
+			activeEnemyCountAllowsAutoForce(
+				this.creeps.filter((creep) => creep.active).length,
+			)
+		)
+			this.hud.trySwarmMode();
 		removeInactive(this.drops);
 		removeInactive(this.arena.spellEffects);
 		removeInactive(this.arena.swamps);

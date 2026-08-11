@@ -22,7 +22,9 @@ import {
 	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
 } from "../src/game/Projectile";
 import {
+	activeEnemyCountAllowsAutoForce,
 	MAX_ACTIVE_CREEPS,
+	releaseAllQueuedSpawns,
 	releaseReadySpawns,
 	removeInactive,
 } from "../src/game/systems/lifecycle";
@@ -724,6 +726,35 @@ describe("arena systems", () => {
 		);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
+	});
+	test("releases every pending spawn at once when a wave is forced", () => {
+		const state = new ArenaState();
+		const build = {
+			id: "queued",
+			name: "Queued",
+			kind: "melee" as const,
+			level: 0,
+			stats: { ...ZERO_STATS },
+			carried: [],
+			isRival: false,
+			xpReward: 0,
+			goldReward: 0,
+			seed: 1,
+		};
+		state.waveQueue.push(
+			{ build: { ...build, id: "one" }, spawnAt: 10_000 },
+			{ build: { ...build, id: "two" }, spawnAt: 20_000 },
+		);
+
+		expect(releaseAllQueuedSpawns(state).map(({ id }) => id)).toEqual([
+			"one",
+			"two",
+		]);
+		expect(state.waveQueue).toHaveLength(0);
+	});
+	test("allows auto force only below the active-enemy cap", () => {
+		expect(activeEnemyCountAllowsAutoForce(99)).toBeTrue();
+		expect(activeEnemyCountAllowsAutoForce(100)).toBeFalse();
 	});
 	test("keeps due spawns queued until the 100-creep cap has an open slot", () => {
 		const state = new ArenaState();
