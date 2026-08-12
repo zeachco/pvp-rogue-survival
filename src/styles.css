@@ -2515,6 +2515,9 @@ input {
 	background: #15312f;
 	cursor: pointer;
 }
+.inspect-back-icon {
+	display: none;
+}
 .item-menu button:disabled {
 	border-color: #59666a;
 	color: #7d898c;
@@ -3164,6 +3167,15 @@ input {
 }
 
 @media (max-width: 720px) {
+	:root {
+		--character-panel-width: calc(100vw - 16px);
+		--inventory-panel-width: calc(100vw - 16px);
+		--build-panel-top-inset: 60px;
+		--build-panel-bottom-inset: 8px;
+		--character-panel-left-inset: 8px;
+		--inventory-panel-right-inset: 8px;
+	}
+
 	.hud-top,
 	.hud-bottom {
 		left: 8px;
@@ -3184,6 +3196,59 @@ input {
 	.inventory-panel {
 		width: 100%;
 		overflow-x: auto;
+	}
+
+	.character-panel,
+	.inventory-column {
+		width: calc(100vw - 16px);
+		gap: 6px;
+		border-radius: 7px;
+		padding: 7px;
+	}
+
+	.inspect-back {
+		position: fixed;
+		top: max(8px, env(safe-area-inset-top));
+		right: max(8px, env(safe-area-inset-right));
+		z-index: 28;
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		padding: 0 0 3px;
+		border-color: #47717a;
+		border-radius: 6px;
+		font-size: 28px;
+		line-height: 1;
+		background: rgba(7, 16, 20, 0.94);
+	}
+
+	.inspect-back-icon {
+		display: inline;
+	}
+
+	.inspect-back-label {
+		display: none;
+	}
+
+	.realm-panel {
+		gap: 4px;
+		overflow-x: auto;
+		font-size: 11px;
+		scrollbar-width: none;
+	}
+
+	.realm-panel .header-control,
+	.realm-panel button {
+		padding: 3px 5px;
+	}
+
+	.game-hud.character-panel-open .spell-bar {
+		left: 8px;
+	}
+
+	.game-hud.inventory-panel-open .chat-area {
+		right: 8px;
 	}
 
 	#game-canvas {

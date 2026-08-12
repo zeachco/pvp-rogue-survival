@@ -2887,6 +2887,24 @@ test("routes the Devlog without dropping the selected game server", () => {
 	).toBe("http://localhost:5173/api/devlog/requests");
 });
 
+test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right edge", async () => {
+	const [hudSource, hudStyles, devlogStyles] = await Promise.all([
+		Bun.file(new URL("../src/ui/Hud.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/styles.css", import.meta.url)).text(),
+		Bun.file(new URL("../src/devlog.css", import.meta.url)).text(),
+	]);
+	expect(hudSource).toContain('aria-label="Close enemy preview"');
+	expect(hudStyles).toMatch(
+		/\.inspect-back\s*\{[^}]*position:\s*fixed;[^}]*top:\s*max\(8px, env\(safe-area-inset-top\)\);[^}]*right:\s*max\(8px, env\(safe-area-inset-right\)\);/s,
+	);
+	expect(devlogStyles).toMatch(
+		/\.devlog-close\s*\{[^}]*top:\s*max\(8px, env\(safe-area-inset-top\)\);[^}]*right:\s*max\(8px, env\(safe-area-inset-right\)\);/s,
+	);
+	expect(devlogStyles).toMatch(
+		/\.devlog-columns\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
+	);
+});
+
 test("describes a server-side WebSocket close in the client log", () => {
 	expect(
 		serverCloseLogMessage({ code: 1012, reason: "Server shutting down" }),

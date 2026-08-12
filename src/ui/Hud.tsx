@@ -559,8 +559,15 @@ export class Hud {
 			}
 		};
 		const back = (
-			<button class="inspect-back is-hidden" type="button">
-				Back to hero
+			<button
+				class="inspect-back is-hidden"
+				type="button"
+				aria-label="Close enemy preview"
+			>
+				<span class="inspect-back-icon" aria-hidden="true">
+					×
+				</span>
+				<span class="inspect-back-label">Back to hero</span>
 			</button>
 		) as HTMLButtonElement;
 		back.onclick = callbacks.onBack;
