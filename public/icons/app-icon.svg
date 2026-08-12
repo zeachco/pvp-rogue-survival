@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Multi-Line Hero</title>
+  <rect width="512" height="512" rx="112" fill="#0d1418"/>
+  <circle cx="256" cy="256" r="172" fill="#16262d" stroke="#64d6b4" stroke-width="20"/>
+  <path d="M150 346V166h48l58 91 58-91h48v180h-50v-99l-56 83-56-83v99z" fill="#f2f7f5"/>
+  <circle cx="256" cy="256" r="22" fill="#f3c969"/>
+</svg>

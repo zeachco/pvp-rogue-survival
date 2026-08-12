@@ -10,6 +10,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Render the arena and combat on a full-window responsive canvas.
 - Use stable HTML overlays for joining, player status, neighbors, wave notices, and inventory.
 - Run a Bun TypeScript server serving the built client and gameplay WebSockets at `/ws`.
+- Publish a same-origin web app manifest so supporting desktop and mobile browsers can install Multi-Line Hero as a standalone, portrait-or-landscape application. The installed app uses the arena's dark surface color, starts at `/`, and provides 192px and 512px maskable-capable icons.
 - Keep account and character identity, password authentication, single-session presence, score, wave turns, and neighbor links authoritative on the server and persist player records through Bun SQL. Passwords are stored only as Bun password hashes, never as plaintext. An account may own multiple named characters. Each character has independent progression, equipment, score, and wave state, while every character on the account uses the same backpack inventory as a shared stash.
 - Share WebSocket message types through `common/protocol.ts`.
 - Keep mechanics in `specs/MECHANICS_SPEC.md` and progression/item/build rules in `specs/PROGRESSION_SPEC.md`.
