@@ -13,6 +13,7 @@ export interface DevlogRequest {
 	upvotes: number;
 	downvotes: number;
 	score: number;
+	completed: boolean;
 }
 
 export interface DevlogRequestStore {
@@ -27,6 +28,7 @@ export interface DevlogRequestStore {
 		voterId: string,
 		value: -1 | 0 | 1,
 	): Promise<DevlogRequest | undefined>;
+	complete(id: string): Promise<DevlogRequest | undefined>;
 	delete(id: string): Promise<boolean>;
 	close?(): Promise<void>;
 }
@@ -40,6 +42,7 @@ interface RequestRow {
 	created_at: string;
 	upvotes: number;
 	downvotes: number;
+	completed: boolean | number;
 }
 
 export class SqlDevlogRequestStore implements DevlogRequestStore {
@@ -76,6 +79,7 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 			upvotes: 0,
 			downvotes: 0,
 			score: 0,
+			completed: false,
 		};
 	}
 
@@ -102,6 +106,15 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 		return rows[0] ? fromRow(rows[0]) : undefined;
 	}
 
+	async complete(id: string): Promise<DevlogRequest | undefined> {
+		await this.sql`
+			UPDATE devlog_requests SET completed = TRUE
+			WHERE id = ${id} AND kind = 'feature'
+		`;
+		const rows = await this.rows(id);
+		return rows[0]?.kind === "feature" ? fromRow(rows[0]) : undefined;
+	}
+
 	async delete(id: string): Promise<boolean> {
 		const existing = await this.sql<Array<{ id: string }>>`
 			SELECT id FROM devlog_requests WHERE id = ${id}
@@ -124,7 +137,8 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 				title TEXT NOT NULL,
 				description TEXT NOT NULL,
 				scheduled_month TEXT NOT NULL,
-				created_at TEXT NOT NULL
+				created_at TEXT NOT NULL,
+				completed BOOLEAN NOT NULL DEFAULT FALSE
 			)
 		`;
 		await this.sql`
@@ -135,6 +149,17 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 				PRIMARY KEY (request_id, voter_id)
 			)
 		`;
+		try {
+			await this
+				.sql`ALTER TABLE devlog_requests ADD COLUMN completed BOOLEAN NOT NULL DEFAULT FALSE`;
+		} catch (error) {
+			const message = String(error).toLowerCase();
+			if (
+				!message.includes("duplicate column") &&
+				!message.includes("already exists")
+			)
+				throw error;
+		}
 		await this
 			.sql`CREATE INDEX IF NOT EXISTS devlog_requests_month ON devlog_requests (scheduled_month)`;
 	}
@@ -142,19 +167,19 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 	private rows(id?: string): Promise<RequestRow[]> {
 		const select = id
 			? this.sql<RequestRow[]>`
-				SELECT r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at,
+				SELECT r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at, r.completed,
 					COALESCE(SUM(CASE WHEN v.value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
 					COALESCE(SUM(CASE WHEN v.value = -1 THEN 1 ELSE 0 END), 0) AS downvotes
 				FROM devlog_requests r LEFT JOIN devlog_request_votes v ON v.request_id = r.id
 				WHERE r.id = ${id}
-				GROUP BY r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at
+				GROUP BY r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at, r.completed
 			`
 			: this.sql<RequestRow[]>`
-				SELECT r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at,
+				SELECT r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at, r.completed,
 					COALESCE(SUM(CASE WHEN v.value = 1 THEN 1 ELSE 0 END), 0) AS upvotes,
 					COALESCE(SUM(CASE WHEN v.value = -1 THEN 1 ELSE 0 END), 0) AS downvotes
 				FROM devlog_requests r LEFT JOIN devlog_request_votes v ON v.request_id = r.id
-				GROUP BY r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at
+				GROUP BY r.id, r.kind, r.title, r.description, r.scheduled_month, r.created_at, r.completed
 				ORDER BY (COALESCE(SUM(CASE WHEN v.value = 1 THEN 1 ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN v.value = -1 THEN 1 ELSE 0 END), 0)) DESC, r.created_at ASC
 			`;
 		return select;
@@ -185,8 +210,16 @@ export class InMemoryDevlogRequestStore implements DevlogRequestStore {
 			upvotes: 0,
 			downvotes: 0,
 			score: 0,
+			completed: false,
 		};
 		this.requests.set(request.id, request);
+		return request;
+	}
+
+	async complete(id: string): Promise<DevlogRequest | undefined> {
+		const request = this.requests.get(id);
+		if (!request || request.kind !== "feature") return undefined;
+		request.completed = true;
 		return request;
 	}
 
@@ -228,6 +261,7 @@ function fromRow(row: RequestRow): DevlogRequest {
 		upvotes,
 		downvotes,
 		score: upvotes - downvotes,
+		completed: row.completed === true || Number(row.completed) === 1,
 	};
 }
 

@@ -449,7 +449,7 @@ async function serveRequest(
 			);
 			response.setHeader(
 				"access-control-allow-methods",
-				"GET, POST, DELETE, OPTIONS",
+				"GET, POST, PATCH, DELETE, OPTIONS",
 			);
 		}
 		if (request.method === "OPTIONS") {
@@ -494,8 +494,22 @@ async function serveRequest(
 		/^\/api\/devlog\/requests\/([0-9a-f-]+)$/i,
 	);
 	if (deleteMatch) {
-		if (request.method !== "DELETE") {
-			methodNotAllowed(response, "DELETE");
+		if (request.method !== "DELETE" && request.method !== "PATCH") {
+			methodNotAllowed(response, "PATCH, DELETE");
+			return;
+		}
+		if (request.method === "PATCH") {
+			const input = await readJson(request);
+			if (input?.completed !== true) {
+				json(response, 400, { error: "Set completed to true." });
+				return;
+			}
+			const completed = await devlogRequests.complete(deleteMatch[1]);
+			if (!completed) {
+				json(response, 404, { error: "Feature request not found." });
+				return;
+			}
+			json(response, 200, { request: completed });
 			return;
 		}
 		const accountId = activeModeratorAccountId(

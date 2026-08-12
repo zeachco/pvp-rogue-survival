@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import {
 	activeAccountId,
 	activeModeratorAccountId,
+	createApp,
 	isLocalDevelopmentOrigin,
 	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	parseDevlogRequestInput,
@@ -45,6 +46,10 @@ describe("devlog requests", () => {
 		);
 		const switched = await store.vote(request.id, "browser-aaaaaaaa", -1);
 		expect(switched).toMatchObject({ upvotes: 0, downvotes: 1, score: -1 });
+		expect(await store.complete(request.id)).toMatchObject({
+			id: request.id,
+			completed: true,
+		});
 		await store.close();
 
 		const restored = await SqlDevlogRequestStore.open(url);
@@ -54,6 +59,7 @@ describe("devlog requests", () => {
 				title: "Controller support",
 				downvotes: 1,
 				score: -1,
+				completed: true,
 			}),
 		]);
 		expect(await restored.delete(request.id)).toBeTrue();
@@ -73,6 +79,7 @@ describe("devlog requests", () => {
 			upvotes: 2,
 			downvotes: 0,
 			score: 2,
+			completed: false,
 		};
 		const bug = { ...feature, id: "bug-report", kind: "bug" as const };
 		const balance = {
@@ -226,6 +233,38 @@ describe("devlog requests", () => {
 				() => true,
 			),
 		).toBeUndefined();
+	});
+
+	test("marks feature requests completed without authentication", async () => {
+		const directory = temporaryDirectory();
+		const app = await createApp({ root: directory, databaseUrl: false });
+		try {
+			const request = await app.devlogRequests.create({
+				kind: "feature",
+				title: "Controller support",
+				description: "Allow heroes to be controlled with a gamepad.",
+			});
+			await new Promise<void>((resolve) =>
+				app.server.listen(0, "127.0.0.1", resolve),
+			);
+			const address = app.server.address();
+			if (!address || typeof address === "string")
+				throw new Error("Expected a TCP test server.");
+			const response = await fetch(
+				`http://127.0.0.1:${address.port}/api/devlog/requests/${request.id}`,
+				{
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ completed: true }),
+				},
+			);
+			expect(response.status).toBe(200);
+			expect(await response.json()).toMatchObject({
+				request: { id: request.id, completed: true },
+			});
+		} finally {
+			await app.close();
+		}
 	});
 
 	test("allows production request APIs from local development origins only", () => {

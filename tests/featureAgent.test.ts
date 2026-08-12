@@ -5,6 +5,7 @@ import {
 	featurePrompt,
 	harnessCommand,
 	isFeatureHarness,
+	markFeatureCompleted,
 	securityFindings,
 	selectRandomFeature,
 } from "../scripts/runFeatureAgent";
@@ -19,6 +20,7 @@ const request: DevlogRequest = {
 	upvotes: 1,
 	downvotes: 0,
 	score: 1,
+	completed: false,
 };
 
 describe("feature agent launcher", () => {
@@ -67,6 +69,33 @@ describe("feature agent launcher", () => {
 		expect(prompt).toContain('"title": "Controller support"');
 		expect(prompt).toContain("Do not fetch or select another request");
 		expect(prompt).toContain("create one semantic commit");
+		expect(prompt).toContain("push that commit");
+		expect(
+			selectRandomFeature([{ ...request, completed: true }]),
+		).toBeUndefined();
+	});
+
+	test("marks a pushed feature completed through the public API", async () => {
+		const calls: Array<{ url: string; init?: RequestInit }> = [];
+		const completed = await markFeatureCompleted(
+			request.id,
+			"https://example.test",
+			async (input, init) => {
+				calls.push({ url: String(input), init });
+				return Response.json({ request: { ...request, completed: true } });
+			},
+		);
+		expect(completed.completed).toBeTrue();
+		expect(calls).toEqual([
+			{
+				url: "https://example.test/api/devlog/requests/feature-1",
+				init: {
+					method: "PATCH",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ completed: true }),
+				},
+			},
+		]);
 	});
 
 	test("never selects an oversized legacy request for an AI context", () => {

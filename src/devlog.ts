@@ -281,6 +281,8 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 			"request-date",
 		),
 	);
+	if (request.completed)
+		meta.append(element("span", "Done with AI", "request-completed"));
 	if (isModerator) meta.append(deleteButton(request));
 	copy.append(
 		meta,
