@@ -763,6 +763,9 @@ export class Hud {
 	setResolutionScale(scale: number): void {
 		this.gameSettings.setResolutionScale(scale);
 	}
+	setAutoEquipOptions(items: boolean, spells: boolean): void {
+		this.gameSettings.setAutoEquipOptions(items, spells);
+	}
 	setNotice(notice: string, tone: "success" | "error" = "success"): void {
 		if (!this.authenticationModal.classList.contains("is-hidden")) {
 			this.authenticationNotice.textContent = notice;
@@ -796,6 +799,10 @@ export class Hud {
 	}
 	setPlayer(player: PlayerState): void {
 		this.player = player;
+		this.setAutoEquipOptions(
+			player.progress.autoEquipItems ?? false,
+			player.progress.autoEquipSpells ?? false,
+		);
 		this.updateForceNextWaveButton();
 		this.renderDynamicHud();
 		if (

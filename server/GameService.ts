@@ -2,6 +2,7 @@ import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import {
 	applyAutoAction,
+	autoEquipCollectedItem,
 	collectIntoInventory,
 	dropInventoryOverflow,
 	emptyScraps,
@@ -398,6 +399,14 @@ export class GameService {
 					);
 				case "toggleSkillAutoFire":
 					return this.toggleSkillAutoFire(player, message.skillId);
+				case "setAutoEquipOption":
+					if (message.option === "items")
+						player.progress.autoEquipItems = message.enabled;
+					else player.progress.autoEquipSpells = message.enabled;
+					return this.sendProgress(
+						player,
+						`Auto-equip ${message.option} ${message.enabled ? "enabled" : "disabled"}.`,
+					);
 				case "setRarityAction": {
 					if (!player.progress.rarityActions) {
 						player.progress.rarityActions = {
@@ -581,6 +590,8 @@ export class GameService {
 				disabledSkills: [],
 				equippedSkills: [],
 				autoFireSkills: [],
+				autoEquipItems: false,
+				autoEquipSpells: false,
 			},
 		};
 		return player;
@@ -1349,6 +1360,10 @@ export class GameService {
 					);
 					changed = result.changed;
 					reason = result.reason;
+					if (changed) {
+						const equipped = autoEquipCollectedItem(player.progress, drop.item);
+						if (equipped.changed) reason = `${reason} ${equipped.reason}`;
+					}
 				}
 			} else if (autoAction.changed) {
 				changed = true;
@@ -1362,6 +1377,10 @@ export class GameService {
 				);
 				changed = result.changed;
 				reason = result.reason;
+				if (changed) {
+					const equipped = autoEquipCollectedItem(player.progress, drop.item);
+					if (equipped.changed) reason = `${reason} ${equipped.reason}`;
+				}
 			}
 		}
 		if (changed) player.groundDrops.delete(dropId);

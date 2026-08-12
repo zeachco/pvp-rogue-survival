@@ -10,6 +10,7 @@ import {
 } from "./items";
 import type { InventoryTile, PlayerProgress, RarityAction } from "./protocol";
 import { MAX_SKILL_LEVEL } from "./combat";
+import { SKILLS } from "./content";
 
 export interface InventoryResult {
 	changed: boolean;
@@ -94,6 +95,32 @@ export function collectIntoInventory(
 	tile.quantity += 1;
 	void nextSeed;
 	return { changed: true, reason: `Stored ${item.name}.` };
+}
+
+export function autoEquipCollectedItem(
+	progress: PlayerProgress,
+	item: ItemInstance,
+): InventoryResult {
+	if (!progress.autoEquipItems)
+		return { changed: false, reason: "Auto-equip items is disabled." };
+	if (item.itemKind === "weapon") {
+		if (progress.mainHand || (item.hands === 2 && progress.offHand))
+			return { changed: false, reason: "The destination is occupied." };
+	} else if (item.itemKind === "amulet") {
+		if (progress.amulet)
+			return { changed: false, reason: "The destination is occupied." };
+	} else if (item.itemKind === "charm") {
+		if (progress.charm)
+			return { changed: false, reason: "The destination is occupied." };
+	} else if (progress.offHand || progress.mainHand?.hands === 2) {
+		return { changed: false, reason: "The destination is occupied." };
+	}
+	const tile = progress.inventoryTiles.find(
+		(candidate) => candidate.key === itemStackKey(item),
+	);
+	return tile
+		? equipFromInventory(progress, tile.id)
+		: { changed: false, reason: "The collected item is not in inventory." };
 }
 
 export function autoActionForRarity(
@@ -426,6 +453,9 @@ export function extractFromInventory(
 	const skills = universal
 		? carriedSkills
 		: carriedSkills.filter((skill) => progress.learnedSkills.includes(skill));
+	const newlyLearned = skills.filter(
+		(skill) => !progress.learnedSkills.includes(skill),
+	);
 	if (!universal && skills.length !== carriedSkills.length)
 		return {
 			changed: false,
@@ -437,6 +467,18 @@ export function extractFromInventory(
 	progress.gold -= cost;
 	tile.quantity -= 1;
 	for (const skill of skills) learnSkill(progress, skill, universal);
+	if (progress.autoEquipSpells) {
+		const equipped = progress.equippedSkills ?? [];
+		const autoFire = new Set(progress.autoFireSkills ?? []);
+		for (const skill of newlyLearned) {
+			if (equipped.length >= 6) break;
+			if (SKILLS[skill].passive || equipped.includes(skill)) continue;
+			equipped.push(skill);
+			autoFire.add(skill);
+		}
+		progress.equippedSkills = equipped;
+		progress.autoFireSkills = [...autoFire];
+	}
 	removeEmptyInventoryTiles(progress);
 	return {
 		changed: true,

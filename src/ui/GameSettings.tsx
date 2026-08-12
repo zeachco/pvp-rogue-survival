@@ -15,6 +15,7 @@ export interface GameSettingsCallbacks {
 	onSetResolutionScale(scale: number): void;
 	onSetLightingMode(mode: LightingMode): void;
 	onSetShadowMode(mode: ShadowMode): void;
+	onSetAutoEquipOption(option: "items" | "spells", enabled: boolean): void;
 }
 
 export class GameSettings {
@@ -61,6 +62,20 @@ export class GameSettings {
 					checked={mode === DEFAULT_GRAPHICS_SETTINGS.shadowMode}
 				/>
 			) as HTMLInputElement,
+	);
+	private readonly autoEquipRadios = (["items", "spells"] as const).map(
+		(option) =>
+			([true, false] as const).map(
+				(enabled) =>
+					(
+						<input
+							type="radio"
+							name={`auto-equip-${option}`}
+							value={enabled ? "on" : "off"}
+							checked={!enabled}
+						/>
+					) as HTMLInputElement,
+			),
 	);
 	private readonly modal = (
 		<section
@@ -109,6 +124,19 @@ export class GameSettings {
 					</label>
 				))}
 			</fieldset>
+			{this.autoEquipRadios.map((radios, optionIndex) => (
+				<fieldset class="graphics-option-group">
+					<legend>
+						{optionIndex === 0 ? "Auto-equip items" : "Auto-equip new spells"}
+					</legend>
+					{radios.map((radio, index) => (
+						<label>
+							{radio}
+							<span>{index === 0 ? "On" : "Off"}</span>
+						</label>
+					))}
+				</fieldset>
+			))}
 		</section>
 	) as HTMLElement;
 	private readonly mask = (
@@ -148,6 +176,16 @@ export class GameSettings {
 				this.setShadowMode(mode);
 				callbacks.onSetShadowMode(mode);
 			};
+		this.autoEquipRadios.forEach((radios, index) => {
+			for (const radio of radios)
+				radio.onchange = () => {
+					if (radio.checked)
+						callbacks.onSetAutoEquipOption(
+							index === 0 ? "items" : "spells",
+							radio.value === "on",
+						);
+				};
+		});
 	}
 
 	appendTo(root: HTMLElement): void {
@@ -182,5 +220,11 @@ export class GameSettings {
 
 	setShadowMode(mode: ShadowMode): void {
 		for (const radio of this.shadowRadios) radio.checked = radio.value === mode;
+	}
+
+	setAutoEquipOptions(items: boolean, spells: boolean): void {
+		for (const [index, enabled] of [items, spells].entries())
+			for (const radio of this.autoEquipRadios[index])
+				radio.checked = radio.value === (enabled ? "on" : "off");
 	}
 }

@@ -117,6 +117,7 @@ import {
 } from "../src/ui/InventoryView";
 import {
 	collectIntoInventory,
+	autoEquipCollectedItem,
 	dropInventoryOverflow,
 	emptyScraps,
 	equipFromInventory,
@@ -249,6 +250,61 @@ function progress(): PlayerProgress {
 	};
 }
 let id = 0;
+
+describe("acquisition auto-equip", () => {
+	test("equips a collected item only into an empty destination", () => {
+		const state = progress();
+		state.autoEquipItems = true;
+		state.mainHand = undefined;
+		const sword = generateItem(1, "common", 814, {
+			allowedClasses: ["sword"],
+		});
+		expect(
+			collectIntoInventory(
+				state,
+				sword,
+				() => "pickup",
+				() => 1,
+			).changed,
+		).toBeTrue();
+		expect(autoEquipCollectedItem(state, sword).changed).toBeTrue();
+		expect(state.mainHand?.name).toBe(sword.name);
+
+		const replacement = generateItem(1, "common", 815, {
+			allowedClasses: ["axe"],
+		});
+		collectIntoInventory(
+			state,
+			replacement,
+			() => "replacement",
+			() => 2,
+		);
+		expect(autoEquipCollectedItem(state, replacement).changed).toBeFalse();
+		expect(state.mainHand?.name).toBe(sword.name);
+	});
+
+	test("equips a newly extracted active spell but not another known level", () => {
+		const state = progress();
+		state.autoEquipSpells = true;
+		const item = generateItem(1, "epic", 27, { allowedClasses: ["staff"] });
+		state.inventoryTiles.push({
+			id: "auto-spell",
+			key: itemStackKey(item),
+			item,
+			quantity: 2,
+		});
+		state.gold = 10_000;
+		expect(extractFromInventory(state, "auto-spell").changed).toBeTrue();
+		const newActive = item.skills.filter((skill) => !SKILLS[skill].passive);
+		for (const skill of newActive) {
+			expect(state.equippedSkills).toContain(skill);
+			expect(state.autoFireSkills).toContain(skill);
+		}
+		const loadout = [...(state.equippedSkills ?? [])];
+		expect(extractFromInventory(state, "auto-spell").changed).toBeTrue();
+		expect(state.equippedSkills).toEqual(loadout);
+	});
+});
 
 describe("third-person camera", () => {
 	test("uses camera forward as the right-button aiming direction", () => {

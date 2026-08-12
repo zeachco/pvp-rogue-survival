@@ -30,6 +30,7 @@ export interface HudCallbacks {
 	onInspectHero(heroId: string): void;
 	onSetSkillEquipped(skillId: SkillId, equipped: boolean, slot?: number): void;
 	onToggleSkillAutoFire(skillId: SkillId): void;
+	onSetAutoEquipOption(option: "items" | "spells", enabled: boolean): void;
 	onDismissPanelTrigger(panel: PanelTrigger): void;
 	onChat(text: string): void;
 	onChattingChange(chatting: boolean): void;

@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 45;
+export const PROTOCOL_VERSION = 46;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -35,6 +35,8 @@ export interface PlayerProgress {
 	disabledSkills?: SkillId[];
 	equippedSkills?: SkillId[];
 	autoFireSkills?: SkillId[];
+	autoEquipItems?: boolean;
+	autoEquipSpells?: boolean;
 	rarityActions?: Record<Rarity, RarityAction>;
 }
 export interface XpSendBuff {
@@ -237,6 +239,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 		skillId: z.string().min(1),
 	}),
 	z.object({
+		type: z.literal("setAutoEquipOption"),
+		option: z.enum(["items", "spells"]),
+		enabled: z.boolean(),
+	}),
+	z.object({
 		type: z.literal("setRarityAction"),
 		rarity: z.enum(["common", "uncommon", "rare", "epic", "unique"]),
 		action: z.enum(["keep", "auto-sell", "auto-purge", "auto-send"]),
@@ -319,6 +326,11 @@ export type ClientMessage =
 			slot?: number;
 	  }
 	| { type: "toggleSkillAutoFire"; skillId: string }
+	| {
+			type: "setAutoEquipOption";
+			option: "items" | "spells";
+			enabled: boolean;
+	  }
 	| {
 			type: "setRarityAction";
 			rarity: Rarity;

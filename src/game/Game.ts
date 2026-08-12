@@ -209,6 +209,8 @@ export class Game {
 				this.socket.send({ type: "setSkillEquipped", skillId, equipped, slot }),
 			onToggleSkillAutoFire: (skillId) =>
 				this.socket.send({ type: "toggleSkillAutoFire", skillId }),
+			onSetAutoEquipOption: (option, enabled) =>
+				this.socket.send({ type: "setAutoEquipOption", option, enabled }),
 			onDismissPanelTrigger: (panel) =>
 				this.socket.send({ type: "dismissPanelTrigger", panel }),
 			onChat: (text) => this.socket.send({ type: "chat", text }),
