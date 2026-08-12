@@ -1,29 +1,107 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-11T12:09:28.261Z",
+	"generatedAt": "2026-08-12T12:35:28.013Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "New Swarm Mode and Combat Overhauls",
+			"summaryTitle": "Feature enhancements and core system updates",
 			"summary": {
 				"features": [
-					"Introduced 'Swarm Mode' playstyle featuring a realm-header toggle with countdown, tooltips, force queued enemies, and wave-scaled server cooldowns for dynamic challenge.",
-					"Revised status effects by ensuring Poison, Bleed, and Burn ticks now bypass dodge mechanics."
+					"Added multiple character support with shared stash inventory, allowing players to create and switch characters within the same account.",
+					"Implemented Swarm Mode for waves content, including a realm header toggle and scaled server cooldowns.",
+					"Introduced Souls-based ranking on the leaderboard system and updated hero statistics visibility.",
+					"Added persistent auto-equip options for items and spells, filling empty equipment or spell slots automatically upon acquisition.",
+					"Enhanced Devlog functionality by adding status tracking and dedicated categories for feature/balance requests."
 				],
 				"bugfixes": [
-					"Resolved graphical issues associated with blizzard spells."
+					"Fixed issues with aura units failing to follow their owning unit when moving across the world map.",
+					"Corrected visual glitches, including a fix for gooey swamp lighting and blizzard spell effects.",
+					"Addressed UI accessibility concerns by ensuring key preview and Devlog close buttons remain visible in the top-right corner on mobile devices."
 				],
 				"balance": [
-					"Overhauled status effect rules: Voodoo poison amplification scales significantly up to level 99. Poison, Bleed, and Burn ticks now ignore player dodging and blocking.",
-					"Updated the Blocking mechanic by removing reactive cooldowns for consecutive block rolls and ensuring Penance restores a guaranteed minimum of 1% max Mana per successful block.",
-					"Adjusted defensive gear stats: Block chance caps are now set at 90% for specific pieces (buckler, Katar, Reflective Surge)."
+					"Revamped combat rules to standardize status effects, making Poison, Bleed, and Burn ticks bypass dodge and block.",
+					"Adjusted Voodoo poison scaling to amplify damage from level 1 to level 99, alongside multiple adjustments to blocking mechanics (e.g., guaranteeing Penance restoration).",
+					"Enhanced Thunder Aura by doubling its damage output and widening its targeting radius, while implementing improved ground-level impact visuals."
 				],
-				"graphics": ["Fixed visual glitches related to blizzard spell effects."]
+				"ux": [
+					"Streamlined the mobile experience with compacted panels and responsive layouts that do not scale or interfere with the main HUD.",
+					"Improved Devlog usability by adding clearer status management and categorization for user requests."
+				],
+				"graphics": [
+					"Updated visual effects for Thunder Aura strikes, replacing simple fills with inward-fading lightning arcs over a 1.5-second duration.",
+					"Resolved specific environmental lighting errors related to swamp biomes and blizzard spells."
+				]
 			},
 			"commits": [
+				{
+					"hash": "68eae3c3ecec712bf6598b53ba1300de55eaa232",
+					"authoredAt": "2026-08-12T08:24:34-04:00",
+					"title": "feat(options): add acquisition auto equip",
+					"description": "- add persisted item and spell auto-equip options\\n- fill only empty equipment and spell slots\\n- cover acquisition behavior with focused tests"
+				},
+				{
+					"hash": "6ca282e3f7918869c78ec043f128e6046ba264b0",
+					"authoredAt": "2026-08-11T22:10:16-04:00",
+					"title": "ux(mobile): keep preview exits accessible",
+					"description": "- fix enemy preview and Devlog close buttons to the safe top-right edge\n- compact mobile panels and header controls without scaling the HUD\n- add responsive layout regression coverage"
+				},
+				{
+					"hash": "c8b6ff111b9a162f2324a1c7470cac5727d71976",
+					"authoredAt": "2026-08-11T22:04:41-04:00",
+					"title": "feat(pwa): add installable app manifest",
+					"description": ""
+				},
+				{
+					"hash": "9666756bf64741c3f891074ecb51a320067b5ff2",
+					"authoredAt": "2026-08-11T22:00:02-04:00",
+					"title": "feat(devlog): add completed API and status on feature requests",
+					"description": "allow AI to callback the database to mark a feature as done, a moderator\ncan then remove the task if it's validated to be done"
+				},
+				{
+					"hash": "fa60ebfbdd5b695475b5ef68d04229e0a2e8d363",
+					"authoredAt": "2026-08-11T18:06:58-04:00",
+					"title": "feat(devlog): add balance request category",
+					"description": ""
+				},
+				{
+					"hash": "c2cb2254cf9d1f64a7df30a4d3f5b9a48cac9618",
+					"authoredAt": "2026-08-11T16:52:32-04:00",
+					"title": "fix(auras): follow owning unit",
+					"description": "- synchronize the world-oriented aura group with its owner's position\n- cover movement away from the map origin"
+				},
+				{
+					"hash": "e45f756d8a541a594d8bac863b831cf46f400102",
+					"authoredAt": "2026-08-11T16:50:32-04:00",
+					"title": "balance(thunder): amplify aura strikes and range",
+					"description": "- double Thunder Aura damage and its spell-specific targeting radius\n- replace the persistent square fill with pooled ground-level impact lighting\n- draw inward lightning arcs that fade with each hit over 1.5 seconds"
+				},
+				{
+					"hash": "b077c8f23500013dd730a252cb544e9b5fc600a0",
+					"authoredAt": "2026-08-11T13:09:02-04:00",
+					"title": "feat(account): add multiple characters and shared stash",
+					"description": "- add authenticated character creation and switching\\n- share backpack inventory across account characters\\n- migrate and persist legacy heroes as single-character accounts"
+				},
+				{
+					"hash": "3764364bb0aefbad92085876d48118fbe6229f67",
+					"authoredAt": "2026-08-11T12:59:42-04:00",
+					"title": "feat(devlog): AI automatic feature pickup workflow",
+					"description": ""
+				},
+				{
+					"hash": "9258ff336884fdce212a7af89f8e7893b76217f9",
+					"authoredAt": "2026-08-11T12:40:59-04:00",
+					"title": "fix(graphics): gooey swamp light fix",
+					"description": ""
+				},
+				{
+					"hash": "6c4790b8fcd59deccc3538415f9d4ba162326fac",
+					"authoredAt": "2026-08-11T12:27:30-04:00",
+					"title": "feat(leaderboard): rank heroes by souls",
+					"description": "- show current Souls beside each hero's level\n- assign death echoes using the Souls leaderboard\n- update the leaderboard protocol, specs, and coverage"
+				},
 				{
 					"hash": "8a53521f2a719d3ba71018f5a07e0d427c26bd48",
 					"authoredAt": "2026-08-11T08:08:16-04:00",
@@ -43,7 +121,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Balance", "Graphics"]
+			"categories": ["Features", "Bugfixes", "Balance", "UX", "Graphics"]
 		}
 	]
 }
