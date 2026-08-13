@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import type { SkillId } from "../../../common/items";
+import type { Blizzard } from "../Blizzard";
+import type { GroundSwamp } from "../GroundSwamp";
 import {
-	spellEffectLightColor,
 	type SpellEffect,
 	type SpellEffectKind,
+	spellEffectLightColor,
 } from "../SpellEffect";
-import type { GroundSwamp } from "../GroundSwamp";
-import type { Blizzard } from "../Blizzard";
 
 type PooledLight = THREE.PointLight | THREE.SpotLight;
 

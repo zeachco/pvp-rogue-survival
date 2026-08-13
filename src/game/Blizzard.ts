@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import type { RandomSource } from "../../common/random";
-import { distance, type Vector2 } from "./types";
-import { GameObject } from "./GameObject";
 import type { Creep } from "./Creep";
+import { GameObject } from "./GameObject";
 import type { Hero } from "./Hero";
+import { distance, type Vector2 } from "./types";
 
 const ICICLE_FALL_TIME = 0.35;
 const ICICLE_START_HEIGHT = 110;

@@ -1,10 +1,15 @@
 import { SQL } from "bun";
 import { SKILLS } from "../common/content.ts";
 import { itemStackKey, migrateLegacyItem } from "../common/items.ts";
-import { migrateLegacyStats } from "../common/progression.ts";
-import type { PanelTriggers, PlayerProgress } from "../common/protocol.ts";
-import type { HeroSummary } from "../common/protocol.ts";
-import { cumulativeXpForLevel } from "../common/progression.ts";
+import {
+	cumulativeXpForLevel,
+	migrateLegacyStats,
+} from "../common/progression.ts";
+import type {
+	HeroSummary,
+	PanelTriggers,
+	PlayerProgress,
+} from "../common/protocol.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
 interface HeroBlob {

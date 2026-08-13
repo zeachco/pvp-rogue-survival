@@ -1,11 +1,11 @@
 import * as THREE from "three";
-import { damageStatusDuration, distance, type Vector2 } from "./types";
+import { voodooPoisonMultiplier } from "../../common/combat";
+import { MovementMultiplierEffect } from "../../common/unitState";
+import type { Creep } from "./Creep";
 import { GameObject } from "./GameObject";
 import type { Hero } from "./Hero";
-import type { Creep } from "./Creep";
 import { Z_SWAMP } from "./render/ThreeRenderer";
-import { MovementMultiplierEffect } from "../../common/unitState";
-import { voodooPoisonMultiplier } from "../../common/combat";
+import { damageStatusDuration, distance, type Vector2 } from "./types";
 
 export class GroundSwamp extends GameObject {
 	private remaining = 8;

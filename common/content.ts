@@ -1,6 +1,6 @@
 import type { AffixId, ItemModifiers, SkillId, WeaponClass } from "./items";
-import type { CreepKind } from "./protocol";
 import type { StatKey } from "./progression";
+import type { CreepKind } from "./protocol";
 
 export interface WeaponDefinition {
 	id: WeaponClass;

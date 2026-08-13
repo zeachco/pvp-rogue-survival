@@ -1,16 +1,17 @@
 /** @jsx h */
+
+import {
+	rapidRegenMultiplier,
+	reflectiveSurgeBlockChanceBonus,
+} from "../../common/combat";
 import {
 	cumulativeXpForLevel,
 	lerpXpDisplay,
 	levelForXp,
 	xpForNextLevel,
 } from "../../common/progression";
-import {
-	rapidRegenMultiplier,
-	reflectiveSurgeBlockChanceBonus,
-} from "../../common/combat";
-import type { PlayerState, StatusEffectSnapshot } from "../game/types";
 import { effectiveSkillLevel } from "../game/systems/HeroCombatSystem";
+import type { PlayerState, StatusEffectSnapshot } from "../game/types";
 import { h } from "./dom";
 
 interface ResourceBar {

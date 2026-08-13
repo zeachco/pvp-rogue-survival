@@ -1,6 +1,12 @@
 import type { BalanceConfig } from "../common/balance.ts";
 import { publicBalance } from "../common/balance.ts";
 import {
+	attractionFindBonus,
+	cappedSkillLevel,
+	timeHarvestItemSkillBonus,
+} from "../common/combat.ts";
+import { ENEMY_BONUS_SKILLS, SKILLS, WEAPONS } from "../common/content.ts";
+import {
 	applyAutoAction,
 	autoEquipCollectedItem,
 	collectIntoInventory,
@@ -8,6 +14,7 @@ import {
 	emptyScraps,
 	equipFromInventory,
 	extractFromInventory,
+	type InventoryResult,
 	promoteScraps,
 	purgeFromInventory,
 	purgeYield,
@@ -16,50 +23,43 @@ import {
 	sellFromInventory,
 	sendFromInventory,
 	upgradeFromInventory,
-	type InventoryResult,
 } from "../common/inventory.ts";
 import {
 	changeItemRarity,
+	equippedBonusXp,
+	equippedSkillLevelContribution,
 	generateAccessory,
 	generateBuckler,
 	generateItem,
 	generateRelic,
-	equippedSkillLevelContribution,
-	equippedBonusXp,
+	type ItemInstance,
 	itemRequirementMultiplier,
 	itemSkillLevelBonus,
 	itemStackKey,
 	nextRarity,
 	rollRarity,
-	statsWithItemBonuses,
-	type ItemInstance,
 	type SkillId,
+	statsWithItemBonuses,
 	type WeaponClass,
 } from "../common/items.ts";
-import { ENEMY_BONUS_SKILLS, SKILLS, WEAPONS } from "../common/content.ts";
-import {
-	attractionFindBonus,
-	cappedSkillLevel,
-	timeHarvestItemSkillBonus,
-} from "../common/combat.ts";
 import {
 	cumulativeXpForLevel,
 	DEFAULT_ALLOCATION,
 	levelForXp,
 	migrateLegacyStats,
-	scaledStats,
 	STAT_KEYS,
-	validAllocation,
 	type Stats,
+	scaledStats,
+	validAllocation,
 } from "../common/progression.ts";
 import {
-	isSkillId,
-	PROTOCOL_VERSION,
 	type ClientMessage,
 	type CreepWave,
 	type GroundDrop,
 	type HeroSummary,
+	isSkillId,
 	type PlayerId,
+	PROTOCOL_VERSION,
 	type PublicHeroProfile,
 	type PublicPlayer,
 	type RealmMember,
@@ -68,7 +68,7 @@ import {
 	type UnitBuild,
 	type XpSendBuff,
 } from "../common/protocol.ts";
-import { randomSeed, type RandomSource } from "../common/random.ts";
+import { type RandomSource, randomSeed } from "../common/random.ts";
 import {
 	championCount,
 	creepsWithSpellsCount,

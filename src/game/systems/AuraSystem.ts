@@ -7,18 +7,18 @@ import {
 	thunderDamage,
 	thunderInterval,
 } from "../../../common/auras";
+import type { SkillId } from "../../../common/items";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
-import type { SkillId } from "../../../common/items";
-import { effectiveSkillLevel } from "./HeroCombatSystem";
-import type { Creep } from "../Creep";
-import type { Hero } from "../Hero";
-import { SpellEffect, THUNDER_IMPACT_DURATION } from "../SpellEffect";
-import { distance } from "../types";
 import {
 	AttackSpeedMultiplierEffect,
 	MovementMultiplierEffect,
 } from "../../../common/unitState";
+import type { Creep } from "../Creep";
+import type { Hero } from "../Hero";
+import { SpellEffect, THUNDER_IMPACT_DURATION } from "../SpellEffect";
+import { distance } from "../types";
+import { effectiveSkillLevel } from "./HeroCombatSystem";
 
 export class AuraSystem {
 	private sunburnRemaining = 0;

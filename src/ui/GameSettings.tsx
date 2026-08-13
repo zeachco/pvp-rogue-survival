@@ -1,11 +1,11 @@
 /** @jsx h */
 import {
 	DEFAULT_GRAPHICS_SETTINGS,
+	type FullscreenMode,
+	type LightingMode,
 	MAX_RESOLUTION_SCALE,
 	MIN_RESOLUTION_SCALE,
 	RESOLUTION_SCALE_STEP,
-	type FullscreenMode,
-	type LightingMode,
 	type ShadowMode,
 } from "../game/graphicsSettings";
 import { h } from "./dom";

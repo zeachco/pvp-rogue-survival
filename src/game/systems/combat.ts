@@ -1,22 +1,22 @@
 import {
-	itemPhysicalBonusFraction,
-	itemRequirementMultiplier,
-	type ItemInstance,
-} from "../../../common/items";
-import type { RandomSource } from "../../../common/random";
-import type { ArenaState } from "../ArenaState";
-import type { Hero } from "../Hero";
-import type { Unit } from "../Unit";
-import { damageStatusDuration, distance } from "../types";
-import { applyImpactForce } from "../ImpactForce";
-import {
 	arcaneBoltExplosionRadius,
 	RENDING_THROW_BLEED_DURATION,
 	spellPower,
 	voodooPoisonMultiplier,
 } from "../../../common/combat";
+import {
+	type ItemInstance,
+	itemPhysicalBonusFraction,
+	itemRequirementMultiplier,
+} from "../../../common/items";
+import type { RandomSource } from "../../../common/random";
+import type { ArenaState } from "../ArenaState";
+import type { Hero } from "../Hero";
+import { applyImpactForce } from "../ImpactForce";
 import { pushDrops } from "../ItemDrop";
 import { SpellEffect } from "../SpellEffect";
+import { damageStatusDuration, distance } from "../types";
+import type { Unit } from "../Unit";
 
 export function resolveCombat(
 	state: ArenaState,

@@ -1,92 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as THREE from "three";
-import { SeededRandom } from "../common/random";
-import { AttackArea } from "../src/game/AttackArea";
-import { ArenaState } from "../src/game/ArenaState";
-import {
-	arenaFloorMaterial,
-	arenaObstacleMaterial,
-	arenaObstacleConeSides,
-	GameMap,
-	generateArenaColumns,
-	resolveColumnCollision,
-	touchesColumn,
-} from "../src/game/Map";
-import {
-	ORBITING_HAMMER_MODEL,
-	orbitingHammerRotation,
-	projectilePresentationCenter,
-	projectileSpellLightColor,
-	projectileSpellLightRadius,
-	Projectile,
-	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
-} from "../src/game/Projectile";
-import {
-	activeEnemyCountAllowsAutoForce,
-	MAX_ACTIVE_CREEPS,
-	releaseAllQueuedSpawns,
-	releaseReadySpawns,
-	removeInactive,
-} from "../src/game/systems/lifecycle";
-import { correctArenaBoundary } from "../src/game/bounds";
-import { HERO_LIGHT, Hero } from "../src/game/Hero";
-import {
-	generateAccessory,
-	generateBuckler,
-	generateItem,
-	generateRelic,
-	type ItemInstance,
-} from "../common/items";
-import { combatTextScale, type CombatText } from "../src/game/CombatText";
-import {
-	FORCE_FIELD_ANIMATION_DURATION,
-	FORCE_FIELD_LIGHT_FADE_DURATION,
-	FORCE_FIELD_LIGHT_INTENSITY,
-	HEALING_AURA_FILL_MAX_OPACITY,
-	HEALING_AURA_RING_MAX_OPACITY,
-	HEALING_GROUND_DURATION,
-	HEALING_LIGHT_LINGER_DURATION,
-	HEALING_UPLIGHT_INTENSITY,
-	HERO_BLOOD_SPELL_COLOR,
-	HOSTILE_SPELL_COLOR,
-	healingUplightIntensity,
-	ELBO_HEIGHT,
-	elbowHeight,
-	rentSlashAngle,
-	healingAuraOpacity,
-	healingPlusOpacity,
-	spellEffectLightDistance,
-	spellEffectLightColor,
-	SpellEffect,
-	THUNDER_IMPACT_DURATION,
-	THUNDER_IMPACT_LIGHT_INTENSITY,
-	WHIRLWIND_RADIANS_PER_SECOND,
-} from "../src/game/SpellEffect";
-import { GroundSwamp } from "../src/game/GroundSwamp";
-import { BLIZZARD_ICICLES_PER_VOLLEY, Blizzard } from "../src/game/Blizzard";
-import {
-	HeroSpellLightPool,
-	BLIZZARD_PROJECTILE_LIGHT_COLOR,
-	BLIZZARD_PROJECTILE_LIGHT_DISTANCE,
-	BLIZZARD_PROJECTILE_LIGHT_INTENSITY,
-	SWAMP_UPLIGHT_COLOR,
-	SWAMP_UPLIGHT_HEIGHT,
-	SWAMP_UPLIGHT_INTENSITY,
-} from "../src/game/render/HeroSpellLightPool";
-import {
-	COIN_BOB_AMPLITUDE,
-	COIN_BOB_SPEED,
-	COIN_SCATTER_MULTIPLIER,
-	COIN_SPIN_SPEED,
-	DROP_MAX_SPEED,
-	GOLD_COIN_DENOMINATIONS,
-	coinPresentationOffset,
-	dropRarityColor,
-	goldCoinDenominations,
-	groundDropPresentationCenter,
-	ItemDrop,
-} from "../src/game/ItemDrop";
-import { starterClub } from "../common/items";
+import { BALANCE } from "../common/balance";
 import {
 	arcaneBoltExplosionRadius,
 	attackProfile,
@@ -99,22 +13,135 @@ import {
 	swampRadius,
 	weaponAttackSpeed,
 } from "../common/combat";
+import { emptyScraps } from "../common/inventory";
+import {
+	generateAccessory,
+	generateBuckler,
+	generateItem,
+	generateRelic,
+	type ItemInstance,
+	starterClub,
+} from "../common/items";
 import {
 	DEFAULT_ALLOCATION,
-	ZERO_STATS,
 	type Stats,
+	ZERO_STATS,
 } from "../common/progression";
-import { emptyScraps } from "../common/inventory";
+import { SeededRandom } from "../common/random";
+import { ArenaState } from "../src/game/ArenaState";
+import { AttackArea } from "../src/game/AttackArea";
+import { BLIZZARD_ICICLES_PER_VOLLEY, Blizzard } from "../src/game/Blizzard";
+import { correctArenaBoundary } from "../src/game/bounds";
+import { type CombatText, combatTextScale } from "../src/game/CombatText";
 import {
 	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
 	Creep,
-	ENEMY_ROLE_LIGHTS,
 	creepResourceBarAnchorY,
+	ENEMY_ROLE_LIGHTS,
 	enemyRoleLight,
 	enemyRoleModelKind,
 	resourceBarWidth,
 } from "../src/game/Creep";
-import { BALANCE } from "../common/balance";
+import {
+	ANIMATION_FRAME_STALE_MS,
+	backgroundFrameDue,
+} from "../src/game/FrameScheduler";
+import { GroundSwamp } from "../src/game/GroundSwamp";
+import {
+	DEFAULT_GRAPHICS_SETTINGS,
+	FULLSCREEN_MODE_STORAGE_KEY,
+	LIGHTING_MODE_STORAGE_KEY,
+	loadFullscreenMode,
+	loadLightingMode,
+	loadResolutionScale,
+	loadShadowMode,
+	RESOLUTION_SCALE_STORAGE_KEY,
+	SHADOW_MODE_STORAGE_KEY,
+	saveFullscreenMode,
+	saveLightingMode,
+	saveResolutionScale,
+	saveShadowMode,
+} from "../src/game/graphicsSettings";
+import { HERO_LIGHT, Hero } from "../src/game/Hero";
+import { applyImpactForce, emittedImpactForce } from "../src/game/ImpactForce";
+import {
+	COIN_BOB_AMPLITUDE,
+	COIN_BOB_SPEED,
+	COIN_SCATTER_MULTIPLIER,
+	COIN_SPIN_SPEED,
+	coinPresentationOffset,
+	DROP_MAX_SPEED,
+	dropRarityColor,
+	GOLD_COIN_DENOMINATIONS,
+	goldCoinDenominations,
+	groundDropPresentationCenter,
+	ItemDrop,
+} from "../src/game/ItemDrop";
+import {
+	arenaFloorMaterial,
+	arenaObstacleConeSides,
+	arenaObstacleMaterial,
+	GameMap,
+	generateArenaColumns,
+	resolveColumnCollision,
+	touchesColumn,
+} from "../src/game/Map";
+import {
+	ORBITING_HAMMER_MODEL,
+	orbitingHammerRotation,
+	Projectile,
+	projectilePresentationCenter,
+	projectileSpellLightColor,
+	projectileSpellLightRadius,
+	VAMPIRIC_BOOMERANG_COLLISION_INTERVAL,
+} from "../src/game/Projectile";
+import {
+	AnimatedCharacterDeath,
+	CHARACTER_MODEL_MANIFESTS,
+	matchingAnimationClip,
+} from "../src/game/render/AnimatedCharacter";
+import {
+	BLIZZARD_PROJECTILE_LIGHT_COLOR,
+	BLIZZARD_PROJECTILE_LIGHT_DISTANCE,
+	BLIZZARD_PROJECTILE_LIGHT_INTENSITY,
+	HeroSpellLightPool,
+	SWAMP_UPLIGHT_COLOR,
+	SWAMP_UPLIGHT_HEIGHT,
+	SWAMP_UPLIGHT_INTENSITY,
+} from "../src/game/render/HeroSpellLightPool";
+import {
+	applySceneLightingMode,
+	applySceneShadowMode,
+	MAP_LAYER_STEP,
+	MAP_Z,
+	SCENE_LIGHTING,
+	Z_CREEP_OVERLAY,
+} from "../src/game/render/ThreeRenderer";
+import {
+	ELBO_HEIGHT,
+	elbowHeight,
+	FORCE_FIELD_ANIMATION_DURATION,
+	FORCE_FIELD_LIGHT_FADE_DURATION,
+	FORCE_FIELD_LIGHT_INTENSITY,
+	HEALING_AURA_FILL_MAX_OPACITY,
+	HEALING_AURA_RING_MAX_OPACITY,
+	HEALING_GROUND_DURATION,
+	HEALING_LIGHT_LINGER_DURATION,
+	HEALING_UPLIGHT_INTENSITY,
+	HERO_BLOOD_SPELL_COLOR,
+	HOSTILE_SPELL_COLOR,
+	healingAuraOpacity,
+	healingPlusOpacity,
+	healingUplightIntensity,
+	rentSlashAngle,
+	SpellEffect,
+	spellEffectLightColor,
+	spellEffectLightDistance,
+	THUNDER_IMPACT_DURATION,
+	THUNDER_IMPACT_LIGHT_INTENSITY,
+	WHIRLWIND_RADIANS_PER_SECOND,
+} from "../src/game/SpellEffect";
+import { resolveCombat } from "../src/game/systems/combat";
 import {
 	basicWeaponHitCount,
 	cancelHostileProjectiles,
@@ -126,41 +153,14 @@ import {
 	pointAlongFacing,
 	skillAffordable,
 } from "../src/game/systems/HeroCombatSystem";
-import { resolveCombat } from "../src/game/systems/combat";
+import {
+	activeEnemyCountAllowsAutoForce,
+	MAX_ACTIVE_CREEPS,
+	releaseAllQueuedSpawns,
+	releaseReadySpawns,
+	removeInactive,
+} from "../src/game/systems/lifecycle";
 import { resolveUnitCollisions } from "../src/game/systems/movement";
-import { applyImpactForce, emittedImpactForce } from "../src/game/ImpactForce";
-import {
-	ANIMATION_FRAME_STALE_MS,
-	backgroundFrameDue,
-} from "../src/game/FrameScheduler";
-import {
-	AnimatedCharacterDeath,
-	CHARACTER_MODEL_MANIFESTS,
-	matchingAnimationClip,
-} from "../src/game/render/AnimatedCharacter";
-import {
-	MAP_LAYER_STEP,
-	MAP_Z,
-	SCENE_LIGHTING,
-	applySceneLightingMode,
-	applySceneShadowMode,
-	Z_CREEP_OVERLAY,
-} from "../src/game/render/ThreeRenderer";
-import {
-	DEFAULT_GRAPHICS_SETTINGS,
-	FULLSCREEN_MODE_STORAGE_KEY,
-	LIGHTING_MODE_STORAGE_KEY,
-	RESOLUTION_SCALE_STORAGE_KEY,
-	SHADOW_MODE_STORAGE_KEY,
-	loadFullscreenMode,
-	loadLightingMode,
-	loadResolutionScale,
-	loadShadowMode,
-	saveFullscreenMode,
-	saveLightingMode,
-	saveResolutionScale,
-	saveShadowMode,
-} from "../src/game/graphicsSettings";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
 
 describe("animated 3D characters", () => {
@@ -3041,7 +3041,7 @@ describe("arena systems", () => {
 			{ agility: 5, strength: 5, magic: 0, spirit: 0, intelligence: 0 },
 			buckler,
 		);
-		let rolls = [1, 0];
+		const rolls = [1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(10);
 		expect(hero.rage).toBe(5);
@@ -3126,7 +3126,7 @@ describe("arena systems", () => {
 		const manaCost = hero.maxMana * 0.01;
 		const mana = hero.mana;
 		const hp = hero.hp;
-		let rolls = [1, 0, 1, 0];
+		const rolls = [1, 0, 1, 0];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
@@ -3450,7 +3450,7 @@ describe("arena systems", () => {
 			{ agility: 0, strength: 100, magic: 0, spirit: 0, intelligence: 0 },
 			buckler,
 		);
-		let rolls = [1, 0];
+		const rolls = [1, 0];
 		hero.receiveDamage(5, { next: () => rolls.shift() ?? 1 });
 		expect(texts.at(-1)?.label).toBe("BLOCK");
 	});

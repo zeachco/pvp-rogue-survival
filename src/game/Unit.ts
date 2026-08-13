@@ -1,24 +1,17 @@
-import { GameObject } from "./GameObject";
-import { clamp, type StatusEffectSnapshot, type Vector2 } from "./types";
-import { type Stats } from "../../common/progression";
 import {
-	type ItemImmunity,
-	type ItemInstance,
-	type SkillId,
-} from "../../common/items";
-import type { RandomSource } from "../../common/random";
-import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
-import {
-	reflectiveSurgeDuration,
 	effectiveSkillCooldown,
 	katarBlockChance,
-	manaConversionFraction,
-	spiritWoundsConversionFraction,
-	skillUpkeepPerSecond,
 	MAX_RAGE,
+	manaConversionFraction,
 	RAGE_DECAY_PER_SECOND,
+	reflectiveSurgeDuration,
+	skillUpkeepPerSecond,
+	spiritWoundsConversionFraction,
 } from "../../common/combat";
 import { SKILLS } from "../../common/content";
+import type { ItemImmunity, ItemInstance, SkillId } from "../../common/items";
+import type { Stats } from "../../common/progression";
+import type { RandomSource } from "../../common/random";
 import {
 	compileUnitState,
 	defaultBaseState,
@@ -29,6 +22,9 @@ import {
 	type UnitEffectTarget,
 	type UnitState,
 } from "../../common/unitState";
+import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
+import { GameObject } from "./GameObject";
+import { clamp, type StatusEffectSnapshot, type Vector2 } from "./types";
 
 export interface StatusEffect extends StatusEffectSnapshot {
 	tick?: number;

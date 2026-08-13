@@ -1,6 +1,6 @@
 import {
-	parseServerMessage,
 	type ClientMessage,
+	parseServerMessage,
 	type ServerMessage,
 } from "../../common/protocol";
 

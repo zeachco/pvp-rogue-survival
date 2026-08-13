@@ -1,15 +1,15 @@
+import { auraRadius, sunburnFraction, thunderDamage } from "./auras";
 import type { BalanceConfig } from "./balance";
 import { SKILLS, WEAPONS } from "./content";
 import {
 	AURA_SKILLS,
+	type ItemInstance,
 	itemRequirementMultiplier,
 	RARITY_POWER,
+	type SkillId,
 	weaponLevelScale,
 	weaponSkillLevelScale,
-	type ItemInstance,
-	type SkillId,
 } from "./items";
-import { auraRadius, sunburnFraction, thunderDamage } from "./auras";
 import { derivedStats, type Stats } from "./progression";
 import type { RandomSource } from "./random";
 

@@ -68,4 +68,5 @@ export function distance(a: Vector2, b: Vector2): number {
 export function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value));
 }
+
 import type { PlayerProgress, XpSendBuff } from "../../common/protocol";

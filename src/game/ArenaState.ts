@@ -1,14 +1,14 @@
 import type { UnitBuild } from "../../common/protocol";
-import type { Vector2 } from "./types";
 import type { AttackArea } from "./AttackArea";
+import type { Blizzard } from "./Blizzard";
+import type { CombatText } from "./CombatText";
 import type { Creep } from "./Creep";
+import type { GroundSwamp } from "./GroundSwamp";
 import type { ItemDrop } from "./ItemDrop";
 import type { Projectile } from "./Projectile";
-import type { CombatText } from "./CombatText";
-import type { SpellEffect } from "./SpellEffect";
-import type { GroundSwamp } from "./GroundSwamp";
-import type { Blizzard } from "./Blizzard";
 import type { AnimatedCharacterDeath } from "./render/AnimatedCharacter";
+import type { SpellEffect } from "./SpellEffect";
+import type { Vector2 } from "./types";
 
 export interface QueuedSpawn {
 	build: UnitBuild;

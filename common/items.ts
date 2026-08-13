@@ -1,5 +1,5 @@
-import { STAT_KEYS, type StatKey, type Stats } from "./progression";
 import { AFFIXES, WEAPONS } from "./content";
+import { STAT_KEYS, type StatKey, type Stats } from "./progression";
 import { SeededRandom } from "./random";
 
 export type WeaponClass =

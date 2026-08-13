@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { systemRandom, type RandomSource } from "../../common/random";
-import type { Vector2 } from "./types";
+import { type RandomSource, systemRandom } from "../../common/random";
 import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
+import type { Vector2 } from "./types";
 
 export interface ArenaColumn extends Vector2 {
 	radius: number;

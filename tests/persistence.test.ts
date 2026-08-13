@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BALANCE } from "../common/balance";
 import type { RandomSource } from "../common/random";
+import { createApp } from "../server/createApp";
 import { GameService } from "../server/GameService";
 import { SqlPlayerRepository } from "../server/SqlPlayerRepository";
-import { createApp } from "../server/createApp";
 
 class FixedRandom implements RandomSource {
 	next(): number {

@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+	DEFAULT_API_BASE_URL,
+	fetchFeatureRequests,
+	submittedFeatures,
+} from "../scripts/listFeatureRequests";
 import {
 	activeAccountId,
 	activeModeratorAccountId,
@@ -14,11 +19,6 @@ import {
 	nextUtcMonth,
 	SqlDevlogRequestStore,
 } from "../server/DevlogRequestRepository";
-import {
-	DEFAULT_API_BASE_URL,
-	fetchFeatureRequests,
-	submittedFeatures,
-} from "../scripts/listFeatureRequests";
 
 const cleanupDirectories: string[] = [];
 

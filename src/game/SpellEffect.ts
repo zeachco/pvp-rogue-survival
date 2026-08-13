@@ -2,9 +2,9 @@ import * as THREE from "three";
 import { HEALING_MIN_RADIUS } from "../../common/combat";
 import type { SkillId } from "../../common/items";
 import { GameObject } from "./GameObject";
-import type { Vector2 } from "./types";
-import { Z_EFFECT } from "./render/ThreeRenderer";
 import { CHARACTER_MODEL_MANIFESTS } from "./render/AnimatedCharacter";
+import { Z_EFFECT } from "./render/ThreeRenderer";
+import type { Vector2 } from "./types";
 
 export type SpellEffectKind =
 	| Exclude<SkillId, "healing">

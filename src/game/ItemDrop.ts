@@ -2,8 +2,8 @@ import * as THREE from "three";
 import type { Rarity } from "../../common/items";
 import type { GroundDrop } from "../../common/protocol";
 import { GameObject } from "./GameObject";
-import type { Vector2 } from "./types";
 import { Z_DROP } from "./render/ThreeRenderer";
+import type { Vector2 } from "./types";
 
 const GROUND_PRESENTATION_CLEARANCE = 2;
 const DIAMOND_PRESENTATION_RADIUS = 18;

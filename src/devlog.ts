@@ -6,8 +6,8 @@ import {
 } from "../common/devlog";
 import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
-import { SessionStorage } from "./platform/SessionStorage";
 import { gameApiUrl } from "./navigation";
+import { SessionStorage } from "./platform/SessionStorage";
 
 const files = import.meta.glob<string | WeeklyDevlog>("../changelogs/*.json", {
 	eager: true,

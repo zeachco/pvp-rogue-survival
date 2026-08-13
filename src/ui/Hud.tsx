@@ -1,47 +1,14 @@
 /** @jsx h */
+
 import {
-	itemCooldownReduction,
-	itemStackKey,
-	RARITIES,
-	statsWithItemBonuses,
-	type ItemInstance,
-	type Rarity,
-	type SkillId,
-} from "../../common/items";
+	auraRadius,
+	auraSlowMultiplier,
+	sunburnFraction,
+	sunburnInterval,
+	thunderDamage,
+	thunderInterval,
+} from "../../common/auras";
 import { BALANCE } from "../../common/balance";
-import {
-	STAT_KEYS,
-	integerAllocation,
-	scaledStats,
-	type Stats,
-} from "../../common/progression";
-import type {
-	HeroSummary,
-	GroundDrop,
-	PanelTriggers,
-	PlayerProgress,
-	PublicHeroProfile,
-	RarityAction,
-	RealmState,
-	UnitBuild,
-} from "../../common/protocol";
-import type { CreepTimedStates, PlayerState } from "../game/types";
-import { h } from "./dom";
-import { GameSettings } from "./GameSettings";
-import {
-	itemTile,
-	orderInventoryTiles,
-	type InventorySlotFilter,
-} from "./InventoryView";
-import {
-	inventoryCapacity,
-	occupiedInventorySlots,
-	REROLL_SOUL_COST,
-	SCRAP_PROMOTION_COST,
-	upgradeCosts,
-} from "../../common/inventory";
-import { bindRequirementPreview, itemDetails } from "./ItemDetails";
-import type { CurrencyPreview, HudCallbacks, SpellSlot } from "./types";
 import {
 	attackProfile,
 	attractionFindBonus,
@@ -55,63 +22,99 @@ import {
 	healingFraction,
 	MAX_SKILL_LEVEL,
 	manaConversionFraction,
-	spiritWoundsConversionFraction,
 	orbitingHammerDuration,
-	reflectiveSurgeBlockChanceBonus,
-	reflectiveSurgeDuration,
+	RENDING_THROW_BLEED_DURATION,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
+	reflectiveSurgeBlockChanceBonus,
+	reflectiveSurgeDuration,
 	rendingThrowPierce,
 	rendingThrowTargetLimit,
-	RENDING_THROW_BLEED_DURATION,
+	type SkillDamagePreview,
 	skillCastTime,
 	skillDamagePreview,
 	skillRange,
 	skillStatBonusDescription,
 	skillUpkeepPerSecond,
+	spiritWoundsConversionFraction,
 	timeHarvestCooldownReduction,
+	voodooPoisonMultiplier,
+	weaponSkillTriggerChance,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
-	weaponSkillTriggerChance,
-	voodooPoisonMultiplier,
-	type SkillDamagePreview,
 } from "../../common/combat";
-import { derivedStats } from "../../common/progression";
 import { SKILLS } from "../../common/content";
+import {
+	inventoryCapacity,
+	occupiedInventorySlots,
+	REROLL_SOUL_COST,
+	SCRAP_PROMOTION_COST,
+	upgradeCosts,
+} from "../../common/inventory";
+import {
+	type ItemInstance,
+	itemCooldownReduction,
+	itemStackKey,
+	RARITIES,
+	type Rarity,
+	type SkillId,
+	statsWithItemBonuses,
+} from "../../common/items";
+import {
+	derivedStats,
+	integerAllocation,
+	STAT_KEYS,
+	type Stats,
+	scaledStats,
+} from "../../common/progression";
+import type {
+	GroundDrop,
+	HeroSummary,
+	PanelTriggers,
+	PlayerProgress,
+	PublicHeroProfile,
+	RarityAction,
+	RealmState,
+	UnitBuild,
+} from "../../common/protocol";
 import { SPELL_SOURCES } from "../../common/spellSources";
 import { pixelsToMeters } from "../../common/units";
-import {
-	auraRadius,
-	auraSlowMultiplier,
-	sunburnFraction,
-	sunburnInterval,
-	thunderDamage,
-	thunderInterval,
-} from "../../common/auras";
 import {
 	actualSkillLevel,
 	effectiveSkillLevel,
 	resourceReduction,
 } from "../game/systems/HeroCombatSystem";
-import {
-	applyPreviewClass,
-	formatPreviewValue,
-	formatProjectedValue,
-	previewTone,
-	type PreviewValue,
-} from "./preview";
-import { extractButtonStatus } from "./inventoryAvailability";
-import { viewportTooltipPosition } from "./tooltipPosition";
+import type { CreepTimedStates, PlayerState } from "../game/types";
+import { h } from "./dom";
+import { GameSettings } from "./GameSettings";
 import {
 	effectTimeLabel,
 	HeroResourceDock,
 	statusEffectSummaries,
 } from "./HeroResourceDock";
+import {
+	type InventorySlotFilter,
+	itemTile,
+	orderInventoryTiles,
+} from "./InventoryView";
+import { bindRequirementPreview, itemDetails } from "./ItemDetails";
+import { extractButtonStatus } from "./inventoryAvailability";
+import {
+	applyPreviewClass,
+	formatPreviewValue,
+	formatProjectedValue,
+	type PreviewValue,
+	previewTone,
+} from "./preview";
+import { viewportTooltipPosition } from "./tooltipPosition";
+import type { CurrencyPreview, HudCallbacks, SpellSlot } from "./types";
+
 export {
 	effectTimeLabel,
 	statusEffectSummaries,
 	xpSendBuffSummary,
 } from "./HeroResourceDock";
+
 import {
 	projectUnitState,
 	RapidRegenerationEffect,
@@ -119,7 +122,9 @@ import {
 	ThornsEffect,
 	type UnitEffect,
 } from "../../common/unitState";
+
 export type { HudCallbacks, SpellSlot } from "./types";
+
 declare global {
 	namespace JSX {
 		interface IntrinsicElements {

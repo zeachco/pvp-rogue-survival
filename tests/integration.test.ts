@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { WebSocket } from "ws";
 import { BALANCE } from "../common/balance";
 import {
 	parseClientMessage,
@@ -6,14 +7,13 @@ import {
 	type ServerMessage,
 } from "../common/protocol";
 import type { RandomSource } from "../common/random";
-import { InMemoryPlayerRepository } from "../server/domain";
-import { GameService } from "../server/GameService";
 import {
 	broadcastAnonymousLeaderboard,
 	broadcastRestartNotice,
 	RESTART_NOTICE,
 } from "../server/createApp";
-import { WebSocket } from "ws";
+import { InMemoryPlayerRepository } from "../server/domain";
+import { GameService } from "../server/GameService";
 
 class FixedRandom implements RandomSource {
 	next(): number {

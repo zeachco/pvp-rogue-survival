@@ -1,6 +1,6 @@
 import {
-	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	type DevlogRequest,
+	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 } from "../server/DevlogRequestRepository.ts";
 import {
 	DEFAULT_API_BASE_URL,

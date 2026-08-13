@@ -1,18 +1,18 @@
 import * as THREE from "three";
-import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
-import { GameObject } from "./GameObject";
-import { normalize, type Vector2 } from "./types";
-import type { Unit } from "./Unit";
-import type { DamagePresentation } from "./CombatText";
-import type { ItemInstance, SkillId } from "../../common/items";
-import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
+import { type GLTF, GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { rendingThrowTargetLimit } from "../../common/combat";
+import type { ItemInstance, SkillId } from "../../common/items";
+import type { DamagePresentation } from "./CombatText";
+import { GameObject } from "./GameObject";
+import { emittedImpactForce, type ImpactForce } from "./ImpactForce";
 import { Z_PROJECTILE } from "./render/ThreeRenderer";
 import {
 	HERO_BLOOD_SPELL_COLOR,
 	HOSTILE_SPELL_COLOR,
 	tintSpellObject,
 } from "./SpellEffect";
+import { normalize, type Vector2 } from "./types";
+import type { Unit } from "./Unit";
 
 export type ProjectileSkill = SkillId | "frostSpike";
 

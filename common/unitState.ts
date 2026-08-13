@@ -7,26 +7,26 @@ import {
 	bucklerBlockCost,
 	katarBlockChance,
 	MAX_BLOCK_CHANCE,
-	reflectiveSurgeBlockChanceBonus,
 	RAGE_DECAY_PER_SECOND,
+	reflectiveSurgeBlockChanceBonus,
 } from "./combat";
 import {
 	equippedImmunities,
 	equippedPerks,
+	type ItemImmunity,
+	type ItemInstance,
 	itemCooldownReduction,
 	itemKillRestoration,
 	itemRequirementMultiplier,
 	itemResourceCostReduction,
 	RARITY_POWER,
 	statsWithItemBonuses,
-	type ItemImmunity,
-	type ItemInstance,
 } from "./items";
 import {
+	type DerivedStats,
 	derivedStats,
 	heroTurnSpeedDegrees,
 	migrateLegacyStats,
-	type DerivedStats,
 	type Stats,
 } from "./progression";
 

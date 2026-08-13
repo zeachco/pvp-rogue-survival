@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { generateItem } from "../common/items";
 import { ZERO_STATS } from "../common/progression";
 import {
 	compileUnitState,
@@ -9,7 +10,6 @@ import {
 	type UnitState,
 } from "../common/unitState";
 import { Hero } from "../src/game/Hero";
-import { generateItem } from "../common/items";
 
 class TestTarget implements UnitEffectTarget {
 	state: UnitState = defaultBaseState({ baseStats: ZERO_STATS });

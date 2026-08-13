@@ -1,11 +1,10 @@
 import * as THREE from "three";
-import { GameObject } from "./GameObject";
-import { distance, type Vector2 } from "./types";
-import type { ItemInstance } from "../../common/items";
-import type { SkillId } from "../../common/items";
+import type { ItemInstance, SkillId } from "../../common/items";
 import type { DamagePresentation } from "./CombatText";
+import { GameObject } from "./GameObject";
 import type { ImpactForce } from "./ImpactForce";
 import { Z_ATTACK } from "./render/ThreeRenderer";
+import { distance, type Vector2 } from "./types";
 
 export type AttackOwner = "hero" | "creep";
 

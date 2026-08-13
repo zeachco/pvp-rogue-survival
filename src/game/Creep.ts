@@ -1,14 +1,5 @@
 import * as THREE from "three";
-import {
-	type CreepKind,
-	type EnemyRole,
-	type PlayerId,
-	type UnitBuild,
-} from "../../common/protocol";
-import { type SkillId } from "../../common/items";
 import type { BalanceConfig } from "../../common/balance";
-import type { RandomSource } from "../../common/random";
-import { ENEMY_ARCHETYPES } from "../../common/content";
 import {
 	forceFieldRange,
 	healingAutoCastThresholdMet,
@@ -16,24 +7,33 @@ import {
 	healingCooldown,
 	healingRadius,
 } from "../../common/combat";
-import { canvas2dContext } from "../platform/Canvas";
-import { Unit } from "./Unit";
-import { dropRarityColor } from "./ItemDrop";
-import { SpellEffect } from "./SpellEffect";
-import {
-	clamp,
-	distance,
-	normalize,
-	type CreepTimedStates,
-	type Vector2,
-} from "./types";
+import { ENEMY_ARCHETYPES } from "../../common/content";
+import type { SkillId } from "../../common/items";
+import type {
+	CreepKind,
+	EnemyRole,
+	PlayerId,
+	UnitBuild,
+} from "../../common/protocol";
+import type { RandomSource } from "../../common/random";
 import { creepMaxHealth } from "../../common/waves";
-import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
+import { canvas2dContext } from "../platform/Canvas";
+import { dropRarityColor } from "./ItemDrop";
 import {
 	AnimatedCharacter,
 	AnimatedCharacterDeath,
 	type CharacterModelKind,
 } from "./render/AnimatedCharacter";
+import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
+import { SpellEffect } from "./SpellEffect";
+import {
+	type CreepTimedStates,
+	clamp,
+	distance,
+	normalize,
+	type Vector2,
+} from "./types";
+import { Unit } from "./Unit";
 
 export const CREEP_RESOURCE_BAR_CAMERA_OFFSET = 2;
 export const creepResourceBarAnchorY = (presentationHeight: number): number =>

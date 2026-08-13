@@ -1,44 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-	adjustedCameraTilt,
-	adjustedCameraTiltFromDrag,
-	cameraFacingAngle,
-	cameraRelativeMovement,
-	cameraOffsetForTilt,
-	DEFAULT_CAMERA_ZOOM,
-	MAX_CAMERA_TILT_RADIANS,
-	MIN_CAMERA_TILT_RADIANS,
-	MIN_ZOOM,
-} from "../src/game/render/ThreeRenderer";
-import {
-	AIM_RANGE_OPACITY,
-	AIM_LINE_RANGE_MULTIPLIER,
-	aimGuideCenter,
-	aimGuideDimensions,
-	HERO_TURN_SPEED,
-	Hero,
-	turnAngleTowards,
-} from "../src/game/Hero";
-import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
-import {
-	equipSlotKeys,
-	GOLD_TOOLTIP,
-	panelShortcut,
-	panelToggleTooltip,
-	scrapTooltip,
-	SOULS_TOOLTIP,
-} from "../src/ui/Hud";
-import {
-	reconciledDropPosition,
-	serverCloseLogMessage,
-} from "../src/game/Game";
-import {
-	applyStickDeadZone,
-	GAMEPAD_STICK_DEAD_ZONE,
-	readStandardGamepad,
-} from "../src/game/GamepadInput";
-
-import {
 	auraRadius,
 	auraSlowMultiplier,
 	sunburnFraction,
@@ -49,27 +10,22 @@ import {
 } from "../common/auras";
 import { BALANCE } from "../common/balance";
 import {
-	LOGICAL_PIXELS_PER_METER,
-	metersToPixels,
-	pixelsToMeters,
-} from "../common/units";
-import {
 	attackProfile,
 	bashCooldown,
-	bucklerBlockChance,
-	bucklerBlockCost,
 	blizzardDuration,
 	blizzardManaCost,
 	blizzardProjectileDamage,
 	blizzardProjectilesPerSecond,
 	blizzardRadius,
-	cleaveHalfArc,
+	bucklerBlockChance,
+	bucklerBlockCost,
 	cleaveCooldown,
+	cleaveHalfArc,
 	cleaveRange,
 	cooldownScale,
 	effectiveSkillCooldown,
-	forceFieldRange,
 	flurryCooldown,
+	forceFieldRange,
 	HEALING_MAX_RADIUS,
 	HEALING_MIN_RADIUS,
 	healingBaseManaCost,
@@ -80,14 +36,15 @@ import {
 	katarBlockChance,
 	manaConversionFraction,
 	orbitingHammerDuration,
+	RENDING_THROW_BLEED_DURATION,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
-	rendingThrowPierce,
-	rendingThrowTargetLimit,
 	reflectiveSurgeBlockChanceBonus,
 	reflectiveSurgeCooldown,
 	reflectiveSurgeDuration,
-	RENDING_THROW_BLEED_DURATION,
+	rendingThrowPierce,
+	rendingThrowTargetLimit,
+	STAFF_BASIC_HALF_ARC,
 	skillCastTime,
 	skillCooldown,
 	skillDamagePreview,
@@ -96,39 +53,32 @@ import {
 	skillStatBonusDescription,
 	skillUpkeepPerSecond,
 	spellCooldownFloor,
-	STAFF_BASIC_HALF_ARC,
-	timeHarvestCooldownReduction,
-	timeHarvestItemSkillBonus,
 	swampCooldown,
 	swampRadius,
+	timeHarvestCooldownReduction,
+	timeHarvestItemSkillBonus,
+	voodooPoisonMultiplier,
 	weaponAttackSpeed,
 	weaponDamage,
 	weaponRange,
-	weaponUsesProjectile,
 	weaponSkillTriggerChance,
 	weaponSkillTriggerChanceForHits,
-	voodooPoisonMultiplier,
+	weaponUsesProjectile,
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
 	whirlwindRadius,
 } from "../common/combat";
 import { SKILLS, WEAPONS } from "../common/content";
-import { SeededRandom } from "../common/random";
-import { SPELL_SOURCES } from "../common/spellSources";
 import {
-	inventorySlotMatches,
-	orderInventoryTiles,
-} from "../src/ui/InventoryView";
-import {
-	collectIntoInventory,
 	autoEquipCollectedItem,
+	collectIntoInventory,
 	dropInventoryOverflow,
 	emptyScraps,
 	equipFromInventory,
-	extractionCost,
 	extractableSkills,
 	extractFromInventory,
+	extractionCost,
 	inventoryCapacity,
 	isEquippedTile,
 	occupiedInventorySlots,
@@ -141,28 +91,28 @@ import {
 } from "../common/inventory";
 import {
 	AURA_SKILLS,
+	equippedBonusXp,
 	equippedImmunities,
 	equippedPerks,
 	equippedSkillLevelContribution,
-	equippedBonusXp,
 	generateAccessory,
 	generateBuckler,
 	generateItem,
 	generateRelic,
+	type ItemInstance,
 	itemCooldownReduction,
 	itemPendingRerollSeed,
-	migrateLegacyItem,
 	itemRequirementMultiplier,
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
+	migrateLegacyItem,
 	nextRarity,
 	RARITY_POWER,
 	rerollItem,
 	rerollPendingSeed,
 	starterClub,
 	statsWithItemBonuses,
-	type ItemInstance,
 } from "../common/items";
 import {
 	cumulativeXpForLevel,
@@ -171,12 +121,19 @@ import {
 	heroTurnSpeedDegrees,
 	lerpXpDisplay,
 	levelForXp,
-	scaledStats,
 	STAT_KEYS,
+	scaledStats,
 	xpForNextLevel,
 	ZERO_STATS,
 } from "../common/progression";
-import { parseClientMessage, type PlayerProgress } from "../common/protocol";
+import { type PlayerProgress, parseClientMessage } from "../common/protocol";
+import { SeededRandom } from "../common/random";
+import { SPELL_SOURCES } from "../common/spellSources";
+import {
+	LOGICAL_PIXELS_PER_METER,
+	metersToPixels,
+	pixelsToMeters,
+} from "../common/units";
 import {
 	championCount,
 	creepMaxHealth,
@@ -189,23 +146,74 @@ import {
 	rivalXpReward,
 } from "../common/waves";
 import {
-	bloodSkillDamage,
-	bloodSkillLifeCost,
+	reconciledDropPosition,
+	serverCloseLogMessage,
+} from "../src/game/Game";
+import {
+	applyStickDeadZone,
+	GAMEPAD_STICK_DEAD_ZONE,
+	readStandardGamepad,
+} from "../src/game/GamepadInput";
+import {
+	AIM_LINE_RANGE_MULTIPLIER,
+	AIM_RANGE_OPACITY,
+	aimGuideCenter,
+	aimGuideDimensions,
+	HERO_TURN_SPEED,
+	Hero,
+	turnAngleTowards,
+} from "../src/game/Hero";
+import {
+	adjustedCameraTilt,
+	adjustedCameraTiltFromDrag,
+	cameraFacingAngle,
+	cameraOffsetForTilt,
+	cameraRelativeMovement,
+	DEFAULT_CAMERA_ZOOM,
+	MAX_CAMERA_TILT_RADIANS,
+	MIN_CAMERA_TILT_RADIANS,
+	MIN_ZOOM,
+} from "../src/game/render/ThreeRenderer";
+import {
 	activeSkillIds,
 	actualSkillLevel,
+	bloodSkillDamage,
+	bloodSkillLifeCost,
 	effectiveSkillLevel,
 	forceField,
-	forceFieldFalloff,
 	forceFieldDamage,
+	forceFieldFalloff,
 	HeroCombatSystem,
 	isSkillActive,
 	isSkillAvailable,
 	shouldAutoCastHealing,
-	weaponProcSkills,
 	skillHealthRequirementMet,
+	weaponProcSkills,
 } from "../src/game/systems/HeroCombatSystem";
-import { gameSocketUrl } from "../src/net/SocketClient";
 import { gameApiUrl, routeUrl } from "../src/navigation";
+import { gameSocketUrl } from "../src/net/SocketClient";
+import {
+	effectiveStatRows,
+	effectTimeLabel,
+	equipSlotKeys,
+	extractedLearnedLevel,
+	GOLD_TOOLTIP,
+	panelShortcut,
+	panelToggleTooltip,
+	passiveSkillMetrics,
+	SOULS_TOOLTIP,
+	scrapTooltip,
+	spellCatalogFilterMatches,
+	spellCatalogResourceOrder,
+	spellInitials,
+	spellTooltipLevels,
+	statusEffectSummaries,
+	xpSendBuffSummary,
+} from "../src/ui/Hud";
+import {
+	inventorySlotMatches,
+	orderInventoryTiles,
+} from "../src/ui/InventoryView";
 import {
 	itemRequirementRows,
 	itemSkillDescription,
@@ -215,26 +223,15 @@ import {
 	statBonusDeltaRows,
 } from "../src/ui/ItemDetails";
 import {
-	formatPreviewValue,
-	formatProjectedValue,
-	previewTone,
-} from "../src/ui/preview";
-import {
 	extractButtonStatus,
 	extractionLearnsNewSkill,
 } from "../src/ui/inventoryAvailability";
 import {
-	effectiveStatRows,
-	effectTimeLabel,
-	extractedLearnedLevel,
-	passiveSkillMetrics,
-	spellCatalogFilterMatches,
-	spellCatalogResourceOrder,
-	spellInitials,
-	spellTooltipLevels,
-	statusEffectSummaries,
-	xpSendBuffSummary,
-} from "../src/ui/Hud";
+	formatPreviewValue,
+	formatProjectedValue,
+	previewTone,
+} from "../src/ui/preview";
+import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
 
 function progress(): PlayerProgress {
 	return {

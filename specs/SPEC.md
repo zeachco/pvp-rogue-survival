@@ -257,6 +257,7 @@ The current client intentionally uses the proven legacy Three.js WebGL renderer 
 - `specs/SPEC.md`, `specs/MECHANICS_SPEC.md`, and `specs/PROGRESSION_SPEC.md` are the source-of-truth specification set. Update the relevant spec before implementing behavior not already covered.
 - Keep filenames, runtime choices, protocols, mechanics, progression rules, and UX synchronized with implementation.
 - Use Bun for project scripts and tooling.
+- Biome is the repository formatter and import organizer. Supported editors format and organize imports on save, and `bun run format` applies both operations across the repository.
 - `bun run release-check` fails when the working tree contains staged, unstaged, or untracked changes, then compares `HEAD` with the newest commit that touched `changelogs/`. A clean matching repository reports that new commits are not missing from the tracked changelogs; a mismatch fails the check.
 - `bun run release-push` stages every change under `changelogs/`, commits it as `docs(automation): release changelog update`, and pushes the current branch. Any failed step stops the release push.
 - Dependency installation configures the repository's commit hooks only in local development: the automatic prepare step skips CI and environments without a Git worktree. `bun run hooks:install` remains the explicit local command for installing the hooks.

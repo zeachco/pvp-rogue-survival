@@ -1,62 +1,40 @@
 import { BALANCE, type BalanceConfig } from "../../common/balance";
-import { itemRequirementMultiplier } from "../../common/items";
 import {
-	MAX_RAGE,
-	STARTING_RAGE,
 	attractionSpeedMultiplier,
 	forceFieldRange,
+	MAX_RAGE,
 	rollAttackStrike,
-	spellPower,
 	STAFF_BASIC_HALF_ARC,
+	STARTING_RAGE,
+	spellPower,
 	weaponRange,
 } from "../../common/combat";
-import { systemRandom } from "../../common/random";
+import { itemRequirementMultiplier } from "../../common/items";
 import type {
 	CreepWave,
 	GroundDrop,
 	ServerMessage,
 	UnitBuild,
 } from "../../common/protocol";
+import { systemRandom } from "../../common/random";
 import { SocketClient } from "../net/SocketClient";
 import { SessionStorage } from "../platform/SessionStorage";
 import { Hud, panelShortcut } from "../ui/Hud";
-import { AttackArea } from "./AttackArea";
-import { Creep } from "./Creep";
-import { Hero } from "./Hero";
-import { groundDropPresentationCenter, ItemDrop, pushDrops } from "./ItemDrop";
-import { GameMap, resolveColumnCollision, touchesColumn } from "./Map";
-import { GameAudio } from "./GameAudio";
-import { Projectile } from "./Projectile";
-import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
-import {
-	activeEnemyCountAllowsAutoForce,
-	enqueueWave,
-	releaseAllQueuedSpawns,
-	releaseReadySpawns,
-	removeInactive,
-} from "./systems/lifecycle";
-import { resolveCombat } from "./systems/combat";
-import { resolveUnitCollisions } from "./systems/movement";
-import {
-	cancelHostileProjectiles,
-	castForceFieldTargets,
-	HeroCombatSystem,
-} from "./systems/HeroCombatSystem";
-import { AuraSystem } from "./systems/AuraSystem";
-import { ThreeRenderer } from "./render/ThreeRenderer";
-import { distance, type PlayerState, type Vector2 } from "./types";
+import { AttackArea } from "./AttackArea";
 import { correctArenaBoundary } from "./bounds";
-import { emittedImpactForce } from "./ImpactForce";
+import { Creep } from "./Creep";
 import {
 	BACKGROUND_FRAME_INTERVAL_MS,
 	backgroundFrameDue,
 } from "./FrameScheduler";
+import { GameAudio } from "./GameAudio";
 import {
 	GAMEPAD_ORBIT_PIXELS_PER_SECOND,
 	readStandardGamepad,
 } from "./GamepadInput";
 import {
+	type FullscreenMode,
 	loadFullscreenMode,
 	loadLightingMode,
 	loadResolutionScale,
@@ -65,8 +43,30 @@ import {
 	saveLightingMode,
 	saveResolutionScale,
 	saveShadowMode,
-	type FullscreenMode,
 } from "./graphicsSettings";
+import { Hero } from "./Hero";
+import { emittedImpactForce } from "./ImpactForce";
+import { groundDropPresentationCenter, ItemDrop, pushDrops } from "./ItemDrop";
+import { GameMap, resolveColumnCollision, touchesColumn } from "./Map";
+import { Projectile } from "./Projectile";
+import { ThreeRenderer } from "./render/ThreeRenderer";
+import { SpellEffect } from "./SpellEffect";
+import { AuraSystem } from "./systems/AuraSystem";
+import { resolveCombat } from "./systems/combat";
+import {
+	cancelHostileProjectiles,
+	castForceFieldTargets,
+	HeroCombatSystem,
+} from "./systems/HeroCombatSystem";
+import {
+	activeEnemyCountAllowsAutoForce,
+	enqueueWave,
+	releaseAllQueuedSpawns,
+	releaseReadySpawns,
+	removeInactive,
+} from "./systems/lifecycle";
+import { resolveUnitCollisions } from "./systems/movement";
+import { distance, type PlayerState, type Vector2 } from "./types";
 
 const FIXED_STEP = 1 / 60;
 

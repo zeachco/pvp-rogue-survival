@@ -1,4 +1,4 @@
-import { extractionCost, extractableSkills } from "../../common/inventory";
+import { extractableSkills, extractionCost } from "../../common/inventory";
 import { itemStackKey } from "../../common/items";
 import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 

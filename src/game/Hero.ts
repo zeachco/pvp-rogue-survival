@@ -1,16 +1,5 @@
 import * as THREE from "three";
-import { Unit } from "./Unit";
-import { normalize, type Vector2 } from "./types";
-import type { PlayerProgress } from "../../common/protocol";
-import type { RandomSource } from "../../common/random";
-import { Z_HERO, Z_AURA, Z_ATTACK } from "./render/ThreeRenderer";
-import { updateStatusEffects } from "./render/statusEffects";
 import { auraRadius } from "../../common/auras";
-import { AnimatedCharacter } from "./render/AnimatedCharacter";
-import {
-	BASE_HERO_TURN_SPEED_DEGREES,
-	heroTurnSpeedDegrees,
-} from "../../common/progression";
 import {
 	RAGE_DECAY_PER_SECOND,
 	RAGE_GAIN_ON_BLOCK,
@@ -18,7 +7,17 @@ import {
 	RAGE_GAIN_ON_DODGE,
 	STARTING_RAGE,
 } from "../../common/combat";
-import { MANA_OVERFILL_MULTIPLIER } from "./Unit";
+import {
+	BASE_HERO_TURN_SPEED_DEGREES,
+	heroTurnSpeedDegrees,
+} from "../../common/progression";
+import type { PlayerProgress } from "../../common/protocol";
+import type { RandomSource } from "../../common/random";
+import { AnimatedCharacter } from "./render/AnimatedCharacter";
+import { updateStatusEffects } from "./render/statusEffects";
+import { Z_ATTACK, Z_AURA, Z_HERO } from "./render/ThreeRenderer";
+import { normalize, type Vector2 } from "./types";
+import { MANA_OVERFILL_MULTIPLIER, Unit } from "./Unit";
 
 export const HERO_TURN_SPEED = THREE.MathUtils.degToRad(
 	BASE_HERO_TURN_SPEED_DEGREES,

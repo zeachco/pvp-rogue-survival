@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
 	buildDocument,
-	CHANGELOG_MODEL,
 	CHANGELOG_MAX_ATTEMPTS,
+	CHANGELOG_MODEL,
 	extractPeriods,
 	generatePeriods,
-	parseGitLog,
 	PROJECT_INITIALIZATION_MODEL,
-	promptFor,
+	parseGitLog,
 	projectInitializationCommit,
+	promptFor,
 	selectChangelogCommits,
 	semanticCommitType,
 	startOfWeek,

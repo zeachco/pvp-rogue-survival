@@ -1,5 +1,5 @@
-import type { Unit } from "./Unit";
 import type { Vector2 } from "./types";
+import type { Unit } from "./Unit";
 
 export type ImpactForceKind = "linear" | "radial";
 

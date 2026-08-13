@@ -1,5 +1,13 @@
 /** @jsx h */
-import type { InventoryTile, PlayerProgress } from "../../common/protocol";
+
+import {
+	extractableSkills,
+	extractionCost,
+	purgeYield,
+	REROLL_SOUL_COST,
+	sellYield,
+	upgradeCosts,
+} from "../../common/inventory";
 import {
 	itemPendingRerollSeed,
 	itemStackKey,
@@ -8,22 +16,15 @@ import {
 	rerollItem,
 	statsWithItemBonuses,
 } from "../../common/items";
+import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 import { h } from "./dom";
-import type { CurrencyPreview, HudCallbacks } from "./types";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
-import {
-	extractionCost,
-	extractableSkills,
-	purgeYield,
-	REROLL_SOUL_COST,
-	sellYield,
-	upgradeCosts,
-} from "../../common/inventory";
 import {
 	extractButtonStatus,
 	extractionLearnsNewSkill,
 } from "./inventoryAvailability";
 import { formatProjectedValue } from "./preview";
+import type { CurrencyPreview, HudCallbacks } from "./types";
 
 export type InventorySlotFilter = "all" | "mainhand" | "charms" | "offhands";
 

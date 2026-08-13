@@ -9,16 +9,16 @@ import {
 } from "../../common/combat";
 import { SKILLS } from "../../common/content";
 import {
-	itemRequirementMultiplier,
 	ITEM_PERKS,
-	RARITY_POWER,
 	type ItemInstance,
+	itemRequirementMultiplier,
+	RARITY_POWER,
 	type SkillId,
 } from "../../common/items";
 import { derivedStats, STAT_KEYS, type Stats } from "../../common/progression";
 import { pixelsToMeters } from "../../common/units";
 import { h } from "./dom";
-import { formatProjectedValue, previewTone, type PreviewTone } from "./preview";
+import { formatProjectedValue, type PreviewTone, previewTone } from "./preview";
 
 export function itemDetails(
 	item: ItemInstance,

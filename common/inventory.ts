@@ -1,16 +1,16 @@
+import { MAX_SKILL_LEVEL } from "./combat";
+import { SKILLS } from "./content";
 import {
+	type ItemInstance,
 	itemPendingRerollSeed,
 	itemStackKey,
 	levelUpItem,
 	MAX_ITEM_LEVEL,
-	rerollItem,
-	type ItemInstance,
 	type Rarity,
+	rerollItem,
 	type SkillId,
 } from "./items";
 import type { InventoryTile, PlayerProgress, RarityAction } from "./protocol";
-import { MAX_SKILL_LEVEL } from "./combat";
-import { SKILLS } from "./content";
 
 export interface InventoryResult {
 	changed: boolean;

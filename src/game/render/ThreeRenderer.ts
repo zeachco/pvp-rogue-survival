@@ -1,19 +1,19 @@
 import * as THREE from "three";
 import { canvas2dContext } from "../../platform/Canvas";
 import type { ArenaState } from "../ArenaState";
-import type { Creep } from "../Creep";
-import type { Hero } from "../Hero";
 import type { CombatText } from "../CombatText";
+import {
+	COMBAT_TEXT_COLORS,
+	CRITICAL_TEXT_COLOR,
+	combatTextScale,
+} from "../CombatText";
+import type { Creep } from "../Creep";
 import {
 	DEFAULT_GRAPHICS_SETTINGS,
 	type LightingMode,
 	type ShadowMode,
 } from "../graphicsSettings";
-import {
-	combatTextScale,
-	COMBAT_TEXT_COLORS,
-	CRITICAL_TEXT_COLOR,
-} from "../CombatText";
+import type { Hero } from "../Hero";
 import { clamp } from "../types";
 import { HeroSpellLightPool } from "./HeroSpellLightPool";
 
@@ -596,18 +596,18 @@ function formatCombatAmount(amount: number): string {
 }
 
 export {
-	MAP_Z,
 	MAP_LAYER_STEP,
-	Z_SWAMP,
-	Z_DROP,
+	MAP_Z,
 	Z_ATTACK,
+	Z_AURA,
 	Z_CREEP,
+	Z_CREEP_OVERLAY,
+	Z_DROP,
+	Z_EFFECT,
 	Z_HERO,
 	Z_PROJECTILE,
-	Z_EFFECT,
-	Z_CREEP_OVERLAY,
-	Z_AURA,
-	Z_TEXT,
 	Z_SELECTION,
+	Z_SWAMP,
+	Z_TEXT,
 	Z_THREAT,
 };

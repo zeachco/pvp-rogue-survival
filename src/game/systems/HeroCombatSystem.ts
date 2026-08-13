@@ -1,6 +1,7 @@
 import type { BalanceConfig } from "../../../common/balance";
 import {
-	attackProfile,
+	type attackProfile,
+	BASIC_ATTACK_RAGE_GAIN,
 	blizzardDuration,
 	blizzardManaCost,
 	blizzardProjectileDamage,
@@ -10,17 +11,18 @@ import {
 	cappedSkillLevel,
 	cleaveHalfArc,
 	effectiveSkillCooldown,
-	reflectiveSurgeDuration,
 	forceFieldRange,
-	healingBaseManaCost,
 	healingAutoCastThresholdMet,
+	healingBaseManaCost,
 	healingCast,
 	healingCooldown,
 	healingRadius,
 	orbitingHammerDuration,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
+	reflectiveSurgeDuration,
 	rollAttackStrike,
+	STAFF_BASIC_HALF_ARC,
 	skillCastTime,
 	skillDamageMultiplier,
 	skillImpactForceScale,
@@ -28,48 +30,46 @@ import {
 	skillRange,
 	skillUpkeepPerSecond,
 	spellPower,
-	STAFF_BASIC_HALF_ARC,
 	swampRadius,
 	timeHarvestCooldownReduction,
 	timeHarvestItemSkillBonus,
 	vampiricBoomerangHealingFraction,
+	weaponSkillTriggerChance,
+	weaponSkillTriggerChanceForHits,
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
-	weaponSkillTriggerChance,
-	weaponSkillTriggerChanceForHits,
 	whirlwindRadius,
-	BASIC_ATTACK_RAGE_GAIN,
 } from "../../../common/combat";
+import { SKILLS } from "../../../common/content";
 import {
 	equippedSkillLevelContribution,
+	type ItemInstance,
 	itemCooldownReduction,
 	itemKillRestoration,
 	itemRequirementMultiplier,
 	itemResourceCostReduction,
 	itemSkillLevelBonus,
-	statsWithItemBonuses,
-	type ItemInstance,
 	type SkillId,
+	statsWithItemBonuses,
 } from "../../../common/items";
+import { derivedStats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
-import { derivedStats } from "../../../common/progression";
-import type { SpellSlot } from "../../ui/types";
-import { AttackArea } from "../AttackArea";
-import type { ArenaState } from "../ArenaState";
-import type { Creep } from "../Creep";
-import type { Hero } from "../Hero";
-import type { Unit } from "../Unit";
-import { Projectile } from "../Projectile";
-import { distance, type Vector2 } from "../types";
-import { SpellEffect } from "../SpellEffect";
-import { GroundSwamp } from "../GroundSwamp";
-import { Blizzard } from "../Blizzard";
-import { pushDrops } from "../ItemDrop";
-import { SKILLS } from "../../../common/content";
-import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
 import { RapidRegenerationEffect } from "../../../common/unitState";
+import type { SpellSlot } from "../../ui/types";
+import type { ArenaState } from "../ArenaState";
+import { AttackArea } from "../AttackArea";
+import { Blizzard } from "../Blizzard";
+import type { Creep } from "../Creep";
+import { GroundSwamp } from "../GroundSwamp";
+import type { Hero } from "../Hero";
+import { applyImpactForce, emittedImpactForce } from "../ImpactForce";
+import { pushDrops } from "../ItemDrop";
+import { Projectile } from "../Projectile";
+import { SpellEffect } from "../SpellEffect";
+import { distance, type Vector2 } from "../types";
+import type { Unit } from "../Unit";
 
 export function shouldAutoCastHealing(hp: number, maxHp: number): boolean {
 	return healingAutoCastThresholdMet(hp, maxHp);

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type { DevlogRequest } from "../server/DevlogRequestRepository";
 import {
 	FEATURE_AGENT_PROMPT,
 	featurePrompt,
@@ -9,6 +8,7 @@ import {
 	securityFindings,
 	selectHighestVotedFeature,
 } from "../scripts/runFeatureAgent";
+import type { DevlogRequest } from "../server/DevlogRequestRepository";
 
 const request: DevlogRequest = {
 	id: "feature-1",
