@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { GameAudio, type GameSound } from "../src/game/GameAudio";
 
 class FakeAudioParam {
-	setValueAtTime(): void {}
+	readonly values: number[] = [];
+	setValueAtTime(value: number): void {
+		this.values.push(value);
+	}
 	exponentialRampToValueAtTime(): void {}
 }
 
@@ -26,8 +29,11 @@ class FakeAudioContext {
 	currentTime = 1;
 	readonly destination = new FakeNode();
 	oscillatorCount = 0;
+	readonly gains: FakeGain[] = [];
 	createGain(): GainNode {
-		return new FakeGain() as unknown as GainNode;
+		const gain = new FakeGain();
+		this.gains.push(gain);
+		return gain as unknown as GainNode;
 	}
 	createOscillator(): OscillatorNode {
 		this.oscillatorCount += 1;
@@ -53,6 +59,8 @@ describe("GameAudio", () => {
 		audio.updateBattleMusic(true);
 		audio.updateBattleMusic(true);
 		expect(context.oscillatorCount).toBe(4);
+		audio.updateBattleMusic(false);
+		expect(context.gains[1]?.gain.values).toEqual([1, 1, 0]);
 		expect(() => new GameAudio(undefined).play("attack")).not.toThrow();
 	});
 });

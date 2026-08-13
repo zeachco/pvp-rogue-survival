@@ -5,6 +5,7 @@ type AudioContextConstructor = new () => AudioContext;
 export class GameAudio {
 	private context?: AudioContext;
 	private master?: GainNode;
+	private music?: GainNode;
 	private musicScheduledUntil = 0;
 
 	constructor(
@@ -53,7 +54,8 @@ export class GameAudio {
 
 	updateBattleMusic(active: boolean): void {
 		const context = this.readyContext();
-		if (!context || !this.master) return;
+		if (!context || !this.master || !this.music) return;
+		this.music.gain.setValueAtTime(active ? 1 : 0, context.currentTime);
 		if (!active) {
 			this.musicScheduledUntil = context.currentTime;
 			return;
@@ -72,6 +74,7 @@ export class GameAudio {
 				0.42,
 				0.018,
 				"triangle",
+				this.music,
 			);
 		this.musicScheduledUntil = start + notes.length * 0.5;
 	}
@@ -82,6 +85,9 @@ export class GameAudio {
 		this.master = this.context.createGain();
 		this.master.gain.value = 0.35;
 		this.master.connect(this.context.destination);
+		this.music = this.context.createGain();
+		this.music.gain.value = 0;
+		this.music.connect(this.master);
 	}
 
 	private readyContext(): AudioContext | undefined {
@@ -100,8 +106,9 @@ export class GameAudio {
 		duration: number,
 		volume: number,
 		type: OscillatorType,
+		destination = this.master,
 	): void {
-		if (!this.context || !this.master) return;
+		if (!this.context || !destination) return;
 		const oscillator = this.context.createOscillator();
 		const gain = this.context.createGain();
 		oscillator.type = type;
@@ -114,7 +121,7 @@ export class GameAudio {
 		gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
 		gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 		oscillator.connect(gain);
-		gain.connect(this.master);
+		gain.connect(destination);
 		oscillator.start(start);
 		oscillator.stop(start + duration + 0.01);
 	}
