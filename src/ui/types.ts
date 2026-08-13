@@ -18,6 +18,7 @@ export interface HudCallbacks {
 	onLeaveRealm(): void;
 	onEnterRealm(waveNumber: number): void;
 	onForceNextWave(): void;
+	onChallengeRealm(): void;
 	onOpenDevlog(): void;
 	onBack(): void;
 	onLogout(): void;

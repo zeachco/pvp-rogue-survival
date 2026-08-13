@@ -108,6 +108,9 @@ export class Game {
 	private defeatCooldown = 0;
 	private defeatDropPosition?: Vector2;
 	private lastBonkAttackerId?: string;
+	private duelOpponent?: Creep;
+	private duelOpponentHp = 0;
+	private duelLastSyncAt = 0;
 	private isChatting = false;
 	private orbitingCamera = false;
 	private aimingHero = false;
@@ -191,6 +194,7 @@ export class Game {
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
 			onEnterRealm: (waveNumber) => this.enterRealm(waveNumber),
 			onForceNextWave: () => this.socket.send({ type: "forceNextWave" }),
+			onChallengeRealm: () => this.socket.send({ type: "challengeRealm" }),
 			onOpenDevlog,
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
@@ -598,6 +602,31 @@ export class Game {
 			this.syncHeroState();
 			this.hud.setPlayer(this.player!);
 			this.hud.showCenterToast(`${message.attackerName} bonked you!`);
+		} else if (message.type === "duelStarted") {
+			this.arena.clear();
+			this.hero.resetForRealm();
+			this.hero.position = {
+				x: message.side === 0 ? 120 : this.map.width - 120,
+				y: this.map.center.y,
+			};
+			this.spawnCreep(message.opponent);
+			this.duelOpponent = this.creeps.at(-1);
+			if (this.duelOpponent) {
+				this.duelOpponent.position = {
+					x: message.side === 0 ? this.map.width - 120 : 120,
+					y: this.map.center.y,
+				};
+				this.duelOpponentHp = this.duelOpponent.hp;
+			}
+			this.hud.showCenterToast("Challenge Realm deathmatch!");
+		} else if (message.type === "duelState" && this.duelOpponent) {
+			this.duelOpponent.position = { x: message.x, y: message.y };
+			this.duelOpponent.facing = message.facing;
+			this.duelOpponent.hp = Math.min(this.duelOpponent.maxHp, message.hp);
+			this.duelOpponentHp = this.duelOpponent.hp;
+		} else if (message.type === "duelDamage") {
+			this.lastBonkAttackerId = message.attackerId;
+			this.hero.hp = Math.max(0, this.hero.hp - message.amount);
 		} else if (message.type === "incomingWave") this.enqueueWave(message.wave);
 		else if (message.type === "creepDefeatResolved" && this.player) {
 			this.player.score = message.score;
@@ -803,6 +832,7 @@ export class Game {
 			blizzard.update(deltaSeconds, this.creeps, systemRandom);
 		for (const creep of this.creeps) {
 			if (!creep.active) continue;
+			if (creep === this.duelOpponent) continue;
 			creep.castHealing(this.creeps, this.arena.spellEffects, this.hero);
 			const audibleAttackVersion =
 				this.audibleAttackVersions.get(creep) ??
@@ -968,6 +998,21 @@ export class Game {
 			this.map.height,
 			systemRandom,
 		);
+		if (this.duelOpponent) {
+			const dealt = Math.max(0, this.duelOpponentHp - this.duelOpponent.hp);
+			if (dealt > 0) this.socket.send({ type: "duelDamage", amount: dealt });
+			this.duelOpponentHp = this.duelOpponent.hp;
+			if (performance.now() - this.duelLastSyncAt >= 50) {
+				this.duelLastSyncAt = performance.now();
+				this.socket.send({
+					type: "duelState",
+					x: this.hero.position.x,
+					y: this.hero.position.y,
+					facing: this.hero.facing,
+					hp: this.hero.hp,
+				});
+			}
+		}
 		this.hero.advanceEffects(deltaSeconds);
 		for (const creep of this.creeps) creep.advanceEffects(deltaSeconds);
 		this.auraSystem.resolveDeaths(
@@ -1021,6 +1066,7 @@ export class Game {
 	private collectKills(): void {
 		for (const creep of this.creeps)
 			if (!creep.active) {
+				if (creep === this.duelOpponent) continue;
 				const deathVisual = creep.createDeathVisual();
 				if (deathVisual) {
 					this.arena.characterDeaths.push(deathVisual);
@@ -1154,11 +1200,14 @@ export class Game {
 			sourcePlayerId: this.lastBonkAttackerId,
 		});
 		this.lastBonkAttackerId = undefined;
-		this.hud.showDeathModal();
+		this.hud.showDeathModal(
+			this.duelOpponent ? "Your ass got looted by a bonker." : undefined,
+		);
 	}
 	private resetArena(): void {
 		this.hud.closeDeathModal();
 		this.arena.clear();
+		this.duelOpponent = undefined;
 		this.hoveredDrop = undefined;
 		this.hud.setGroundDropPreview();
 		this.pendingPickupAt.clear();

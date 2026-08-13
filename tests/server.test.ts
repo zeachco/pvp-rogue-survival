@@ -553,6 +553,121 @@ describe("realm game service", () => {
 			damageFraction: 0.1,
 		});
 	});
+	test("starts a reciprocal 1v1 challenge after the wave and relays live combat", () => {
+		const { game, messages } = harness();
+		const one = game.join("Challenger");
+		const two = game.join("Defender");
+		enterPair(game, one, two);
+
+		game.handle(one.id, { type: "challengeRealm" });
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "realmUpdated")
+				.at(-1)?.realm.challenge,
+		).toBe("outgoing");
+		expect(
+			messages
+				.get(two.id)
+				?.filter((message) => message.type === "realmUpdated")
+				.at(-1)?.realm.challenge,
+		).toBe("incoming");
+
+		game.handle(one.id, { type: "challengeRealm" });
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "realmUpdated")
+				.at(-1)?.realm.challenge,
+		).toBe("none");
+
+		game.handle(one.id, { type: "challengeRealm" });
+		game.handle(two.id, { type: "challengeRealm" });
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "realmUpdated")
+				.at(-1)?.realm.challenge,
+		).toBe("agreed");
+
+		game.dispatchWaves();
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "duelStarted")
+				.at(-1),
+		).toMatchObject({ type: "duelStarted", side: 0, opponent: { id: two.id } });
+
+		game.handle(one.id, {
+			type: "duelState",
+			x: 12,
+			y: 34,
+			facing: 1.5,
+			hp: 42,
+		});
+		expect(messages.get(two.id)?.at(-1)).toEqual({
+			type: "duelState",
+			x: 12,
+			y: 34,
+			facing: 1.5,
+			hp: 42,
+		});
+		game.handle(one.id, { type: "duelDamage", amount: 7 });
+		expect(messages.get(two.id)?.at(-1)).toEqual({
+			type: "duelDamage",
+			amount: 7,
+			attackerId: one.id,
+		});
+		two.progress.souls = 1;
+		two.progress.gold = 11;
+		two.progress.scraps = {
+			common: 2,
+			uncommon: 3,
+			rare: 4,
+			epic: 5,
+			unique: 6,
+		};
+		const ownedBefore = two.progress.inventoryTiles.reduce(
+			(total, tile) => total + tile.quantity,
+			0,
+		);
+		game.handle(two.id, { type: "heroDefeated", sourcePlayerId: one.id });
+		expect(one.progress.souls).toBe(1);
+		expect(one.progress.gold).toBe(0);
+		expect(two.progress.gold).toBe(6);
+		expect(two.progress.scraps).toEqual({
+			common: 0,
+			uncommon: 0,
+			rare: 0,
+			epic: 0,
+			unique: 6,
+		});
+		expect(
+			two.progress.inventoryTiles.reduce(
+				(total, tile) => total + tile.quantity,
+				0,
+			),
+		).toBe(ownedBefore - 1);
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "groundDropCreated")
+				.at(-1)?.drop.kind,
+		).toBe("item");
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "groundDropCreated")
+				.slice(-6)
+				.map((message) => message.drop.kind),
+		).toEqual(["gold", "scrap", "scrap", "scrap", "scrap", "item"]);
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "incomingWave")
+				.at(-1)?.wave.mode,
+		).toBe("solo");
+	});
 	test("keeps level-one inventory overflow as collectible Training Grounds drops", () => {
 		const { game, messages } = harness();
 		const player = game.join("Overflowed");

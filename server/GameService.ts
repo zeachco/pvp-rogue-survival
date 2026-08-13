@@ -141,6 +141,9 @@ interface Realm {
 	soloId: PlayerId;
 	teamIds: PlayerId[];
 	down: Set<PlayerId>;
+	challengeFrom?: PlayerId;
+	duelPending?: boolean;
+	duelActive?: boolean;
 }
 const MAX_QUEUE = 1000;
 const BONK_COOLDOWN_MS = 10_000;
@@ -163,7 +166,7 @@ export class GameService {
 	private readonly bonkReadyAt = new Map<PlayerId, number>();
 	private readonly recentBonks = new Map<
 		PlayerId,
-		{ attackerId: PlayerId; expiresAt: number }
+		{ attackerId: PlayerId; expiresAt: number; cause: "bonk" | "duel" }
 	>();
 	private lastDispatchAt = Date.now();
 	constructor(private readonly options: GameServiceOptions) {
@@ -363,9 +366,27 @@ export class GameService {
 					this.heroDefeated(player, undefined, true);
 					return this.options.send(player.id, { type: "suicideResolved" });
 				case "requestWave":
+					if (
+						player.realmId &&
+						(this.realms.get(player.realmId)?.duelPending ||
+							this.realms.get(player.realmId)?.duelActive)
+					)
+						return this.notice(player, "Challenge Realm has paused waves.");
 					return this.dispatchCurrentWave(player, this.waveMode(player));
 				case "forceNextWave":
 					return this.forceNextWave(player);
+				case "challengeRealm":
+					return this.challengeRealm(player);
+				case "duelState":
+					return this.relayDuelState(
+						player,
+						message.x,
+						message.y,
+						message.facing,
+						message.hp,
+					);
+				case "duelDamage":
+					return this.relayDuelDamage(player, message.amount);
 				case "equipItem":
 					return this.applyInventoryResult(
 						player,
@@ -462,9 +483,16 @@ export class GameService {
 
 	dispatchWaves(): void {
 		this.lastDispatchAt = Date.now();
-		for (const realm of this.realms.values()) realm.down.clear();
+		for (const realm of this.realms.values()) {
+			realm.down.clear();
+			if (realm.duelPending) this.startDuel(realm);
+		}
 		for (const player of this.options.repository.values())
 			if (player.connected) {
+				const realm = player.realmId
+					? this.realms.get(player.realmId)
+					: undefined;
+				if (realm?.duelActive) continue;
 				if (player.realmId || player.realmOptedIn) player.waveNumber += 1;
 				this.dispatchCurrentWave(player, this.waveMode(player));
 				this.options.repository.markDirty(player.id);
@@ -479,6 +507,9 @@ export class GameService {
 	private forceNextWave(player: Player): void {
 		const now = this.now();
 		const readyAt = this.forceNextWaveReadyAt.get(player.id) ?? 0;
+		const realm = player.realmId ? this.realms.get(player.realmId) : undefined;
+		if (realm?.duelPending || realm?.duelActive)
+			return this.notice(player, "Challenge Realm has paused automatic waves.");
 		if (!player.realmOptedIn || this.waveMode(player) === "training") {
 			this.options.send(player.id, {
 				type: "forceNextWaveResult",
@@ -508,6 +539,115 @@ export class GameService {
 		this.broadcastRealms();
 	}
 
+	private challengeRealm(player: Player): void {
+		const realm = player.realmId ? this.realms.get(player.realmId) : undefined;
+		if (!realm || realm.teamIds.length !== 1 || realm.duelActive)
+			return this.notice(
+				player,
+				"Challenge Realm is available in active 1v1 realms.",
+			);
+		if (realm.duelPending) return;
+		if (!realm.challengeFrom) realm.challengeFrom = player.id;
+		else if (realm.challengeFrom === player.id) realm.challengeFrom = undefined;
+		else {
+			realm.duelPending = true;
+			this.sendRealmSystem(
+				realm,
+				"Challenge accepted. Deathmatch starts after this wave.",
+			);
+		}
+		this.broadcastRealms();
+	}
+
+	private startDuel(realm: Realm): void {
+		realm.duelPending = false;
+		realm.duelActive = true;
+		const ids = [realm.soloId, realm.teamIds[0]];
+		for (let side = 0; side < ids.length; side += 1) {
+			const player = this.options.repository.get(ids[side]);
+			const opponent = this.options.repository.get(ids[1 - side]);
+			if (!player || !opponent) continue;
+			player.issuedUnits.clear();
+			this.options.send(player.id, {
+				type: "duelStarted",
+				opponent: this.duelBuild(opponent),
+				side: side as 0 | 1,
+			});
+		}
+		this.sendRealmSystem(realm, "Challenge Realm deathmatch started.");
+	}
+
+	private relayDuelState(
+		player: Player,
+		x: number,
+		y: number,
+		facing: number,
+		hp: number,
+	): void {
+		const opponent = this.activeDuelOpponent(player);
+		if (opponent)
+			this.options.send(opponent.id, {
+				type: "duelState",
+				x: Math.max(-10_000, Math.min(10_000, x)),
+				y: Math.max(-10_000, Math.min(10_000, y)),
+				facing,
+				hp: Math.max(0, Math.min(1_000_000, hp)),
+			});
+	}
+
+	private relayDuelDamage(player: Player, amount: number): void {
+		const opponent = this.activeDuelOpponent(player);
+		if (!opponent) return;
+		const bounded = Math.min(amount, 1_000_000);
+		this.recentBonks.set(opponent.id, {
+			attackerId: player.id,
+			expiresAt: this.now() + BONK_KILL_CREDIT_MS,
+			cause: "duel",
+		});
+		this.options.send(opponent.id, {
+			type: "duelDamage",
+			amount: bounded,
+			attackerId: player.id,
+		});
+	}
+
+	private activeDuelOpponent(player: Player): Player | undefined {
+		const realm = player.realmId ? this.realms.get(player.realmId) : undefined;
+		if (!realm?.duelActive || realm.teamIds.length !== 1) return;
+		const id = realm.soloId === player.id ? realm.teamIds[0] : realm.soloId;
+		return this.options.repository.get(id);
+	}
+
+	private duelBuild(player: Player): UnitBuild {
+		return {
+			id: player.id,
+			name: player.name,
+			kind: "rival",
+			level: player.progress.level,
+			stats: structuredClone(player.progress.stats),
+			mainHand: player.progress.mainHand
+				? structuredClone(player.progress.mainHand)
+				: undefined,
+			offHand: player.progress.offHand
+				? structuredClone(player.progress.offHand)
+				: undefined,
+			amulet: player.progress.amulet
+				? structuredClone(player.progress.amulet)
+				: undefined,
+			charm: player.progress.charm
+				? structuredClone(player.progress.charm)
+				: undefined,
+			carried: [],
+			bonusSkills: [],
+			skillLevels: bossSkillLevels(player.progress),
+			isRival: true,
+			enemyRole: "clone",
+			xpReward: 0,
+			goldReward: 0,
+			seed: this.seed(),
+		};
+	}
+
 	private bonkPlayer(player: Player, target: Player): boolean {
 		const now = this.now();
 		const readyAt = this.bonkReadyAt.get(player.id) ?? 0;
@@ -531,6 +671,7 @@ export class GameService {
 			this.recentBonks.set(target.id, {
 				attackerId: player.id,
 				expiresAt: now + BONK_KILL_CREDIT_MS,
+				cause: "bonk",
 			});
 		this.options.send(target.id, {
 			type: "playerBonked",
@@ -1554,19 +1695,23 @@ export class GameService {
 			this.sendRealmSystem(
 				activeRealm,
 				killer
-					? `${player.name} was defeated by ${bonkKiller ? `a bonk from ${killer.name}` : `a creep sent by ${killer.name}`}; ${killer.name} gained 1 Soul.`
+					? `${player.name} was defeated by ${bonkKiller ? `${recentBonk?.cause === "duel" ? "a realm challenge from" : "a bonk from"} ${killer.name}` : `a creep sent by ${killer.name}`}; ${killer.name} gained 1 Soul.`
 					: `${player.name} was defeated and lost ${lostSouls} ${lostSouls === 1 ? "Soul" : "Souls"}.`,
 			);
 		player.progress.gold -= lostGold;
 		player.progress.souls -= lostSouls;
 		if (killer) {
-			killer.progress.gold += lostGold;
+			if (recentBonk?.cause !== "duel") killer.progress.gold += lostGold;
 			killer.progress.souls += 1;
 			this.options.repository.markDirty(killer.id);
 			this.sendProgress(
 				killer,
-				`Defeat spoils: gained ${lostGold} Gold and 1 Soul.`,
+				recentBonk?.cause === "duel"
+					? "Challenge victory: gained 1 Soul; loot dropped in your arena."
+					: `Defeat spoils: gained ${lostGold} Gold and 1 Soul.`,
 			);
+			if (recentBonk?.cause === "duel")
+				this.dropDuelLoot(player, killer, lostGold);
 		}
 		player.progress.xp = cumulativeXpForLevel(1);
 		player.progress.level = 1;
@@ -1601,9 +1746,68 @@ export class GameService {
 			this.dissolveRealm(defeatedRealmId);
 			for (const created of this.matchWaitingPlayers())
 				this.activateRealm(created);
+			if (
+				recentBonk?.cause === "duel" &&
+				killer?.connected &&
+				killer.realmOptedIn &&
+				!killer.realmId
+			)
+				this.dispatchCurrentWave(killer, "solo", true);
+			if (recentBonk?.cause === "duel" && killer?.connected)
+				for (const drop of killer.groundDrops.values())
+					this.options.send(killer.id, { type: "groundDropCreated", drop });
 		}
 		this.dispatchCurrentWave(player, "training", true);
 		this.broadcastRealms();
+	}
+
+	private dropDuelLoot(loser: Player, winner: Player, gold: number): void {
+		if (gold > 0) {
+			const id = this.createId();
+			const drop: GroundDrop = { id, kind: "gold", amount: gold };
+			winner.groundDrops.set(id, drop);
+			this.options.send(winner.id, { type: "groundDropCreated", drop });
+		}
+		for (const rarity of ["common", "uncommon", "rare", "epic"] as const) {
+			const amount = loser.progress.scraps[rarity];
+			if (!amount) continue;
+			loser.progress.scraps[rarity] = 0;
+			const id = this.createId();
+			const drop: GroundDrop = { id, kind: "scrap", rarity, amount };
+			winner.groundDrops.set(id, drop);
+			this.options.send(winner.id, { type: "groundDropCreated", drop });
+		}
+		const copies = loser.progress.inventoryTiles.reduce(
+			(total, tile) => total + tile.quantity,
+			0,
+		);
+		if (!copies) return;
+		let selected = Math.floor(this.options.random.next() * copies);
+		const tile = loser.progress.inventoryTiles.find((candidate) => {
+			if (selected < candidate.quantity) return true;
+			selected -= candidate.quantity;
+			return false;
+		});
+		if (!tile) return;
+		const equippedSlots = ["mainHand", "offHand", "amulet", "charm"] as const;
+		const matchingSlots = equippedSlots.filter((slot) => {
+			const item = loser.progress[slot];
+			return item && itemStackKey(item) === tile.key;
+		});
+		if (tile.quantity <= matchingSlots.length) {
+			const slot = matchingSlots[0];
+			if (slot) loser.progress[slot] = undefined;
+		}
+		tile.quantity -= 1;
+		removeEmptyInventoryTiles(loser.progress);
+		const id = this.createId();
+		const drop: GroundDrop = {
+			id,
+			kind: "item",
+			item: { ...structuredClone(tile.item), id: `${tile.item.id}-duel-${id}` },
+		};
+		winner.groundDrops.set(id, drop);
+		this.options.send(winner.id, { type: "groundDropCreated", drop });
 	}
 
 	private queueDeathEcho(player: Player): void {
@@ -1856,6 +2060,7 @@ export class GameService {
 					player.backlashQueue.length + player.deathEchoes.length,
 				),
 				canLeave: true,
+				challenge: "unavailable",
 			};
 		}
 		const realm = this.realms.get(player.realmId)!;
@@ -1864,6 +2069,18 @@ export class GameService {
 			...this.publicPlayer(entry),
 			down: realm.down.has(entry.id),
 		});
+		const challenge =
+			realm.teamIds.length !== 1
+				? "unavailable"
+				: realm.duelActive
+					? "active"
+					: realm.duelPending
+						? "agreed"
+						: !realm.challengeFrom
+							? "none"
+							: realm.challengeFrom === player.id
+								? "outgoing"
+								: "incoming";
 		return {
 			mode: "competitive",
 			guards: opponents.map(member),
@@ -1874,6 +2091,7 @@ export class GameService {
 				player.deathEchoes.length,
 			),
 			canLeave: this.canLeave(),
+			challenge,
 		};
 	}
 	private waveMode(player: Player): "competitive" | "solo" | "training" {

@@ -1160,6 +1160,8 @@ export class Hud {
 			realm.mode === "training";
 		const modeChanged = this.realm?.mode !== realm.mode;
 		this.realm = realm;
+		if (realm.challenge === "agreed" || realm.challenge === "active")
+			this.swarmMode = false;
 		if (realm.mode !== "training") this.closeCharacterSelector();
 		if (startedNewRealm) {
 			this.swarmMode = false;
@@ -2110,7 +2112,12 @@ export class Hud {
 			</span>
 		) as HTMLElement;
 	}
-	showDeathModal(): void {
+	showDeathModal(detail?: string): void {
+		const message = this.deathModal.querySelector("#death-modal-detail");
+		if (message)
+			message.textContent =
+				detail ??
+				"Your legacy inherited your remaining resources and spellbooks and will try to avenge you…";
 		this.deathModal.classList.remove("is-hidden");
 	}
 	closeDeathModal(): void {
@@ -2674,6 +2681,7 @@ export class Hud {
 			this.player?.waveNumber ?? "",
 			this.player?.maxWaveReached ?? "",
 			Number(r.canLeave),
+			r.challenge,
 			r.outgoingQueued,
 			r.incomingQueued,
 			...r.guards.map(realmMemberSignature),
@@ -2722,6 +2730,21 @@ export class Hud {
 				Enter wave 1
 			</button>
 		) as HTMLButtonElement;
+		const challenge = (
+			<button class="header-control" type="button">
+				{r.challenge === "incoming"
+					? "Accept challenge"
+					: r.challenge === "outgoing"
+						? "Cancel challenge"
+						: r.challenge === "agreed"
+							? "Challenge accepted"
+							: r.challenge === "active"
+								? "Deathmatch"
+								: "Challenge realm"}
+			</button>
+		) as HTMLButtonElement;
+		challenge.disabled = r.challenge === "agreed" || r.challenge === "active";
+		challenge.onclick = this.callbacks.onChallengeRealm;
 		enterWaveOne.onclick = () => {
 			this.closeGameplayPanels();
 			this.callbacks.onEnterRealm(1);
@@ -2781,6 +2804,7 @@ export class Hud {
 			options,
 			devlog,
 			forceNextWave,
+			...(r.challenge !== "unavailable" ? [challenge] : []),
 			action,
 			<strong>{title}</strong>,
 		);

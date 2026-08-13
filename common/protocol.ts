@@ -87,6 +87,13 @@ export interface RealmState {
 	outgoingQueued: number;
 	incomingQueued: number;
 	canLeave: boolean;
+	challenge:
+		| "unavailable"
+		| "none"
+		| "outgoing"
+		| "incoming"
+		| "agreed"
+		| "active";
 }
 export interface ServerConfig {
 	waveIntervalMs: number;
@@ -203,6 +210,18 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("suicide") }),
 	z.object({ type: z.literal("requestWave") }),
 	z.object({ type: z.literal("forceNextWave") }),
+	z.object({ type: z.literal("challengeRealm") }),
+	z.object({
+		type: z.literal("duelState"),
+		x: z.number().finite(),
+		y: z.number().finite(),
+		facing: z.number().finite(),
+		hp: z.number().nonnegative().finite(),
+	}),
+	z.object({
+		type: z.literal("duelDamage"),
+		amount: z.number().positive().finite(),
+	}),
 	z.object({ type: z.literal("leaveRealm") }),
 	z.object({
 		type: z.literal("enterRealm"),
@@ -263,6 +282,9 @@ const serverEnvelope = z
 			"incomingWave",
 			"forceNextWaveResult",
 			"playerBonked",
+			"duelStarted",
+			"duelState",
+			"duelDamage",
 			"waveAdjusted",
 			"creepDefeatResolved",
 			"collectItemResult",
@@ -313,7 +335,9 @@ export type ClientMessage =
 	  }
 	| { type: "heroDefeated"; sourceUnitId?: string; sourcePlayerId?: PlayerId }
 	| { type: "suicide" }
-	| { type: "requestWave" | "forceNextWave" | "leaveRealm" }
+	| { type: "requestWave" | "forceNextWave" | "leaveRealm" | "challengeRealm" }
+	| { type: "duelState"; x: number; y: number; facing: number; hp: number }
+	| { type: "duelDamage"; amount: number }
 	| { type: "enterRealm"; waveNumber?: number }
 	| { type: "scoreSnapshot"; score: number; health: number }
 	| { type: "logout" | "listHeroes" }
@@ -364,6 +388,9 @@ export type ServerMessage =
 	| { type: "realmUpdated"; realm: RealmState }
 	| { type: "incomingWave"; wave: CreepWave }
 	| { type: "forceNextWaveResult"; accepted: boolean; readyAt: number }
+	| { type: "duelStarted"; opponent: UnitBuild; side: 0 | 1 }
+	| { type: "duelState"; x: number; y: number; facing: number; hp: number }
+	| { type: "duelDamage"; amount: number; attackerId: PlayerId }
 	| {
 			type: "playerBonked";
 			attackerId: PlayerId;
