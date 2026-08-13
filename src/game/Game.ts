@@ -53,6 +53,10 @@ import {
 	backgroundFrameDue,
 } from "./FrameScheduler";
 import {
+	GAMEPAD_ORBIT_PIXELS_PER_SECOND,
+	readStandardGamepad,
+} from "./GamepadInput";
+import {
 	loadFullscreenMode,
 	loadLightingMode,
 	loadResolutionScale,
@@ -91,6 +95,7 @@ export class Game {
 	private audibleHeroAttackVersion = 0;
 	private audibleSpellCastVersion = 0;
 	private readonly keys = new Set<string>();
+	private gamepadButtons = new Set<number>();
 	private hero = new Hero(this.map.center);
 	private player?: PlayerState;
 	private savedSession = this.sessionStorage.load();
@@ -686,6 +691,21 @@ export class Game {
 
 	private update(deltaSeconds: number): void {
 		if (!this.player) return;
+		const gamepadInput = readStandardGamepad(
+			typeof navigator.getGamepads === "function"
+				? navigator.getGamepads()
+				: [],
+			this.gamepadButtons,
+		);
+		this.gamepadButtons = gamepadInput.heldButtons;
+		if (!this.isChatting) {
+			this.renderer.orbit(
+				gamepadInput.orbit.x * GAMEPAD_ORBIT_PIXELS_PER_SECOND * deltaSeconds,
+				gamepadInput.orbit.y * GAMEPAD_ORBIT_PIXELS_PER_SECOND * deltaSeconds,
+			);
+			for (const slot of gamepadInput.pressedSpellSlots)
+				this.heroCombat.requestSpellSlot(slot, this.player.progress);
+		}
 		this.audio.updateBattleMusic(this.realmMode !== "training");
 		if (this.defeatCooldown > 0) {
 			this.defeatCooldown -= deltaSeconds;
@@ -700,11 +720,13 @@ export class Game {
 					x:
 						Number(this.keys.has("d")) -
 						Number(this.keys.has("a")) +
-						this.touchMovement.x,
+						this.touchMovement.x +
+						gamepadInput.movement.x,
 					y:
 						Number(this.keys.has("w")) -
 						Number(this.keys.has("s")) +
-						this.touchMovement.y,
+						this.touchMovement.y +
+						gamepadInput.movement.y,
 				};
 		const movementInput = this.renderer.movementForCamera(rawMovementInput);
 		this.heroCombat.syncSkills(this.player.progress, this.hero);

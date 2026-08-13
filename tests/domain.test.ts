@@ -32,6 +32,11 @@ import {
 	reconciledDropPosition,
 	serverCloseLogMessage,
 } from "../src/game/Game";
+import {
+	applyStickDeadZone,
+	GAMEPAD_STICK_DEAD_ZONE,
+	readStandardGamepad,
+} from "../src/game/GamepadInput";
 
 import {
 	auraRadius,
@@ -359,6 +364,65 @@ describe("third-person camera", () => {
 		const strafe = cameraRelativeMovement({ x: 1, y: 0 }, Math.PI / 2);
 		expect(strafe.x).toBeCloseTo(0);
 		expect(strafe.y).toBeCloseTo(-1);
+	});
+});
+
+describe("DualShock controller input", () => {
+	const gamepad = (
+		axes: number[],
+		pressedButtons: number[] = [],
+		mapping = "standard",
+	) => ({
+		connected: true,
+		mapping,
+		axes,
+		buttons: Array.from({ length: 16 }, (_, index) => ({
+			pressed: pressedButtons.includes(index),
+		})),
+	});
+
+	test("suppresses stick drift and rescales movement outside the dead zone", () => {
+		expect(applyStickDeadZone(GAMEPAD_STICK_DEAD_ZONE, 0)).toEqual({
+			x: 0,
+			y: 0,
+		});
+		const input = applyStickDeadZone(0.59, 0);
+		expect(input.x).toBeCloseTo(0.5);
+		expect(input.y).toBe(0);
+	});
+
+	test("maps both sticks and the six gameplay buttons", () => {
+		const input = readStandardGamepad(
+			[gamepad([1, -1, 1, -1], [0, 1, 2, 3, 4, 5])],
+			new Set(),
+		);
+		expect(input.movement.x).toBeCloseTo(Math.SQRT1_2);
+		expect(input.movement.y).toBeCloseTo(Math.SQRT1_2);
+		expect(input.orbit.x).toBeCloseTo(Math.SQRT1_2);
+		expect(input.orbit.y).toBeCloseTo(-Math.SQRT1_2);
+		expect(input.pressedSpellSlots).toEqual([0, 1, 2, 3, 4, 5]);
+	});
+
+	test("requests spells only on press edges and resets after disconnect", () => {
+		const first = readStandardGamepad([gamepad([0, 0, 0, 0], [0])], new Set());
+		expect(first.pressedSpellSlots).toEqual([0]);
+		const held = readStandardGamepad(
+			[gamepad([0, 0, 0, 0], [0])],
+			first.heldButtons,
+		);
+		expect(held.pressedSpellSlots).toEqual([]);
+		const disconnected = readStandardGamepad([], held.heldButtons);
+		expect(disconnected.movement).toEqual({ x: 0, y: 0 });
+		expect(disconnected.heldButtons.size).toBe(0);
+	});
+
+	test("ignores controllers without the browser standard mapping", () => {
+		const input = readStandardGamepad(
+			[gamepad([1, 1, 1, 1], [0], "")],
+			new Set(),
+		);
+		expect(input.movement).toEqual({ x: 0, y: 0 });
+		expect(input.pressedSpellSlots).toEqual([]);
 	});
 });
 
