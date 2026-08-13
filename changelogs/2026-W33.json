@@ -1,42 +1,69 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-13T01:45:15.959Z",
+	"generatedAt": "2026-08-13T03:08:50.812Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Major QoL Updates, New Combat Mechanics & Account System Overhaul",
+			"summaryTitle": "Expanded PvP, New Controllers, and Account Management",
 			"summary": {
 				"features": [
-					"Added a full account system allowing multiple characters and a shared stash across all accounts, including migration support for legacy heroes.",
-					"Introduced 'Swarm Mode' with dedicated server cooldowns and a countdown timer for high-intensity wave combat.",
-					"Enhanced character progression tracking by adding Soul points to the leaderboard display and death echo assignment.",
-					"Implemented a general auto-equip option to automatically equip items and spells into empty slots, enhancing gameplay fluidity.",
-					"Expanded Devlog capabilities with forms to track feature requests and allow AI workflow management for status updates."
+					"Introduced Realm Challenges for competitive two-player encounters, allowing the winner to claim significant resources from the loser.",
+					"Implemented Swarm Mode, adding a realm header with a countdown, forcing queued enemies, and scaling server cooldowns per wave.",
+					"Expanded account management by allowing multiple characters and implementing a shared stash inventory across all linked heroes.",
+					"Added support for DualShock controllers, mapping face and shoulder buttons to all spell slots and providing camera-relative movement controls.",
+					"Enhanced the Devlog experience with new features including API status updates, ability to track bug fixes, and structured categories for feature requests."
 				],
 				"bugfixes": [
-					"Fixed issues ensuring owner aura effects remain properly synchronized and follow the unit's location during movement.",
-					"Corrected graphical glitches, specifically addressing lighting inconsistencies in swamp areas.",
-					"Improved the accessibility of crucial elements on mobile views by adjusting button placements and optimizing panel layouts for responsive display."
-				],
-				"performance": [
-					"The overall client experience was improved through dedicated fixes ensuring stable performance across various gameplay systems (e.g., wave cooldowns, aura syncing)."
+					"Corrected the persistent aura system so that a unit's specialized group aura follows its owner's position accurately in the world.",
+					"Fixed specific visual glitches such as light rendering issues within swamp environments."
 				],
 				"balance": [
-					"Significant overhauls to character combat dynamics: Voodoo poison scaling is now level-based; multiple damage-over-time effects (Poison, Bleed, Burn) now bypass defensive mitigation. Combat projections were refined and block mechanics updated for improved resource flow.",
-					"The Thunder Aura was drastically amplified, receiving increased base damage, targeting range, and new ground impact visual effects."
+					"Revised the mechanics of status effects (Poison, Bleed, Burn) to allow them to bypass player dodge and block. Additionally, Voodoo poison now scales its amplification up to 2x at level 99, while also adjusting block-related rules for guaranteed restoration.",
+					"Ameliorated Thunder Aura by doubling both its damage output and targeting radius, replacing the visual fill with inward lightning arcs."
 				],
 				"ux": [
-					"Mobile interface controls received a compacting pass to maintain usability without scaling down the main Heads-Up Display (HUD).",
-					"Visual feedback for battle engagements was enhanced with newly synthesized sound cues for spells, attacks, gold drops, and enemy deaths, alongside dynamic battle music loops."
+					"Improved the mobile user experience by ensuring that Devlog and enemy preview exit buttons remain accessible in the top-right corner without scaling the main HUD.",
+					"Updated leaderboards to rank heroes not just by level, but also by acquired Souls, and displayed current Soul totals alongside basic stats."
 				],
 				"graphics": [
-					"The Thunder Aura's impact visuals were upgraded to include inward lightning arcs that fade over time, replacing previous simple ground-fill effects."
+					"Enhanced combat immersion by introducing distinct sound cues for spells, attacks, gold drops, and creep deaths. A lightweight battle music loop now plays outside of training zones.",
+					"Added new player-facing options to automatically equip items and spells upon acquisition, filling only empty slots."
 				]
 			},
 			"commits": [
+				{
+					"hash": "022b9cebfda7194904f4e10fb5587bc78e29e98a",
+					"authoredAt": "2026-08-12T23:07:59-04:00",
+					"title": "feat: add realm challenges",
+					"description": "allows two players to PVP given they both acceept the challenge, winner\ngets a big chunk of the loser resources"
+				},
+				{
+					"hash": "098e72fe68e438398ac90e6b3630ab3801af5784",
+					"authoredAt": "2026-08-12T22:51:00-04:00",
+					"title": "feat(pvp): let realm opponents bonk each other",
+					"description": "- add a server-validated 10-second Bonk action for competitive realms\n- deliver physical max-health damage with guarded lethal player attribution\n- rotate eligible HUD targets and expose authoritative cooldown feedback\n- document the PvPvE rules and cover protocol, validation, and rewards"
+				},
+				{
+					"hash": "f27679f598cdeabd08fe7b216d23f4284d4672d2",
+					"authoredAt": "2026-08-12T22:23:46-04:00",
+					"title": "feat(input): support DualShock controllers",
+					"description": "- add camera-relative left-stick movement and right-stick orbiting\n- map DualShock face and shoulder buttons to all six spell slots\n- suppress stick drift and reset controller state on disconnect"
+				},
+				{
+					"hash": "c76a2ec5fda8235aa985674fdc82689827978791",
+					"authoredAt": "2026-08-12T21:47:48-04:00",
+					"title": "fix(audio): pause battle music immediately",
+					"description": "- route battle music through a dedicated gain control\n- silence scheduled notes when returning to Training Grounds\n- cover the active-to-paused transition with a regression test"
+				},
+				{
+					"hash": "b29b92e5d4429947f2eb386ab89d308fa94959d7",
+					"authoredAt": "2026-08-12T21:45:19-04:00",
+					"title": "fix(devlog): changelog local AI retry mechanism",
+					"description": ""
+				},
 				{
 					"hash": "540706e96eddae0d678230cf3e58fd98993ab6bf",
 					"authoredAt": "2026-08-12T21:00:36-04:00",
@@ -128,14 +155,7 @@
 					"description": "- scale Voodoo poison amplification from 1x at level 1 to 2x at level 99\n\n- make Poison, Bleed, and Burn ticks bypass dodge and block\n\n- remove Blocking's reactive cooldown and allow consecutive block rolls\n\n- guarantee Penance restores at least 1% of maximum Mana per successful block\n\n- cap buckler, Katar, and Reflective Surge block chance at 90%\n\n- synchronize combat projections, tooltips, specs, and boundary tests"
 				}
 			],
-			"categories": [
-				"Features",
-				"Bugfixes",
-				"Performance",
-				"Balance",
-				"UX",
-				"Graphics"
-			]
+			"categories": ["Features", "Bugfixes", "Balance", "UX", "Graphics"]
 		}
 	]
 }
