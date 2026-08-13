@@ -7,7 +7,7 @@ import {
 	isFeatureHarness,
 	markFeatureCompleted,
 	securityFindings,
-	selectRandomFeature,
+	selectHighestVotedFeature,
 } from "../scripts/runFeatureAgent";
 
 const request: DevlogRequest = {
@@ -56,12 +56,12 @@ describe("feature agent launcher", () => {
 		expect(isFeatureHarness("other")).toBeFalse();
 	});
 
-	test("selects from the supplied queue and wraps request text as untrusted data", () => {
+	test("selects the highest-voted eligible request and wraps it as untrusted data", () => {
 		expect(
-			selectRandomFeature(
-				[request, { ...request, id: "feature-2" }],
-				() => 0.99,
-			)?.id,
+			selectHighestVotedFeature([
+				request,
+				{ ...request, id: "feature-2", score: 8, upvotes: 8 },
+			])?.id,
 		).toBe("feature-2");
 		const prompt = featurePrompt(request);
 		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
@@ -71,8 +71,18 @@ describe("feature agent launcher", () => {
 		expect(prompt).toContain("create one semantic commit");
 		expect(prompt).toContain("push that commit");
 		expect(
-			selectRandomFeature([{ ...request, completed: true }]),
+			selectHighestVotedFeature([{ ...request, completed: true }]),
 		).toBeUndefined();
+	});
+
+	test("breaks equal-score ties by creation time and then request id", () => {
+		expect(
+			selectHighestVotedFeature([
+				{ ...request, id: "feature-z", createdAt: "2026-08-12T00:00:00.000Z" },
+				{ ...request, id: "feature-b" },
+				{ ...request, id: "feature-a" },
+			])?.id,
+		).toBe("feature-a");
 	});
 
 	test("marks a pushed feature completed through the public API", async () => {
@@ -100,16 +110,20 @@ describe("feature agent launcher", () => {
 
 	test("never selects an oversized legacy request for an AI context", () => {
 		expect(
-			selectRandomFeature(
-				[
-					{ ...request, id: "oversized", description: "x".repeat(1_025) },
-					request,
-				],
-				() => 0,
-			)?.id,
+			selectHighestVotedFeature([
+				{
+					...request,
+					id: "oversized",
+					description: "x".repeat(1_025),
+					score: 100,
+				},
+				request,
+			])?.id,
 		).toBe(request.id);
 		expect(
-			selectRandomFeature([{ ...request, description: "x".repeat(1_025) }]),
+			selectHighestVotedFeature([
+				{ ...request, description: "x".repeat(1_025) },
+			]),
 		).toBeUndefined();
 	});
 

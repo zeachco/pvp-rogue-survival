@@ -8,7 +8,7 @@ import {
 } from "./listFeatureRequests.ts";
 
 export const FEATURE_AGENT_PROMPT =
-	"pick a random feautre from `bun features` and implement / fix it, then commit it";
+	"implement / fix the highest-voted feature selected from `bun features`, then commit it";
 
 export type FeatureHarness = "codex" | "claude" | "pi" | "opencode";
 
@@ -61,9 +61,8 @@ export function securityFindings(
 	);
 }
 
-export function selectRandomFeature(
+export function selectHighestVotedFeature(
 	requests: readonly DevlogRequest[],
-	random = Math.random,
 ): DevlogRequest | undefined {
 	const eligible = requests.filter(
 		(request) =>
@@ -72,7 +71,12 @@ export function selectRandomFeature(
 			request.description.length <= MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	);
 	if (!eligible.length) return undefined;
-	return eligible[Math.floor(random() * eligible.length)];
+	return eligible.toSorted(
+		(left, right) =>
+			right.score - left.score ||
+			left.createdAt.localeCompare(right.createdAt) ||
+			left.id.localeCompare(right.id),
+	)[0];
 }
 
 export function featurePrompt(request: DevlogRequest): string {
@@ -172,7 +176,7 @@ async function main(): Promise<void> {
 	const startingHead = gitOutput(["rev-parse", "HEAD"]);
 
 	const requests = await fetchFeatureRequests();
-	const selected = selectRandomFeature(requests);
+	const selected = selectHighestVotedFeature(requests);
 	if (!selected)
 		throw new Error(
 			"No size-compliant pending feature requests were returned.",
@@ -183,7 +187,7 @@ async function main(): Promise<void> {
 			request.description.length > MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	).length;
 	const findings = securityFindings(selected);
-	console.log("\nRandomly selected feature:\n");
+	console.log("\nHighest-voted eligible feature:\n");
 	console.log(JSON.stringify(selected, null, 2));
 	if (skippedCount)
 		console.warn(
