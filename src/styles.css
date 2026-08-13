@@ -1141,6 +1141,13 @@ input {
 	display: flex;
 	gap: 8px;
 }
+.join-panel .project-intro {
+	margin: 0;
+	color: #9fb8bf;
+	font-size: 12px;
+	line-height: 1.4;
+	text-align: center;
+}
 .leaderboard-panel {
 	position: absolute;
 	top: 50%;

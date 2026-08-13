@@ -499,6 +499,10 @@ export class Hud {
 		).onclick = callbacks.onOpenDevlog;
 		this.joinPanel = (
 			<section class="join-panel">
+				<p class="project-intro">
+					Built by autonomous coding agents. The community votes on what they
+					build next.
+				</p>
 				{joinForm}
 				{this.joinNoticeNode}
 			</section>

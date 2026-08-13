@@ -3004,6 +3004,21 @@ test("routes the Devlog without dropping the selected game server", () => {
 	).toBe("http://localhost:5173/api/devlog/requests");
 });
 
+test("explains the autonomous community-driven development loop", async () => {
+	const [hudSource, documentSource] = await Promise.all([
+		Bun.file(new URL("../src/ui/Hud.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../index.html", import.meta.url)).text(),
+	]);
+	expect(hudSource).toContain("Built by autonomous coding agents.");
+	expect(hudSource).toContain("community votes on what they");
+	expect(documentSource).toContain(
+		"Multi-Line Hero is built and maintained by autonomous coding agents.",
+	);
+	expect(documentSource).toContain(
+		"the highest-voted eligible request is selected for an agent to implement.",
+	);
+});
+
 test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right edge", async () => {
 	const [hudSource, hudStyles, devlogStyles] = await Promise.all([
 		Bun.file(new URL("../src/ui/Hud.tsx", import.meta.url)).text(),
