@@ -433,9 +433,9 @@ export class Hud {
 					real test: it provides rewards, and you can be matched against other
 					players who are online. Death in a Realm ends this hero's journey.
 					Their child takes over at level 1, inheriting all equipment and half
-					the family's Gold and Souls. In a Realm, use an item's Send button to
-					invade another player's realm: your gear arms a named creep in one of
-					their future waves.
+					the family's Gold and Souls. In a Realm, use an item's Bonk foe button
+					to invade another player's realm: your gear arms a named creep in one
+					of their future waves.
 				</p>
 			</div>
 		</aside>

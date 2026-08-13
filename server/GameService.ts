@@ -143,6 +143,9 @@ interface Realm {
 	down: Set<PlayerId>;
 }
 const MAX_QUEUE = 1000;
+const BONK_COOLDOWN_MS = 10_000;
+const BONK_KILL_CREDIT_MS = 5_000;
+const BONK_DAMAGE_FRACTION = 0.1;
 const XP_SEND_MULTIPLIERS = {
 	common: 1.2,
 	uncommon: 1.5,
@@ -157,6 +160,11 @@ export class GameService {
 	private readonly realms = new Map<string, Realm>();
 	private readonly waveDispatches = new Map<PlayerId, number>();
 	private readonly forceNextWaveReadyAt = new Map<PlayerId, number>();
+	private readonly bonkReadyAt = new Map<PlayerId, number>();
+	private readonly recentBonks = new Map<
+		PlayerId,
+		{ attackerId: PlayerId; expiresAt: number }
+	>();
 	private lastDispatchAt = Date.now();
 	constructor(private readonly options: GameServiceOptions) {
 		this.createId = options.createId ?? (() => crypto.randomUUID());
@@ -345,7 +353,12 @@ export class GameService {
 						: this.notice(player, result.reason);
 				}
 				case "heroDefeated":
-					return this.heroDefeated(player, message.sourceUnitId);
+					return this.heroDefeated(
+						player,
+						message.sourceUnitId,
+						false,
+						message.sourcePlayerId,
+					);
 				case "suicide":
 					this.heroDefeated(player, undefined, true);
 					return this.options.send(player.id, { type: "suicideResolved" });
@@ -493,6 +506,39 @@ export class GameService {
 		player.waveNumber += 1;
 		this.dispatchCurrentWave(player, this.waveMode(player));
 		this.broadcastRealms();
+	}
+
+	private bonkPlayer(player: Player, target: Player): boolean {
+		const now = this.now();
+		const readyAt = this.bonkReadyAt.get(player.id) ?? 0;
+		const realm = player.realmId ? this.realms.get(player.realmId) : undefined;
+		const competitiveTarget = Boolean(
+			realm &&
+				target.connected &&
+				target.realmId === realm.id &&
+				this.realmOpponentIds(realm, player.id).includes(target.id) &&
+				!realm.down.has(target.id),
+		);
+		const soloTarget =
+			!realm &&
+			player.realmOptedIn &&
+			target.id === player.id &&
+			target.connected;
+		if ((!competitiveTarget && !soloTarget) || now < readyAt) return false;
+		const nextReadyAt = now + BONK_COOLDOWN_MS;
+		this.bonkReadyAt.set(player.id, nextReadyAt);
+		if (competitiveTarget)
+			this.recentBonks.set(target.id, {
+				attackerId: player.id,
+				expiresAt: now + BONK_KILL_CREDIT_MS,
+			});
+		this.options.send(target.id, {
+			type: "playerBonked",
+			attackerId: player.id,
+			attackerName: player.name,
+			damageFraction: BONK_DAMAGE_FRACTION,
+		});
+		return true;
 	}
 
 	private joinPlayer(name: string, heroId?: PlayerId): Player {
@@ -1478,6 +1524,7 @@ export class GameService {
 		player: Player,
 		sourceUnitId?: string,
 		voluntary = false,
+		sourcePlayerId?: PlayerId,
 	): void {
 		if (!voluntary && !player.realmId && !player.realmOptedIn)
 			return this.notice(player, "Training Grounds prevent defeat.");
@@ -1486,10 +1533,18 @@ export class GameService {
 		const source = sourceUnitId
 			? player.issuedUnits.get(sourceUnitId)?.build
 			: undefined;
+		const recentBonk = this.recentBonks.get(player.id);
+		this.recentBonks.delete(player.id);
+		const bonkKiller =
+			sourcePlayerId &&
+			recentBonk?.attackerId === sourcePlayerId &&
+			this.now() <= recentBonk.expiresAt
+				? this.options.repository.get(sourcePlayerId)
+				: undefined;
 		const killer =
 			source?.emitterId && !source.backlash && source.emitterId !== player.id
 				? this.options.repository.get(source.emitterId)
-				: undefined;
+				: bonkKiller;
 		const activeRealm = player.realmId
 			? this.realms.get(player.realmId)
 			: undefined;
@@ -1499,7 +1554,7 @@ export class GameService {
 			this.sendRealmSystem(
 				activeRealm,
 				killer
-					? `${player.name} was defeated by a creep sent by ${killer.name}; ${killer.name} gained 1 Soul.`
+					? `${player.name} was defeated by ${bonkKiller ? `a bonk from ${killer.name}` : `a creep sent by ${killer.name}`}; ${killer.name} gained 1 Soul.`
 					: `${player.name} was defeated and lost ${lostSouls} ${lostSouls === 1 ? "Soul" : "Souls"}.`,
 			);
 		player.progress.gold -= lostGold;
@@ -1588,6 +1643,7 @@ export class GameService {
 
 	private sendItem(player: Player, tileId: string, bulk = false): void {
 		let sent = 0;
+		let bonked: Player | undefined;
 		let reason = "That equipment is no longer available.";
 		do {
 			if (this.queuedBy(player.id) >= MAX_QUEUE) {
@@ -1611,6 +1667,7 @@ export class GameService {
 			});
 			target.incomingQueues.set(player.id, queue);
 			this.enqueueXpSendBuff(player, result.sent);
+			if (this.bonkPlayer(player, target)) bonked = target;
 			sent += 1;
 		} while (bulk && sent < MAX_QUEUE);
 		removeEmptyInventoryTiles(player.progress);
@@ -1621,9 +1678,13 @@ export class GameService {
 			? Math.max(0, Math.ceil((buff.expiresAt - this.now()) / 1000))
 			: 0;
 		const queued = Math.max(0, buffs.length - 1);
+		const bonkReadyIn = Math.max(
+			0,
+			Math.ceil(((this.bonkReadyAt.get(player.id) ?? 0) - this.now()) / 1000),
+		);
 		this.sendProgress(
 			player,
-			`${bulk ? `Queued ${sent} items for future carriers.` : reason} ${buff ? `XP buff: ${Math.round(buff.multiplier * 100)}% for ${seconds} seconds${queued ? `; ${queued} queued.` : "."}` : "The sent item's level grants no XP-buff duration."}`,
+			`${bulk ? `Queued ${sent} items for future carriers.` : reason} ${bonked ? `Bonked ${bonked.id === player.id ? "yourself" : bonked.name}; Bonk ready in ${bonkReadyIn}s.` : bonkReadyIn ? `Bonk ready in ${bonkReadyIn}s.` : ""} ${buff ? `XP buff: ${Math.round(buff.multiplier * 100)}% for ${seconds} seconds${queued ? `; ${queued} queued.` : "."}` : "The sent item's level grants no XP-buff duration."}`,
 		);
 		this.broadcastRealms();
 	}

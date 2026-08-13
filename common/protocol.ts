@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 46;
+export const PROTOCOL_VERSION = 47;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -198,6 +198,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	z.object({
 		type: z.literal("heroDefeated"),
 		sourceUnitId: z.string().optional(),
+		sourcePlayerId: z.string().optional(),
 	}),
 	z.object({ type: z.literal("suicide") }),
 	z.object({ type: z.literal("requestWave") }),
@@ -261,6 +262,7 @@ const serverEnvelope = z
 			"realmUpdated",
 			"incomingWave",
 			"forceNextWaveResult",
+			"playerBonked",
 			"waveAdjusted",
 			"creepDefeatResolved",
 			"collectItemResult",
@@ -309,7 +311,7 @@ export type ClientMessage =
 			tileId: string;
 			bulk?: boolean;
 	  }
-	| { type: "heroDefeated"; sourceUnitId?: string }
+	| { type: "heroDefeated"; sourceUnitId?: string; sourcePlayerId?: PlayerId }
 	| { type: "suicide" }
 	| { type: "requestWave" | "forceNextWave" | "leaveRealm" }
 	| { type: "enterRealm"; waveNumber?: number }
@@ -362,6 +364,12 @@ export type ServerMessage =
 	| { type: "realmUpdated"; realm: RealmState }
 	| { type: "incomingWave"; wave: CreepWave }
 	| { type: "forceNextWaveResult"; accepted: boolean; readyAt: number }
+	| {
+			type: "playerBonked";
+			attackerId: PlayerId;
+			attackerName: string;
+			damageFraction: number;
+	  }
 	| { type: "waveAdjusted"; waveNumber: number; reason: string }
 	| {
 			type: "creepDefeatResolved";

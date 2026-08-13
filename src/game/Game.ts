@@ -107,6 +107,7 @@ export class Game {
 	private accumulator = 0;
 	private defeatCooldown = 0;
 	private defeatDropPosition?: Vector2;
+	private lastBonkAttackerId?: string;
 	private isChatting = false;
 	private orbitingCamera = false;
 	private aimingHero = false;
@@ -582,6 +583,21 @@ export class Game {
 			if (message.accepted)
 				for (const build of releaseAllQueuedSpawns(this.arena))
 					this.spawnCreep(build);
+		} else if (message.type === "playerBonked") {
+			this.lastBonkAttackerId = message.attackerId;
+			this.hero.lastDamageSourceId = undefined;
+			this.hero.receiveDamage(
+				this.hero.maxHp * message.damageFraction,
+				{ next: () => 1 },
+				undefined,
+				false,
+				false,
+				{ kind: "physical" },
+				false,
+			);
+			this.syncHeroState();
+			this.hud.setPlayer(this.player!);
+			this.hud.showCenterToast(`${message.attackerName} bonked you!`);
 		} else if (message.type === "incomingWave") this.enqueueWave(message.wave);
 		else if (message.type === "creepDefeatResolved" && this.player) {
 			this.player.score = message.score;
@@ -1135,7 +1151,9 @@ export class Game {
 		this.socket.send({
 			type: "heroDefeated",
 			sourceUnitId: this.hero.lastDamageSourceId,
+			sourcePlayerId: this.lastBonkAttackerId,
 		});
+		this.lastBonkAttackerId = undefined;
 		this.hud.showDeathModal();
 	}
 	private resetArena(): void {

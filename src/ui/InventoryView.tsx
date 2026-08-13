@@ -108,7 +108,7 @@ export function itemTile(
 					<button type="button">Sell {sellYield(item)}g</button>
 					<button type="button">Purge</button>
 					<button type="button">Upgrade</button>
-					<button type="button">Send</button>
+					<button type="button">Bonk foe</button>
 					<button type="button">Reroll</button>
 					{skills.length ? (
 						<button

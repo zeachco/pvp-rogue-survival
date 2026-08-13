@@ -442,7 +442,12 @@ describe("realm game service", () => {
 
 		game.handle(player.id, { type: "forceNextWave" });
 		expect(player.waveNumber).toBe(6);
-		expect(messages.get(player.id)?.at(-2)).toEqual({
+		expect(
+			messages
+				.get(player.id)
+				?.filter((message) => message.type === "forceNextWaveResult")
+				.at(-1),
+		).toEqual({
 			type: "forceNextWaveResult",
 			accepted: false,
 			readyAt: 11_000,
@@ -460,6 +465,92 @@ describe("realm game service", () => {
 			type: "forceNextWaveResult",
 			accepted: true,
 			readyAt: 21_000,
+		});
+	});
+	test("bonks on successful item sends with cooldown and realm kill credit", () => {
+		let now = 1_000;
+		const { game, messages } = harness(new FixedRandom(0), () => now);
+		const attacker = game.join("Bonker");
+		const target = game.join("Target");
+		enterPair(game, attacker, target);
+		const item = generateItem(2, "rare", 77);
+		attacker.progress.inventoryTiles.push({
+			id: "bonk-stack",
+			key: itemStackKey(item),
+			item,
+			quantity: 3,
+		});
+
+		game.handle(attacker.id, { type: "sendItem", tileId: "bonk-stack" });
+		expect(
+			messages
+				.get(target.id)
+				?.filter((message) => message.type === "playerBonked")
+				.at(-1),
+		).toEqual({
+			type: "playerBonked",
+			attackerId: attacker.id,
+			attackerName: "Bonker",
+			damageFraction: 0.1,
+		});
+
+		game.handle(attacker.id, { type: "sendItem", tileId: "bonk-stack" });
+		expect(
+			messages
+				.get(target.id)
+				?.filter((message) => message.type === "playerBonked"),
+		).toHaveLength(1);
+
+		target.progress.gold = 20;
+		target.progress.souls = 1;
+		game.handle(target.id, {
+			type: "heroDefeated",
+			sourcePlayerId: attacker.id,
+		});
+		expect(attacker.progress.gold).toBe(10);
+		expect(attacker.progress.souls).toBe(1);
+		expect(target.progress.gold).toBe(10);
+		expect(target.progress.souls).toBe(0);
+
+		now = 20_000;
+		const forged = game.join("ForgedTarget");
+		forged.progress.gold = 20;
+		game.handle(forged.id, {
+			type: "heroDefeated",
+			sourcePlayerId: attacker.id,
+		});
+		expect(attacker.progress.gold).toBe(10);
+	});
+	test("self-bonks from sends in solo matchmaking but not Training Grounds", () => {
+		const { game, messages } = harness();
+		const player = game.join("SoloBonker");
+		const first = generateItem(1, "common", 78);
+		player.progress.inventoryTiles.push({
+			id: "solo-bonk",
+			key: itemStackKey(first),
+			item: first,
+			quantity: 2,
+		});
+
+		game.handle(player.id, { type: "sendItem", tileId: "solo-bonk" });
+		expect(
+			messages
+				.get(player.id)
+				?.filter((message) => message.type === "playerBonked"),
+		).toHaveLength(0);
+
+		game.handle(player.id, { type: "enterRealm", waveNumber: 1 });
+		game.handle(player.id, { type: "sendItem", tileId: "solo-bonk" });
+		expect(
+			messages
+				.get(player.id)
+				?.filter((message) => message.type === "playerBonked")
+				.at(-1),
+		).toEqual({
+			type: "playerBonked",
+			attackerId: player.id,
+			attackerName: "SoloBonker",
+			damageFraction: 0.1,
 		});
 	});
 	test("keeps level-one inventory overflow as collectible Training Grounds drops", () => {
