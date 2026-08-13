@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	buildDocument,
 	CHANGELOG_MODEL,
+	CHANGELOG_MAX_ATTEMPTS,
 	extractPeriods,
 	generatePeriods,
 	parseGitLog,
@@ -166,6 +167,36 @@ describe("generated devlog history", () => {
 		expect(result.models.get("2026-W32")).toBe(CHANGELOG_MODEL);
 	});
 
+	test("retries malformed Ollama output for the same week", async () => {
+		let attempts = 0;
+		const result = await generatePeriods(
+			[
+				{
+					key: "2026-W32",
+					commits: [
+						{
+							hash: "feature",
+							authoredAt: "2026-08-07T10:00:00Z",
+							title: "feat: added realms",
+							description: "",
+						},
+					],
+					groupedCategories: [],
+					projectInitialized: false,
+				},
+			],
+			async () => {
+				attempts += 1;
+				return attempts === 1
+					? '{"periods":["invalid"]}'
+					: '{"periods":[{"key":"2026-W32","title":"Started","summary":{"features":["Added realms."]}}]}';
+			},
+		);
+
+		expect(attempts).toBe(2);
+		expect(result.periods.get("2026-W32")?.title).toBe("Started");
+	});
+
 	test("generates an initialization-only week without Ollama", async () => {
 		let calls = 0;
 		const result = await generatePeriods(
@@ -193,6 +224,7 @@ describe("generated devlog history", () => {
 	});
 
 	test("fails clearly when gemma4:latest rejects the week", async () => {
+		let attempts = 0;
 		await expect(
 			generatePeriods(
 				[
@@ -210,11 +242,15 @@ describe("generated devlog history", () => {
 						projectInitialized: false,
 					},
 				],
-				async () => "not json",
+				async () => {
+					attempts += 1;
+					return "not json";
+				},
 			),
 		).rejects.toThrow(
-			"Changelog generation failed for 2026-W32 with gemma4:latest",
+			`Changelog generation failed for 2026-W32 with gemma4:latest after ${CHANGELOG_MAX_ATTEMPTS} attempts`,
 		);
+		expect(attempts).toBe(CHANGELOG_MAX_ATTEMPTS);
 	});
 
 	test("serializes the summary before its source commits", () => {

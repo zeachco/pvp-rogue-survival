@@ -84,6 +84,7 @@ interface ChangelogOptions {
 
 export const CHANGELOG_MODEL = "gemma4:latest";
 export const PROJECT_INITIALIZATION_MODEL = "deterministic";
+export const CHANGELOG_MAX_ATTEMPTS = 3;
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
 const INDIVIDUAL_CHANGE_TYPES = new Set([
 	"balance",
@@ -415,18 +416,22 @@ export async function generatePeriods(
 			continue;
 		}
 		const prompt = promptFor([week]);
-		try {
-			const periods = extractPeriods(await runModel(CHANGELOG_MODEL, prompt));
-			const period = periods.find(({ key }) => key === week.key);
-			if (!period)
-				throw new Error(`Ollama omitted expected period ${week.key}.`);
-			generated.set(week.key, period);
-			models.set(week.key, CHANGELOG_MODEL);
-		} catch (error) {
-			const reason = error instanceof Error ? error.message : String(error);
-			throw new Error(
-				`Changelog generation failed for ${week.key} with ${CHANGELOG_MODEL}: ${reason}`,
-			);
+		for (let attempt = 1; attempt <= CHANGELOG_MAX_ATTEMPTS; attempt += 1) {
+			try {
+				const periods = extractPeriods(await runModel(CHANGELOG_MODEL, prompt));
+				const period = periods.find(({ key }) => key === week.key);
+				if (!period)
+					throw new Error(`Ollama omitted expected period ${week.key}.`);
+				generated.set(week.key, period);
+				models.set(week.key, CHANGELOG_MODEL);
+				break;
+			} catch (error) {
+				if (attempt < CHANGELOG_MAX_ATTEMPTS) continue;
+				const reason = error instanceof Error ? error.message : String(error);
+				throw new Error(
+					`Changelog generation failed for ${week.key} with ${CHANGELOG_MODEL} after ${CHANGELOG_MAX_ATTEMPTS} attempts: ${reason}`,
+				);
+			}
 		}
 	}
 	return { periods: generated, models };

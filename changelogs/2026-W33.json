@@ -1,31 +1,39 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-13T01:42:20.239Z",
+	"generatedAt": "2026-08-13T01:45:15.959Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Combat updates, account features, and Quality of Life improvements",
+			"summaryTitle": "Major QoL Updates, New Combat Mechanics & Account System Overhaul",
 			"summary": {
 				"features": [
-					"Access multiple heroes on a single account with shared inventory stash.",
-					"Added Swarm Mode for dynamic wave content, including realm timers and cooldown management.",
-					"Improved character progression visibility by adding a Souls leaderboard that ranks heroes by current Soul count and displays death echoes.",
-					"The option to automatically equip acquired items and spells has been added to fill empty equipment slots."
+					"Added a full account system allowing multiple characters and a shared stash across all accounts, including migration support for legacy heroes.",
+					"Introduced 'Swarm Mode' with dedicated server cooldowns and a countdown timer for high-intensity wave combat.",
+					"Enhanced character progression tracking by adding Soul points to the leaderboard display and death echo assignment.",
+					"Implemented a general auto-equip option to automatically equip items and spells into empty slots, enhancing gameplay fluidity.",
+					"Expanded Devlog capabilities with forms to track feature requests and allow AI workflow management for status updates."
 				],
 				"bugfixes": [
-					"Resolved issues with the movement of unit-based auras, ensuring they remain synchronized with their owning unit's position in the world.",
-					"Fixed visual rendering glitches in previously problematic areas, such as swamp lighting."
+					"Fixed issues ensuring owner aura effects remain properly synchronized and follow the unit's location during movement.",
+					"Corrected graphical glitches, specifically addressing lighting inconsistencies in swamp areas.",
+					"Improved the accessibility of crucial elements on mobile views by adjusting button placements and optimizing panel layouts for responsive display."
+				],
+				"performance": [
+					"The overall client experience was improved through dedicated fixes ensuring stable performance across various gameplay systems (e.g., wave cooldowns, aura syncing)."
 				],
 				"balance": [
-					"Tuned Thunder Aura abilities by doubling overall damage and increasing spell targeting radius; also introduced new ground-level impact visuals and inward lightning arcs.",
-					"Revamped status effects (Poison, Bleed, Burn) to ensure they bypass dodge mechanics, while also refining blocking rules for better consecutive use and guaranteeing Mana restoration when successfully blocked."
+					"Significant overhauls to character combat dynamics: Voodoo poison scaling is now level-based; multiple damage-over-time effects (Poison, Bleed, Burn) now bypass defensive mitigation. Combat projections were refined and block mechanics updated for improved resource flow.",
+					"The Thunder Aura was drastically amplified, receiving increased base damage, targeting range, and new ground impact visual effects."
 				],
 				"ux": [
-					"Enhanced mobile experience with accessible and compact header controls and preview exit buttons that no longer scale the HUD.",
-					"The Devlog feature now includes dedicated categories and advanced API workflows for tracking status updates on requested features, including an AI-assisted completion workflow."
+					"Mobile interface controls received a compacting pass to maintain usability without scaling down the main Heads-Up Display (HUD).",
+					"Visual feedback for battle engagements was enhanced with newly synthesized sound cues for spells, attacks, gold drops, and enemy deaths, alongside dynamic battle music loops."
+				],
+				"graphics": [
+					"The Thunder Aura's impact visuals were upgraded to include inward lightning arcs that fade over time, replacing previous simple ground-fill effects."
 				]
 			},
 			"commits": [
@@ -120,7 +128,14 @@
 					"description": "- scale Voodoo poison amplification from 1x at level 1 to 2x at level 99\n\n- make Poison, Bleed, and Burn ticks bypass dodge and block\n\n- remove Blocking's reactive cooldown and allow consecutive block rolls\n\n- guarantee Penance restores at least 1% of maximum Mana per successful block\n\n- cap buckler, Katar, and Reflective Surge block chance at 90%\n\n- synchronize combat projections, tooltips, specs, and boundary tests"
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Balance", "UX"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics"
+			]
 		}
 	]
 }
