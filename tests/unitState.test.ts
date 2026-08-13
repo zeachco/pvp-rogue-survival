@@ -5,6 +5,7 @@ import {
 	compileUnitState,
 	defaultBaseState,
 	projectUnitState,
+	ReflectiveSurgeEffect,
 	UnitEffect,
 	type UnitEffectTarget,
 	type UnitState,
@@ -71,6 +72,15 @@ describe("unit state compiler", () => {
 			mainHand: katars,
 		});
 		expect(state.blockChance).toBeCloseTo(0.1);
+	});
+
+	test("caps ordinary blocking at 75% and allows 100% only during Reflective Surge", () => {
+		const target = new TestTarget();
+		target.state.blockChance = 0.95;
+		target.state.blockChanceCap = 0.75;
+		new ReflectiveSurgeEffect(99, 1).handler(target);
+		expect(target.state.blockChanceCap).toBe(1);
+		expect(target.state.blockChance).toBe(1);
 	});
 
 	test("applies priorities first and application sequence for ties", () => {

@@ -1,6 +1,5 @@
 import {
 	effectiveSkillCooldown,
-	katarBlockChance,
 	MAX_RAGE,
 	manaConversionFraction,
 	RAGE_DECAY_PER_SECOND,
@@ -403,9 +402,10 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			this.rage >= blockCost &&
 			this.mana >= blockManaCost
 		) {
-			const chance = katars
-				? katarBlockChance(this.mainHand, this.stats)
-				: Math.min(this.state.blockChanceCap, this.state.blockChance);
+			const chance = Math.min(
+				this.state.blockChanceCap,
+				this.state.blockChance,
+			);
 			if (random.next() < chance) {
 				blocked = true;
 				this.emitOutcome("block", "BLOCK");

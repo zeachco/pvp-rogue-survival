@@ -643,6 +643,25 @@ function rentEdge(
 ): void {
 	const radius = Math.max(36, range * 0.82);
 	const headAngle = rentSlashAngle(progress);
+	for (let cone = 0; cone < 4; cone += 1)
+		rentCone(
+			group,
+			progress,
+			radius,
+			headAngle + (cone * Math.PI) / 2,
+			heroOwned,
+			cone,
+		);
+}
+
+function rentCone(
+	group: THREE.Group,
+	progress: number,
+	radius: number,
+	headAngle: number,
+	heroOwned: boolean,
+	cone: number,
+): void {
 	const trailLength = Math.PI * (0.35 + 1.05 * Math.sin(progress * Math.PI));
 	const segments = 36;
 	const positions: number[] = [];
@@ -717,7 +736,7 @@ function rentEdge(
 			`,
 		}),
 	);
-	trail.name = "rent-slash-trail";
+	trail.name = `rent-slash-trail-${cone}`;
 	trail.renderOrder = Z_EFFECT;
 	group.add(trail);
 
@@ -732,7 +751,7 @@ function rentEdge(
 			roughness: 0.18,
 		}),
 	);
-	sword.name = "rent-magic-sword";
+	sword.name = `rent-magic-sword-${cone}`;
 	sword.position.set(
 		Math.cos(headAngle) * swordDistance,
 		Math.sin(headAngle) * swordDistance,

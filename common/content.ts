@@ -321,7 +321,7 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		range: 600,
 		resource: "rage",
 		description:
-			"Surges for 5–19 seconds, doubling Thorns and block reflection, adding 1% of incoming damage to every return, and granting 10–30% block chance up to a 95% final cap.",
+			"Surges for 5–19 seconds, doubling Thorns and block reflection, adding 1% of incoming damage to every return, and granting 10–30% block chance up to a 100% final cap.",
 	},
 	frostOrb: {
 		id: "frostOrb",
@@ -401,11 +401,11 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "rent",
 		label: "Rent",
 		damageMultiplier: 1.25,
-		cooldown: 4,
+		cooldown: 6,
 		range: 180,
 		resource: "life",
 		description:
-			"A full-circle blood-edge attack that adds the HP spent to damage.",
+			"A four-cone full-circle blood-edge attack that adds the HP spent to damage.",
 	},
 	blocking: {
 		id: "blocking",

@@ -1574,12 +1574,14 @@ describe("arena systems", () => {
 		expect(rentLight.position.z).toBeGreaterThan(0);
 		expect(rentLight.distance).toBe(spellEffectLightDistance("rent", 0));
 		const rentVisuals = rent.mesh.children[0] as THREE.Group;
-		expect(rentVisuals.getObjectByName("rent-slash-trail")).toBeInstanceOf(
-			THREE.Mesh,
-		);
-		expect(rentVisuals.getObjectByName("rent-magic-sword")).toBeInstanceOf(
-			THREE.Mesh,
-		);
+		for (let cone = 0; cone < 4; cone += 1) {
+			expect(
+				rentVisuals.getObjectByName(`rent-slash-trail-${cone}`),
+			).toBeInstanceOf(THREE.Mesh);
+			expect(
+				rentVisuals.getObjectByName(`rent-magic-sword-${cone}`),
+			).toBeInstanceOf(THREE.Mesh);
+		}
 		expect(rentLight.intensity).toBeCloseTo(10);
 
 		const forceField = new SpellEffect(
@@ -3051,7 +3053,7 @@ describe("arena systems", () => {
 		expect(hero.active).toBeTrue();
 	});
 
-	test("caps block chance at 90% and spends rage only on successful blocks", () => {
+	test("caps ordinary block chance at 75% and spends rage only on successful blocks", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
 		hero.configureStats(
@@ -3059,11 +3061,11 @@ describe("arena systems", () => {
 			buckler,
 		);
 		const hp = hero.hp;
-		let rolls = [1, 0.899];
+		let rolls = [1, 0.749];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp);
 		expect(hero.rage).toBe(5);
-		rolls = [1, 0.9];
+		rolls = [1, 0.75];
 		hero.receiveDamage(10, { next: () => rolls.shift() ?? 1 });
 		expect(hero.hp).toBe(hp - 10);
 		hero.rage = 0;
@@ -3111,7 +3113,7 @@ describe("arena systems", () => {
 		);
 		const hp = hero.hp;
 		const rage = hero.rage;
-		hero.receiveDamage(10, { next: () => 0.899 });
+		hero.receiveDamage(10, { next: () => 0.749 });
 		expect(hero.hp).toBe(hp - 5);
 		expect(hero.rage).toBe(rage + 1);
 	});

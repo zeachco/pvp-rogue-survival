@@ -7,6 +7,7 @@ import {
 	bucklerBlockCost,
 	katarBlockChance,
 	MAX_BLOCK_CHANCE,
+	REFLECTIVE_SURGE_MAX_BLOCK_CHANCE,
 	RAGE_DECAY_PER_SECOND,
 	reflectiveSurgeBlockChanceBonus,
 } from "./combat";
@@ -258,9 +259,11 @@ export function defaultBaseState(input: UnitStateInput): UnitState {
 			bleed: Math.min(0.5, perks.bleedResist),
 		},
 		immunities,
-		blockChance:
+		blockChance: Math.min(
+			MAX_BLOCK_CHANCE,
 			bucklerBlockChance(buckler, attributes, input.blockingLevel ?? 0) +
-			katarBlockChance(input.mainHand, attributes),
+				katarBlockChance(input.mainHand, attributes),
+		),
 		blockChanceCap: MAX_BLOCK_CHANCE,
 		blockCost: buckler ? bucklerBlockCost(buckler, attributes) : 0,
 		lifeSteal,
@@ -431,9 +434,9 @@ export class ReflectiveSurgeEffect extends UnitEffect {
 		reflection.incomingFraction *= 2;
 		reflection.thornsFraction *= 2;
 		reflection.surgeFraction += 0.01 * reflection.effectiveness;
-		target.state.blockChanceCap = MAX_BLOCK_CHANCE;
+		target.state.blockChanceCap = REFLECTIVE_SURGE_MAX_BLOCK_CHANCE;
 		target.state.blockChance = Math.min(
-			MAX_BLOCK_CHANCE,
+			REFLECTIVE_SURGE_MAX_BLOCK_CHANCE,
 			target.state.blockChance + reflectiveSurgeBlockChanceBonus(this.level),
 		);
 	}

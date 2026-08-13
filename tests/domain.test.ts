@@ -39,6 +39,7 @@ import {
 	RENDING_THROW_BLEED_DURATION,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
+	rentCooldown,
 	reflectiveSurgeBlockChanceBonus,
 	reflectiveSurgeCooldown,
 	reflectiveSurgeDuration,
@@ -855,7 +856,7 @@ describe("equipment requirements", () => {
 		const surged = rows({ reflectiveSurge: { level: 1 } });
 		const baseChance = bucklerBlockChance(buckler, stats, 5);
 		const surgedChance = Math.min(
-			0.9,
+			1,
 			baseChance + reflectiveSurgeBlockChanceBonus(1),
 		);
 		expect(surged.get("Block chance")).toBe(
@@ -2709,6 +2710,16 @@ test("scales Bash cooldown directly from six to three seconds", () => {
 	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
 	expect(skillCooldown("bash", club, boosted, 1)).toBe(6);
 	expect(skillCooldown("bash", club, boosted, 99)).toBe(3);
+});
+test("scales Rent cooldown directly from six to three seconds", () => {
+	expect(rentCooldown(1)).toBe(6);
+	expect(rentCooldown(50)).toBe(4.5);
+	expect(rentCooldown(99)).toBe(3);
+	expect(skillCooldown("rent", undefined, ZERO_STATS, 1)).toBe(6);
+	expect(skillCooldown("rent", undefined, ZERO_STATS, 99)).toBe(3);
+	expect(effectiveSkillCooldown("rent", undefined, ZERO_STATS, 50, 0.6)).toBe(
+		4.5,
+	);
 });
 
 test("scales Rending Throw pierce every third level after level two", () => {

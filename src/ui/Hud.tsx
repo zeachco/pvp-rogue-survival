@@ -2075,7 +2075,7 @@ export class Hud {
 					{spell.id === "reflectiveSurge" ? (
 						<span>
 							<small>Block cap</small>
-							<strong>95%</strong>
+							<strong>100%</strong>
 						</span>
 					) : null}
 					{spell.id === "rendingThrow" ? (
@@ -3490,7 +3490,10 @@ export function effectiveStatRows(
 				? "Immune"
 				: percent(state.resistances.bleed),
 		],
-		["Block chance", percent(state.blockChance)],
+		[
+			"Block chance",
+			percent(Math.min(state.blockChanceCap, state.blockChance)),
+		],
 		[
 			"Block cost",
 			buckler?.rarity === "unique"

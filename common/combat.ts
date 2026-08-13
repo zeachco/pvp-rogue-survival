@@ -178,7 +178,8 @@ export function weaponUsesProjectile(item: ItemInstance): boolean {
 		Boolean(WEAPONS[item.definitionId as keyof typeof WEAPONS].projectile)
 	);
 }
-export const MAX_BLOCK_CHANCE = 0.9;
+export const MAX_BLOCK_CHANCE = 0.75;
+export const REFLECTIVE_SURGE_MAX_BLOCK_CHANCE = 1;
 export function bucklerBlockChance(
 	item: ItemInstance | undefined,
 	stats: Stats,
@@ -316,6 +317,7 @@ export function skillCooldown(
 	if (skill === "bash") return bashCooldown(level);
 	if (skill === "cleave") return cleaveCooldown(level);
 	if (skill === "flurry") return flurryCooldown(level);
+	if (skill === "rent") return rentCooldown(level);
 	const base = SKILLS[skill].cooldown;
 	return base / weaponSkillLevelScale(item?.level ?? 0);
 }
@@ -325,6 +327,9 @@ export function bashCooldown(level: number): number {
 }
 
 export function cleaveCooldown(level: number): number {
+	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
+}
+export function rentCooldown(level: number): number {
 	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 export function skillRange(
@@ -428,6 +433,7 @@ export function effectiveSkillCooldown(
 		"bash",
 		"flurry",
 		"cleave",
+		"rent",
 	].includes(skill)
 		? authored
 		: authored * cooldownScale(level, reduction);
