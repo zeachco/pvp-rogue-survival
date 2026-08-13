@@ -1474,9 +1474,12 @@ describe("realm game service", () => {
 	test("suicide resets the hero, preserves equipment, and queues its exact death echo until wave nine", () => {
 		const { game, messages } = harness();
 		const sovereign = game.join("Sovereign");
+		const veteran = game.join("Veteran");
 		const victim = game.join("Victim");
-		sovereign.progress.level = 8;
+		sovereign.progress.level = 2;
 		sovereign.progress.souls = 3;
+		veteran.progress.level = 20;
+		veteran.progress.souls = 1;
 		victim.progress.level = 5;
 		victim.progress.xp = cumulativeXpForLevel(5);
 		victim.progress.stats = {
@@ -1503,6 +1506,7 @@ describe("realm game service", () => {
 		expect(victim.progress.souls).toBe(1);
 		expect(victim.progress.mainHand).toEqual(weapon);
 		expect(sovereign.deathEchoes).toHaveLength(1);
+		expect(veteran.deathEchoes).toHaveLength(0);
 		expect(sovereign.deathEchoes[0]).toMatchObject({
 			name: "Victim's death echo",
 			enemyRole: "clone",
