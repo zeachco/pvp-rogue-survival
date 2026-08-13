@@ -91,6 +91,18 @@ ${JSON.stringify(request, null, 2)}
 Follow AGENTS.md and the authoritative specs. Inspect the current worktree, update the relevant spec first when needed, implement focused tests, run the required validation, create one semantic commit containing only this completed feature, and push that commit to the configured upstream branch.`;
 }
 
+export function formattedFeatureRequest(
+	request: Pick<DevlogRequest, "title" | "description">,
+): string {
+	const yellow = "\x1b[33m";
+	const reset = "\x1b[0m";
+	return `${yellow}\n╭─ SELECTED FEATURE ─────────────────────────────────────────────
+│ Title: ${request.title}
+│
+│ ${request.description.replace(/\n/g, "\n│ ")}
+╰───────────────────────────────────────────────────────────────${reset}`;
+}
+
 function gitOutput(args: string[]): string {
 	const result = Bun.spawnSync(["git", ...args], {
 		stdout: "pipe",
@@ -189,6 +201,8 @@ async function main(): Promise<void> {
 	const findings = securityFindings(selected);
 	console.log("\nHighest-voted eligible feature:\n");
 	console.log(JSON.stringify(selected, null, 2));
+	console.log(formattedFeatureRequest(selected));
+	await Bun.sleep(1_000);
 	if (skippedCount)
 		console.warn(
 			`\nSkipped ${skippedCount} oversized request${skippedCount === 1 ? "" : "s"}.`,
