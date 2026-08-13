@@ -3524,15 +3524,15 @@ describe("arena systems", () => {
 		);
 		const aura = group.children.find((child) => child.name === "healing-aura");
 		expect(aura?.geometry.parameters.outerRadius).toBe(HEALING_MAX_RADIUS);
-		expect((aura?.material as THREE.MeshBasicMaterial).opacity).toBe(
-			HEALING_AURA_RING_MAX_OPACITY,
-		);
+		expect(
+			(aura?.material as THREE.MeshBasicMaterial | undefined)?.opacity,
+		).toBe(HEALING_AURA_RING_MAX_OPACITY);
 		const auraFill = group.children.find(
 			(child) => child.name === "healing-aura-light",
 		);
-		expect((auraFill?.material as THREE.MeshBasicMaterial).opacity).toBe(
-			HEALING_AURA_FILL_MAX_OPACITY,
-		);
+		expect(
+			(auraFill?.material as THREE.MeshBasicMaterial | undefined)?.opacity,
+		).toBe(HEALING_AURA_FILL_MAX_OPACITY);
 
 		effect.update(0.25);
 		effect.updateVisuals(0);

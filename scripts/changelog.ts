@@ -291,6 +291,7 @@ function normalizeGeneratedResponse(value: unknown): unknown {
 
 export function extractPeriods(raw: string): GeneratedPeriod[] {
 	const clean = raw
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences intentionally start with ESC.
 		.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "")
 		.replaceAll("\r", "")
 		.trim();

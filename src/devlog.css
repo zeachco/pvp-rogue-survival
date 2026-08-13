@@ -1,7 +1,6 @@
 .devlog-panel {
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	color: #dffeff;
-	background: #071014;
 	position: fixed;
 	inset: 0;
 	z-index: 10000;
