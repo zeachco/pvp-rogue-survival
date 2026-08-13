@@ -76,6 +76,7 @@ export function shouldAutoCastHealing(hp: number, maxHp: number): boolean {
 }
 
 export class HeroCombatSystem {
+	castVersion = 0;
 	private attackCooldown = 0;
 	private attackCooldownMax = 0;
 	private healingCooldown = 0;
@@ -201,6 +202,7 @@ export class HeroCombatSystem {
 					true,
 				),
 			);
+			this.castVersion += 1;
 			if (
 				item?.definitionId === "mace" &&
 				item.rarity === "unique" &&
@@ -255,6 +257,7 @@ export class HeroCombatSystem {
 					true,
 				),
 			);
+			this.castVersion += 1;
 			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 			const duration = effectiveSkillCooldown(
 				"rapidRegen",
@@ -476,6 +479,7 @@ export class HeroCombatSystem {
 				? bloodSkillLifeCost(candidate.id, hero.hp, lifeReduction)
 				: 0;
 		hero.spendRage(rageCost);
+		this.castVersion += 1;
 		if (magicSkill && !candidateIsProc) hero.spendMana(manaCost);
 		if (lifeCost > 0) hero.spendLife(lifeCost);
 		const strike =

@@ -25,6 +25,7 @@ import { Creep } from "./Creep";
 import { Hero } from "./Hero";
 import { groundDropPresentationCenter, ItemDrop, pushDrops } from "./ItemDrop";
 import { GameMap, resolveColumnCollision, touchesColumn } from "./Map";
+import { GameAudio } from "./GameAudio";
 import { Projectile } from "./Projectile";
 import { SpellEffect } from "./SpellEffect";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
@@ -85,6 +86,10 @@ export class Game {
 	private readonly renderer: ThreeRenderer;
 	private readonly heroCombat = new HeroCombatSystem();
 	private readonly auraSystem = new AuraSystem();
+	private readonly audio = new GameAudio();
+	private readonly audibleAttackVersions = new WeakMap<Creep, number>();
+	private audibleHeroAttackVersion = 0;
+	private audibleSpellCastVersion = 0;
 	private readonly keys = new Set<string>();
 	private hero = new Hero(this.map.center);
 	private player?: PlayerState;
@@ -273,6 +278,9 @@ export class Game {
 		await this.renderer.init();
 		this.resize();
 		window.addEventListener("contextmenu", (event) => event.preventDefault());
+		const unlockAudio = () => this.audio.unlock();
+		window.addEventListener("pointerdown", unlockAudio, { once: true });
+		window.addEventListener("keydown", unlockAudio, { once: true });
 		window.addEventListener("resize", () => this.resize());
 		this.resizeObserver = new ResizeObserver(() => this.resize());
 		this.resizeObserver.observe(this.canvas);
@@ -578,8 +586,10 @@ export class Game {
 			const position = this.arena.defeatedPositions.get(message.unitId);
 			this.arena.defeatedPositions.delete(message.unitId);
 			if (position)
-				for (const drop of message.drops)
+				for (const drop of message.drops) {
 					this.drops.push(new ItemDrop(drop, { ...position }));
+					if (drop.kind === "gold") this.audio.play("goldDrop");
+				}
 			this.hero.applyProgress(message.progress, true);
 			this.syncHeroState();
 			this.hud.setPlayer(this.player);
@@ -595,9 +605,10 @@ export class Game {
 				this.heroCombat.spellSlots(message.progress, this.hero),
 			);
 			this.hud.setNotice(message.reason);
-		} else if (message.type === "groundDropCreated")
+		} else if (message.type === "groundDropCreated") {
 			this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
-		else if (message.type === "scoreAwarded" && this.player) {
+			if (message.drop.kind === "gold") this.audio.play("goldDrop");
+		} else if (message.type === "scoreAwarded" && this.player) {
 			this.player.score = message.score;
 			this.hud.setPlayer(this.player);
 		} else if (message.type === "waveAdjusted" && this.player) {
@@ -675,6 +686,7 @@ export class Game {
 
 	private update(deltaSeconds: number): void {
 		if (!this.player) return;
+		this.audio.updateBattleMusic(this.realmMode !== "training");
 		if (this.defeatCooldown > 0) {
 			this.defeatCooldown -= deltaSeconds;
 			if (this.defeatCooldown <= 0) this.resetArena();
@@ -731,6 +743,14 @@ export class Game {
 			this.aimingHero ? this.renderer.cameraFacing() : undefined,
 			(creep) => this.renderer.isWorldPositionInView(creep.position),
 		);
+		if (this.heroCombat.castVersion !== this.audibleSpellCastVersion) {
+			this.audibleSpellCastVersion = this.heroCombat.castVersion;
+			this.audio.play("spell");
+		}
+		if (this.hero.presentationAttackVersion !== this.audibleHeroAttackVersion) {
+			this.audibleHeroAttackVersion = this.hero.presentationAttackVersion;
+			this.audio.play("attack");
+		}
 		this.auraSystem.update(
 			deltaSeconds,
 			this.hero,
@@ -746,12 +766,18 @@ export class Game {
 		for (const creep of this.creeps) {
 			if (!creep.active) continue;
 			creep.castHealing(this.creeps, this.arena.spellEffects, this.hero);
+			const audibleAttackVersion =
+				this.audibleAttackVersions.get(creep) ??
+				creep.presentationAttackVersion;
 			const attack = creep.pursue(
 				this.hero.position,
 				deltaSeconds,
 				this.map.width,
 				this.map.height,
 			);
+			if (creep.presentationAttackVersion !== audibleAttackVersion)
+				this.audio.play("attack");
+			this.audibleAttackVersions.set(creep, creep.presentationAttackVersion);
 			resolveColumnCollision(creep, this.map.columns);
 			correctArenaBoundary(
 				creep,
@@ -958,7 +984,10 @@ export class Game {
 		for (const creep of this.creeps)
 			if (!creep.active) {
 				const deathVisual = creep.createDeathVisual();
-				if (deathVisual) this.arena.characterDeaths.push(deathVisual);
+				if (deathVisual) {
+					this.arena.characterDeaths.push(deathVisual);
+					this.audio.play("creepDeath");
+				}
 				const cooldownReduction = this.heroCombat.onKill(
 					this.player!.progress,
 					this.hero,
