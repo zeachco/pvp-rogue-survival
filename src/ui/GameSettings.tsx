@@ -9,12 +9,14 @@ import {
 	type ShadowMode,
 } from "../game/graphicsSettings";
 import { h } from "./dom";
+import type { KeepAwakeMode } from "../game/mobileSettings";
 
 export interface GameSettingsCallbacks {
 	onSetFullscreenMode(mode: FullscreenMode): void;
 	onSetResolutionScale(scale: number): void;
 	onSetLightingMode(mode: LightingMode): void;
 	onSetShadowMode(mode: ShadowMode): void;
+	onSetKeepAwakeMode(mode: KeepAwakeMode): void;
 	onSetAutoEquipOption(option: "items" | "spells", enabled: boolean): void;
 }
 
@@ -63,6 +65,17 @@ export class GameSettings {
 				/>
 			) as HTMLInputElement,
 	);
+	private readonly keepAwakeRadios = (["on", "off"] as const).map(
+		(mode) =>
+			(
+				<input
+					type="radio"
+					name="keep-screen-awake"
+					value={mode}
+					checked={mode === "off"}
+				/>
+			) as HTMLInputElement,
+	);
 	private readonly autoEquipRadios = (["items", "spells"] as const).map(
 		(option) =>
 			([true, false] as const).map(
@@ -92,6 +105,15 @@ export class GameSettings {
 				×
 			</button>
 			<h2>Game Settings</h2>
+			<fieldset class="graphics-option-group">
+				<legend>Keep screen awake</legend>
+				{this.keepAwakeRadios.map((radio, index) => (
+					<label>
+						{radio}
+						<span>{["On", "Off"][index]}</span>
+					</label>
+				))}
+			</fieldset>
 			<fieldset class="graphics-option-group">
 				<legend>Fullscreen on game start</legend>
 				{this.fullscreenRadios.map((radio, index) => (
@@ -157,6 +179,11 @@ export class GameSettings {
 				if (radio.checked)
 					callbacks.onSetFullscreenMode(radio.value as FullscreenMode);
 			};
+		for (const radio of this.keepAwakeRadios)
+			radio.onchange = () => {
+				if (radio.checked)
+					callbacks.onSetKeepAwakeMode(radio.value as KeepAwakeMode);
+			};
 		this.resolutionScaleInput.oninput = () => {
 			const scale = this.resolutionScaleInput.valueAsNumber;
 			this.setResolutionScale(scale);
@@ -204,6 +231,11 @@ export class GameSettings {
 
 	setFullscreenMode(mode: FullscreenMode): void {
 		for (const radio of this.fullscreenRadios)
+			radio.checked = radio.value === mode;
+	}
+
+	setKeepAwakeMode(mode: KeepAwakeMode): void {
+		for (const radio of this.keepAwakeRadios)
 			radio.checked = radio.value === mode;
 	}
 

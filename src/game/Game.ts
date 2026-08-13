@@ -46,6 +46,11 @@ import {
 } from "./graphicsSettings";
 import { Hero } from "./Hero";
 import { emittedImpactForce } from "./ImpactForce";
+import {
+	loadKeepAwakeMode,
+	saveKeepAwakeMode,
+	ScreenWakeLockController,
+} from "./mobileSettings";
 import { groundDropPresentationCenter, ItemDrop, pushDrops } from "./ItemDrop";
 import { GameMap, resolveColumnCollision, touchesColumn } from "./Map";
 import { Projectile } from "./Projectile";
@@ -91,6 +96,10 @@ export class Game {
 	private readonly heroCombat = new HeroCombatSystem();
 	private readonly auraSystem = new AuraSystem();
 	private readonly audio = new GameAudio();
+	private readonly wakeLock = new ScreenWakeLockController(
+		"wakeLock" in navigator ? navigator.wakeLock : undefined,
+		document,
+	);
 	private readonly audibleAttackVersions = new WeakMap<Creep, number>();
 	private audibleHeroAttackVersion = 0;
 	private audibleSpellCastVersion = 0;
@@ -161,6 +170,8 @@ export class Game {
 		const resolutionScale = loadResolutionScale(localStorage);
 		const lightingMode = loadLightingMode(localStorage);
 		const shadowMode = loadShadowMode(localStorage);
+		const keepAwakeMode = loadKeepAwakeMode(localStorage);
+		this.wakeLock.setEnabled(keepAwakeMode === "on");
 		this.renderer.setLightingMode(lightingMode);
 		this.renderer.setResolutionScale(resolutionScale);
 		this.renderer.setShadowMode(shadowMode);
@@ -218,6 +229,10 @@ export class Game {
 				saveShadowMode(localStorage, mode);
 				this.renderer.setShadowMode(mode);
 			},
+			onSetKeepAwakeMode: (mode) => {
+				saveKeepAwakeMode(localStorage, mode);
+				this.wakeLock.setEnabled(mode === "on");
+			},
 			onInspectHero: (heroId) =>
 				this.socket.send({ type: "inspectHero", heroId }),
 			onSetSkillEquipped: (skillId, equipped, slot) =>
@@ -237,6 +252,7 @@ export class Game {
 		this.hud.setResolutionScale(resolutionScale);
 		this.hud.setLightingMode(lightingMode);
 		this.hud.setShadowMode(shadowMode);
+		this.hud.setKeepAwakeMode(keepAwakeMode);
 		if (this.savedSession) this.hud.setJoinName(this.savedSession.username);
 		this.setupTouchControls(hudRoot);
 		this.registerDebugGlobal();

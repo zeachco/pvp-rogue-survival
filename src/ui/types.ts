@@ -28,6 +28,7 @@ export interface HudCallbacks {
 	onSetResolutionScale(scale: number): void;
 	onSetLightingMode(mode: "off" | "hero" | "all"): void;
 	onSetShadowMode(mode: "off" | "dynamic"): void;
+	onSetKeepAwakeMode(mode: "on" | "off"): void;
 	onInspectHero(heroId: string): void;
 	onSetSkillEquipped(skillId: SkillId, equipped: boolean, slot?: number): void;
 	onToggleSkillAutoFire(skillId: SkillId): void;

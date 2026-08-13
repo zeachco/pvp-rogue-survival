@@ -763,6 +763,10 @@ export class Hud {
 	setLightingMode(mode: "off" | "hero" | "all"): void {
 		this.gameSettings.setLightingMode(mode);
 	}
+
+	setKeepAwakeMode(mode: "on" | "off"): void {
+		this.gameSettings.setKeepAwakeMode(mode);
+	}
 	setShadowMode(mode: "off" | "dynamic"): void {
 		this.gameSettings.setShadowMode(mode);
 	}

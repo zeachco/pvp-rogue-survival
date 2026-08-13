@@ -3037,6 +3037,25 @@ test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right ed
 	);
 });
 
+test("stores the mobile keep-awake preference and defines touch hold actions", async () => {
+	const { loadKeepAwakeMode, saveKeepAwakeMode } = await import(
+		"../src/game/mobileSettings"
+	);
+	const values = new Map<string, string>();
+	const storage = {
+		getItem: (key: string) => values.get(key) ?? null,
+		setItem: (key: string, value: string) => values.set(key, value),
+	};
+	expect(loadKeepAwakeMode(storage)).toBe("off");
+	saveKeepAwakeMode(storage, "on");
+	expect(loadKeepAwakeMode(storage)).toBe("on");
+	const inventorySource = await Bun.file(
+		new URL("../src/ui/InventoryView.tsx", import.meta.url),
+	).text();
+	expect(inventorySource).toContain("TOUCH_ACTION_HOLD_MS = 600");
+	expect(inventorySource).toContain('event.pointerType !== "touch"');
+});
+
 test("describes a server-side WebSocket close in the client log", () => {
 	expect(
 		serverCloseLogMessage({ code: 1012, reason: "Server shutting down" }),

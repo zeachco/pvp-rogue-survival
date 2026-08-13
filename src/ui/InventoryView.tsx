@@ -215,6 +215,7 @@ export function itemTile(
 		if (!button) return;
 		if (!button.disabled) button.title = "Shift+click to repeat while possible";
 		button.onclick = (event) => callback(tile.id, event.shiftKey);
+		bindTouchHoldAction(button, () => callback(tile.id, false));
 	};
 	bindBulk(0, callbacks.onSell);
 	bindBulk(1, callbacks.onPurge);
@@ -348,6 +349,38 @@ export function itemTile(
 		highlightExtractableSkills(true),
 	);
 	return node;
+}
+
+export const TOUCH_ACTION_HOLD_MS = 600;
+
+export function bindTouchHoldAction(
+	button: HTMLButtonElement,
+	action: () => void,
+): void {
+	let holdTimer: ReturnType<typeof setTimeout> | undefined;
+	let touchPress = false;
+	const cancel = () => {
+		if (holdTimer !== undefined) clearTimeout(holdTimer);
+		holdTimer = undefined;
+	};
+	button.addEventListener("pointerdown", (event) => {
+		if (event.pointerType !== "touch" || button.disabled) return;
+		event.preventDefault();
+		touchPress = true;
+		button.dispatchEvent(new MouseEvent("mouseenter"));
+		holdTimer = setTimeout(() => {
+			holdTimer = undefined;
+			action();
+		}, TOUCH_ACTION_HOLD_MS);
+	});
+	for (const type of ["pointerup", "pointercancel", "pointerleave"] as const)
+		button.addEventListener(type, cancel);
+	button.addEventListener("click", (event) => {
+		if (!touchPress) return;
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		touchPress = false;
+	});
 }
 function itemKindLabel(item: InventoryTile["item"]): string {
 	return item.itemKind === "weapon"

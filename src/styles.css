@@ -3183,6 +3183,41 @@ input {
 		--inventory-panel-right-inset: 8px;
 	}
 
+	.header-login-actions {
+		top: max(6px, env(safe-area-inset-top));
+		left: max(8px, env(safe-area-inset-left));
+	}
+
+	.header-login-actions .header-control {
+		min-height: 40px;
+		padding: 7px 9px;
+	}
+
+	.join-panel {
+		bottom: max(8px, env(safe-area-inset-bottom));
+		width: calc(100vw - 16px);
+		max-height: calc(100dvh - var(--game-header-height) - 24px);
+	}
+
+	.join-panel form {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	.join-panel input {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.item-menu {
+		flex-wrap: wrap;
+	}
+
+	.item-menu button {
+		min-height: 44px;
+		flex: 1 1 30%;
+	}
+
 	.hud-top,
 	.hud-bottom {
 		left: 8px;
