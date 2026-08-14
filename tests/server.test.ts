@@ -212,6 +212,31 @@ describe("realm game service", () => {
 		expect(player.progress.equippedSkills).toEqual(["swamp"]);
 		expect(player.progress.autoFireSkills).toEqual(["swamp"]);
 	});
+	test("keeps a learned spell slotted when equipping a weapon that carries it", () => {
+		const { game } = harness();
+		const player = game.join("LearnedWeaponSkill");
+		player.progress.learnedSkills.push("healing");
+		player.progress.learnedSkillLevels.healing = 3;
+		player.progress.equippedSkills = ["healing"];
+		player.progress.autoFireSkills = ["healing"];
+		const mace = generateItem(7, "rare", 2718, {
+			allowedClasses: ["mace"],
+		});
+		mace.skills = ["healing"];
+		player.progress.inventoryTiles.push({
+			id: "healing-mace-tile",
+			item: mace,
+			quantity: 1,
+			key: itemStackKey(mace),
+		});
+		game.handle(player.id, {
+			type: "equipItem",
+			tileId: "healing-mace-tile",
+		});
+		expect(player.progress.mainHand?.skills).toContain("healing");
+		expect(player.progress.equippedSkills).toEqual(["healing"]);
+		expect(player.progress.autoFireSkills).toEqual(["healing"]);
+	});
 	test("replaces slot four with learned Gooey Swamp in a full loadout", () => {
 		const { game } = harness();
 		const player = game.join("FullSwampSlot");

@@ -372,7 +372,7 @@ function skillList(
 	return (
 		<ul class="item-effect-list item-skill-list">
 			{projectedItem.skills.map((skill, index) => {
-				const row = itemSkillDescription(skill);
+				const row = itemSkillDescription(skill, projectedItem, projectedStats);
 				const label = itemSkillLabel(projectedItem, skill, projectedStats);
 				return (
 					<li
@@ -384,6 +384,9 @@ function skillList(
 						<span class="tile-text-tooltip item-skill-tooltip" role="tooltip">
 							<b>{row.label}</b>
 							<span>{row.description}</span>
+							{row.triggerDescription ? (
+								<span>{row.triggerDescription}</span>
+							) : null}
 							{row.statBonuses ? <span>{row.statBonuses}</span> : null}
 						</span>
 					</li>
@@ -408,14 +411,32 @@ export function itemSkillLabel(
 	);
 	return `${label} (${Math.round(weaponSkillTriggerChance(cooldown) * 100)}%)`;
 }
-export function itemSkillDescription(skill: SkillId): {
+export function itemSkillDescription(
+	skill: SkillId,
+	item?: ItemInstance,
+	stats?: Stats,
+): {
 	label: string;
 	description: string;
+	triggerDescription?: string;
 	statBonuses?: string;
 } {
+	let triggerDescription: string | undefined;
+	if (item?.itemKind === "weapon" && stats && !SKILLS[skill].passive) {
+		const cooldown = effectiveSkillCooldown(
+			skill,
+			item,
+			stats,
+			1,
+			derivedStats(stats).cooldownReduction,
+		);
+		const chance = Math.round(weaponSkillTriggerChance(cooldown) * 100);
+		triggerDescription = `${chance}% chance to trigger when this weapon hits an enemy.`;
+	}
 	return {
 		label: SKILLS[skill].label,
 		description: SKILLS[skill].description,
+		triggerDescription,
 		statBonuses: skillStatBonusDescription(skill) || undefined,
 	};
 }

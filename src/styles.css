@@ -428,6 +428,7 @@ input {
 
 .spell-slot.is-passive {
 	cursor: help;
+	filter: saturate(0.2) brightness(0.82);
 }
 
 .skill-bar small {

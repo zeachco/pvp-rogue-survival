@@ -1574,13 +1574,12 @@ export class Hud {
   }
   private renderSpellSlots(): void {
     const preview = this.spellPreview;
-    const ids = new Set<SkillId>([
-      ...this.currentSpells.map((spell) => spell.id),
-      ...(preview?.keys() ?? []),
-    ]);
-    const spells = [...ids].map(
-      (id) =>
-        this.currentSpells.find((spell) => spell.id === id) ?? {
+    const currentIds = new Set(this.currentSpells.map((spell) => spell.id));
+    const spells: SpellSlot[] = [
+      ...this.currentSpells,
+      ...[...(preview?.keys() ?? [])]
+        .filter((id) => !currentIds.has(id))
+        .map((id) => ({
           id,
           label: SKILLS[id].label,
           level: 0,
@@ -1598,20 +1597,9 @@ export class Hud {
           bar: this.player?.progress.learnedSkills.includes(id)
             ? ("learned" as const)
             : ("geared" as const),
-        },
-    );
-    const activeSpells = spells
-      .filter((spell) => spell.active && !spell.passive)
-      .sort((a, b) => (b.shortcut ?? 0) - (a.shortcut ?? 0));
-    const passiveSpells = spells
-      .filter((spell) => spell.passive && spell.active)
-      .sort(
-        (a, b) =>
-          Number(b.procChancesOnAttacks !== undefined) -
-            Number(a.procChancesOnAttacks !== undefined) ||
-          a.label.localeCompare(b.label),
-      );
-    const visible = [...passiveSpells, ...activeSpells];
+        })),
+    ];
+    const visible = spellRailSlots(spells);
     const hasHiddenExtractPreview =
       this.spellPreviewKind === "extract" &&
       Boolean(
@@ -3955,6 +3943,20 @@ export function spellCatalogResourceOrder(
   resource: SpellSlot["resource"],
 ): number {
   return { life: 0, rage: 1, mana: 2 }[resource];
+}
+export function spellRailSlots(spells: SpellSlot[]): SpellSlot[] {
+  const activeSpells = spells
+    .filter((spell) => spell.active && !spell.passive)
+    .sort((a, b) => (b.shortcut ?? 0) - (a.shortcut ?? 0));
+  const passiveSpells = spells
+    .filter((spell) => spell.passive && spell.active)
+    .sort(
+      (a, b) =>
+        Number(b.procChancesOnAttacks !== undefined) -
+          Number(a.procChancesOnAttacks !== undefined) ||
+        a.label.localeCompare(b.label),
+    );
+  return [...passiveSpells, ...activeSpells];
 }
 export type SpellCatalogFilter =
   "learned" | "equipped" | "actives" | "passives" | "unavailable";

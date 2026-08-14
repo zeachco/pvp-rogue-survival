@@ -1139,8 +1139,10 @@ describe("arena systems", () => {
 		expect(
 			combat.spellSlots(progress, hero).find((slot) => slot.id === "bash"),
 		).toMatchObject({
-			passive: true,
-			procChancesOnAttacks: expect.any(Number),
+			active: true,
+			passive: false,
+			bar: "learned",
+			shortcut: 1,
 		});
 		expect(state.attacks).toHaveLength(1);
 		expect(state.attacks[0].skill).toBeUndefined();
@@ -1366,7 +1368,7 @@ describe("arena systems", () => {
 		expect(hero.mana).toBe(0);
 		const procSlot = combat
 			.spellSlots(progress, hero)
-			.find((slot) => slot.id === "arcaneBolt");
+			.find((slot) => slot.id === "arcaneBolt" && slot.passive);
 		expect(procSlot).toMatchObject({
 			active: true,
 			passive: true,

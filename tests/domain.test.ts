@@ -213,6 +213,7 @@ import {
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
 	spellInitials,
+	spellRailSlots,
 	spellTooltipLevels,
 	statusEffectSummaries,
 	xpSendBuffSummary,
@@ -1842,9 +1843,14 @@ test("keeps weapon actives as cooldown-weighted procs", () => {
 	expect(weaponSkillTriggerChanceForHits(10, 20)).toBe(1);
 });
 
-test("projects item-provided Healing as a read-only weapon proc", () => {
+test("projects unlearned item-provided Healing as a read-only weapon proc", () => {
 	const state = progress();
 	state.level = 20;
+	state.learnedSkills = state.learnedSkills.filter((id) => id !== "healing");
+	delete state.learnedSkillLevels.healing;
+	state.equippedSkills = (state.equippedSkills ?? []).filter(
+		(id) => id !== "healing",
+	);
 	state.mainHand = {
 		...state.mainHand!,
 		definitionId: "mace",
@@ -1868,6 +1874,46 @@ test("projects item-provided Healing as a read-only weapon proc", () => {
 			.spellSlots(state, hero)
 			.filter(({ id }) => id === "healing"),
 	).toHaveLength(1);
+});
+
+test("keeps a learned weapon skill available as both an item proc and ordinary active spell", () => {
+	const state = progress();
+	state.level = 20;
+	state.mainHand = {
+		...state.mainHand!,
+		definitionId: "mace",
+		level: 7,
+		skills: ["healing"],
+	};
+	state.learnedSkills.push("healing");
+	state.learnedSkillLevels.healing = 3;
+	state.equippedSkills = ["healing"];
+	expect(weaponProcSkills(state)).toEqual([{ id: "healing", level: 7 }]);
+	const slots = new HeroCombatSystem().spellSlots(
+		state,
+		new Hero({ x: 0, y: 0 }),
+	);
+	const healingSlots = slots.filter(({ id }) => id === "healing");
+	expect(healingSlots).toHaveLength(2);
+	expect(spellRailSlots(slots).filter(({ id }) => id === "healing")).toHaveLength(
+		2,
+	);
+	expect(healingSlots.find(({ bar }) => bar === "learned")).toMatchObject({
+		active: true,
+		passive: false,
+		bar: "learned",
+		shortcut: 1,
+		actualLevel: 4,
+	});
+	expect(healingSlots.find(({ bar }) => bar === "geared")).toMatchObject({
+		active: true,
+		passive: true,
+		bar: "geared",
+		costLabel: "Free attack proc",
+		actualLevel: 7,
+		procChancesOnAttacks: expect.any(Number),
+		providedByItemName: state.mainHand.name,
+	});
 });
 
 test("scales Reflective Surge cooldown, duration, and block bonus to exact endpoints", () => {
@@ -2938,6 +2984,14 @@ test("weapon skill rows show attack-trigger chance while passive rows do not", (
 		"Arcane Bolt (20%)",
 	);
 	expect(itemSkillLabel(weapon, "thorns", DEFAULT_ALLOCATION)).toBe("Thorns");
+	expect(
+		itemSkillDescription("arcaneBolt", weapon, DEFAULT_ALLOCATION)
+			.triggerDescription,
+	).toBe("20% chance to trigger when this weapon hits an enemy.");
+	expect(
+		itemSkillDescription("thorns", weapon, DEFAULT_ALLOCATION)
+			.triggerDescription,
+	).toBeUndefined();
 });
 test("scales Gooey Swamp exactly from its level-one to level-ninety-nine endpoints", () => {
 	expect(swampRadius(1)).toBe(200);
