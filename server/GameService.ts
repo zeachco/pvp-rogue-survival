@@ -45,6 +45,7 @@ import {
 import {
 	cumulativeXpForLevel,
 	DEFAULT_ALLOCATION,
+	higherLevelEnemyXpMultiplier,
 	levelForXp,
 	migrateLegacyStats,
 	STAT_KEYS,
@@ -1338,6 +1339,7 @@ export class GameService {
 		player.score += build.isRival ? 10 : 2;
 		const baseXp =
 			build.xpReward *
+			higherLevelEnemyXpMultiplier(build.level, player.progress.level) *
 			this.options.balance.rewards.xpMultiplier *
 			(issued.mode === "solo" ? 0.5 : 1);
 		const bonusXp = equippedBonusXp(

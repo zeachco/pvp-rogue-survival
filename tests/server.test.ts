@@ -8,7 +8,10 @@ import {
 	itemStackKey,
 	nextRarity,
 } from "../common/items";
-import { cumulativeXpForLevel } from "../common/progression";
+import {
+	cumulativeXpForLevel,
+	higherLevelEnemyXpMultiplier,
+} from "../common/progression";
 import type { PlayerId, ServerMessage, UnitBuild } from "../common/protocol";
 import type { RandomSource } from "../common/random";
 import { InMemoryPlayerRepository } from "../server/domain";
@@ -428,6 +431,22 @@ describe("realm game service", () => {
 		game.handle(player.id, { type: "creepDefeated", unitId: unitId! });
 		expect(player.progress.xp).toBe(20);
 		expect(player.score).toBe(2);
+	});
+	test("grants exponential bonus XP for a higher-level enemy", () => {
+		const { game } = harness();
+		const player = game.join("Underdog");
+		game.handle(player.id, { type: "enterRealm" });
+		const [unitId, issued] = [...player.issuedUnits.entries()][0]!;
+		issued.build.level = 4;
+		issued.build.xpReward = 14;
+
+		game.handle(player.id, { type: "creepDefeated", unitId });
+
+		const expectedReward = Math.floor(
+			14 * higherLevelEnemyXpMultiplier(4, 1) * 0.5,
+		);
+		expect(expectedReward).toBe(9);
+		expect(player.progress.xp).toBe(cumulativeXpForLevel(1) + expectedReward);
 	});
 	test("restarts realm entry at wave one after death and keeps the best wave", () => {
 		const { game, messages } = harness();

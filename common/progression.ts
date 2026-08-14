@@ -92,6 +92,16 @@ export function cumulativeXpForLevel(level: number): number {
 export function levelForXp(xp: number): number {
 	return Math.max(0, Math.floor(Math.sqrt(Math.max(0, xp) / 15)));
 }
+export function higherLevelEnemyXpMultiplier(
+	enemyLevel: number,
+	heroLevel: number,
+): number {
+	const levelDifference = Math.max(
+		0,
+		Math.floor(enemyLevel) - Math.floor(heroLevel),
+	);
+	return 1.1 ** levelDifference;
+}
 export function lerpXpDisplay(current: number, target: number): number {
 	const next = current + (target - current) * 0.1;
 	return Math.abs(target - next) < 0.01 ? target : next;

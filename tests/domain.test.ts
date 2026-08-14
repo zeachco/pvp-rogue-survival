@@ -120,6 +120,7 @@ import {
 	DEFAULT_ALLOCATION,
 	derivedStats,
 	heroTurnSpeedDegrees,
+	higherLevelEnemyXpMultiplier,
 	lerpXpDisplay,
 	levelForXp,
 	STAT_KEYS,
@@ -1105,6 +1106,11 @@ describe("XP curve", () => {
 		expect(cumulativeXpForLevel(4)).toBe(240);
 		expect(levelForXp(239)).toBe(3);
 		expect(levelForXp(240)).toBe(4);
+	});
+	test("scales XP exponentially only for enemies above the hero level", () => {
+		expect(higherLevelEnemyXpMultiplier(1, 1)).toBe(1);
+		expect(higherLevelEnemyXpMultiplier(1, 4)).toBe(1);
+		expect(higherLevelEnemyXpMultiplier(4, 1)).toBeCloseTo(1.1 ** 3);
 	});
 });
 
