@@ -63,9 +63,15 @@ describe("feature agent launcher", () => {
 		expect(
 			selectHighestVotedFeature([
 				request,
-				{ ...request, id: "feature-2", score: 8, upvotes: 8 },
+				{
+					...request,
+					id: "bug-2",
+					kind: "bug",
+					score: 8,
+					upvotes: 8,
+				},
 			])?.id,
-		).toBe("feature-2");
+		).toBe("bug-2");
 		const prompt = featurePrompt(request);
 		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
 		expect(prompt).toContain("<untrusted-feature-request>");

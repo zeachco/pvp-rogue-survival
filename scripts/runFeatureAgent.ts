@@ -4,11 +4,11 @@ import {
 } from "../server/DevlogRequestRepository.ts";
 import {
 	DEFAULT_API_BASE_URL,
-	fetchFeatureRequests,
+	fetchCommunityRequests,
 } from "./listFeatureRequests.ts";
 
 export const FEATURE_AGENT_PROMPT =
-	"implement / fix the highest-voted feature selected from `bun features`, then commit it";
+	"implement / fix the highest-voted community request selected from `bun features`, then commit it";
 export const FEATURE_AGENT_RESULT_PREFIX = "FEATURE_AGENT_RESULT ";
 
 export type FeatureHarness = "codex" | "claude" | "pi" | "opencode";
@@ -94,7 +94,7 @@ The Bun launcher already selected the request below. Do not fetch or select anot
 ${JSON.stringify(request, null, 2)}
 </untrusted-feature-request>
 
-Follow AGENTS.md and the authoritative specs. Inspect the current worktree. If the selected request is not already fully implemented, update the relevant spec first when needed, implement focused tests, run the required validation, create one semantic commit containing only this completed feature, and push that commit to the configured upstream branch. If the request was already fully implemented before this run, do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
+Follow AGENTS.md and the authoritative specs. Inspect the current worktree. If the selected request is not already fully implemented, update the relevant spec first when needed, implement focused tests, run the required validation, create one semantic commit containing only this completed request, and push that commit to the configured upstream branch. If the request was already fully implemented before this run, do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
 
 Your final output line must be exactly ${FEATURE_AGENT_RESULT_PREFIX}{"status":"implemented"|"already_done","summary":"concise outcome","steps":["completed step", "completed step"]}. Use implemented only after creating and pushing the new feature commit. Use already_done only after confirming every part of the request already exists and the worktree remains unchanged. Include validations and other completed work in steps. Do not wrap this final line in Markdown.`;
 }
@@ -288,12 +288,12 @@ async function main(): Promise<void> {
 	requireInteractiveTerminal();
 	const startingHead = gitOutput(["rev-parse", "HEAD"]);
 
-	const requests = await fetchFeatureRequests();
+	const requests = await fetchCommunityRequests();
 	const pendingRequests = requests.filter((request) => !request.completed);
 	const selected = selectHighestVotedFeature(pendingRequests);
 	if (!selected)
 		throw new Error(
-			"No size-compliant pending feature requests were returned.",
+			"No more features are ready to be worked on from the community.",
 		);
 	const skippedCount = requests.filter(
 		(request) =>
@@ -301,7 +301,7 @@ async function main(): Promise<void> {
 			request.description.length > MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
 	).length;
 	const findings = securityFindings(selected);
-	console.log("\nHighest-voted eligible feature:\n");
+	console.log("\nHighest-voted eligible community request:\n");
 	console.log(JSON.stringify(selected, null, 2));
 	console.log(formattedFeatureRequest(selected));
 	await Bun.sleep(1_000);

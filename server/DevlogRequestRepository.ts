@@ -109,10 +109,10 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 	async complete(id: string): Promise<DevlogRequest | undefined> {
 		await this.sql`
 			UPDATE devlog_requests SET completed = TRUE
-			WHERE id = ${id} AND kind = 'feature'
+			WHERE id = ${id}
 		`;
 		const rows = await this.rows(id);
-		return rows[0]?.kind === "feature" ? fromRow(rows[0]) : undefined;
+		return rows[0] ? fromRow(rows[0]) : undefined;
 	}
 
 	async delete(id: string): Promise<boolean> {
@@ -218,7 +218,7 @@ export class InMemoryDevlogRequestStore implements DevlogRequestStore {
 
 	async complete(id: string): Promise<DevlogRequest | undefined> {
 		const request = this.requests.get(id);
-		if (!request || request.kind !== "feature") return undefined;
+		if (!request) return undefined;
 		request.completed = true;
 		return request;
 	}

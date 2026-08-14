@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	DEFAULT_API_BASE_URL,
-	fetchFeatureRequests,
-	submittedFeatures,
+	fetchCommunityRequests,
 } from "../scripts/listFeatureRequests";
 import {
 	activeAccountId,
@@ -68,7 +67,7 @@ describe("devlog requests", () => {
 		await restored.close();
 	});
 
-	test("lists only player-submitted features in queue order", () => {
+	test("lists every player-submitted request in queue order", async () => {
 		const feature = {
 			id: "feature-request",
 			kind: "feature" as const,
@@ -87,33 +86,18 @@ describe("devlog requests", () => {
 			id: "balance-report",
 			kind: "balance" as const,
 		};
-		expect(submittedFeatures([feature, bug, balance])).toEqual([feature]);
-	});
-
-	test("fetches feature submissions through the public request API", async () => {
 		const requestedUrls: string[] = [];
-		const requests = await fetchFeatureRequests(
+		const requests = await fetchCommunityRequests(
 			DEFAULT_API_BASE_URL,
 			async (input) => {
 				requestedUrls.push(String(input));
-				return Response.json({
-					requests: [
-						{ kind: "feature", title: "Controller support" },
-						{ kind: "bug", title: "Stuck movement" },
-						{ kind: "balance", title: "Overpowered katars" },
-					],
-				});
+				return Response.json({ requests: [feature, bug, balance] });
 			},
 		);
 		expect(requestedUrls).toEqual([
 			"https://pvp.up.railway.app/api/devlog/requests",
 		]);
-		expect(requests).toEqual([
-			expect.objectContaining({
-				kind: "feature",
-				title: "Controller support",
-			}),
-		]);
+		expect(requests).toEqual([feature, bug, balance]);
 	});
 
 	test("normalizes valid public submissions and rejects invalid ones", () => {
@@ -235,33 +219,35 @@ describe("devlog requests", () => {
 		).toBeUndefined();
 	});
 
-	test("marks feature requests completed without authentication", async () => {
+	test("marks every community request kind completed without authentication", async () => {
 		const directory = temporaryDirectory();
 		const app = await createApp({ root: directory, databaseUrl: false });
 		try {
-			const request = await app.devlogRequests.create({
-				kind: "feature",
-				title: "Controller support",
-				description: "Allow heroes to be controlled with a gamepad.",
-			});
 			await new Promise<void>((resolve) =>
 				app.server.listen(0, "127.0.0.1", resolve),
 			);
 			const address = app.server.address();
 			if (!address || typeof address === "string")
 				throw new Error("Expected a TCP test server.");
-			const response = await fetch(
-				`http://127.0.0.1:${address.port}/api/devlog/requests/${request.id}`,
-				{
-					method: "PATCH",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({ completed: true }),
-				},
-			);
-			expect(response.status).toBe(200);
-			expect(await response.json()).toMatchObject({
-				request: { id: request.id, completed: true },
-			});
+			for (const kind of ["feature", "bug", "balance"] as const) {
+				const request = await app.devlogRequests.create({
+					kind,
+					title: `${kind} request`,
+					description: `Complete this ${kind} community request.`,
+				});
+				const response = await fetch(
+					`http://127.0.0.1:${address.port}/api/devlog/requests/${request.id}`,
+					{
+						method: "PATCH",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ completed: true }),
+					},
+				);
+				expect(response.status).toBe(200);
+				expect(await response.json()).toMatchObject({
+					request: { id: request.id, kind, completed: true },
+				});
+			}
 		} finally {
 			await app.close();
 		}

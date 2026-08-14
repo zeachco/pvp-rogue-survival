@@ -507,7 +507,7 @@ async function serveRequest(
 			}
 			const completed = await devlogRequests.complete(deleteMatch[1]);
 			if (!completed) {
-				json(response, 404, { error: "Feature request not found." });
+				json(response, 404, { error: "Community request not found." });
 				return;
 			}
 			json(response, 200, { request: completed });
