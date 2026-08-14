@@ -236,6 +236,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	}),
 	z.object({ type: z.literal("logout") }),
 	z.object({
+		type: z.literal("changePassword"),
+		password: z.string().min(8).max(128),
+		passwordConfirmation: z.string().min(8).max(128),
+	}),
+	z.object({
 		type: z.literal("createCharacter"),
 		name: z
 			.string()
@@ -344,6 +349,11 @@ export type ClientMessage =
 	| { type: "enterRealm"; waveNumber?: number }
 	| { type: "scoreSnapshot"; score: number; health: number }
 	| { type: "logout" | "listHeroes" }
+	| {
+			type: "changePassword";
+			password: string;
+			passwordConfirmation: string;
+	  }
 	| { type: "createCharacter"; name: string }
 	| { type: "switchCharacter"; heroId: string }
 	| { type: "inspectHero"; heroId: string }

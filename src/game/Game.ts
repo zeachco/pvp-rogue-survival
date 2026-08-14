@@ -210,6 +210,12 @@ export class Game {
 			onOpenDevlog,
 			onBack: () => this.clearInspection(),
 			onLogout: () => this.socket.send({ type: "logout" }),
+			onChangePassword: (password, passwordConfirmation) =>
+				this.socket.send({
+					type: "changePassword",
+					password,
+					passwordConfirmation,
+				}),
 			onCreateCharacter: (name) =>
 				this.socket.send({ type: "createCharacter", name }),
 			onSwitchCharacter: (heroId) =>

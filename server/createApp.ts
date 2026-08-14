@@ -276,6 +276,29 @@ export async function createApp(options: AppOptions) {
 						sendSocket(socket, { type: "loggedOut" });
 						return broadcastLeaderboard();
 					}
+					if (message.type === "changePassword") {
+						const current = socket.playerId
+							? repository.get(socket.playerId)
+							: undefined;
+						if (!current)
+							return sendSocket(socket, {
+								type: "serverNotice",
+								message: "Join before changing your password.",
+								tone: "error",
+							});
+						if (message.password !== message.passwordConfirmation)
+							return sendSocket(socket, {
+								type: "serverNotice",
+								message: "Passwords do not match.",
+								tone: "error",
+							});
+						await changeAccountPassword(repository, current, message.password);
+						return sendSocket(socket, {
+							type: "serverNotice",
+							message: "Password changed.",
+							tone: "success",
+						});
+					}
 					if (!socket.playerId)
 						return sendSocket(socket, {
 							type: "serverNotice",
@@ -358,6 +381,19 @@ export async function createApp(options: AppOptions) {
 			await close();
 		})());
 	return { server, game, repository, devlogRequests, close, restart };
+}
+
+export async function changeAccountPassword(
+	repository: PlayerRepository,
+	current: NonNullable<ReturnType<PlayerRepository["get"]>>,
+	password: string,
+): Promise<void> {
+	const passwordHash = await Bun.password.hash(password);
+	for (const player of repository.getAccountPlayers(current.accountId)) {
+		player.passwordHash = passwordHash;
+		repository.markDirty(player.id);
+	}
+	await repository.persist();
 }
 
 export function broadcastRestartNotice(

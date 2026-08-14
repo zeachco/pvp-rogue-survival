@@ -188,7 +188,7 @@ export class Hud {
   private readonly loginHeaderActions = (
     <nav class="header-login-actions" aria-label="Header actions" />
   ) as HTMLElement;
-  private authenticationMode: "create" | "login" = "login";
+  private authenticationMode: "create" | "login" | "change" = "login";
   private readonly authenticationTitle = (<h2 />) as HTMLElement;
   private readonly authenticationNotice = (
     <div
@@ -523,13 +523,20 @@ export class Hud {
         this.setNotice("Passwords do not match.", "error");
         return;
       }
-      this.callbacks.onJoin(
-        this.nameInput.value.trim(),
-        this.passwordInput.value,
-        this.authenticationMode === "create"
-          ? this.passwordConfirmationInput.value
-          : undefined,
-      );
+      if (this.authenticationMode === "change") {
+        this.callbacks.onChangePassword(
+          this.passwordInput.value,
+          this.passwordConfirmationInput.value,
+        );
+      } else {
+        this.callbacks.onJoin(
+          this.nameInput.value.trim(),
+          this.passwordInput.value,
+          this.authenticationMode === "create"
+            ? this.passwordConfirmationInput.value
+            : undefined,
+        );
+      }
     };
     (
       this.characterSelector.querySelector(
@@ -937,6 +944,23 @@ export class Hud {
     this.passwordConfirmationInput.required = mode === "create";
     this.passwordInput.autocomplete =
       mode === "create" ? "new-password" : "current-password";
+    this.authenticationNotice.textContent = "";
+    this.authenticationNotice.classList.add("is-hidden");
+    this.authenticationMask.classList.remove("is-hidden");
+    this.authenticationModal.classList.remove("is-hidden");
+    this.passwordInput.focus();
+  }
+  private showChangePassword(): void {
+    this.authenticationMode = "change";
+    this.authenticationTitle.textContent = "Change password";
+    const confirmation = this.authenticationModal.querySelector(
+      ".password-confirmation",
+    ) as HTMLElement;
+    confirmation.hidden = false;
+    this.passwordConfirmationInput.required = true;
+    this.passwordInput.autocomplete = "new-password";
+    this.passwordInput.value = "";
+    this.passwordConfirmationInput.value = "";
     this.authenticationNotice.textContent = "";
     this.authenticationNotice.classList.add("is-hidden");
     this.authenticationMask.classList.remove("is-hidden");
@@ -2796,12 +2820,16 @@ export class Hud {
       const characters = (
         <button type="button">Characters</button>
       ) as HTMLButtonElement;
+      const changePassword = (
+        <button type="button">Change password</button>
+      ) as HTMLButtonElement;
       const logout = (
         <button type="button">Logout</button>
       ) as HTMLButtonElement;
       characters.onclick = closeThen(() => this.openCharacterSelector());
+      changePassword.onclick = closeThen(() => this.showChangePassword());
       logout.onclick = closeThen(this.callbacks.onLogout);
-      actions.push(characters, logout);
+      actions.push(characters, changePassword, logout);
     }
     if (leaveDisabled !== undefined) {
       const leave = (

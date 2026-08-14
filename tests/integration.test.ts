@@ -11,6 +11,7 @@ import type { RandomSource } from "../common/random";
 import {
 	broadcastAnonymousLeaderboard,
 	broadcastRestartNotice,
+	changeAccountPassword,
 	RESTART_NOTICE,
 } from "../server/createApp";
 import { InMemoryPlayerRepository } from "../server/domain";
@@ -82,6 +83,20 @@ describe("server protocol integration", () => {
 				type: "join",
 				name: "Integration",
 				password: "short",
+			}),
+		).toBeUndefined();
+		expect(
+			parseClientMessage({
+				type: "changePassword",
+				password: "replacement123",
+				passwordConfirmation: "replacement123",
+			}),
+		).toMatchObject({ type: "changePassword", password: "replacement123" });
+		expect(
+			parseClientMessage({
+				type: "changePassword",
+				password: "short",
+				passwordConfirmation: "short",
 			}),
 		).toBeUndefined();
 		expect(welcome?.realm.mode).toBe("training");
@@ -160,5 +175,25 @@ describe("server protocol integration", () => {
 						?.connected
 				: undefined,
 		).toBeFalse();
+	});
+
+	test("changes the shared account password to a hash for every character", async () => {
+		const repository = new InMemoryPlayerRepository();
+		const game = new GameService({
+			repository,
+			balance: BALANCE,
+			random: new FixedRandom(),
+			send: () => {},
+		});
+		const first = game.join("PasswordOwner");
+		const second = game.createCharacter(first, "PasswordAlt");
+
+		await changeAccountPassword(repository, first, "replacement123");
+
+		expect(first.passwordHash).toBe(second.passwordHash);
+		expect(first.passwordHash).not.toBe("replacement123");
+		expect(
+			await Bun.password.verify("replacement123", first.passwordHash!),
+		).toBeTrue();
 	});
 });

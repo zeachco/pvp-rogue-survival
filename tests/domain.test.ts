@@ -3276,10 +3276,10 @@ test("groups space-saving header actions in one accessible menu", async () => {
 	expect(hudSource).toContain(
 		'r.mode === "training" ? undefined : !r.canLeave',
 	);
-	const menuStart = hudSource.indexOf("\tprivate headerMenu(");
+	const menuStart = hudSource.indexOf("private headerMenu(");
 	const menuSource = hudSource.slice(
 		menuStart,
-		hudSource.indexOf("\n\tprivate ", menuStart + 2),
+		hudSource.indexOf("\n  private ", menuStart + 2),
 	);
 	expect(menuSource.indexOf(">Options<")).toBeLessThan(
 		menuSource.indexOf(">Devlog<"),
@@ -3288,8 +3288,12 @@ test("groups space-saving header actions in one accessible menu", async () => {
 		menuSource.indexOf(">Characters<"),
 	);
 	expect(menuSource.indexOf(">Characters<")).toBeLessThan(
+		menuSource.indexOf(">Change password<"),
+	);
+	expect(menuSource.indexOf(">Change password<")).toBeLessThan(
 		menuSource.indexOf(">Logout<"),
 	);
+	expect(menuSource).toContain("this.showChangePassword()");
 	expect(menuSource.indexOf(">Devlog<")).toBeLessThan(
 		menuSource.indexOf("Leave to Lobby"),
 	);
@@ -3397,18 +3401,16 @@ test("collapses both side panels before showing the character selector", async (
 	const source = await Bun.file(
 		new URL("../src/ui/Hud.tsx", import.meta.url),
 	).text();
+	const selectorStart = source.indexOf("openCharacterSelector(): void");
 	const openSelector = source.slice(
-		source.indexOf("\topenCharacterSelector(): void"),
-		source.indexOf(
-			"\tshowAuthentication(",
-			source.indexOf("\topenCharacterSelector(): void"),
-		),
+		selectorStart,
+		source.indexOf("showAuthentication(", selectorStart),
 	);
-	expect(openSelector).toContain(
-		'this.characterToggle,\n\t\t\t"character",\n\t\t\ttrue,',
+	expect(openSelector).toMatch(
+		/this\.characterToggle,\s*"character",\s*true,/,
 	);
-	expect(openSelector).toContain(
-		'this.inventoryToggle,\n\t\t\t"inventory",\n\t\t\ttrue,',
+	expect(openSelector).toMatch(
+		/this\.inventoryToggle,\s*"inventory",\s*true,/,
 	);
 	expect(openSelector.indexOf('"character"')).toBeLessThan(
 		openSelector.indexOf("this.characterSelector.classList.remove"),
