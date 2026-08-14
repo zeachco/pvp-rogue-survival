@@ -19,6 +19,7 @@ import type {
 import { systemRandom } from "../../common/random";
 import { SocketClient } from "../net/SocketClient";
 import { SessionStorage } from "../platform/SessionStorage";
+import { trySetPointerCapture } from "../platform/PointerCapture";
 import { Hud, panelShortcut } from "../ui/Hud";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import { AttackArea } from "./AttackArea";
@@ -286,7 +287,7 @@ export class Game {
 		};
 		pad.addEventListener("pointerdown", (event) => {
 			pointerId = event.pointerId;
-			pad.setPointerCapture(event.pointerId);
+			trySetPointerCapture(pad, event.pointerId);
 			update(event);
 		});
 		pad.addEventListener("pointermove", (event) => {
@@ -387,7 +388,7 @@ export class Game {
 				this.touchCameraPointerId = event.pointerId;
 				this.touchCameraX = event.clientX;
 				this.touchCameraY = event.clientY;
-				this.canvas.setPointerCapture(event.pointerId);
+				trySetPointerCapture(this.canvas, event.pointerId);
 				return;
 			}
 			if (event.button === 2) {
@@ -398,7 +399,7 @@ export class Game {
 					this.renderer.aimAt(this.hero.position, this.aimTarget.position);
 				this.hud.setAiming(true);
 				this.orbitingCamera = true;
-				this.canvas.setPointerCapture(event.pointerId);
+				trySetPointerCapture(this.canvas, event.pointerId);
 				if (typeof this.canvas.requestPointerLock === "function")
 					void this.canvas.requestPointerLock().catch(() => {
 						// Pointer capture above remains the fallback when locking is denied.
@@ -408,7 +409,7 @@ export class Game {
 			if (event.button !== 0) return;
 			event.preventDefault();
 			this.orbitingCamera = true;
-			this.canvas.setPointerCapture(event.pointerId);
+			trySetPointerCapture(this.canvas, event.pointerId);
 			if (typeof this.canvas.requestPointerLock === "function")
 				void this.canvas.requestPointerLock().catch(() => {
 					// Pointer capture above remains the fallback when locking is denied.
