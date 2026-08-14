@@ -202,6 +202,7 @@ import {
 import { gameApiUrl, routeUrl } from "../src/navigation";
 import { gameSocketUrl } from "../src/net/SocketClient";
 import {
+	defaultSpellCatalogFilters,
 	effectiveStatRows,
 	effectTimeLabel,
 	equipSlotKeys,
@@ -553,6 +554,26 @@ test("ORs spell catalog filters within status and type groups, then ANDs the gro
 		),
 	).toBeFalse();
 	expect(spellCatalogFilterMatches(learnedPassive, new Set())).toBeTrue();
+});
+
+test("defaults the spell catalog to learned active spells", () => {
+	expect([...defaultSpellCatalogFilters()]).toEqual(["learned", "actives"]);
+});
+
+test("clears and focuses spell search whenever the catalog opens", async () => {
+	const source = await Bun.file(
+		new URL("../src/ui/Hud.tsx", import.meta.url),
+	).text();
+	const toggleStart = source.indexOf("  toggleSpellCatalog(): void");
+	const toggleSource = source.slice(
+		toggleStart,
+		source.indexOf("  assignHoveredSpell", toggleStart),
+	);
+	expect(toggleSource).toContain('this.spellCatalogSearch = "";');
+	expect(toggleSource).toContain(
+		'.querySelector<HTMLInputElement>(".spell-catalog-search input")',
+	);
+	expect(toggleSource).toContain("?.focus();");
 });
 
 test("defines a concrete acquisition source for every catalog spell", () => {

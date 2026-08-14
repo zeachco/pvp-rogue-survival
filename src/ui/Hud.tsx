@@ -379,11 +379,7 @@ export class Hud {
   ) as HTMLElement;
   private selectedCatalogSpell?: SkillId;
   private spellCatalogSignature = "";
-  private spellCatalogFilters = new Set<SpellCatalogFilter>([
-    "learned",
-    "equipped",
-    "actives",
-  ]);
+  private spellCatalogFilters = defaultSpellCatalogFilters();
   private spellCatalogSearch = "";
   private spellPreviewKind?: "extract" | "equipment";
   private readonly heroResourceDock = new HeroResourceDock();
@@ -1327,11 +1323,12 @@ export class Hud {
   toggleSpellCatalog(): void {
     this.spellCatalog.classList.toggle("is-hidden");
     if (!this.spellCatalog.classList.contains("is-hidden")) {
-      this.spellCatalogFilters = new Set(["learned", "equipped", "actives"]);
+      this.spellCatalogFilters = defaultSpellCatalogFilters();
+      this.spellCatalogSearch = "";
       this.spellCatalogSignature = "";
       this.renderSpellCatalog("");
       this.spellCatalog
-        .querySelector<HTMLElement>(".spell-catalog-scroll")
+        .querySelector<HTMLInputElement>(".spell-catalog-search input")
         ?.focus();
     }
   }
@@ -4004,6 +4001,9 @@ export function spellCatalogSlotsById(
 }
 export type SpellCatalogFilter =
   "learned" | "equipped" | "actives" | "passives" | "unavailable";
+export function defaultSpellCatalogFilters(): Set<SpellCatalogFilter> {
+  return new Set(["learned", "actives"]);
+}
 export const SPELL_CATALOG_FILTER_GROUPS: ReadonlyArray<
   ReadonlyArray<readonly [SpellCatalogFilter, string]>
 > = [
