@@ -1300,6 +1300,36 @@ describe("permanent inventory", () => {
 		expect(state.scraps.common).toBe(10 - upgradeCosts(item).scraps);
 		expect(state.gold).toBeLessThan(gold);
 	});
+	test("keeps a one-copy upgraded stack at its chronological inventory position", () => {
+		const state = progress();
+		const older = generateItem(1, "common", 411);
+		const source = generateItem(1, "common", 412);
+		const newer = generateItem(1, "common", 413);
+		for (const item of [older, source, newer])
+			collectIntoInventory(
+				state,
+				item,
+				() => `tile-${++id}`,
+				() => ++id,
+			);
+		const sourceTile = state.inventoryTiles[1];
+		state.gold = 10_000;
+		state.scraps.common = 100;
+
+		const result = upgradeFromInventory(
+			state,
+			sourceTile.id,
+			() => `tile-${++id}`,
+			() => 414,
+		);
+
+		expect(result.changed).toBeTrue();
+		expect(state.inventoryTiles.map((tile) => tile.item.id)).toEqual([
+			older.id,
+			result.created?.id,
+			newer.id,
+		]);
+	});
 	test("uses lower upgrade bases and increases them for direct attribute points", () => {
 		const plain = generateItem(1, "common", 41);
 		const attributed = { ...plain, statBonuses: { spirit: 3 } };

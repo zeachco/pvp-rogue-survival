@@ -314,6 +314,7 @@ export function upgradeFromInventory(
 		};
 	const created = levelUpItem(tile.item, nextSeed());
 	created.pendingRerollSeed = nextSeed();
+	const sourceIndex = progress.inventoryTiles.indexOf(tile);
 	const existing = progress.inventoryTiles.find(
 		(candidate) => candidate.key === itemStackKey(created),
 	);
@@ -348,7 +349,7 @@ export function upgradeFromInventory(
 	progress.souls -= souls;
 	if (existing) existing.quantity += 1;
 	else
-		progress.inventoryTiles.push({
+		progress.inventoryTiles.splice(sourceIndex, 0, {
 			id: nextId(),
 			key: itemStackKey(created),
 			item: created,
