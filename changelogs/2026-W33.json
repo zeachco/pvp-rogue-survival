@@ -1,39 +1,85 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-13T03:08:50.812Z",
+	"generatedAt": "2026-08-14T03:14:15.433Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Expanded PvP, New Controllers, and Account Management",
+			"summaryTitle": "Quality of Life & Character Customization Update",
 			"summary": {
 				"features": [
-					"Introduced Realm Challenges for competitive two-player encounters, allowing the winner to claim significant resources from the loser.",
-					"Implemented Swarm Mode, adding a realm header with a countdown, forcing queued enemies, and scaling server cooldowns per wave.",
-					"Expanded account management by allowing multiple characters and implementing a shared stash inventory across all linked heroes.",
-					"Added support for DualShock controllers, mapping face and shoulder buttons to all spell slots and providing camera-relative movement controls.",
-					"Enhanced the Devlog experience with new features including API status updates, ability to track bug fixes, and structured categories for feature requests."
-				],
-				"bugfixes": [
-					"Corrected the persistent aura system so that a unit's specialized group aura follows its owner's position accurately in the world.",
-					"Fixed specific visual glitches such as light rendering issues within swamp environments."
-				],
-				"balance": [
-					"Revised the mechanics of status effects (Poison, Bleed, Burn) to allow them to bypass player dodge and block. Additionally, Voodoo poison now scales its amplification up to 2x at level 99, while also adjusting block-related rules for guaranteed restoration.",
-					"Ameliorated Thunder Aura by doubling both its damage output and targeting radius, replacing the visual fill with inward lightning arcs."
-				],
-				"ux": [
-					"Improved the mobile user experience by ensuring that Devlog and enemy preview exit buttons remain accessible in the top-right corner without scaling the main HUD.",
-					"Updated leaderboards to rank heroes not just by level, but also by acquired Souls, and displayed current Soul totals alongside basic stats."
-				],
-				"graphics": [
-					"Enhanced combat immersion by introducing distinct sound cues for spells, attacks, gold drops, and creep deaths. A lightweight battle music loop now plays outside of training zones.",
-					"Added new player-facing options to automatically equip items and spells upon acquisition, filling only empty slots."
+					"Characters now preserve build details across multiple characters while sharing account currencies and equipment.",
+					"New players benefit from updated defaults, including automatic item and spell equipping when creating a new character.",
+					"The Leaderboard system now ranks heroes based on their accumulated Souls score for earning Death Echoes.",
+					"Gameplay has received significant additions, such as dedicated Realm Challenges allowing two-player PvP combat (with winner resource gains), and the introduction of Bonk actions in competitive realms.",
+					"Controls have been expanded to support DualShock controllers with mapping for all spell slots and camera-relative movement.",
+					"The Devlog feature now includes explanations on community voting workflows and how development is driven by autonomous AI agents.",
+					"Mobile gameplay has improved responsiveness, ensuring key options remain accessible across safe areas and providing touch input feedback (preview/hold)."
 				]
 			},
 			"commits": [
+				{
+					"hash": "6c2071d0dfb2bda3d1910050a9e257901742acca",
+					"authoredAt": "2026-08-13T23:07:50-04:00",
+					"title": "ux(header): move actions into compact menu",
+					"description": "- group Options and Devlog behind an accessible hamburger control\n- include Leave to Lobby in the menu outside Training Grounds\n- keep the menu usable on narrow viewports"
+				},
+				{
+					"hash": "97166c4767cc3a22aba8041d11520f46b37e1c58",
+					"authoredAt": "2026-08-13T22:57:25-04:00",
+					"title": "ux(hud): align resource and chat bars",
+					"description": ""
+				},
+				{
+					"hash": "2c29caccc7df63663562e5765e90c68b86746176",
+					"authoredAt": "2026-08-13T22:53:46-04:00",
+					"title": "feat(characters): preserve per-hero builds",
+					"description": "- resume the most recently played hero without opening Characters\n\n- keep inventories and spell setups per hero while sharing account currencies\n\n- show equipment and spell details in the character roster"
+				},
+				{
+					"hash": "8fa1803a125e9c6a4229270752158ed6dfc4c9f4",
+					"authoredAt": "2026-08-13T21:58:37-04:00",
+					"title": "feat(lobby): improve new-player defaults",
+					"description": "- enable item and spell auto-equip for newly created characters\n- collapse character and inventory panels when opening the hero roster\n- document and test the updated defaults and roster interaction"
+				},
+				{
+					"hash": "0d4021457b3981f5d84ae8475277b2d56f01a05c",
+					"authoredAt": "2026-08-13T21:54:05-04:00",
+					"title": "ux(camera): prevent interface text selection",
+					"description": ""
+				},
+				{
+					"hash": "b73c4dc9e2999e2679c08ea55917de934abd79ec",
+					"authoredAt": "2026-08-13T21:46:10-04:00",
+					"title": "ux(camera): dodge open side panels",
+					"description": "- center the hero in the unobstructed viewport area\n- update framing when panels toggle or resize\n- document and test panel-aware camera offsets"
+				},
+				{
+					"hash": "009ed0c7deba67853756fefd756877518c44fd0a",
+					"authoredAt": "2026-08-13T08:03:40-04:00",
+					"title": "balance(skills): rebalance Rent and blocking",
+					"description": "- render Rent with four cardinal cones and scale cooldown from 6s to 3s\\n- cap ordinary blocking at 75% and allow 100% only during Reflective Surge\\n- synchronize specs, HUD projections, and focused regression coverage"
+				},
+				{
+					"hash": "f6a9f7d2cd96166ab02f1525004847f7681b41ea",
+					"authoredAt": "2026-08-13T07:52:06-04:00",
+					"title": "ux(mobile): improve touch gameplay controls",
+					"description": "- add a persisted keep-screen-awake option with wake-lock reacquisition\n- keep mobile login and inventory actions reachable with safe-area responsive layout\n- preview inventory actions on tap and execute them on hold"
+				},
+				{
+					"hash": "8581b24713d629b5a8b57b9b574e2afda3dfbceb",
+					"authoredAt": "2026-08-13T07:46:16-04:00",
+					"title": "feat(leaderboard): lock death echoes to souls ranking",
+					"description": "- align the authoritative defeat spec with the Souls leaderboard\\n- prove higher Souls outrank a higher-level hero for death echoes"
+				},
+				{
+					"hash": "3d9c21cc54538cfed926a7ed86b59b455e26c2b9",
+					"authoredAt": "2026-08-13T07:26:05-04:00",
+					"title": "ux(devlog): explain community-driven development",
+					"description": "- explain autonomous agent development on the login screen\n- describe how community votes prioritize agent-selected requests"
+				},
 				{
 					"hash": "022b9cebfda7194904f4e10fb5587bc78e29e98a",
 					"authoredAt": "2026-08-12T23:07:59-04:00",
@@ -155,7 +201,7 @@
 					"description": "- scale Voodoo poison amplification from 1x at level 1 to 2x at level 99\n\n- make Poison, Bleed, and Burn ticks bypass dodge and block\n\n- remove Blocking's reactive cooldown and allow consecutive block rolls\n\n- guarantee Penance restores at least 1% of maximum Mana per successful block\n\n- cap buckler, Katar, and Reflective Surge block chance at 90%\n\n- synchronize combat projections, tooltips, specs, and boundary tests"
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Balance", "UX", "Graphics"]
+			"categories": ["Features"]
 		}
 	]
 }

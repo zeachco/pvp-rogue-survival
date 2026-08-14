@@ -1,40 +1,43 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-13T03:08:50.693Z",
+	"generatedAt": "2026-08-14T03:14:15.276Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "High Impact Updates & Stability Improvements",
+			"summaryTitle": "Mega Update",
 			"summary": {
 				"features": [
-					"Integrated Souls economy by replacing Unique Scrap and adding resource tooltips for realm waves.",
-					"Implemented unique player progression systems, including a new Unique Buckler item and improved equipment mechanics (e.g., two-handed weapon slots).",
-					"Expanded Devlog functionality to include history tracking with back support and voting/suggestion submission from logged-in players.",
-					"Improved user experience across the game by enhancing panel visibility, refining spell previews, and updating character stats displays.",
-					"Added new admin controls for feature requests and updated general site navigation (e.g., separating changelogs into categories)."
+					"The Unique item economy is overhauling: replacing 'Unique Scrap' with Souls and increasing the power of unique rarity items. Players can now stake one Soul upon defeat to earn player-killer rewards.",
+					"Improvements to realm experience include added resource tooltips and selectable starting waves.",
+					"Added new attributes and a unique buckler model.",
+					"The Devlog is moving into the game's core, featuring SPA routing with browser back support, consistent translucency in all realms, and load capabilities from various servers.",
+					"Authentication systems have been secured, improving login processes and password management for both new and legacy accounts."
 				],
 				"bugfixes": [
-					"Fixed visual display issues including proper message echo in chat, persistent authentication data, and correct handling of inventory overflow upon death.",
-					"Addressed graphical bugs such as map obstacles being circular, blizzard spell rendering errors, and coins clipping underground.",
-					"Corrected passive mechanics and stat displays to accurately reflect additional block values and ensured spells equipped on items functioned correctly.",
-					"Fixed quality-of-life issues like the ability to open spells/chat while inventory is active, and clarified how multiple character panels are displayed (e.g., invader model fix)."
+					"Fixed visual errors across UI elements, including inventory access conflicts with spells and chat interfaces.",
+					"Corrected messaging functionality so that players see their own messages in chat logs.",
+					"Resolved instances of item overflow and excessive death drops on the ground.",
+					"Addressed various environmental glitches such as coins clipping underground or healing light displacement.",
+					"Updated combat stability by addressing visual issues with skills on equipped items, ensuring passive procs are correctly displayed and activated."
 				],
 				"performance": [
-					"Optimized rendering performance by reducing shadow overhead and managing lighting effects, including pre-allocating a pool of light instances for complex environments.",
-					"Provided major structural improvements to the authentication flow, ensuring secure password handling, robust error visibility, and updated client/server protocols.",
-					"Improved general game settings capabilities by allowing selection of rendering scale and disabling auto fullscreen at startup."
+					"Reduced rendering overhead by keeping spell projectiles, Gold, and Scrap unlit and outside shadow maps. Introduced a pooled system for light effects to efficiently manage resource creation.",
+					"Optimized model loading by detaching redundant hero and clone fallback presentations when models load."
 				],
 				"balance": [
-					"Adjusted core combat systems through changes like making swamp spells circular and adjusting spell costs (e.g., Blizzard and minimum level requirements).",
-					"Updated resource mechanics by modifying stamina systems, refining the unique item economy, and restructuring how magical statistics are calculated (e.g., reverting magic stat fallback to intelligence)."
+					"Implemented significant tuning changes across combat mechanics: 'Rapid Regen' is now in effect, magic stats have been deprecated favoring Intelligence, and spells like Katar and Swamp are updated to adopt circular obstacle patterns.",
+					"Adjusted resource costs for spells and implemented caps on multi-hit spell proc chances."
 				],
 				"ux": [
-					"Overhauled Devlog accessibility with responsive design for mobile and clearer navigation structures.",
-					"Enhanced general UI polish by updating panel layouts, introducing effect badges, and improving readability in character stats and game messages.",
-					"Refined player-facing elements across the board, including organizing realm presence headers, standardizing spell ownership colors, and clarifying context tooltips (e.g., Souls)."
+					"The Devlog experience has received substantial improvements, including enhanced mobile responsiveness, better general readability in all UI states, and separating content into specific update categories.",
+					"UI/UX enhancements include clarification of spell ownership colors (enemy spells are now red, hero blood spells are purple) and clearer display logic for skills provided by equipment.",
+					"Improved panel usability across the board: inventory and character panels now occupy better space, while the realm header is reorganized to emphasize core status information."
+				],
+				"graphics": [
+					"Addressed multiple graphical issues including general graphics warnings, improving spell visuals (Blizzard), and ensuring consistent light presentation across different game states."
 				]
 			},
 			"commits": [
@@ -645,7 +648,14 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "Performance", "Balance", "UX"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics"
+			]
 		}
 	]
 }
