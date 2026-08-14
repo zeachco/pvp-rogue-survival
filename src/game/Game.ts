@@ -634,6 +634,19 @@ export class Game {
 				this.duelOpponentHp = this.duelOpponent.hp;
 			}
 			this.hud.showCenterToast("Challenge Realm deathmatch!");
+		} else if (message.type === "duelEnded") {
+			if (message.outcome === "victory") {
+				this.resetArena();
+				this.hud.showCenterToast("Challenge Realm victory!");
+			} else {
+				this.duelOpponent = undefined;
+				this.hero.hp = 0;
+				if (this.defeatCooldown <= 0) {
+					this.defeatDropPosition = { ...this.hero.position };
+					this.defeatCooldown = 1.8;
+					this.hud.showDeathModal("Your ass got looted by a bonker.");
+				}
+			}
 		} else if (message.type === "duelState" && this.duelOpponent) {
 			this.duelOpponent.position = { x: message.x, y: message.y };
 			this.duelOpponent.facing = message.facing;

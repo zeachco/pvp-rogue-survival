@@ -4,6 +4,7 @@ import { BALANCE } from "../common/balance";
 import {
 	parseClientMessage,
 	parseServerMessage,
+	PROTOCOL_VERSION,
 	type ServerMessage,
 } from "../common/protocol";
 import type { RandomSource } from "../common/random";
@@ -67,7 +68,7 @@ describe("server protocol integration", () => {
 			(message) => message?.type === "incomingWave",
 		);
 		expect(welcome?.config.balance.id).toBe("normal");
-		expect(welcome?.config.protocolVersion).toBe(47);
+		expect(welcome?.config.protocolVersion).toBe(PROTOCOL_VERSION);
 		expect(
 			parseClientMessage({
 				type: "join",

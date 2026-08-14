@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 48;
+export const PROTOCOL_VERSION = 49;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -285,6 +285,7 @@ const serverEnvelope = z
 			"forceNextWaveResult",
 			"playerBonked",
 			"duelStarted",
+			"duelEnded",
 			"duelState",
 			"duelDamage",
 			"waveAdjusted",
@@ -391,6 +392,7 @@ export type ServerMessage =
 	| { type: "incomingWave"; wave: CreepWave }
 	| { type: "forceNextWaveResult"; accepted: boolean; readyAt: number }
 	| { type: "duelStarted"; opponent: UnitBuild; side: 0 | 1 }
+	| { type: "duelEnded"; outcome: "victory" | "defeat" }
 	| { type: "duelState"; x: number; y: number; facing: number; hp: number }
 	| { type: "duelDamage"; amount: number; attackerId: PlayerId }
 	| {

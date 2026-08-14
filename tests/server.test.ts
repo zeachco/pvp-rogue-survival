@@ -699,6 +699,18 @@ describe("realm game service", () => {
 			0,
 		);
 		game.handle(two.id, { type: "heroDefeated", sourcePlayerId: one.id });
+		expect(
+			messages
+				.get(one.id)
+				?.filter((message) => message.type === "duelEnded")
+				.at(-1),
+		).toEqual({ type: "duelEnded", outcome: "victory" });
+		expect(
+			messages
+				.get(two.id)
+				?.filter((message) => message.type === "duelEnded")
+				.at(-1),
+		).toEqual({ type: "duelEnded", outcome: "defeat" });
 		expect(one.progress.souls).toBe(1);
 		expect(one.progress.gold).toBe(0);
 		expect(two.progress.gold).toBe(6);

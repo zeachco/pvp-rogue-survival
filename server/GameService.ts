@@ -1765,6 +1765,10 @@ export class GameService {
 			player,
 			`Defeated: XP, attributes, and wave reset; lost ${lostGold} Gold and ${lostSouls} Souls${overflow.length ? `; dropped ${overflow.length} backpack item${overflow.length === 1 ? "" : "s"}` : ""}.`,
 		);
+		if (recentBonk?.cause === "duel" && killer && activeRealm?.duelActive) {
+			this.options.send(player.id, { type: "duelEnded", outcome: "defeat" });
+			this.options.send(killer.id, { type: "duelEnded", outcome: "victory" });
+		}
 		this.options.send(player.id, {
 			type: "waveAdjusted",
 			waveNumber: 1,
