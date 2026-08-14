@@ -777,8 +777,8 @@ export class GameService {
 				disabledSkills: [],
 				equippedSkills: [],
 				autoFireSkills: [],
-				autoEquipItems: false,
-				autoEquipSpells: false,
+				autoEquipItems: true,
+				autoEquipSpells: true,
 			},
 		};
 		return player;

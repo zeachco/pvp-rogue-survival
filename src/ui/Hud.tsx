@@ -919,6 +919,18 @@ export class Hud {
 	}
 	openCharacterSelector(): void {
 		if (!this.player || this.realm?.mode !== "training") return;
+		this.setPanelCollapsed(
+			this.characterPanel,
+			this.characterToggle,
+			"character",
+			true,
+		);
+		this.setPanelCollapsed(
+			this.inventoryPanel,
+			this.inventoryToggle,
+			"inventory",
+			true,
+		);
 		this.selectedAccountCharacterId = this.player.id;
 		this.renderCharacterSelector();
 		this.characterSelector.classList.remove("is-hidden");

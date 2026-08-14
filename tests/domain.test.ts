@@ -3104,6 +3104,31 @@ test("maps unmodified character and inventory panel shortcuts", () => {
 	expect(panelShortcut("c", true)).toBeUndefined();
 });
 
+test("collapses both side panels before showing the character selector", async () => {
+	const source = await Bun.file(
+		new URL("../src/ui/Hud.tsx", import.meta.url),
+	).text();
+	const openSelector = source.slice(
+		source.indexOf("\topenCharacterSelector(): void"),
+		source.indexOf(
+			"\tshowAuthentication(",
+			source.indexOf("\topenCharacterSelector(): void"),
+		),
+	);
+	expect(openSelector).toContain(
+		'this.characterToggle,\n\t\t\t"character",\n\t\t\ttrue,',
+	);
+	expect(openSelector).toContain(
+		'this.inventoryToggle,\n\t\t\t"inventory",\n\t\t\ttrue,',
+	);
+	expect(openSelector.indexOf('"character"')).toBeLessThan(
+		openSelector.indexOf("this.characterSelector.classList.remove"),
+	);
+	expect(openSelector.indexOf('"inventory"')).toBeLessThan(
+		openSelector.indexOf("this.characterSelector.classList.remove"),
+	);
+});
+
 test("describes panel toggle actions with their primary shortcuts", () => {
 	expect(panelToggleTooltip("character", false)).toBe(
 		"Collapse character sheet (C)",

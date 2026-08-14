@@ -134,6 +134,8 @@ describe("realm game service", () => {
 		expect(player.progress.universalSkills).toEqual(["attraction"]);
 		expect(player.progress.equippedSkills).toEqual([]);
 		expect(player.progress.autoFireSkills).toEqual([]);
+		expect(player.progress.autoEquipItems).toBeTrue();
+		expect(player.progress.autoEquipSpells).toBeTrue();
 		expect(player.panelTriggers).toEqual({
 			character: true,
 			inventory: true,
