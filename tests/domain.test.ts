@@ -3056,6 +3056,13 @@ test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right ed
 	);
 });
 
+test("prevents camera movement from selecting game interface text", async () => {
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(styles).toMatch(/body\s*\{[^}]*user-select:\s*none;/s);
+});
+
 test("stores the mobile keep-awake preference and defines touch hold actions", async () => {
 	const { loadKeepAwakeMode, saveKeepAwakeMode } = await import(
 		"../src/game/mobileSettings"
