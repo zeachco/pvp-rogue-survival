@@ -95,7 +95,7 @@ input {
 	background: rgba(23, 112, 105, 0.82);
 }
 
-.touch-ui .touch-joystick {
+.touch-ui #hud.is-joined > .touch-joystick {
 	display: block;
 }
 
@@ -3275,6 +3275,18 @@ input {
 	.inventory-column {
 		z-index: 8;
 		width: min(640px, calc(100vw - 40px));
+	}
+}
+
+@media (max-width: 960px) {
+	.touch-ui .character-panel {
+		scale: 0.72;
+		transform-origin: left top;
+	}
+
+	.touch-ui .inventory-column {
+		scale: 0.72;
+		transform-origin: right top;
 	}
 }
 

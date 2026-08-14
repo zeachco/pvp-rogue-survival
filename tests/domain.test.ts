@@ -3282,6 +3282,28 @@ test("stores the mobile keep-awake preference and defines touch hold actions", a
 	expect(inventorySource).toContain('event.pointerType !== "touch"');
 });
 
+test("keeps touch movement behind login and scales mobile build panels", async () => {
+	const hudSource = await Bun.file(
+		new URL("../src/ui/Hud.tsx", import.meta.url),
+	).text();
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(hudSource).toContain(
+		'this.root.classList.toggle("is-joined", joined)',
+	);
+	expect(styles).toMatch(
+		/\.touch-ui #hud\.is-joined > \.touch-joystick\s*\{[^}]*display:\s*block;/s,
+	);
+	expect(styles).not.toMatch(/\.touch-ui \.touch-joystick\s*\{/);
+	expect(styles).toMatch(
+		/@media \(max-width: 960px\)\s*\{[^}]*\.touch-ui \.character-panel\s*\{[^}]*scale:\s*0\.72;[^}]*transform-origin:\s*left top;/s,
+	);
+	expect(styles).toMatch(
+		/@media \(max-width: 960px\)[\s\S]*\.touch-ui \.inventory-column\s*\{[^}]*scale:\s*0\.72;[^}]*transform-origin:\s*right top;/s,
+	);
+});
+
 test("describes a server-side WebSocket close in the client log", () => {
 	expect(
 		serverCloseLogMessage({ code: 1012, reason: "Server shutting down" }),

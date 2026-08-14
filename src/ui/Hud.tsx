@@ -3261,6 +3261,7 @@ export class Hud {
   }
   private updateVisibility(): void {
     const joined = Boolean(this.player);
+    this.root.classList.toggle("is-joined", joined);
     this.joinPanel.classList.toggle("is-hidden", joined);
     this.leaderboardPanel.classList.toggle("is-hidden", joined);
     this.gameHud.classList.toggle("is-hidden", !joined);
