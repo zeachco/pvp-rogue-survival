@@ -123,6 +123,7 @@ import {
 	higherLevelEnemyXpMultiplier,
 	lerpXpDisplay,
 	levelForXp,
+	sameAllocation,
 	STAT_KEYS,
 	scaledStats,
 	xpForNextLevel,
@@ -595,6 +596,26 @@ test("projects a retroactive allocation across every current level", () => {
 		spirit: 7,
 		intelligence: 14,
 	});
+});
+
+test("disables unchanged respec allocations", async () => {
+	expect(
+		sameAllocation(DEFAULT_ALLOCATION, { ...DEFAULT_ALLOCATION }),
+	).toBeTrue();
+	expect(
+		sameAllocation(DEFAULT_ALLOCATION, {
+			agility: 2,
+			strength: 1,
+			spirit: 1,
+			intelligence: 1,
+		}),
+	).toBeFalse();
+	const hudSource = await Bun.file(
+		new URL("../src/ui/Hud.tsx", import.meta.url),
+	).text();
+	expect(hudSource).toContain(
+		"total !== 5 || sameAllocation(values, this.player!.progress.allocation)",
+	);
 });
 
 describe("hero auto-facing", () => {

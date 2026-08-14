@@ -1455,7 +1455,7 @@ describe("realm game service", () => {
 		const { game, messages } = harness();
 		const player = game.join("Planner");
 		player.progress.level = 4;
-		player.progress.gold = 500;
+		player.progress.gold = 1_000;
 		player.progress.stats = {
 			agility: 9,
 			strength: 8,
@@ -1470,7 +1470,7 @@ describe("realm game service", () => {
 			intelligence: 1,
 		};
 		game.handle(player.id, { type: "respecStats", allocation });
-		expect(player.progress.gold).toBe(100);
+		expect(player.progress.gold).toBe(600);
 		expect(player.progress.allocation).toEqual(allocation);
 		expect(player.progress.stats).toEqual({
 			agility: 8,
@@ -1481,7 +1481,10 @@ describe("realm game service", () => {
 		const before = structuredClone(player.progress);
 		game.handle(player.id, { type: "respecStats", allocation });
 		expect(player.progress).toEqual(before);
-		expect(messages.get(player.id)?.at(-1)?.type).toBe("serverNotice");
+		expect(messages.get(player.id)?.at(-1)).toMatchObject({
+			type: "serverNotice",
+			message: "Respec ratio is unchanged.",
+		});
 	});
 	test("credits a sent-carrier realm defeat without player-level XP", () => {
 		const { game, messages } = harness();

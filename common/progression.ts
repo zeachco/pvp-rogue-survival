@@ -112,6 +112,11 @@ export function validAllocation(stats: Stats): boolean {
 		STAT_KEYS.reduce((sum, key) => sum + stats[key], 0) === 5
 	);
 }
+
+export function sameAllocation(left: Stats, right: Stats): boolean {
+	return STAT_KEYS.every((key) => left[key] === right[key]);
+}
+
 export function integerAllocation(stats: Stats): Stats {
 	if (!STAT_KEYS.every((key) => Number.isFinite(stats[key]) && stats[key] >= 0))
 		return { ...DEFAULT_ALLOCATION };

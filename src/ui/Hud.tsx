@@ -63,6 +63,7 @@ import {
 import {
   derivedStats,
   integerAllocation,
+  sameAllocation,
   STAT_KEYS,
   type Stats,
   scaledStats,
@@ -2947,7 +2948,8 @@ export class Hud {
       const total = STAT_KEYS.reduce((sum, key) => sum + values[key], 0);
       budget.textContent = `Budget ${total}/5 · ${5 - total} remaining`;
       save.disabled = total !== 5;
-      respec.disabled = total !== 5;
+      respec.disabled =
+        total !== 5 || sameAllocation(values, this.player!.progress.allocation);
       respec.textContent = `Reapply ratio to all levels · ${this.player!.progress.level * 100}g`;
       for (const key of STAT_KEYS) {
         setText(valueNodes.get(key)!, String(values[key]));

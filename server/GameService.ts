@@ -51,6 +51,7 @@ import {
 	STAT_KEYS,
 	type Stats,
 	scaledStats,
+	sameAllocation,
 	validAllocation,
 } from "../common/progression.ts";
 import {
@@ -2187,6 +2188,8 @@ export class GameService {
 				player,
 				"Respec ratio must use non-negative integers totaling 5.",
 			);
+		if (sameAllocation(allocation, player.progress.allocation))
+			return this.notice(player, "Respec ratio is unchanged.");
 		const cost = player.progress.level * 100;
 		if (player.progress.gold < cost)
 			return this.notice(player, `Respec requires ${cost} gold.`);

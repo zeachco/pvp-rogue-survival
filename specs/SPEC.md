@@ -165,7 +165,7 @@ Client to server:
 - `inspectHero`: `{ heroId }`; available before login and returns the public build projection for one hero.
 - `dismissPanelTrigger`: `{ panel: "character" | "inventory" | "multiplayer" }`; durably consumes that hero's pending one-time panel auto-open trigger or multiplayer introduction.
 - `updateAllocation`: `{ allocation: { agility, strength, spirit, intelligence } }`
-- `respecStats`: `{ allocation: { agility, strength, spirit, intelligence } }`; charges `100 * currentLevel`, saves the supplied valid five-point allocation, and reapplies it retroactively to every earned level.
+- `respecStats`: `{ allocation: { agility, strength, spirit, intelligence } }`; when the supplied valid five-point allocation differs from the hero's current allocation, charges `100 * currentLevel`, saves it, and reapplies it retroactively to every earned level. The HUD disables the reapply action when the selected ratio is unchanged, and the server rejects unchanged submissions without charging Gold.
 - `creepDefeated`: `{ unitId }`
 - `collectDrop`: `{ dropId }`
 - `reconcileDrops`: `{ activeDropIds, pendingDropIds }`; reports the client's current arena-drop view so transiently lost pickup requests and orphaned Gold, Scrap, or equipment can be repaired.
