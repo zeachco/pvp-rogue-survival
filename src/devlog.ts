@@ -1,6 +1,8 @@
 import "./devlog.css";
 import {
+	type CommunityRequestCompletionFilter,
 	DEVLOG_SUMMARY_BUCKETS,
+	filterCommunityRequestsByCompletion,
 	type DevlogSummary,
 	type DevlogSummaryBucket,
 } from "../common/devlog";
@@ -32,10 +34,14 @@ const requestSearch = document.querySelector(
 const futureRequests = document.querySelector(
 	"#future-requests",
 ) as HTMLElement;
+const requestFilters = document.querySelector(
+	"#request-filters",
+) as HTMLElement;
 const sessionStorage = new SessionStorage();
 let voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
 let isModerator = false;
+let completionFilter: CommunityRequestCompletionFilter = "all";
 let selectedWeekKey = weeks.at(-1)?.key ?? "";
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -214,20 +220,27 @@ function renderChangelogSearch(): void {
 
 function renderRequests(): void {
 	const query = searchQuery();
+	const completionMatches = filterCommunityRequestsByCompletion(
+		requests,
+		completionFilter,
+	);
 	const visibleRequests = query
-		? requests.filter((request) =>
+		? completionMatches.filter((request) =>
 				`${request.title} ${request.description}`
 					.toLocaleLowerCase()
 					.includes(query),
 			)
-		: requests;
+		: completionMatches;
 	if (!visibleRequests.length) {
+		const filtered = completionFilter !== "all";
 		futureRequests.replaceChildren(
 			element(
 				"p",
 				query
 					? `No requests match “${requestSearch.value.trim()}”.`
-					: "No requests yet. Be the first to suggest one.",
+					: filtered
+						? "No requests match the selected filter."
+						: "No requests yet. Be the first to suggest one.",
 				"muted",
 			),
 		);
@@ -269,6 +282,28 @@ requestSearch.addEventListener("input", () => {
 	renderRequests();
 	renderChangelogSearch();
 });
+
+requestFilters.addEventListener("click", (event) => {
+	const button = (event.target as Element).closest<HTMLButtonElement>(
+		"button[data-completion-filter]",
+	);
+	if (!button || button.hidden) return;
+	completionFilter = button.dataset
+		.completionFilter as CommunityRequestCompletionFilter;
+	updateRequestFilters();
+	renderRequests();
+});
+
+function updateRequestFilters(): void {
+	for (const button of requestFilters.querySelectorAll<HTMLButtonElement>(
+		"button[data-completion-filter]",
+	)) {
+		const filter = button.dataset
+			.completionFilter as CommunityRequestCompletionFilter;
+		button.hidden = filter === "completed" && !isModerator;
+		button.setAttribute("aria-pressed", String(filter === completionFilter));
+	}
+}
 
 function renderRequest(request: DevlogRequest): HTMLElement {
 	const card = element("article", undefined, "request-card");
@@ -472,6 +507,9 @@ async function loadRequests(): Promise<void> {
 			throw new Error(result.error ?? "Could not load requests.");
 		requests = result.requests;
 		isModerator = result.isModerator === true;
+		if (!isModerator && completionFilter === "completed")
+			completionFilter = "all";
+		updateRequestFilters();
 		renderRequests();
 	} catch (error) {
 		futureRequests.replaceChildren(

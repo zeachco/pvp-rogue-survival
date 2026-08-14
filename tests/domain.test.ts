@@ -3133,6 +3133,40 @@ test("routes the Devlog without dropping the selected game server", () => {
 	).toBe("http://localhost:5173/api/devlog/requests");
 });
 
+test("filters community requests by completion state", async () => {
+	const { filterCommunityRequestsByCompletion } = await import(
+		"../common/devlog"
+	);
+	const requests = [
+		{ id: "pending", completed: false },
+		{ id: "done", completed: true },
+	];
+
+	expect(filterCommunityRequestsByCompletion(requests, "all")).toEqual(
+		requests,
+	);
+	expect(filterCommunityRequestsByCompletion(requests, "pending")).toEqual([
+		requests[0],
+	]);
+	expect(filterCommunityRequestsByCompletion(requests, "completed")).toEqual([
+		requests[1],
+	]);
+});
+
+test("exposes completed-only Devlog filtering to moderators", async () => {
+	const [documentSource, devlogSource] = await Promise.all([
+		Bun.file(new URL("../index.html", import.meta.url)).text(),
+		Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
+	]);
+	expect(documentSource).toContain(">Hide done</button>");
+	expect(documentSource).toMatch(
+		/data-completion-filter="completed"[^>]*hidden>Completed only<\/button>/,
+	);
+	expect(devlogSource).toContain(
+		'button.hidden = filter === "completed" && !isModerator;',
+	);
+});
+
 test("submits forms with Enter while preserving shifted multiline input", () => {
 	expect(
 		isKeyboardFormSubmission({ key: "Enter", shiftKey: false }),

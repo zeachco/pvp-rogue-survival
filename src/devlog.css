@@ -152,6 +152,29 @@
 		font-weight: 700;
 	}
 
+	.request-filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin: -8px 0 18px;
+	}
+
+	.request-filters button {
+		padding: 7px 11px;
+		color: #9fb8bf;
+		background: #101d21;
+	}
+
+	.request-filters button[aria-pressed="true"] {
+		border-color: #f0ce72;
+		color: #f0ce72;
+		background: #26331f;
+	}
+
+	.request-filters button[hidden] {
+		display: none;
+	}
+
 	#request-form {
 		display: grid;
 		grid-template-columns: minmax(130px, 0.35fr) 1fr;
