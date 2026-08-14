@@ -66,7 +66,7 @@ import {
 import {
 	activeEnemyCountAllowsAutoForce,
 	enqueueWave,
-	releaseAllQueuedSpawns,
+	expediteQueuedSpawns,
 	releaseReadySpawns,
 	removeInactive,
 } from "./systems/lifecycle";
@@ -600,9 +600,7 @@ export class Game {
 			if (this.player) this.hud.setPlayer(this.player);
 		} else if (message.type === "forceNextWaveResult") {
 			this.hud.setForceNextWaveReadyAt(message.readyAt);
-			if (message.accepted)
-				for (const build of releaseAllQueuedSpawns(this.arena))
-					this.spawnCreep(build);
+			if (message.accepted) expediteQueuedSpawns(this.arena, performance.now());
 		} else if (message.type === "playerBonked") {
 			this.lastBonkAttackerId = message.attackerId;
 			this.hero.lastDamageSourceId = undefined;
@@ -747,6 +745,8 @@ export class Game {
 			this.update(FIXED_STEP);
 			this.accumulator -= FIXED_STEP;
 		}
+		for (const build of releaseReadySpawns(this.arena, performance.now()))
+			this.spawnCreep(build);
 		this.render();
 	}
 
@@ -773,8 +773,6 @@ export class Game {
 			if (this.defeatCooldown <= 0) this.resetArena();
 			return;
 		}
-		for (const build of releaseReadySpawns(this.arena, performance.now()))
-			this.spawnCreep(build);
 		const rawMovementInput = this.isChatting
 			? { x: 0, y: 0 }
 			: {

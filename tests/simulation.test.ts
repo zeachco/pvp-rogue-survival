@@ -155,8 +155,8 @@ import {
 } from "../src/game/systems/HeroCombatSystem";
 import {
 	activeEnemyCountAllowsAutoForce,
+	expediteQueuedSpawns,
 	MAX_ACTIVE_CREEPS,
-	releaseAllQueuedSpawns,
 	releaseReadySpawns,
 	removeInactive,
 } from "../src/game/systems/lifecycle";
@@ -739,7 +739,7 @@ describe("arena systems", () => {
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
 	});
-	test("releases every pending spawn at once when a wave is forced", () => {
+	test("makes every pending spawn due without releasing them together", () => {
 		const state = new ArenaState();
 		const build = {
 			id: "queued",
@@ -758,11 +758,13 @@ describe("arena systems", () => {
 			{ build: { ...build, id: "two" }, spawnAt: 20_000 },
 		);
 
-		expect(releaseAllQueuedSpawns(state).map(({ id }) => id)).toEqual([
-			"one",
+		expediteQueuedSpawns(state, 100);
+
+		expect(state.waveQueue.map(({ spawnAt }) => spawnAt)).toEqual([100, 100]);
+		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
+		expect(state.waveQueue.map(({ build: queued }) => queued.id)).toEqual([
 			"two",
 		]);
-		expect(state.waveQueue).toHaveLength(0);
 	});
 	test("allows auto force only below the active-enemy cap", () => {
 		expect(activeEnemyCountAllowsAutoForce(99)).toBeTrue();

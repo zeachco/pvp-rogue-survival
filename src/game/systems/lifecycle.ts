@@ -34,8 +34,9 @@ export function releaseReadySpawns(
 	state.waveQueue.splice(index, 1);
 	return [build];
 }
-export function releaseAllQueuedSpawns(state: ArenaState): UnitBuild[] {
-	return state.waveQueue.splice(0).map((entry) => entry.build);
+export function expediteQueuedSpawns(state: ArenaState, now: number): void {
+	for (const spawn of state.waveQueue)
+		spawn.spawnAt = Math.min(spawn.spawnAt, now);
 }
 export function removeInactive<T extends { active: boolean }>(
 	items: T[],
