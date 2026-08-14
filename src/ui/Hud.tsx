@@ -842,6 +842,7 @@ export class Hud {
     }
     this.applyPanelTriggers(player.progress);
     this.updateVisibility();
+    this.callbacks.onPanelLayoutChange();
   }
   configurePanelTriggers(triggers: PanelTriggers): void {
     this.panelTriggers = { ...triggers };

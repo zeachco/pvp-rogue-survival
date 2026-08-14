@@ -362,6 +362,20 @@ describe("third-person camera", () => {
 		expect(cameraViewOffset(320, 312, 312)).toBe(0);
 	});
 
+	test("remeasures panel occlusion after a refreshed character becomes visible", async () => {
+		const hudSource = await Bun.file(
+			new URL("../src/ui/Hud.tsx", import.meta.url),
+		).text();
+		const setPlayerStart = hudSource.indexOf("  setPlayer(player: PlayerState)");
+		const setPlayerSource = hudSource.slice(
+			setPlayerStart,
+			hudSource.indexOf("\n  configurePanelTriggers", setPlayerStart),
+		);
+		expect(setPlayerSource).toMatch(
+			/this\.applyPanelTriggers\(player\.progress\);\s*this\.updateVisibility\(\);\s*this\.callbacks\.onPanelLayoutChange\(\);/,
+		);
+	});
+
 	test("clamps vertical left-drag orbiting above ground and below overturn", () => {
 		expect(adjustedCameraTiltFromDrag(0, 100_000)).toBe(
 			MAX_CAMERA_TILT_RADIANS,
