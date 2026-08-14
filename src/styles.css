@@ -1390,6 +1390,48 @@ input {
 	font-size: 18px;
 }
 
+.character-selector-icons {
+	display: flex;
+	min-height: 24px;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.character-selector-card .character-selector-icon {
+	display: grid;
+	width: 22px;
+	height: 22px;
+	place-items: center;
+	border: 1px solid #789097;
+	border-radius: 4px;
+	color: #e8f8fa;
+	font-size: 10px;
+	font-weight: 800;
+	background: #172329;
+}
+
+.character-selector-card .character-selector-icon.rarity-uncommon {
+	border-color: #62d77a;
+}
+.character-selector-card .character-selector-icon.rarity-rare {
+	border-color: #5aa9ff;
+}
+.character-selector-card .character-selector-icon.rarity-epic {
+	border-color: #b978ff;
+}
+.character-selector-card .character-selector-icon.rarity-unique {
+	border-color: #ffca52;
+}
+.character-selector-card .character-selector-icon.spell-resource-mana {
+	color: #79efff;
+}
+.character-selector-card .character-selector-icon.spell-resource-rage {
+	color: #f6d849;
+}
+.character-selector-card .character-selector-icon.spell-resource-life {
+	color: #ff7583;
+}
+
 .character-selector-card small {
 	align-self: end;
 	color: #3affd4;

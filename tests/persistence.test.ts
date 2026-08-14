@@ -15,7 +15,7 @@ class FixedRandom implements RandomSource {
 }
 
 describe("Bun SQL player persistence", () => {
-	test("round-trips account siblings with one shared stash", async () => {
+	test("round-trips independent hero inventories with shared resources", async () => {
 		const directory = mkdtempSync(join(tmpdir(), "multi-line-accounts-"));
 		const url = `sqlite://${join(directory, "players.sqlite")}`;
 		try {
@@ -29,6 +29,7 @@ describe("Bun SQL player persistence", () => {
 			const first = game.join("AccountOwner");
 			const second = game.createCharacter(first, "Alternate");
 			first.progress.inventoryTiles[0].quantity = 7;
+			first.progress.gold = 42;
 			repository.markDirty(first.id);
 			await repository.persist();
 			await repository.close();
@@ -40,10 +41,11 @@ describe("Bun SQL player persistence", () => {
 				first.accountId,
 			);
 			expect(restored.getByCharacterName("ALTERNATE")?.id).toBe(second.id);
-			expect(restoredSecond.progress.inventoryTiles).toBe(
+			expect(restoredSecond.progress.inventoryTiles).not.toBe(
 				restoredFirst.progress.inventoryTiles,
 			);
-			expect(restoredSecond.progress.inventoryTiles[0].quantity).toBe(7);
+			expect(restoredSecond.progress.inventoryTiles[0].quantity).toBe(1);
+			expect(restoredSecond.progress.gold).toBe(42);
 			await restored.close();
 		} finally {
 			rmSync(directory, { recursive: true, force: true });

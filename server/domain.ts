@@ -44,6 +44,7 @@ export interface Player {
 	backlashQueue: QueuedEquipment[];
 	deathEchoes: UnitBuild[];
 	xpSendBuffs: XpSendBuff[];
+	lastPlayedAt: number;
 }
 export interface PlayerRepository {
 	get(id: PlayerId): Player | undefined;
@@ -69,9 +70,9 @@ export class InMemoryPlayerRepository implements PlayerRepository {
 	}
 	getByUsername(username: string): Player | undefined {
 		const key = username.toLowerCase();
-		return [...this.players.values()].find(
-			(player) => player.accountName.toLowerCase() === key,
-		);
+		return [...this.players.values()]
+			.filter((player) => player.accountName.toLowerCase() === key)
+			.sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)[0];
 	}
 	getAccountPlayers(accountId: string): Player[] {
 		return [...this.players.values()].filter(
@@ -108,7 +109,15 @@ export class InMemoryPlayerRepository implements PlayerRepository {
 	save(player: Player): void {
 		this.players.set(player.id, player);
 	}
-	markDirty(_playerId: PlayerId): void {}
+	markDirty(playerId: PlayerId): void {
+		const player = this.players.get(playerId);
+		if (!player) return;
+		for (const sibling of this.getAccountPlayers(player.accountId)) {
+			sibling.progress.gold = player.progress.gold;
+			sibling.progress.souls = player.progress.souls;
+			sibling.progress.scraps = { ...player.progress.scraps };
+		}
+	}
 	values(): IterableIterator<Player> {
 		return this.players.values();
 	}
@@ -122,5 +131,12 @@ function summary(player: Player): HeroSummary {
 		souls: player.progress.souls,
 		connected: player.connected,
 		receivesDeathEchoes: false,
+		equipment: [
+			player.progress.mainHand,
+			player.progress.offHand,
+			player.progress.amulet,
+			player.progress.charm,
+		].filter((item): item is ItemInstance => Boolean(item)),
+		spells: [...new Set(player.progress.learnedSkills)],
 	};
 }

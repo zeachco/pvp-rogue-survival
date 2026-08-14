@@ -62,19 +62,30 @@ function enterPair(
 }
 
 describe("realm game service", () => {
-	test("creates independent account characters backed by one shared stash", () => {
+	test("creates independent hero builds backed by shared account resources", () => {
 		const { game, repository } = harness();
 		const first = game.join("Builder");
 		first.progress.level = 12;
 		first.progress.gold = 99;
-		const stash = first.progress.inventoryTiles;
+		first.progress.souls = 3;
+		first.progress.scraps.epic = 4;
 		const second = game.createCharacter(first, "BuilderAlt");
 
 		expect(second.accountId).toBe(first.accountId);
 		expect(second.accountName).toBe("Builder");
 		expect(second.progress.level).toBe(1);
-		expect(second.progress.gold).toBe(0);
-		expect(second.progress.inventoryTiles).toBe(stash);
+		expect(second.progress.gold).toBe(99);
+		expect(second.progress.souls).toBe(3);
+		expect(second.progress.scraps.epic).toBe(4);
+		expect(second.progress.inventoryTiles).not.toBe(
+			first.progress.inventoryTiles,
+		);
+		expect(second.progress.inventoryTiles).toHaveLength(3);
+		second.progress.learnedSkills.push("bash");
+		expect(first.progress.learnedSkills).not.toContain("bash");
+		second.progress.gold = 120;
+		repository.markDirty(second.id);
+		expect(first.progress.gold).toBe(120);
 		expect(repository.getAccountPlayers(first.accountId)).toHaveLength(2);
 		expect(
 			game.accountCharacters(first).map(({ username }) => username),
@@ -82,6 +93,16 @@ describe("realm game service", () => {
 		expect(() => game.createCharacter(first, "builderalt")).toThrow(
 			"Character name is already used.",
 		);
+	});
+	test("selects the most recently played account hero on username login", () => {
+		let now = 10;
+		const { game } = harness(undefined, () => now);
+		const first = game.join("Builder");
+		const second = game.createCharacter(first, "BuilderAlt");
+		now = 20;
+		game.join("", second.id);
+		now = 30;
+		expect(game.join("Builder").id).toBe(second.id);
 	});
 	test("multiplies role discovery by capped player Magic Find", () => {
 		expect(magicFindExtraDropChance(4, "creep", 5)).toBe(0);

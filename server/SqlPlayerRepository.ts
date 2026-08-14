@@ -1,6 +1,11 @@
 import { SQL } from "bun";
 import { SKILLS } from "../common/content.ts";
-import { itemStackKey, migrateLegacyItem } from "../common/items.ts";
+import {
+	type ItemInstance,
+	itemStackKey,
+	migrateLegacyItem,
+	type SkillId,
+} from "../common/items.ts";
 import {
 	cumulativeXpForLevel,
 	migrateLegacyStats,
@@ -18,6 +23,7 @@ interface HeroBlob {
 	maxWaveReached?: number;
 	progress: PlayerProgress;
 	panelTriggers?: Partial<PanelTriggers>;
+	lastPlayedAt?: number;
 }
 interface HeroRow {
 	id: string;
@@ -48,9 +54,9 @@ export class SqlPlayerRepository implements PlayerRepository {
 	}
 	getByUsername(username: string): Player | undefined {
 		const key = username.toLowerCase();
-		return [...this.players.values()].find(
-			(player) => player.accountName.toLowerCase() === key,
-		);
+		return [...this.players.values()]
+			.filter((player) => player.accountName.toLowerCase() === key)
+			.sort((a, b) => b.lastPlayedAt - a.lastPlayedAt)[0];
 	}
 	getAccountPlayers(accountId: string): Player[] {
 		return [...this.players.values()].filter(
@@ -73,6 +79,8 @@ export class SqlPlayerRepository implements PlayerRepository {
 			souls: this.players.get(row.id)?.progress.souls ?? 0,
 			connected: this.players.get(row.id)?.connected ?? false,
 			receivesDeathEchoes: false,
+			equipment: summaryEquipment(this.players.get(row.id)),
+			spells: summarySpells(this.players.get(row.id)),
 		}));
 	}
 	async findBossCandidate(
@@ -95,6 +103,8 @@ export class SqlPlayerRepository implements PlayerRepository {
 				souls: this.players.get(row.id)?.progress.souls ?? 0,
 				connected: this.players.get(row.id)?.connected ?? false,
 				receivesDeathEchoes: false,
+				equipment: summaryEquipment(this.players.get(row.id)),
+				spells: summarySpells(this.players.get(row.id)),
 			}))
 			.sort(
 				(a, b) => b.souls - a.souls || a.username.localeCompare(b.username),
@@ -107,8 +117,12 @@ export class SqlPlayerRepository implements PlayerRepository {
 	markDirty(playerId: string): void {
 		const player = this.players.get(playerId);
 		if (!player) return;
-		for (const sibling of this.getAccountPlayers(player.accountId))
+		for (const sibling of this.getAccountPlayers(player.accountId)) {
+			sibling.progress.gold = player.progress.gold;
+			sibling.progress.souls = player.progress.souls;
+			sibling.progress.scraps = { ...player.progress.scraps };
 			this.dirtyPlayerIds.add(sibling.id);
+		}
 	}
 	values(): IterableIterator<Player> {
 		return this.players.values();
@@ -195,11 +209,13 @@ export class SqlPlayerRepository implements PlayerRepository {
 			const player = fromRow(row);
 			if (player) this.players.set(player.id, player);
 		}
-		const inventories = new Map<string, PlayerProgress["inventoryTiles"]>();
-		for (const player of this.players.values()) {
-			const shared = inventories.get(player.accountId);
-			if (shared) player.progress.inventoryTiles = shared;
-			else inventories.set(player.accountId, player.progress.inventoryTiles);
+		for (const account of new Set(
+			[...this.players.values()].map((player) => player.accountId),
+		)) {
+			const heroes = this.getAccountPlayers(account).sort(
+				(a, b) => b.lastPlayedAt - a.lastPlayedAt,
+			);
+			if (heroes[0]) this.markDirty(heroes[0].id);
 		}
 	}
 }
@@ -215,6 +231,7 @@ function toRow(player: Player): HeroRow {
 		maxWaveReached: player.maxWaveReached,
 		progress: player.progress,
 		panelTriggers: player.panelTriggers,
+		lastPlayedAt: player.lastPlayedAt,
 	};
 	return {
 		id: player.id,
@@ -295,7 +312,28 @@ function fromRow(row: HeroRow): Player | undefined {
 		backlashQueue: [],
 		deathEchoes: [],
 		xpSendBuffs: [],
+		lastPlayedAt: blob.lastPlayedAt ?? 0,
 	};
+}
+
+function summaryEquipment(player?: Player): ItemInstance[] {
+	if (!player) return [];
+	return [
+		player.progress.mainHand,
+		player.progress.offHand,
+		player.progress.amulet,
+		player.progress.charm,
+	].filter((item): item is ItemInstance => Boolean(item));
+}
+
+function summarySpells(player?: Player): SkillId[] {
+	if (!player) return [];
+	return [
+		...new Set([
+			...player.progress.learnedSkills,
+			...summaryEquipment(player).flatMap((item) => item.skills),
+		]),
+	];
 }
 
 export function migrateLegacyEquipment(progress: PlayerProgress): void {

@@ -518,7 +518,6 @@ export class Game {
 	}
 	private handleServerMessage(message: ServerMessage): void {
 		if (message.type === "welcome") {
-			const openedAuthenticatedSession = !this.player;
 			if (this.player && this.player.id !== message.playerId) {
 				this.arena.clear();
 				this.pendingPickupAt.clear();
@@ -564,7 +563,6 @@ export class Game {
 				this.heroCombat.spellSlots(message.progress, this.hero),
 			);
 			this.hud.setRealm(message.realm);
-			if (openedAuthenticatedSession) this.hud.openCharacterSelector();
 			this.hud.setNotice("");
 			this.hud.showCenterToast(
 				"WASD moves. Combat and skills cast automatically. Walk over glowing item drops.",

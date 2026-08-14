@@ -857,7 +857,7 @@ export class Hud {
 				this.characterPanel,
 				this.characterToggle,
 				"character",
-				false,
+				true,
 			);
 			this.setPanelCollapsed(
 				this.inventoryPanel,
@@ -3192,6 +3192,26 @@ export class Hud {
 						aria-pressed={String(selected)}
 					>
 						<strong>{hero.username}</strong>
+						<span class="character-selector-icons" aria-label="Hero build">
+							{hero.equipment.map((item) => (
+								<span
+									class={`character-selector-icon rarity-${item.rarity}`}
+									tabindex="0"
+									title={`${item.name}\nLevel ${item.level} ${item.rarity}\n${item.skills.map((skill) => SKILLS[skill].label).join(", ") || "No spells"}`}
+								>
+									{item.name.slice(0, 1)}
+								</span>
+							))}
+							{hero.spells.map((skill) => (
+								<span
+									class={`character-selector-icon spell-resource-${SKILLS[skill].resource}`}
+									tabindex="0"
+									title={`${SKILLS[skill].label}\n${SKILLS[skill].description}`}
+								>
+									{SKILLS[skill].label.slice(0, 1)}
+								</span>
+							))}
+						</span>
 						<span>Level {hero.level}</span>
 						<span>
 							{hero.souls} {hero.souls === 1 ? "Soul" : "Souls"}

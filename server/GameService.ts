@@ -180,6 +180,7 @@ export class GameService {
 		onIdentified?: (playerId: PlayerId, player: Player) => void,
 	): Player {
 		const player = this.joinPlayer(name, heroId);
+		player.lastPlayedAt = this.now();
 		onIdentified?.(player.id, player);
 		this.options.repository.markDirty(player.id);
 		this.options.logPlayerLifecycle?.("connected", player);
@@ -254,6 +255,21 @@ export class GameService {
 				souls: hero.progress.souls,
 				connected: hero.connected,
 				receivesDeathEchoes: false,
+				equipment: [
+					hero.progress.mainHand,
+					hero.progress.offHand,
+					hero.progress.amulet,
+					hero.progress.charm,
+				].filter((item): item is ItemInstance => Boolean(item)),
+				spells: [
+					...new Set([
+						...hero.progress.learnedSkills,
+						...(hero.progress.mainHand?.skills ?? []),
+						...(hero.progress.offHand?.skills ?? []),
+						...(hero.progress.amulet?.skills ?? []),
+						...(hero.progress.charm?.skills ?? []),
+					]),
+				],
 			}));
 	}
 	createCharacter(current: Player, name: string): Player {
@@ -268,7 +284,11 @@ export class GameService {
 			current.accountName,
 			current.passwordHash,
 			current.isModerator,
-			current.progress.inventoryTiles,
+			{
+				gold: current.progress.gold,
+				souls: current.progress.souls,
+				scraps: current.progress.scraps,
+			},
 		);
 		this.options.repository.save(player);
 		return player;
@@ -282,6 +302,13 @@ export class GameService {
 				souls: player.progress.souls,
 				connected: player.connected,
 				receivesDeathEchoes: false,
+				equipment: [
+					player.progress.mainHand,
+					player.progress.offHand,
+					player.progress.amulet,
+					player.progress.charm,
+				].filter((item): item is ItemInstance => Boolean(item)),
+				spells: [...new Set(player.progress.learnedSkills)],
 			}))
 			.sort((a, b) => b.souls - a.souls || a.username.localeCompare(b.username))
 			.slice(0, 100)
@@ -711,7 +738,7 @@ export class GameService {
 		accountName = name,
 		passwordHash?: string,
 		isModerator = false,
-		sharedInventory?: Player["progress"]["inventoryTiles"],
+		sharedResources?: Pick<Player["progress"], "gold" | "souls" | "scraps">,
 	): Player {
 		const id = this.createId();
 		const starterSword = generateItem(1, "common", 101, {
@@ -723,20 +750,19 @@ export class GameService {
 		});
 		starterStaff.skills = ["arcaneBolt", "frostOrb"];
 		const starterItems = [starterSword, starterBuckler, starterStaff];
-		const inventoryTiles = sharedInventory ?? [];
-		if (!sharedInventory)
-			for (const item of starterItems) {
-				const key = itemStackKey(item);
-				const existing = inventoryTiles.find((tile) => tile.key === key);
-				if (existing) existing.quantity += 1;
-				else
-					inventoryTiles.push({
-						id: `starter-random-tile-${inventoryTiles.length}`,
-						key,
-						item,
-						quantity: 1,
-					});
-			}
+		const inventoryTiles: Player["progress"]["inventoryTiles"] = [];
+		for (const item of starterItems) {
+			const key = itemStackKey(item);
+			const existing = inventoryTiles.find((tile) => tile.key === key);
+			if (existing) existing.quantity += 1;
+			else
+				inventoryTiles.push({
+					id: `starter-random-tile-${inventoryTiles.length}`,
+					key,
+					item,
+					quantity: 1,
+				});
+		}
 		const player: Player = {
 			id,
 			name,
@@ -759,15 +785,16 @@ export class GameService {
 			backlashQueue: [],
 			deathEchoes: [],
 			xpSendBuffs: [],
+			lastPlayedAt: 0,
 			panelTriggers: { character: true, inventory: true, multiplayer: true },
 			progress: {
 				level: 1,
 				xp: cumulativeXpForLevel(1),
 				stats: { ...DEFAULT_ALLOCATION },
 				allocation: { ...DEFAULT_ALLOCATION },
-				gold: 0,
-				souls: 0,
-				scraps: emptyScraps(),
+				gold: sharedResources?.gold ?? 0,
+				souls: sharedResources?.souls ?? 0,
+				scraps: { ...(sharedResources?.scraps ?? emptyScraps()) },
 				mainHand: starterSword,
 				offHand: starterBuckler,
 				inventoryTiles,
