@@ -1362,7 +1362,7 @@ describe("arena systems", () => {
 			learnedSkills: ["arcaneBolt" as const],
 			learnedSkillLevels: { arcaneBolt: 1 },
 			universalSkills: [],
-			equippedSkills: [],
+			equippedSkills: ["arcaneBolt" as const],
 			autoFireSkills: [],
 		};
 		const combat = new HeroCombatSystem();
@@ -1392,6 +1392,32 @@ describe("arena systems", () => {
 			costLabel: "Free attack proc",
 		});
 		expect(procSlot?.procChancesOnAttacks).toBeGreaterThan(0);
+		expect(procSlot?.cooldown).toBe(0);
+		expect(
+			combat
+				.spellSlots(progress, hero)
+				.find((slot) => slot.id === "arcaneBolt" && !slot.passive)?.cooldown,
+		).toBe(0);
+		const projectileCount = state.projectiles.length;
+		hero.mana = hero.maxMana;
+		combat.requestSpellSlot(0, progress);
+		for (let index = 0; index < 8; index += 1)
+			combat.update(0.5, { x: 0, y: 0 }, hero, state, progress, BALANCE, {
+				next: () => 1,
+			});
+		expect(state.projectiles.length).toBeGreaterThan(projectileCount);
+		expect(hero.mana).toBeLessThan(hero.maxMana);
+		const slotsAfterManualCast = combat.spellSlots(progress, hero);
+		expect(
+			slotsAfterManualCast.find(
+				(slot) => slot.id === "arcaneBolt" && !slot.passive,
+			)?.cooldown,
+		).toBeGreaterThan(0);
+		expect(
+			slotsAfterManualCast.find(
+				(slot) => slot.id === "arcaneBolt" && slot.passive,
+			)?.cooldown,
+		).toBe(0);
 	});
 	test("counts every unit in a basic weapon hit for spell-proc scaling", () => {
 		const mace = generateItem(1, "common", 104, {

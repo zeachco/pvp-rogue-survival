@@ -210,10 +210,12 @@ import {
 	passiveSkillMetrics,
 	SOULS_TOOLTIP,
 	scrapTooltip,
+	spellCatalogSlotsById,
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
 	spellInitials,
 	spellRailSlots,
+	spellSlotKey,
 	spellTooltipLevels,
 	statusEffectSummaries,
 	xpSendBuffSummary,
@@ -1895,9 +1897,15 @@ test("keeps a learned weapon skill available as both an item proc and ordinary a
 	);
 	const healingSlots = slots.filter(({ id }) => id === "healing");
 	expect(healingSlots).toHaveLength(2);
-	expect(spellRailSlots(slots).filter(({ id }) => id === "healing")).toHaveLength(
-		2,
-	);
+	expect(
+		spellRailSlots(slots).filter(({ id }) => id === "healing"),
+	).toHaveLength(2);
+	expect(spellCatalogSlotsById(slots).get("healing")).toMatchObject({
+		passive: false,
+		bar: "learned",
+		shortcut: 1,
+	});
+	expect(new Set(healingSlots.map(spellSlotKey)).size).toBe(2);
 	expect(healingSlots.find(({ bar }) => bar === "learned")).toMatchObject({
 		active: true,
 		passive: false,

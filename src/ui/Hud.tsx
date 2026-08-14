@@ -1314,9 +1314,7 @@ export class Hud {
     return !this.spellCatalog.classList.contains("is-hidden");
   }
   private renderSpellCatalog(searchText?: string): void {
-    const available = new Map(
-      this.currentSpells.map((spell) => [spell.id, spell]),
-    );
+    const available = spellCatalogSlotsById(this.currentSpells);
     const signature = (Object.keys(SKILLS) as SkillId[])
       .map((id) => {
         const spell = available.get(id);
@@ -1658,7 +1656,7 @@ export class Hud {
         spell.cooldownMax > 0
           ? Math.max(0, Math.min(1, spell.cooldown / spell.cooldownMax))
           : 0;
-      const cooldownNode = this.spellNodes.get(spell.id);
+      const cooldownNode = this.spellNodes.get(spellSlotKey(spell));
       cooldownNode?.style.setProperty("--cooldown-progress", String(ratio));
       const button = cooldownNode?.parentElement;
       button?.classList.toggle("is-casting", spell.castProgress !== undefined);
@@ -1677,7 +1675,7 @@ export class Hud {
     preview?: Map<SkillId, number | null>,
   ): HTMLButtonElement {
     const cooldown = (<span class="spell-cooldown" />) as HTMLElement;
-    this.spellNodes.set(spell.id, cooldown);
+    this.spellNodes.set(spellSlotKey(spell), cooldown);
     const projected = preview?.get(spell.id);
     const actualLevel =
       projected === undefined ? spell.actualLevel : (projected ?? 0);
@@ -3957,6 +3955,20 @@ export function spellRailSlots(spells: SpellSlot[]): SpellSlot[] {
         a.label.localeCompare(b.label),
     );
   return [...passiveSpells, ...activeSpells];
+}
+export function spellSlotKey(spell: SpellSlot): string {
+  return `${spell.id}:${spell.procChancesOnAttacks === undefined ? "ordinary" : "weapon-proc"}`;
+}
+export function spellCatalogSlotsById(
+  spells: SpellSlot[],
+): Map<SkillId, SpellSlot> {
+  const available = new Map<SkillId, SpellSlot>();
+  for (const spell of spells) {
+    const current = available.get(spell.id);
+    if (!current || (current.passive && !spell.passive))
+      available.set(spell.id, spell);
+  }
+  return available;
 }
 export type SpellCatalogFilter =
   "learned" | "equipped" | "actives" | "passives" | "unavailable";

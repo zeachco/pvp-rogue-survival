@@ -87,7 +87,12 @@ export class HeroCombatSystem {
 	>();
 	private orbitCastSequence = 0;
 	private skillPriorityCursor = 0;
-	private casting?: { id: SkillId; elapsed: number; total: number };
+	private casting?: {
+		id: SkillId;
+		elapsed: number;
+		total: number;
+		proc: boolean;
+	};
 	private manualSkill?: SkillId;
 	private whirlwindRemaining = 0;
 	private whirlwindPulse = 0;
@@ -291,17 +296,17 @@ export class HeroCombatSystem {
 		const equipmentCooldown = itemCooldownReduction(...accessories(progress));
 		const procSkills = weaponProcSkills(progress);
 		const procHitCount = basicWeaponHitCount(hero, state.creeps, item, profile);
-		const castingProc = this.casting
+		const castingProc = this.casting?.proc
 			? procSkills.find(({ id }) => id === this.casting?.id)
 			: undefined;
 		if (
 			!this.casting &&
+			!this.manualSkill &&
 			this.pendingWeaponProcs.length === 0 &&
 			this.attackCooldown === 0 &&
 			targetDistance <= profile.range + target.radius
 		)
 			for (const { id, level } of procSkills) {
-				if ((this.skillCooldowns.get(id)?.remaining ?? 0) > 0) continue;
 				const cooldown = effectiveSkillCooldown(
 					id,
 					item,
@@ -348,7 +353,8 @@ export class HeroCombatSystem {
 			id === "swamp" ? 600 : skillRange(id, item, level, effectiveStats.spirit);
 		const usable = (skill: { id: SkillId; level: number }): boolean => {
 			if (
-				(this.skillCooldowns.get(skill.id)?.remaining ?? 0) > 0 ||
+				(procSkill?.id !== skill.id &&
+					(this.skillCooldowns.get(skill.id)?.remaining ?? 0) > 0) ||
 				targetDistance > skillRangeFor(skill) + target.radius
 			)
 				return false;
@@ -438,7 +444,12 @@ export class HeroCombatSystem {
 					profile.attacksPerSecond,
 				);
 				if (total > 0) {
-					this.casting = { id: activeSkill.id, elapsed: 0, total };
+					this.casting = {
+						id: activeSkill.id,
+						elapsed: 0,
+						total,
+						proc: candidateIsProc,
+					};
 					this.tryBasicAttack(
 						hero,
 						target,
@@ -713,11 +724,13 @@ export class HeroCombatSystem {
 				activeSkill.level,
 				Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
 			);
-			this.skillCooldowns.set(activeSkill.id, {
-				remaining: duration,
-				maximum: duration,
-			});
-			if (this.manualSkill === activeSkill.id) this.manualSkill = undefined;
+			if (!candidateIsProc)
+				this.skillCooldowns.set(activeSkill.id, {
+					remaining: duration,
+					maximum: duration,
+				});
+			if (!candidateIsProc && this.manualSkill === activeSkill.id)
+				this.manualSkill = undefined;
 			const castIndex = orderedSkills.findIndex(
 				({ id }) => id === activeSkill.id,
 			);
@@ -757,6 +770,7 @@ export class HeroCombatSystem {
 					id: nextSkill.id,
 					elapsed: Math.min(castOverflow, total),
 					total,
+					proc: false,
 				};
 		}
 		this.tryBasicAttack(
@@ -813,23 +827,25 @@ export class HeroCombatSystem {
 					: ("geared" as const),
 			};
 		});
-		const procSlots = procSkills.map(({ id, level }) => ({
-			id,
-			label: skillLabel(id),
-			level,
-			actualLevel: level,
-			cooldown: 0,
-			cooldownMax: 0,
-			affordable: true,
-			resource: SKILLS[id].resource,
-			costLabel: "Free attack proc",
-			active: true,
-			passive: true,
-			procChancesOnAttacks: weaponProcTriggerChance(progress, id, level),
-			providedByItemName: progress.mainHand?.name,
-			autoFire: false,
-			bar: "geared" as const,
-		}));
+		const procSlots = procSkills.map(({ id, level }) => {
+			return {
+				id,
+				label: skillLabel(id),
+				level,
+				actualLevel: level,
+				cooldown: 0,
+				cooldownMax: 0,
+				affordable: true,
+				resource: SKILLS[id].resource,
+				costLabel: "Free attack proc",
+				active: true,
+				passive: true,
+				procChancesOnAttacks: weaponProcTriggerChance(progress, id, level),
+				providedByItemName: progress.mainHand?.name,
+				autoFire: false,
+				bar: "geared" as const,
+			};
+		});
 		return [...ordinarySlots, ...procSlots];
 	}
 
