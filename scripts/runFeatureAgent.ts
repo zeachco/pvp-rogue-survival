@@ -9,8 +9,14 @@ import {
 
 export const FEATURE_AGENT_PROMPT =
 	"implement / fix the highest-voted feature selected from `bun features`, then commit it";
+export const FEATURE_AGENT_RESULT_PREFIX = "FEATURE_AGENT_RESULT ";
 
 export type FeatureHarness = "codex" | "claude" | "pi" | "opencode";
+export type FeatureAgentResult = {
+	status: "implemented" | "already_done";
+	summary: string;
+	steps: string[];
+};
 
 const HARNESS_COMMANDS: Record<FeatureHarness, readonly string[]> = {
 	codex: ["codex", "exec", "--approve-for-me"],
@@ -88,7 +94,49 @@ The Bun launcher already selected the request below. Do not fetch or select anot
 ${JSON.stringify(request, null, 2)}
 </untrusted-feature-request>
 
-Follow AGENTS.md and the authoritative specs. Inspect the current worktree, update the relevant spec first when needed, implement focused tests, run the required validation, create one semantic commit containing only this completed feature, and push that commit to the configured upstream branch.`;
+Follow AGENTS.md and the authoritative specs. Inspect the current worktree. If the selected request is not already fully implemented, update the relevant spec first when needed, implement focused tests, run the required validation, create one semantic commit containing only this completed feature, and push that commit to the configured upstream branch. If the request was already fully implemented before this run, do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
+
+Your final output line must be exactly ${FEATURE_AGENT_RESULT_PREFIX}{"status":"implemented"|"already_done","summary":"concise outcome","steps":["completed step", "completed step"]}. Use implemented only after creating and pushing the new feature commit. Use already_done only after confirming every part of the request already exists and the worktree remains unchanged. Include validations and other completed work in steps. Do not wrap this final line in Markdown.`;
+}
+
+export function parseFeatureAgentResult(output: string): FeatureAgentResult {
+	const lines = output.split(/\r?\n/);
+	let resultLine: string | undefined;
+	for (let index = lines.length - 1; index >= 0; index -= 1) {
+		if (lines[index]?.startsWith(FEATURE_AGENT_RESULT_PREFIX)) {
+			resultLine = lines[index];
+			break;
+		}
+	}
+	if (!resultLine)
+		throw new Error("The feature harness did not return a structured result.");
+
+	let value: unknown;
+	try {
+		value = JSON.parse(resultLine.slice(FEATURE_AGENT_RESULT_PREFIX.length));
+	} catch {
+		throw new Error("The feature harness returned malformed result JSON.");
+	}
+	if (
+		!value ||
+		typeof value !== "object" ||
+		!("status" in value) ||
+		(value.status !== "implemented" && value.status !== "already_done") ||
+		!("summary" in value) ||
+		typeof value.summary !== "string" ||
+		!value.summary.trim() ||
+		!("steps" in value) ||
+		!Array.isArray(value.steps) ||
+		!value.steps.every((step) => typeof step === "string" && step.trim())
+	)
+		throw new Error(
+			"The feature harness returned an invalid structured result.",
+		);
+	return {
+		status: value.status,
+		summary: value.summary.trim(),
+		steps: value.steps.map((step) => step.trim()),
+	};
 }
 
 export function formattedFeatureRequest(
@@ -129,6 +177,12 @@ export function pushedFeatureCommit(startingHead: string): string {
 	const head = gitOutput(["rev-parse", "HEAD"]);
 	if (head === startingHead)
 		throw new Error("The feature harness did not create a new commit.");
+	verifiedPushedHead();
+	return head;
+}
+
+function verifiedPushedHead(): { head: string; upstream: string } {
+	const head = gitOutput(["rev-parse", "HEAD"]);
 	if (gitOutput(["status", "--porcelain"]))
 		throw new Error("The feature harness left uncommitted worktree changes.");
 	const upstream = gitOutput([
@@ -140,7 +194,34 @@ export function pushedFeatureCommit(startingHead: string): string {
 	const upstreamHead = gitOutput(["rev-parse", "@{upstream}"]);
 	if (head !== upstreamHead)
 		throw new Error(`Feature commit was not pushed to ${upstream}.`);
-	return head;
+	return { head, upstream };
+}
+
+function recapText(value: string): string {
+	return value.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
+}
+
+export function formattedFeatureRecap(
+	request: Pick<DevlogRequest, "id" | "title" | "description">,
+	result: FeatureAgentResult,
+	verifiedSteps: readonly string[],
+): string {
+	const green = "\x1b[32m";
+	const reset = "\x1b[0m";
+	const requestLines = recapText(request.description).replace(/\n/g, "\n│   ");
+	const steps = [...result.steps, ...verifiedSteps]
+		.map((step) => `│ ✓ ${recapText(step).replace(/\n/g, " ")}`)
+		.join("\n");
+	return `${green}\n╭─ FEATURE RUN COMPLETE ─────────────────────────────────────────
+│ Initial request: ${recapText(request.title)}
+│   ${requestLines}
+│
+│ Result: ${result.status === "already_done" ? "Already implemented" : "Implemented"}
+│ Summary: ${recapText(result.summary).replace(/\n/g, " ")}
+│
+│ Steps completed:
+${steps}
+╰───────────────────────────────────────────────────────────────${reset}`;
 }
 
 export async function markFeatureCompleted(
@@ -174,6 +255,26 @@ function requireInteractiveTerminal(): void {
 		throw new Error("Feature-agent requires an interactive terminal.");
 }
 
+async function readHarnessOutput(
+	child: ReturnType<typeof Bun.spawn>,
+): Promise<string> {
+	if (!child.stdout || typeof child.stdout === "number") return "";
+	const reader = child.stdout.getReader();
+	const decoder = new TextDecoder();
+	let output = "";
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		const text = decoder.decode(value, { stream: true });
+		output += text;
+		process.stdout.write(text);
+	}
+	const trailing = decoder.decode();
+	output += trailing;
+	if (trailing) process.stdout.write(trailing);
+	return output;
+}
+
 async function main(): Promise<void> {
 	const harness = Bun.argv[2] ?? "";
 	if (!isFeatureHarness(harness))
@@ -188,7 +289,8 @@ async function main(): Promise<void> {
 	const startingHead = gitOutput(["rev-parse", "HEAD"]);
 
 	const requests = await fetchFeatureRequests();
-	const selected = selectHighestVotedFeature(requests);
+	const pendingRequests = requests.filter((request) => !request.completed);
+	const selected = selectHighestVotedFeature(pendingRequests);
 	if (!selected)
 		throw new Error(
 			"No size-compliant pending feature requests were returned.",
@@ -215,16 +317,41 @@ async function main(): Promise<void> {
 	const child = Bun.spawn(harnessCommand(harness, featurePrompt(selected)), {
 		cwd: process.cwd(),
 		stdin: "inherit",
-		stdout: "inherit",
+		stdout: "pipe",
 		stderr: "inherit",
 	});
+	const output = await readHarnessOutput(child);
 	const exitCode = await child.exited;
 	if (exitCode !== 0) process.exit(exitCode);
-	const commit = pushedFeatureCommit(startingHead);
+	const result = parseFeatureAgentResult(output);
+	const verifiedSteps: string[] = [];
+	if (result.status === "already_done") {
+		const head = gitOutput(["rev-parse", "HEAD"]);
+		if (head !== startingHead)
+			throw new Error(
+				"The feature harness reported already done after creating a commit.",
+			);
+		const verified = verifiedPushedHead();
+		verifiedSteps.push(
+			`Confirmed unchanged pushed HEAD ${verified.head} on ${verified.upstream}`,
+		);
+	} else {
+		const commit = pushedFeatureCommit(startingHead);
+		const upstream = gitOutput([
+			"rev-parse",
+			"--abbrev-ref",
+			"--symbolic-full-name",
+			"@{upstream}",
+		]);
+		const subject = gitOutput(["show", "-s", "--format=%s", commit]);
+		verifiedSteps.push(
+			`Commit added: ${commit} ${subject}`,
+			`Pushed to ${upstream}`,
+		);
+	}
 	await markFeatureCompleted(selected.id);
-	console.log(
-		`\nMarked ${selected.id} Done with AI after pushed commit ${commit}.`,
-	);
+	verifiedSteps.push(`Marked ${selected.id} Done with AI`);
+	console.log(formattedFeatureRecap(selected, result, verifiedSteps));
 }
 
 if (import.meta.main) await main();

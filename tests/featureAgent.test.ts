@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
 	FEATURE_AGENT_PROMPT,
+	FEATURE_AGENT_RESULT_PREFIX,
 	featurePrompt,
+	formattedFeatureRecap,
 	harnessCommand,
 	isFeatureHarness,
 	markFeatureCompleted,
+	parseFeatureAgentResult,
 	securityFindings,
 	selectHighestVotedFeature,
 } from "../scripts/runFeatureAgent";
@@ -70,9 +73,54 @@ describe("feature agent launcher", () => {
 		expect(prompt).toContain("Do not fetch or select another request");
 		expect(prompt).toContain("create one semantic commit");
 		expect(prompt).toContain("push that commit");
+		expect(prompt).toContain('"already_done"');
+		expect(prompt).toContain(FEATURE_AGENT_RESULT_PREFIX);
 		expect(
 			selectHighestVotedFeature([{ ...request, completed: true }]),
 		).toBeUndefined();
+	});
+
+	test("parses the final structured harness result", () => {
+		expect(
+			parseFeatureAgentResult(`work in progress
+${FEATURE_AGENT_RESULT_PREFIX}{"status":"already_done","summary":"Already shipped","steps":["Inspected the implementation","Ran focused tests"]}
+tokens used 123`),
+		).toEqual({
+			status: "already_done",
+			summary: "Already shipped",
+			steps: ["Inspected the implementation", "Ran focused tests"],
+		});
+		expect(() => parseFeatureAgentResult("ordinary final answer")).toThrow(
+			"did not return a structured result",
+		);
+		expect(() =>
+			parseFeatureAgentResult(
+				`${FEATURE_AGENT_RESULT_PREFIX}{"status":"already_done","summary":"","steps":[]}`,
+			),
+		).toThrow("invalid structured result");
+	});
+
+	test("renders the initial request and completed steps in a green recap", () => {
+		const recap = formattedFeatureRecap(
+			request,
+			{
+				status: "implemented",
+				summary: "Added controller support",
+				steps: ["Ran bun test"],
+			},
+			[
+				"Commit added: abc123 feat(input): add controller support",
+				"Pushed to origin/main",
+				"Marked feature-1 Done with AI",
+			],
+		);
+		expect(recap.startsWith("\x1b[32m")).toBeTrue();
+		expect(recap.endsWith("\x1b[0m")).toBeTrue();
+		expect(recap).toContain("Initial request: Controller support");
+		expect(recap).toContain("Ran bun test");
+		expect(recap).toContain("Commit added: abc123");
+		expect(recap).toContain("Pushed to origin/main");
+		expect(recap).toContain("Marked feature-1 Done with AI");
 	});
 
 	test("breaks equal-score ties by creation time and then request id", () => {
