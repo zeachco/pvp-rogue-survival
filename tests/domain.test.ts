@@ -170,6 +170,7 @@ import {
 	cameraFacingAngle,
 	cameraOffsetForTilt,
 	cameraRelativeMovement,
+	cameraViewOffset,
 	DEFAULT_CAMERA_ZOOM,
 	MAX_CAMERA_TILT_RADIANS,
 	MIN_CAMERA_TILT_RADIANS,
@@ -340,6 +341,13 @@ describe("third-person camera", () => {
 		const offset = cameraOffsetForTilt(MAX_CAMERA_TILT_RADIANS);
 		expect(offset.y).toBeLessThan(0);
 		expect(offset.z).toBeGreaterThan(0);
+	});
+
+	test("centers the camera in the viewport space left by open side panels", () => {
+		expect(cameraViewOffset(1_600, 332, 0)).toBe(-166);
+		expect(cameraViewOffset(1_600, 0, 652)).toBe(326);
+		expect(cameraViewOffset(1_600, 332, 652)).toBe(160);
+		expect(cameraViewOffset(320, 312, 312)).toBe(0);
 	});
 
 	test("clamps vertical left-drag orbiting above ground and below overturn", () => {

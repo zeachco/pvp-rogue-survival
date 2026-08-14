@@ -247,7 +247,9 @@ export class Game {
 			onChattingChange: (chatting) => {
 				this.isChatting = chatting;
 			},
+			onPanelLayoutChange: () => this.updatePanelCameraFraming(),
 		});
+		this.updatePanelCameraFraming();
 		this.hud.setFullscreenMode(this.fullscreenMode);
 		this.hud.setResolutionScale(resolutionScale);
 		this.hud.setLightingMode(lightingMode);
@@ -1376,7 +1378,13 @@ export class Game {
 		const width = this.canvas.clientWidth || innerWidth;
 		const height = this.canvas.clientHeight || innerHeight;
 		this.renderer.resize(width, height);
+		this.updatePanelCameraFraming();
 		this.updateCamera();
+	}
+	private updatePanelCameraFraming(): void {
+		const width = this.canvas.clientWidth || innerWidth;
+		const { left, right } = this.hud.panelOcclusion(width);
+		this.renderer.setPanelOcclusion(left, right);
 	}
 	private registerDebugGlobal(): void {
 		window.__mltDebug = {

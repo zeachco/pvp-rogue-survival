@@ -239,6 +239,17 @@ export function cameraFacingAngle(yaw: number): number {
 	return Math.PI / 2 - yaw;
 }
 
+export function cameraViewOffset(
+	viewportWidth: number,
+	leftOcclusion: number,
+	rightOcclusion: number,
+): number {
+	if (viewportWidth <= 0) return 0;
+	const left = clamp(leftOcclusion, 0, viewportWidth);
+	const right = clamp(rightOcclusion, 0, viewportWidth);
+	return clamp((right - left) / 2, -viewportWidth / 2, viewportWidth / 2);
+}
+
 export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
@@ -253,6 +264,8 @@ export class ThreeRenderer {
 	private height = 1;
 	private focusX = 0;
 	private focusY = 0;
+	private leftOcclusion = 0;
+	private rightOcclusion = 0;
 	private readonly pointerRay = new THREE.Raycaster();
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 	private readonly ambientLight: THREE.AmbientLight;
@@ -319,6 +332,12 @@ export class ThreeRenderer {
 		this.updateCameraFrustum();
 	}
 
+	setPanelOcclusion(left: number, right: number): void {
+		this.leftOcclusion = left;
+		this.rightOcclusion = right;
+		this.updateCameraFrustum();
+	}
+
 	applyZoom(delta: number): void {
 		this._zoomLevel = clamp(
 			this._zoomLevel * (1 - delta * ZOOM_SPEED),
@@ -380,6 +399,14 @@ export class ThreeRenderer {
 
 	private updateCameraFrustum(): void {
 		this.camera.aspect = this.width / this.height;
+		this.camera.setViewOffset(
+			this.width,
+			this.height,
+			cameraViewOffset(this.width, this.leftOcclusion, this.rightOcclusion),
+			0,
+			this.width,
+			this.height,
+		);
 		this.camera.updateProjectionMatrix();
 	}
 

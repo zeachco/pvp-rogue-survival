@@ -36,6 +36,7 @@ export interface HudCallbacks {
 	onDismissPanelTrigger(panel: PanelTrigger): void;
 	onChat(text: string): void;
 	onChattingChange(chatting: boolean): void;
+	onPanelLayoutChange(): void;
 }
 export type CurrencyPreview = Partial<
 	Record<"gold" | "souls" | Rarity, number>

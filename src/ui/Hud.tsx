@@ -3227,6 +3227,19 @@ export class Hud {
 				"--inventory-panel-preview-width",
 				collapsed ? "0px" : "640px",
 			);
+		this.callbacks.onPanelLayoutChange();
+	}
+	panelOcclusion(viewportWidth: number): { left: number; right: number } {
+		const left = this.characterPanel.classList.contains("is-collapsed")
+			? 0
+			: this.characterPanel.getBoundingClientRect().right;
+		const right = this.inventoryPanel.classList.contains("is-collapsed")
+			? 0
+			: viewportWidth - this.inventoryPanel.getBoundingClientRect().left;
+		return {
+			left: Math.max(0, Math.min(viewportWidth, left)),
+			right: Math.max(0, Math.min(viewportWidth, right)),
+		};
 	}
 	private updateVisibility(): void {
 		const joined = Boolean(this.player);
