@@ -39,6 +39,15 @@ export const CREEP_RESOURCE_BAR_CAMERA_OFFSET = 2;
 export const creepResourceBarAnchorY = (presentationHeight: number): number =>
 	presentationHeight + 8;
 
+export function placeCreepSenderLabel(
+	resourceBarGroup: THREE.Group,
+	label: THREE.Sprite,
+	y: number,
+): void {
+	label.position.set(0, y, 0.01);
+	resourceBarGroup.add(label);
+}
+
 export const ENEMY_ROLE_LIGHTS = {
 	champion: { color: 0xffd43b, intensity: 15, distance: 115, decay: 1 },
 	boss: { color: 0xff293d, intensity: 18, distance: 125, decay: 1 },
@@ -400,6 +409,15 @@ export class Creep extends Unit {
 			const sprite = new THREE.Sprite(mat);
 			sprite.renderOrder = Z_CREEP_OVERLAY + 0.01;
 			sprite.scale.set(w, h, 1);
+			placeCreepSenderLabel(
+				this.healthBarGroup,
+				sprite,
+				hbY +
+					this.healthBarHeight +
+					this.manaBarHeight +
+					this.rageBarHeight +
+					12,
+			);
 			this.labelObject = sprite;
 		}
 
@@ -714,19 +732,6 @@ export class Creep extends Unit {
 		bodyMaterial.roughness = reflective ? 0.35 : 1;
 
 		this.healthBarGroup.position.set(this.position.x, this.position.y, 0);
-		if (this.labelObject) {
-			this.labelObject.position.set(
-				this.position.x,
-				this.position.y +
-					this.resourceBarAnchorY +
-					this.healthBarHeight +
-					this.manaBarHeight +
-					this.rageBarHeight +
-					12,
-				Z_CREEP_OVERLAY + 0.01,
-			);
-		}
-
 		const hbW = this.barWidth;
 		const hpRatio = this.maxHp > 0 ? clamp(this.hp / this.maxHp, 0, 1) : 0;
 		this.healthFill.scale.x = Math.max(0.001, hpRatio);

@@ -465,7 +465,6 @@ export class ThreeRenderer {
 		for (const creep of arena.creeps) {
 			current.add(creep.mesh);
 			if (creep.healthBarGroup) current.add(creep.healthBarGroup);
-			if (creep.labelObject) current.add(creep.labelObject);
 			if (creep === hovered || creep === inspected)
 				if (creep.selectionRing) current.add(creep.selectionRing);
 			if (creep.attackWindupRing) current.add(creep.attackWindupRing);

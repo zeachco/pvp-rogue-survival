@@ -40,6 +40,7 @@ import {
 	ENEMY_ROLE_LIGHTS,
 	enemyRoleLight,
 	enemyRoleModelKind,
+	placeCreepSenderLabel,
 	resourceBarWidth,
 } from "../src/game/Creep";
 import {
@@ -690,6 +691,20 @@ describe("arena systems", () => {
 		creep.position.x = 0;
 		creep.updateThreatArrow(camera);
 		expect(creep.threatArrow.visible).toBeFalse();
+	});
+	test("keeps sent-item sender labels in the camera-facing resource stack", () => {
+		const resourceBarGroup = new THREE.Group();
+		const label = new THREE.Sprite();
+		const cameraRotation = new THREE.Quaternion().setFromEuler(
+			new THREE.Euler(0.4, -0.2, 0.1),
+		);
+
+		placeCreepSenderLabel(resourceBarGroup, label, 72);
+		resourceBarGroup.quaternion.copy(cameraRotation);
+
+		expect(label.parent).toBe(resourceBarGroup);
+		expect(label.position.toArray()).toEqual([0, 72, 0.01]);
+		expect(resourceBarGroup.quaternion.equals(cameraRotation)).toBeTrue();
 	});
 	test("applies passive upkeep suspension to spawned enemies", () => {
 		const creep = new Creep(
