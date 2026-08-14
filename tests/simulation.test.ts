@@ -109,6 +109,7 @@ import {
 	SWAMP_UPLIGHT_COLOR,
 	SWAMP_UPLIGHT_HEIGHT,
 	SWAMP_UPLIGHT_INTENSITY,
+	thunderLightPosition,
 } from "../src/game/render/HeroSpellLightPool";
 import {
 	applySceneLightingMode,
@@ -139,7 +140,9 @@ import {
 	spellEffectLightColor,
 	spellEffectLightDistance,
 	THUNDER_IMPACT_DURATION,
+	THUNDER_IMPACT_LIGHT_COLOR,
 	THUNDER_IMPACT_LIGHT_INTENSITY,
+	THUNDER_IMPACT_LIGHT_OFFSET,
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
 import { resolveCombat } from "../src/game/systems/combat";
@@ -1759,15 +1762,36 @@ describe("arena systems", () => {
 				(child) => child instanceof THREE.Line && child.position.z === 0,
 			),
 		).toBeTrue();
-		lightPool.sync(["thunderAura"], [thunderImpact], 0);
-		const thunderLight = lightPool.light("thunderAura") as THREE.PointLight;
-		expect(thunderLight.position.toArray()).toEqual([44, 55, 4]);
+		const thunderScene = new THREE.Scene();
+		const thunderAngles = [0, 0.25];
+		const thunderLightPool = new HeroSpellLightPool(
+			thunderScene,
+			() => thunderAngles.shift() ?? 0,
+		);
+		thunderLightPool.sync(["thunderAura"], [thunderImpact], 0);
+		const thunderLight = thunderLightPool.light(
+			"thunderAura",
+		) as THREE.PointLight;
+		expect(thunderLight.color.getHex()).toBe(THUNDER_IMPACT_LIGHT_COLOR);
+		expect(thunderLight.position.toArray()).toEqual([
+			44 + THUNDER_IMPACT_LIGHT_OFFSET,
+			55,
+			4,
+		]);
 		expect(thunderLight.intensity).toBe(THUNDER_IMPACT_LIGHT_INTENSITY);
 		thunderImpact.update(THUNDER_IMPACT_DURATION / 2);
-		lightPool.sync(["thunderAura"], [thunderImpact], 0.75);
+		thunderLightPool.sync(["thunderAura"], [thunderImpact], 0.75);
+		expect(thunderLight.position.x).toBeCloseTo(44);
+		expect(thunderLight.position.y).toBeCloseTo(
+			55 + THUNDER_IMPACT_LIGHT_OFFSET,
+		);
 		expect(thunderLight.intensity).toBeCloseTo(
 			THUNDER_IMPACT_LIGHT_INTENSITY / 2,
 		);
+		expect(thunderLightPosition({ x: 12, y: 4.5 }, () => 0)).toEqual({
+			x: 12 + THUNDER_IMPACT_LIGHT_OFFSET,
+			y: 4.5,
+		});
 	});
 	test("bottom-aligns every projectile silhouette above the ground", () => {
 		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);
@@ -2170,24 +2194,13 @@ describe("arena systems", () => {
 		const blizzardLight = blizzardLightPool.light(
 			"blizzard",
 		) as THREE.PointLight;
-		const firstLitPosition = blizzardLight.position.clone();
 		expect(blizzardLight.color.getHex()).toBe(BLIZZARD_PROJECTILE_LIGHT_COLOR);
 		expect(blizzardLight.intensity).toBe(BLIZZARD_PROJECTILE_LIGHT_INTENSITY);
 		expect(blizzardLight.distance).toBe(BLIZZARD_PROJECTILE_LIGHT_DISTANCE);
+		expect(blizzardLight.position.toArray()).toEqual([0, 0, 10]);
 		blizzard.update(0.36, [creep], new SeededRandom(2));
 		blizzardLightPool.sync(["blizzard"], [], 0.36, [], [blizzard]);
-		expect(blizzardLight.position.equals(firstLitPosition)).toBeFalse();
-		const nextTarget = blizzard.closestFallingIciclePosition();
-		expect(nextTarget).toBeDefined();
-		expect(blizzardLight.position.z).toBeGreaterThanOrEqual(10);
-		expect(
-			Math.abs(blizzardLight.position.z - (nextTarget?.z ?? 0)),
-		).toBeLessThan(
-			Math.hypot(
-				blizzardLight.position.x - (nextTarget?.x ?? 0),
-				blizzardLight.position.y - (nextTarget?.y ?? 0),
-			),
-		);
+		expect(blizzardLight.position.toArray()).toEqual([0, 0, 10]);
 		expect(creep.hp).toBeLessThan(hpBefore);
 		expect(creep.statuses).toMatchObject([
 			{ kind: "freeze", remaining: 4, damagePerSecond: 0, source: hero },

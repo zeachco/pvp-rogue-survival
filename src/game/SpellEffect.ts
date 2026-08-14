@@ -24,6 +24,8 @@ export const HOSTILE_SPELL_COLOR = 0xff334f;
 export const HERO_BLOOD_SPELL_COLOR = 0x9b5cff;
 export const THUNDER_IMPACT_DURATION = 1.5;
 export const THUNDER_IMPACT_LIGHT_INTENSITY = 180;
+export const THUNDER_IMPACT_LIGHT_COLOR = 0xfafaff;
+export const THUNDER_IMPACT_LIGHT_OFFSET = 18;
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -52,7 +54,7 @@ export function spellEffectLightColor(
 	if (kind === "fireBreath") return 0xff5a24;
 	if (kind === "gravityPull") return 0xb98cff;
 	if (kind === "reflectiveSurge") return 0xffe46b;
-	if (kind === "thunderAura") return 0x9defff;
+	if (kind === "thunderAura") return THUNDER_IMPACT_LIGHT_COLOR;
 	if (kind === "whirlwind") return 0xd8f4ff;
 	if (kind === "flurry") return 0xd9c2ff;
 	if (kind === "sweep") return 0xbafcff;

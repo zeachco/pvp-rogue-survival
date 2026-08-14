@@ -6,6 +6,7 @@ import {
 	type SpellEffect,
 	type SpellEffectKind,
 	spellEffectLightColor,
+	THUNDER_IMPACT_LIGHT_OFFSET,
 } from "../SpellEffect";
 
 type PooledLight = THREE.PointLight | THREE.SpotLight;
@@ -36,16 +37,25 @@ export const BLIZZARD_PROJECTILE_LIGHT_COLOR = 0x8de7ff;
 export const BLIZZARD_PROJECTILE_LIGHT_INTENSITY = 95;
 export const BLIZZARD_PROJECTILE_LIGHT_DISTANCE = 150;
 export const BLIZZARD_PROJECTILE_LIGHT_MIN_HEIGHT = 10;
-export const BLIZZARD_LIGHT_GROUND_LERP_SPEED = 8;
-export const BLIZZARD_LIGHT_VERTICAL_LERP_SPEED = 40;
+
+export function thunderLightPosition(
+	position: { x: number; y: number },
+	random = Math.random,
+): { x: number; y: number } {
+	const angle = random() * Math.PI * 2;
+	return {
+		x: position.x + Math.cos(angle) * THUNDER_IMPACT_LIGHT_OFFSET,
+		y: position.y + Math.sin(angle) * THUNDER_IMPACT_LIGHT_OFFSET,
+	};
+}
 
 export class HeroSpellLightPool {
 	private readonly cache = new Map<SpellEffectKind, PooledLight>();
 	private readonly attached = new Set<SpellEffectKind>();
-	private blizzardLightInitialized = false;
-	private lastBlizzardSyncTime?: number;
-
-	constructor(private readonly scene: THREE.Scene) {}
+	constructor(
+		private readonly scene: THREE.Scene,
+		private readonly random: () => number = Math.random,
+	) {}
 
 	sync(
 		availableSkills: Iterable<SkillId>,
@@ -77,9 +87,13 @@ export class HeroSpellLightPool {
 			if (!effect.heroOwned || !effect.active) continue;
 			const light = this.cache.get(effect.kind);
 			if (!light) continue;
+			const lightPosition =
+				effect.kind === "thunderAura"
+					? thunderLightPosition(effect.position, this.random)
+					: effect.position;
 			light.position.set(
-				effect.position.x,
-				effect.position.y,
+				lightPosition.x,
+				lightPosition.y,
 				effect.kind === "thunderAura" ? 4 : effect.kind === "healing" ? 6 : 18,
 			);
 			light.distance = effect.lightDistance();
@@ -110,52 +124,21 @@ export class HeroSpellLightPool {
 		}
 
 		const blizzardLight = this.cache.get("blizzard");
-		let closestIcicle: THREE.Vector3 | undefined;
-		for (const blizzard of blizzards) {
-			if (!blizzard.active) continue;
-			const candidate = blizzard.closestFallingIciclePosition();
-			if (candidate && (!closestIcicle || candidate.z < closestIcicle.z))
-				closestIcicle = candidate;
+		let activeBlizzard: Blizzard | undefined;
+		for (let index = blizzards.length - 1; index >= 0; index -= 1) {
+			if (!blizzards[index].active) continue;
+			activeBlizzard = blizzards[index];
+			break;
 		}
-		if (blizzardLight && closestIcicle) {
-			const targetZ = Math.max(
+		if (blizzardLight && activeBlizzard) {
+			blizzardLight.position.set(
+				activeBlizzard.position.x,
+				activeBlizzard.position.y,
 				BLIZZARD_PROJECTILE_LIGHT_MIN_HEIGHT,
-				closestIcicle.z,
 			);
-			if (!this.blizzardLightInitialized) {
-				blizzardLight.position.set(closestIcicle.x, closestIcicle.y, targetZ);
-				this.blizzardLightInitialized = true;
-			} else {
-				const deltaSeconds = Math.max(
-					0,
-					Math.min(0.1, time - (this.lastBlizzardSyncTime ?? time)),
-				);
-				const groundAlpha =
-					1 - Math.exp(-BLIZZARD_LIGHT_GROUND_LERP_SPEED * deltaSeconds);
-				const verticalAlpha =
-					1 - Math.exp(-BLIZZARD_LIGHT_VERTICAL_LERP_SPEED * deltaSeconds);
-				blizzardLight.position.x = THREE.MathUtils.lerp(
-					blizzardLight.position.x,
-					closestIcicle.x,
-					groundAlpha,
-				);
-				blizzardLight.position.y = THREE.MathUtils.lerp(
-					blizzardLight.position.y,
-					closestIcicle.y,
-					groundAlpha,
-				);
-				blizzardLight.position.z = THREE.MathUtils.lerp(
-					blizzardLight.position.z,
-					targetZ,
-					verticalAlpha,
-				);
-			}
 			blizzardLight.distance = BLIZZARD_PROJECTILE_LIGHT_DISTANCE;
 			blizzardLight.intensity = BLIZZARD_PROJECTILE_LIGHT_INTENSITY;
 		}
-		if (!closestIcicle && !blizzards.some((blizzard) => blizzard.active))
-			this.blizzardLightInitialized = false;
-		this.lastBlizzardSyncTime = time;
 	}
 
 	light(kind: SpellEffectKind): PooledLight | undefined {

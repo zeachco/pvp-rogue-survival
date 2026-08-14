@@ -83,21 +83,6 @@ export class Blizzard extends GameObject {
 		this.mesh.position.set(this.position.x, this.position.y, 0);
 	}
 
-	closestFallingIciclePosition(): THREE.Vector3 | undefined {
-		let closest: THREE.Mesh | undefined;
-		for (const icicle of this.icicles) {
-			if (!icicle.mesh.visible) continue;
-			if (!closest || icicle.mesh.position.z < closest.position.z)
-				closest = icicle.mesh;
-		}
-		if (!closest) return undefined;
-		return new THREE.Vector3(
-			this.position.x + closest.position.x,
-			this.position.y + closest.position.y,
-			closest.position.z,
-		);
-	}
-
 	private spawnIcicle(): void {
 		const releaseInterval = 1 / this.projectilesPerSecond;
 		for (let index = 0; index < BLIZZARD_ICICLES_PER_VOLLEY; index += 1) {
