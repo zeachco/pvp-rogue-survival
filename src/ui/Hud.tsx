@@ -99,6 +99,7 @@ import {
 } from "./InventoryView";
 import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import { extractButtonStatus } from "./inventoryAvailability";
+import { submitFormOnEnter } from "./keyboardFormSubmission";
 import {
   applyPreviewClass,
   formatPreviewValue,
@@ -479,7 +480,8 @@ export class Hud {
         {this.nameInput}
         <button type="submit">Join</button>
       </form>
-    ) as HTMLElement;
+    ) as HTMLFormElement;
+    submitFormOnEnter(joinForm);
     this.loginHeaderActions.replaceChildren(this.headerMenu());
     this.joinPanel = (
       <section class="join-panel">
@@ -510,6 +512,7 @@ export class Hud {
       ) as HTMLButtonElement
     ).onclick = closeAuthentication;
     this.authenticationMask.onclick = closeAuthentication;
+    submitFormOnEnter(this.authenticationModal);
     this.authenticationModal.onsubmit = (event) => {
       event.preventDefault();
       if (

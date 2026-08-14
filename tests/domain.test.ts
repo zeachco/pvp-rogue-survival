@@ -239,6 +239,7 @@ import {
 	previewTone,
 } from "../src/ui/preview";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
+import { isKeyboardFormSubmission } from "../src/ui/keyboardFormSubmission";
 
 function progress(): PlayerProgress {
 	return {
@@ -3056,6 +3057,16 @@ test("routes the Devlog without dropping the selected game server", () => {
 			"/api/devlog/requests",
 		),
 	).toBe("http://localhost:5173/api/devlog/requests");
+});
+
+test("submits forms with Enter while preserving shifted multiline input", () => {
+	expect(
+		isKeyboardFormSubmission({ key: "Enter", shiftKey: false }),
+	).toBeTrue();
+	expect(
+		isKeyboardFormSubmission({ key: "Enter", shiftKey: true }),
+	).toBeFalse();
+	expect(isKeyboardFormSubmission({ key: "Tab", shiftKey: false })).toBeFalse();
 });
 
 test("explains the autonomous community-driven development loop", async () => {

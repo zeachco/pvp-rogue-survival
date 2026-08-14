@@ -8,6 +8,7 @@ import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
 import { gameApiUrl } from "./navigation";
 import { SessionStorage } from "./platform/SessionStorage";
+import { submitFormOnEnter } from "./ui/keyboardFormSubmission";
 
 const files = import.meta.glob<string | WeeklyDevlog>("../changelogs/*.json", {
 	eager: true,
@@ -389,6 +390,7 @@ function voteButton(
 	return button;
 }
 
+submitFormOnEnter(requestForm);
 requestForm.addEventListener("submit", async (event) => {
 	event.preventDefault();
 	const submit = requestForm.querySelector(
