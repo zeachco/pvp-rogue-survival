@@ -193,6 +193,7 @@ import {
 	forceFieldDamage,
 	forceFieldFalloff,
 	HeroCombatSystem,
+	itemProcSkills,
 	isSkillActive,
 	isSkillAvailable,
 	shouldAutoCastHealing,
@@ -1911,6 +1912,57 @@ test("keeps weapon actives as cooldown-weighted procs", () => {
 	expect(weaponSkillTriggerChanceForHits(10, 3)).toBeCloseTo(0.3);
 	expect(weaponSkillTriggerChanceForHits(1, 3)).toBe(1);
 	expect(weaponSkillTriggerChanceForHits(10, 20)).toBe(1);
+});
+
+test("projects amulet and charm actives as attack and incoming-damage procs", () => {
+	const state = progress();
+	state.level = 20;
+	state.amulet = {
+		...generateAccessory(7, "rare", 4, "amulet"),
+		name: "Blood Moon Amulet",
+		skills: ["vampiricBoomerang"],
+	};
+	state.charm = {
+		...generateAccessory(9, "rare", 3, "charm"),
+		name: "Echo Charm",
+		skills: ["healing"],
+	};
+	expect(itemProcSkills(state)).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				id: "vampiricBoomerang",
+				level: 7,
+				triggersOnDamage: true,
+			}),
+			expect.objectContaining({
+				id: "healing",
+				level: 9,
+				triggersOnDamage: true,
+			}),
+		]),
+	);
+	const boomerang = new HeroCombatSystem()
+		.spellSlots(state, new Hero({ x: 0, y: 0 }))
+		.find(
+			(slot) =>
+				slot.id === "vampiricBoomerang" &&
+				slot.providedByItemName !== undefined,
+		);
+	expect(boomerang).toMatchObject({
+		active: true,
+		passive: true,
+		bar: "geared",
+		providedByItemName: "Blood Moon Amulet",
+		procChancesOnAttacks: expect.any(Number),
+		procChancesOnDamage: expect.any(Number),
+	});
+	expect(
+		new HeroCombatSystem()
+			.spellSlots(state, new Hero({ x: 0, y: 0 }))
+			.filter(
+				(slot) => slot.id === "vampiricBoomerang" && slot.bar === "geared",
+			),
+	).toHaveLength(1);
 });
 
 test("projects unlearned item-provided Healing as a read-only weapon proc", () => {

@@ -1216,6 +1216,64 @@ describe("arena systems", () => {
 		).toHaveLength(1);
 		expect(hero.hp).toBeLessThan(hpBeforeRent);
 	});
+	test("queues an accessory spell proc when incoming damage removes hero HP", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const weapon = { ...starterClub(), skills: [] };
+		const charm = {
+			...generateAccessory(20, "rare", 3, "charm"),
+			skills: ["vampiricBoomerang" as const],
+		};
+		hero.configureStats(ZERO_STATS, undefined, weapon, undefined, charm);
+		const target = new Creep(
+			{
+				id: "accessory-proc-target",
+				name: "Target",
+				kind: "melee",
+				level: 0,
+				stats: { ...ZERO_STATS },
+				mainHand: weapon,
+				carried: [],
+				isRival: false,
+				xpReward: 0,
+				goldReward: 0,
+				seed: 1,
+			},
+			"neutral",
+			"neutral",
+			{ x: 80, y: 50 },
+			BALANCE,
+			new SeededRandom(1),
+		);
+		const state = new ArenaState();
+		state.creeps.push(target);
+		const progress = {
+			level: 20,
+			xp: 0,
+			stats: { ...ZERO_STATS },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			mainHand: weapon,
+			charm,
+			inventoryTiles: [],
+			learnedSkills: [],
+			learnedSkillLevels: {},
+			universalSkills: [],
+			equippedSkills: [],
+			autoFireSkills: [],
+		};
+		const combat = new HeroCombatSystem();
+		(combat as unknown as { attackCooldown: number }).attackCooldown = 1;
+		hero.takeDamage(1);
+		combat.update(1 / 60, { x: 0, y: 0 }, hero, state, progress, BALANCE, {
+			next: () => 0,
+		});
+		expect(
+			(combat as unknown as { casting?: { id: string; proc: boolean } })
+				.casting,
+		).toMatchObject({ id: "vampiricBoomerang", proc: true });
+	});
 	test("auto-faces the closest visible enemy while moving regardless of spell affordability", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const weapon = starterClub();

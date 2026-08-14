@@ -35,7 +35,6 @@ import {
 	timeHarvestItemSkillBonus,
 	vampiricBoomerangHealingFraction,
 	weaponSkillTriggerChance,
-	weaponSkillTriggerChanceForHits,
 	whirlwindDamage,
 	whirlwindDuration,
 	whirlwindMovementSpeed,
@@ -92,6 +91,7 @@ export class HeroCombatSystem {
 		elapsed: number;
 		total: number;
 		proc: boolean;
+		procItemId?: string;
 	};
 	private manualSkill?: SkillId;
 	private whirlwindRemaining = 0;
@@ -99,7 +99,8 @@ export class HeroCombatSystem {
 	private whirlwindRange = 0;
 	private whirlwindHitDamage = 0;
 	private whirlwindSpeed = 1;
-	private readonly pendingWeaponProcs: SkillId[] = [];
+	private readonly pendingItemProcs: ItemProcSkill[] = [];
+	private observedHeroHitVersion = 0;
 	syncSkills(progress: PlayerProgress, hero: Hero): void {
 		hero.knownSkills.clear();
 		hero.skillLevels.clear();
@@ -294,35 +295,40 @@ export class HeroCombatSystem {
 		const targetDistance = distance(hero.position, target.position);
 		const profile = hero.state.attack;
 		const equipmentCooldown = itemCooldownReduction(...accessories(progress));
-		const procSkills = weaponProcSkills(progress);
+		const procSkills = itemProcSkills(progress);
+		const receivedDamageEvents = Math.max(
+			0,
+			hero.presentationHitVersion - this.observedHeroHitVersion,
+		);
+		this.observedHeroHitVersion = hero.presentationHitVersion;
+		for (let event = 0; event < receivedDamageEvents; event += 1)
+			for (const proc of procSkills.filter(
+				({ triggersOnDamage }) => triggersOnDamage,
+			))
+				if (random.next() < itemProcTriggerChance(progress, proc))
+					this.pendingItemProcs.push(proc);
 		const procHitCount = basicWeaponHitCount(hero, state.creeps, item, profile);
 		const castingProc = this.casting?.proc
-			? procSkills.find(({ id }) => id === this.casting?.id)
+			? procSkills.find(
+					({ id, item }) =>
+						id === this.casting?.id && item.id === this.casting.procItemId,
+				)
 			: undefined;
 		if (
 			!this.casting &&
 			!this.manualSkill &&
-			this.pendingWeaponProcs.length === 0 &&
+			this.pendingItemProcs.length === 0 &&
 			this.attackCooldown === 0 &&
 			targetDistance <= profile.range + target.radius
 		)
-			for (const { id, level } of procSkills) {
-				const cooldown = effectiveSkillCooldown(
-					id,
-					item,
-					effectiveStats,
-					level,
-					Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
-				);
+			for (const proc of procSkills) {
 				if (
 					random.next() <
-					weaponSkillTriggerChanceForHits(cooldown, procHitCount)
+					Math.min(1, itemProcTriggerChance(progress, proc) * procHitCount)
 				)
-					this.pendingWeaponProcs.push(id);
+					this.pendingItemProcs.push(proc);
 			}
-		const triggeredProc = procSkills.find(
-			({ id }) => id === this.pendingWeaponProcs[0],
-		);
+		const triggeredProc = this.pendingItemProcs[0];
 		const directSkills = this.availableSkills(progress).filter(
 			(skill) => autoFire.has(skill.id) || skill.id === this.manualSkill,
 		);
@@ -420,7 +426,7 @@ export class HeroCombatSystem {
 					? rageSkillCost
 					: profile.rageCost;
 		if (!activeSkill) {
-			if (procSkill && !candidate) this.pendingWeaponProcs.shift();
+			if (procSkill && !candidate) this.pendingItemProcs.shift();
 			this.tryBasicAttack(
 				hero,
 				target,
@@ -449,6 +455,7 @@ export class HeroCombatSystem {
 						elapsed: 0,
 						total,
 						proc: candidateIsProc,
+						procItemId: candidateIsProc ? procSkill?.item.id : undefined,
 					};
 					this.tryBasicAttack(
 						hero,
@@ -715,8 +722,11 @@ export class HeroCombatSystem {
 				),
 			);
 		if (activeSkill) {
-			if (this.pendingWeaponProcs[0] === activeSkill.id)
-				this.pendingWeaponProcs.shift();
+			if (
+				this.pendingItemProcs[0]?.id === activeSkill.id &&
+				this.pendingItemProcs[0]?.item.id === procSkill?.item.id
+			)
+				this.pendingItemProcs.shift();
 			const duration = effectiveSkillCooldown(
 				activeSkill.id,
 				item,
@@ -789,7 +799,7 @@ export class HeroCombatSystem {
 	spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
 		const equipped = equippedActiveSkillIds(progress);
 		const autoFire = new Set(autoFireSkillIds(progress));
-		const procSkills = weaponProcSkills(progress);
+		const procSkills = itemProcSkills(progress);
 		const ordinarySlots = orderedSkillIds(progress).map((id) => {
 			const cooldown = this.skillCooldowns.get(id);
 			return {
@@ -827,7 +837,8 @@ export class HeroCombatSystem {
 					: ("geared" as const),
 			};
 		});
-		const procSlots = procSkills.map(({ id, level }) => {
+		const procSlots = procSkills.map((proc) => {
+			const { id, level } = proc;
 			return {
 				id,
 				label: skillLabel(id),
@@ -840,8 +851,11 @@ export class HeroCombatSystem {
 				costLabel: "Free attack proc",
 				active: true,
 				passive: true,
-				procChancesOnAttacks: weaponProcTriggerChance(progress, id, level),
-				providedByItemName: progress.mainHand?.name,
+				procChancesOnAttacks: itemProcTriggerChance(progress, proc),
+				procChancesOnDamage: proc.triggersOnDamage
+					? itemProcTriggerChance(progress, proc)
+					: undefined,
+				providedByItemName: proc.item.name,
 				autoFire: false,
 				bar: "geared" as const,
 			};
@@ -904,7 +918,8 @@ export class HeroCombatSystem {
 		this.whirlwindPulse = 0;
 		this.whirlwindSpeed = 1;
 		this.skillCooldowns.clear();
-		this.pendingWeaponProcs.length = 0;
+		this.pendingItemProcs.length = 0;
+		this.observedHeroHitVersion = 0;
 	}
 	private availableSkills(
 		progress: PlayerProgress,
@@ -1236,20 +1251,41 @@ export function learnedSkillIds(progress: PlayerProgress): SkillId[] {
 export function weaponProcSkills(
 	progress: PlayerProgress,
 ): Array<{ id: SkillId; level: number }> {
-	if (progress.mainHand?.itemKind !== "weapon") return [];
-	return [...new Set(progress.mainHand.skills)]
-		.filter((id) => !SKILLS[id].passive)
-		.map((id) => ({
-			id,
-			level: cappedSkillLevel(
-				Math.min(progress.mainHand!.level, progress.level),
-			),
-		}));
+	return itemProcSkills(progress)
+		.filter(({ triggersOnDamage }) => !triggersOnDamage)
+		.map(({ id, level }) => ({ id, level }));
 }
-export function weaponProcTriggerChance(
+
+export interface ItemProcSkill {
+	id: SkillId;
+	level: number;
+	item: ItemInstance;
+	triggersOnDamage: boolean;
+}
+
+export function itemProcSkills(progress: PlayerProgress): ItemProcSkill[] {
+	return [
+		...(progress.mainHand?.itemKind === "weapon"
+			? [{ item: progress.mainHand, triggersOnDamage: false }]
+			: []),
+		...[progress.amulet, progress.charm]
+			.filter((item): item is ItemInstance => Boolean(item))
+			.map((item) => ({ item, triggersOnDamage: true })),
+	].flatMap(({ item, triggersOnDamage }) =>
+		[...new Set(item.skills)]
+			.filter((id) => !SKILLS[id].passive)
+			.map((id) => ({
+				id,
+				level: cappedSkillLevel(Math.min(item.level, progress.level)),
+				item,
+				triggersOnDamage,
+			})),
+	);
+}
+
+export function itemProcTriggerChance(
 	progress: PlayerProgress,
-	skill: SkillId,
-	level: number,
+	proc: Pick<ItemProcSkill, "id" | "level" | "item">,
 ): number {
 	const stats = statsWithItemBonuses(
 		progress.stats,
@@ -1262,8 +1298,20 @@ export function weaponProcTriggerChance(
 			itemCooldownReduction(...accessories(progress)),
 	);
 	return weaponSkillTriggerChance(
-		effectiveSkillCooldown(skill, progress.mainHand, stats, level, reduction),
+		effectiveSkillCooldown(proc.id, proc.item, stats, proc.level, reduction),
 	);
+}
+export function weaponProcTriggerChance(
+	progress: PlayerProgress,
+	skill: SkillId,
+	level: number,
+): number {
+	if (!progress.mainHand) return 0;
+	return itemProcTriggerChance(progress, {
+		id: skill,
+		level,
+		item: progress.mainHand,
+	});
 }
 export function gearedSkillIds(progress: PlayerProgress): SkillId[] {
 	const learned = new Set(learnedSkillIds(progress));
@@ -1271,7 +1319,10 @@ export function gearedSkillIds(progress: PlayerProgress): SkillId[] {
 		...new Set<SkillId>([
 			...(progress.mainHand?.skills.filter((skill) => SKILLS[skill].passive) ??
 				[]),
-			...accessories(progress).flatMap((item) => item?.skills ?? []),
+			...(progress.offHand?.skills ?? []),
+			...[progress.amulet, progress.charm].flatMap((item) =>
+				(item?.skills ?? []).filter((skill) => SKILLS[skill].passive),
+			),
 		]),
 	].filter((skill) => !learned.has(skill));
 }

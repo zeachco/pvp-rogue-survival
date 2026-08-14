@@ -1797,7 +1797,9 @@ export class Hud {
         <span class="spell-tooltip-description">{skill.description}</span>
         <span class="spell-tooltip-description">
           {spell.procChancesOnAttacks !== undefined
-            ? "Passive weapon proc — may trigger from each basic attack."
+            ? spell.procChancesOnDamage !== undefined
+              ? "Passive item proc — may trigger from each basic attack or incoming damage event."
+              : "Passive weapon proc — may trigger from each basic attack."
             : spell.passive
               ? "Passive — always active while available."
               : spell.active
@@ -1906,12 +1908,22 @@ export class Hud {
             </span>
             <span>
               <small>Activation</small>
-              <strong>Attack proc</strong>
+              <strong>
+                {spell.procChancesOnDamage !== undefined
+                  ? "Attack / damage proc"
+                  : "Attack proc"}
+              </strong>
             </span>
             <span>
               <small>Proc chance on attacks</small>
               <strong>{fmt(procChance * 100)}%</strong>
             </span>
+            {spell.procChancesOnDamage !== undefined ? (
+              <span>
+                <small>Proc chance on damage</small>
+                <strong>{fmt(procChance * 100)}%</strong>
+              </span>
+            ) : null}
             {damage ? (
               <span>
                 <small>Damage</small>

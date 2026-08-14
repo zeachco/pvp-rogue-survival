@@ -56,6 +56,7 @@ export interface SpellSlot {
 	active: boolean;
 	passive: boolean;
 	procChancesOnAttacks?: number;
+	procChancesOnDamage?: number;
 	providedByItemName?: string;
 	autoFire: boolean;
 	shortcut?: number;
