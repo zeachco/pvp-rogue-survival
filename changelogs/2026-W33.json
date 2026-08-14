@@ -1,25 +1,70 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-14T03:14:15.433Z",
+	"generatedAt": "2026-08-14T12:01:22.523Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Quality of Life & Character Customization Update",
+			"summaryTitle": "Midseason Update: Character & Content Polish",
 			"summary": {
 				"features": [
-					"Characters now preserve build details across multiple characters while sharing account currencies and equipment.",
-					"New players benefit from updated defaults, including automatic item and spell equipping when creating a new character.",
-					"The Leaderboard system now ranks heroes based on their accumulated Souls score for earning Death Echoes.",
-					"Gameplay has received significant additions, such as dedicated Realm Challenges allowing two-player PvP combat (with winner resource gains), and the introduction of Bonk actions in competitive realms.",
-					"Controls have been expanded to support DualShock controllers with mapping for all spell slots and camera-relative movement.",
-					"The Devlog feature now includes explanations on community voting workflows and how development is driven by autonomous AI agents.",
-					"Mobile gameplay has improved responsiveness, ensuring key options remain accessible across safe areas and providing touch input feedback (preview/hold)."
+					"Implemented multiple character support with a shared stash, allowing seamless switching between account characters and preserving legacy heroes.",
+					"Revamped new player experience defaults, including automatic equipping of items and spells upon creation and improved hero roster functionality.",
+					"Enhanced the devlog portal by adding community request processing, status updates (including AI marking), and detailed explanations of the development process.",
+					"Added a full suite of immersive combat sounds and dynamic battle music, alongside major quality-of-life improvements for mobile touch controls and general UI alignment."
 				]
 			},
 			"commits": [
+				{
+					"hash": "908c528722a7592ae7c445c550411d7d70dd94dd",
+					"authoredAt": "2026-08-14T07:51:48-04:00",
+					"title": "fix(skills): passive and active skills don't collide anymore in the inventory",
+					"description": ""
+				},
+				{
+					"hash": "48fcbb96b7005d89b2591e28e4564659b468ae6b",
+					"authoredAt": "2026-08-14T07:47:39-04:00",
+					"title": "fix(ui): clones and invader name label displacement",
+					"description": ""
+				},
+				{
+					"hash": "0841b18126bacfbde29e5cc9ca91503dc0ad4f18",
+					"authoredAt": "2026-08-14T07:21:28-04:00",
+					"title": "fix(skills): keep learned weapon spells slotted",
+					"description": "- keep permanently learned weapon skills as ordinary active spells\n- preserve unlearned weapon skills as attack procs\n- cover equipment persistence and spell projections"
+				},
+				{
+					"hash": "f32d3a6b2d59f22e73ced063ca854789c4b7e236",
+					"authoredAt": "2026-08-14T07:12:51-04:00",
+					"title": "fix(devlog): submit forms with enter",
+					"description": "- submit login and community request forms from keyboard fields\n- preserve Shift+Enter for multiline request details"
+				},
+				{
+					"hash": "abde45e25211928aad869230d035cf70d07aa181",
+					"authoredAt": "2026-08-14T07:07:21-04:00",
+					"title": "fix(multiplayer): clarify names and inspected gear",
+					"description": "- add visible spacing between realm member names\n- keep empty inspected equipment slots from using local gear"
+				},
+				{
+					"hash": "8cbb90dc6ba128cf4f2c270f753501c2f55f1213",
+					"authoredAt": "2026-08-13T23:32:35-04:00",
+					"title": "fix(waves): stagger swarm creep spawning",
+					"description": "- make forced pending creeps immediately due without draining the queue\\n- release at most one queued creep per rendered frame\\n- cover forced-wave queue staggering with a regression test"
+				},
+				{
+					"hash": "b3a0be6b6997854f451e1cfec535a194274c1e2e",
+					"authoredAt": "2026-08-13T23:29:32-04:00",
+					"title": "fix(inventory): preserve item order after upgrades",
+					"description": "- keep upgraded stacks at their source chronological position\n- document and test upgrade ordering"
+				},
+				{
+					"hash": "2bc0d4aa64a52af468566af671685ffab856d8cf",
+					"authoredAt": "2026-08-13T23:27:44-04:00",
+					"title": "feat(devlog): process every community request",
+					"description": "- select pending feature, bug, and balance requests by vote priority\n- allow every request kind to be marked Done with AI\n- clarify the exhausted community queue message"
+				},
 				{
 					"hash": "6c2071d0dfb2bda3d1910050a9e257901742acca",
 					"authoredAt": "2026-08-13T23:07:50-04:00",
@@ -199,6 +244,12 @@
 					"authoredAt": "2026-08-11T07:41:32-04:00",
 					"title": "balance(combat): revise status and blocking rules",
 					"description": "- scale Voodoo poison amplification from 1x at level 1 to 2x at level 99\n\n- make Poison, Bleed, and Burn ticks bypass dodge and block\n\n- remove Blocking's reactive cooldown and allow consecutive block rolls\n\n- guarantee Penance restores at least 1% of maximum Mana per successful block\n\n- cap buckler, Katar, and Reflective Surge block chance at 90%\n\n- synchronize combat projections, tooltips, specs, and boundary tests"
+				},
+				{
+					"hash": "f5ddcd0da5d801ce61d8163b5309f123ac6fe5b7",
+					"authoredAt": "2026-08-10T16:01:47-04:00",
+					"title": "fix(graphics): blizzard spell",
+					"description": ""
 				}
 			],
 			"categories": ["Features"]
