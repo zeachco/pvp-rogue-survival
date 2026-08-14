@@ -3056,6 +3056,42 @@ test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right ed
 	);
 });
 
+test("groups space-saving header actions in one accessible menu", async () => {
+	const [hudSource, styles] = await Promise.all([
+		Bun.file(new URL("../src/ui/Hud.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/styles.css", import.meta.url)).text(),
+	]);
+	expect(hudSource).toContain('class="header-menu"');
+	expect(hudSource).toContain('aria-label="Header menu"');
+	expect(hudSource).toContain(
+		'r.mode === "training" ? undefined : !r.canLeave',
+	);
+	const menuStart = hudSource.indexOf("\tprivate headerMenu(");
+	const menuSource = hudSource.slice(
+		menuStart,
+		hudSource.indexOf("\n\tprivate ", menuStart + 2),
+	);
+	expect(menuSource.indexOf(">Options<")).toBeLessThan(
+		menuSource.indexOf(">Devlog<"),
+	);
+	expect(menuSource.indexOf(">Devlog<")).toBeLessThan(
+		menuSource.indexOf(">Characters<"),
+	);
+	expect(menuSource.indexOf(">Characters<")).toBeLessThan(
+		menuSource.indexOf(">Logout<"),
+	);
+	expect(menuSource.indexOf(">Devlog<")).toBeLessThan(
+		menuSource.indexOf("Leave to Lobby"),
+	);
+	expect(menuSource).toContain("menu.open = false");
+	expect(styles).toMatch(
+		/\.header-menu-popover\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*1001;[^}]*min-width:\s*150px;/s,
+	);
+	expect(styles).toMatch(
+		/\.game-status-bar:has\(\.header-menu\[open\]\)\s*\{[^}]*z-index:\s*1000;/s,
+	);
+});
+
 test("aligns the resource dock beside the spell bar and chat to the right edge", async () => {
 	const styles = await Bun.file(
 		new URL("../src/styles.css", import.meta.url),

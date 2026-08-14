@@ -184,14 +184,7 @@ export class Hud {
 	private selectedAccountCharacterId?: string;
 	private readonly onlineCount = (<div class="online-count" />) as HTMLElement;
 	private readonly loginHeaderActions = (
-		<nav class="header-login-actions" aria-label="Login links">
-			<button class="header-control" type="button">
-				Devlog
-			</button>
-			<button class="header-control" type="button">
-				Options
-			</button>
-		</nav>
+		<nav class="header-login-actions" aria-label="Header actions" />
 	) as HTMLElement;
 	private authenticationMode: "create" | "login" = "login";
 	private readonly authenticationTitle = (<h2 />) as HTMLElement;
@@ -487,16 +480,7 @@ export class Hud {
 				<button type="submit">Join</button>
 			</form>
 		) as HTMLElement;
-		(
-			this.loginHeaderActions.querySelector(
-				"button:last-child",
-			) as HTMLButtonElement
-		).onclick = () => this.gameSettings.open();
-		(
-			this.loginHeaderActions.querySelector(
-				"button:first-child",
-			) as HTMLButtonElement
-		).onclick = callbacks.onOpenDevlog;
+		this.loginHeaderActions.replaceChildren(this.headerMenu());
 		this.joinPanel = (
 			<section class="join-panel">
 				<p class="project-intro">
@@ -2779,30 +2763,10 @@ export class Hud {
 					}
 				: this.callbacks.onLeaveRealm;
 		action.disabled = r.mode !== "training" && !r.canLeave;
-		const logout = (
-			<button class="header-control" type="button">
-				Logout
-			</button>
-		) as HTMLButtonElement;
-		logout.onclick = this.callbacks.onLogout;
-		const characters = (
-			<button class="header-control" type="button">
-				Characters
-			</button>
-		) as HTMLButtonElement;
-		characters.onclick = () => this.openCharacterSelector();
-		const options = (
-			<button class="header-control" type="button">
-				Options
-			</button>
-		) as HTMLButtonElement;
-		options.onclick = () => this.gameSettings.open();
-		const devlog = (
-			<button class="header-control" type="button">
-				Devlog
-			</button>
-		) as HTMLButtonElement;
-		devlog.onclick = this.callbacks.onOpenDevlog;
+		const menu = this.headerMenu(
+			r.mode === "training" ? undefined : !r.canLeave,
+			r.mode === "training",
+		);
 		const title =
 			r.mode === "waiting"
 				? `Wave ${this.player?.waveNumber ?? "—"} · Waiting for realm`
@@ -2810,24 +2774,64 @@ export class Hud {
 		this.realmPanel.classList.remove("is-hidden");
 		this.heroResourceDock.setTrainingMode(r.mode === "training");
 		if (r.mode === "training") {
-			this.realmPanel.replaceChildren(
-				action,
-				enterWaveOne,
-				devlog,
-				options,
-				characters,
-				logout,
-			);
+			this.realmPanel.replaceChildren(menu, action, enterWaveOne);
 			return;
 		}
 		this.realmPanel.replaceChildren(
-			options,
-			devlog,
+			menu,
 			forceNextWave,
 			...(r.challenge !== "unavailable" ? [challenge] : []),
-			action,
 			<strong>{title}</strong>,
 		);
+	}
+	private headerMenu(
+		leaveDisabled?: boolean,
+		includeTrainingActions = false,
+	): HTMLElement {
+		const menu = (<details class="header-menu" />) as HTMLDetailsElement;
+		const toggle = (
+			<summary class="header-control" aria-label="Header menu" title="Menu">
+				<span aria-hidden="true">☰</span>
+			</summary>
+		) as HTMLElement;
+		const options = (
+			<button type="button">Options</button>
+		) as HTMLButtonElement;
+		const devlog = (<button type="button">Devlog</button>) as HTMLButtonElement;
+		const closeThen = (action: () => void) => () => {
+			menu.open = false;
+			action();
+		};
+		options.onclick = closeThen(() => this.gameSettings.open());
+		devlog.onclick = closeThen(this.callbacks.onOpenDevlog);
+		const actions = [options, devlog];
+		if (includeTrainingActions) {
+			const characters = (
+				<button type="button">Characters</button>
+			) as HTMLButtonElement;
+			const logout = (
+				<button type="button">Logout</button>
+			) as HTMLButtonElement;
+			characters.onclick = closeThen(() => this.openCharacterSelector());
+			logout.onclick = closeThen(this.callbacks.onLogout);
+			actions.push(characters, logout);
+		}
+		if (leaveDisabled !== undefined) {
+			const leave = (
+				<button type="button" disabled={leaveDisabled}>
+					Leave to Lobby
+				</button>
+			) as HTMLButtonElement;
+			leave.onclick = closeThen(this.callbacks.onLeaveRealm);
+			actions.push(leave);
+		}
+		menu.replaceChildren(
+			toggle,
+			<nav class="header-menu-popover" aria-label="Menu actions">
+				{actions}
+			</nav>,
+		);
+		return menu;
 	}
 	private requestForceNextWave(): void {
 		if (this.forceNextWavePending) return;

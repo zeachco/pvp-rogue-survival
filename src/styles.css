@@ -268,6 +268,62 @@ input {
 	pointer-events: auto;
 }
 
+.header-menu {
+	position: relative;
+	flex: none;
+}
+
+.game-status-bar:has(.header-menu[open]) {
+	z-index: 1000;
+}
+
+.header-menu > summary {
+	display: grid;
+	width: 34px;
+	height: 30px;
+	place-items: center;
+	padding: 0;
+	list-style: none;
+}
+
+.header-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.header-menu-popover {
+	position: fixed;
+	z-index: 1001;
+	top: 44px;
+	left: 16px;
+	display: grid;
+	min-width: 150px;
+	overflow: hidden;
+	border: 1px solid rgba(138, 216, 255, 0.5);
+	border-radius: 6px;
+	background: rgba(9, 21, 27, 0.96);
+	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.58);
+}
+
+.header-menu-popover button {
+	border: 0;
+	border-radius: 0;
+	padding: 9px 12px;
+	color: #dffeff;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+}
+
+.header-menu-popover button:hover,
+.header-menu-popover button:focus-visible {
+	background: #1d4541;
+}
+
+.header-menu-popover button:disabled {
+	color: #7d898c;
+	cursor: not-allowed;
+}
+
 .header-control {
 	border: 1px solid rgba(138, 216, 255, 0.5);
 	border-radius: 6px;
@@ -3236,8 +3292,13 @@ input {
 	}
 
 	.header-login-actions .header-control {
-		min-height: 40px;
-		padding: 7px 9px;
+		width: 40px;
+		height: 40px;
+	}
+
+	.header-menu-popover {
+		top: calc(max(6px, env(safe-area-inset-top)) + 46px);
+		left: max(8px, env(safe-area-inset-left));
 	}
 
 	.join-panel {
