@@ -3056,6 +3056,27 @@ test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right ed
 	);
 });
 
+test("aligns the resource dock beside the spell bar and chat to the right edge", async () => {
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(styles).toMatch(
+		/\.game-hud\s*\{[^}]*--bottom-left-hud-offset:\s*14px;/s,
+	);
+	expect(styles).toMatch(
+		/\.game-hud\.character-panel-open\s*\{[^}]*--bottom-left-hud-offset:\s*calc\(var\(--character-panel-width\) \+ 24px\);/s,
+	);
+	expect(styles).toMatch(
+		/\.spell-bar\s*\{[^}]*bottom:\s*12px;[^}]*left:\s*var\(--bottom-left-hud-offset\);/s,
+	);
+	expect(styles).toMatch(
+		/\.resource-dock\s*\{[^}]*right:\s*auto;[^}]*bottom:\s*12px;[^}]*left:\s*calc\(var\(--bottom-left-hud-offset\) \+ 90px\);[^}]*justify-content:\s*start;/s,
+	);
+	expect(styles).toMatch(
+		/\.chat-area\s*\{[^}]*bottom:\s*12px;[^}]*right:\s*12px;/s,
+	);
+});
+
 test("prevents camera movement from selecting game interface text", async () => {
 	const styles = await Bun.file(
 		new URL("../src/styles.css", import.meta.url),

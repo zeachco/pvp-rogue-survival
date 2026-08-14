@@ -2640,10 +2640,18 @@ input {
 }
 
 /* RPG combat HUD */
+.game-hud {
+	--bottom-left-hud-offset: 14px;
+}
+
+.game-hud.character-panel-open {
+	--bottom-left-hud-offset: calc(var(--character-panel-width) + 24px);
+}
+
 .spell-bar {
 	right: auto;
 	bottom: 12px;
-	left: 14px;
+	left: var(--bottom-left-hud-offset);
 	flex-direction: row;
 	width: auto;
 	max-width: none;
@@ -2654,10 +2662,6 @@ input {
 	transform: none;
 	pointer-events: auto;
 	transition: left 180ms ease;
-}
-
-.game-hud.character-panel-open .spell-bar {
-	left: calc(var(--character-panel-width) + 24px);
 }
 
 .notification-area {
@@ -2682,7 +2686,7 @@ input {
 .chat-area {
 	position: absolute;
 	z-index: 3;
-	bottom: 0;
+	bottom: 12px;
 	right: 12px;
 	width: min(320px, calc(100vw - 32px));
 	pointer-events: none;
@@ -2774,12 +2778,12 @@ input {
 .resource-dock {
 	position: absolute;
 	z-index: 2;
-	right: 12px;
+	right: auto;
 	bottom: 12px;
-	left: 12px;
+	left: calc(var(--bottom-left-hud-offset) + 90px);
 	display: grid;
 	grid-template-columns: minmax(180px, 260px) 92px minmax(180px, 260px);
-	justify-content: center;
+	justify-content: start;
 	gap: 8px;
 	align-items: end;
 	pointer-events: none;
@@ -3328,8 +3332,9 @@ input {
 		padding: 3px 5px;
 	}
 
-	.game-hud.character-panel-open .spell-bar {
-		left: 8px;
+	.game-hud,
+	.game-hud.character-panel-open {
+		--bottom-left-hud-offset: 8px;
 	}
 
 	.game-hud.inventory-panel-open .chat-area {
