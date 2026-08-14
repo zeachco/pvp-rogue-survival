@@ -245,6 +245,7 @@ input {
 
 .realm-presence-member {
 	border: 0;
+	margin-inline: 2px;
 	padding: 0;
 	color: #ff6575;
 	background: transparent;

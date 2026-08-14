@@ -127,7 +127,11 @@ import {
 	xpForNextLevel,
 	ZERO_STATS,
 } from "../common/progression";
-import { type PlayerProgress, parseClientMessage } from "../common/protocol";
+import {
+	type PlayerProgress,
+	parseClientMessage,
+	type UnitBuild,
+} from "../common/protocol";
 import { SeededRandom } from "../common/random";
 import { SPELL_SOURCES } from "../common/spellSources";
 import {
@@ -200,6 +204,7 @@ import {
 	equipSlotKeys,
 	extractedLearnedLevel,
 	GOLD_TOOLTIP,
+	inspectedEquipment,
 	panelShortcut,
 	panelToggleTooltip,
 	passiveSkillMetrics,
@@ -3083,6 +3088,41 @@ test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right ed
 	);
 	expect(devlogStyles).toMatch(
 		/\.devlog-columns\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s,
+	);
+});
+
+test("keeps empty inspected equipment slots empty and spaces realm names", async () => {
+	const localMainHand = starterClub();
+	const inspected = {
+		id: "opponent",
+		name: "Opponent",
+		kind: "melee",
+		level: 2,
+		stats: ZERO_STATS,
+		mainHand: undefined,
+		offHand: undefined,
+		amulet: undefined,
+		charm: undefined,
+		carried: [],
+		isRival: false,
+		xpReward: 0,
+		goldReward: 0,
+		seed: 1,
+	} satisfies UnitBuild;
+	expect(
+		inspectedEquipment(inspected, {
+			mainHand: localMainHand,
+			offHand: localMainHand,
+			amulet: localMainHand,
+			charm: localMainHand,
+		}),
+	).toEqual([undefined, undefined, undefined, undefined]);
+
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(styles).toMatch(
+		/\.realm-presence-member\s*\{[^}]*margin-inline:\s*2px;/s,
 	);
 });
 
