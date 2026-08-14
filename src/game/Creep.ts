@@ -16,7 +16,10 @@ import type {
 	UnitBuild,
 } from "../../common/protocol";
 import type { RandomSource } from "../../common/random";
-import { creepMaxHealth } from "../../common/waves";
+import {
+	creepMaxHealth,
+	enemyMovementSpeedMultiplier,
+} from "../../common/waves";
 import { canvas2dContext } from "../platform/Canvas";
 import { dropRarityColor } from "./ItemDrop";
 import {
@@ -492,7 +495,7 @@ export class Creep extends Unit {
 		const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
 		const maxSpeed =
 			movement.maxSpeed *
-			(1 + this.stats.agility * 0.01) *
+			enemyMovementSpeedMultiplier(this.stats.agility) *
 			this.movementMultiplier *
 			this.state.movementSpeedMultiplier *
 			this.freezeMovementMultiplier *

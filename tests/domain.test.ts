@@ -144,6 +144,7 @@ import {
 	championCount,
 	creepMaxHealth,
 	creepsWithSpellsCount,
+	enemyMovementSpeedMultiplier,
 	forceNextWaveCooldownSeconds,
 	realmCloneLevel,
 	regularCount,
@@ -671,6 +672,11 @@ describe("balance and waves", () => {
 		expect(realmCloneLevel(11, 2)).toBe(5);
 		expect(realmCloneLevel(11, 3)).toBe(3);
 		expect(realmCloneLevel(0, 2)).toBe(0);
+	});
+	test("doubles the Agility movement-speed benefit for every enemy", () => {
+		expect(enemyMovementSpeedMultiplier(0)).toBe(1);
+		expect(enemyMovementSpeedMultiplier(5)).toBe(1.1);
+		expect(enemyMovementSpeedMultiplier(100)).toBe(3);
 	});
 	test("keeps introductory enemy HP fixed, scales later HP by twelve percent, and doubles sent-item carriers", () => {
 		for (let level = 0; level < 8; level += 1)

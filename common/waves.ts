@@ -50,6 +50,10 @@ export function creepMaxHealth(
 	return baseHealth * (hasEquippedSentItem ? 2 : 1);
 }
 
+export function enemyMovementSpeedMultiplier(agility: number): number {
+	return 1 + Math.max(0, agility) * 0.02;
+}
+
 export function rivalLevel(waveNumber: number, balance: BalanceConfig): number {
 	return Math.max(1, survivalTier(waveNumber, balance) + 1);
 }
