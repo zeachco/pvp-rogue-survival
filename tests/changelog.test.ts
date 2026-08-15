@@ -51,7 +51,10 @@ describe("generated devlog history", () => {
 		expect(prompt).toContain("balance for tuning");
 		expect(prompt).toContain("ux for design or experience changes");
 		expect(prompt).toContain(
-			"graphics for rendering or visual-presentation work",
+			"graphics for rendering, visual-presentation, sound-effect, or music work",
+		);
+		expect(prompt).toContain(
+			"visual and audio presentation work into the dedicated Graphics & Sounds category",
 		);
 		expect(prompt).toContain(
 			"Every distinct player-facing feature and every distinct fixed problem must appear",
@@ -285,7 +288,10 @@ describe("generated devlog history", () => {
 		expect(periodKeys.indexOf("summary")).toBeLessThan(
 			periodKeys.indexOf("commits"),
 		);
-		expect(document.periods[0].categories).toEqual(["Features", "Graphics"]);
+		expect(document.periods[0].categories).toEqual([
+			"Features",
+			"Graphics & Sounds",
+		]);
 	});
 
 	test("parses commit titles and descriptions without diff content", () => {

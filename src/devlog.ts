@@ -2,9 +2,9 @@ import "./devlog.css";
 import {
 	type CommunityRequestCompletionFilter,
 	DEVLOG_SUMMARY_BUCKETS,
+	DEVLOG_SUMMARY_BUCKET_LABELS,
 	filterCommunityRequestsByCompletion,
 	type DevlogSummary,
-	type DevlogSummaryBucket,
 } from "../common/devlog";
 import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
@@ -56,15 +56,6 @@ function element<K extends keyof HTMLElementTagNameMap>(
 	return node;
 }
 
-const summaryBucketLabels: Record<DevlogSummaryBucket, string> = {
-	features: "Features",
-	bugfixes: "Bugfixes",
-	performance: "Performance",
-	balance: "Balance",
-	ux: "UX",
-	graphics: "Graphics",
-};
-
 function renderSummary(summary: DevlogSummary | string): HTMLElement {
 	const container = element("div", undefined, "devlog-summary");
 	if (typeof summary === "string") {
@@ -83,7 +74,7 @@ function renderSummary(summary: DevlogSummary | string): HTMLElement {
 		const section = element("section", undefined, "summary-section");
 		const list = element("ul");
 		list.append(...updates.map((update) => element("li", update)));
-		section.append(element("h4", summaryBucketLabels[bucket]), list);
+		section.append(element("h4", DEVLOG_SUMMARY_BUCKET_LABELS[bucket]), list);
 		container.append(section);
 	}
 	return container;

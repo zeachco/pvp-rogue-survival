@@ -4,8 +4,8 @@ import { $ } from "bun";
 import { z } from "zod";
 import {
 	DEVLOG_SUMMARY_BUCKETS,
+	DEVLOG_SUMMARY_BUCKET_LABELS,
 	type DevlogSummary,
-	type DevlogSummaryBucket,
 } from "../common/devlog";
 
 export interface CommitEntry {
@@ -23,15 +23,6 @@ export interface DevlogPeriod {
 	commits: CommitEntry[];
 	categories: string[];
 }
-
-const SUMMARY_BUCKET_LABELS: Record<DevlogSummaryBucket, string> = {
-	features: "Features",
-	bugfixes: "Bugfixes",
-	performance: "Performance",
-	balance: "Balance",
-	ux: "UX",
-	graphics: "Graphics",
-};
 
 export interface WeeklyDevlog {
 	week: string;
@@ -226,10 +217,10 @@ export function promptFor(weeks: WeekSource[]): string {
 		.join("\n\n");
 
 	return `Write detailed, gamer-facing development changelogs from only the supplied semantic Git commit titles and descriptions. Do not invent details or mention commit hashes.
-Use features for new player-facing functionality, bugfixes for fixed bugs, performance for what became faster or more efficient, balance for tuning, ux for design or experience changes, and graphics for rendering or visual-presentation work. Ignore grouped General fixes and Refactor entries; they provide context only and must not become summary lines.
+Use features for new player-facing functionality, bugfixes for fixed bugs, performance for what became faster or more efficient, balance for tuning, ux for design or experience changes, and graphics for rendering, visual-presentation, sound-effect, or music work. Ignore grouped General fixes and Refactor entries; they provide context only and must not become summary lines.
 Prioritize completeness for features and bugfixes. Before writing, account for every feat and fix commit regardless of its position in the log. Every distinct player-facing feature and every distinct fixed problem must appear in its corresponding bucket; never omit one because another change seems newer, larger, or more relevant.
 Regroup related feat and fix commits into concise concepts instead of listing commits individually. Fold follow-up implementation, polish, and repairs into the parent concept when they concern the same feature, but preserve important standalone systems such as authentication, multiplayer, progression, equipment, spells, and major Devlog capabilities as distinct summary lines. Consolidate closely related commits without losing distinct feature additions or distinct bugs fixed.
-For performance, balance, ux, and graphics, provide an abstract higher-level recap. Combine related work aggressively and summarize its overall player-facing effect rather than covering every commit separately. Use no more than three concise lines per bucket unless substantially different systems require more.
+For performance, balance, ux, and graphics, provide an abstract higher-level recap. In graphics, combine the week's visual and audio presentation work into the dedicated Graphics & Sounds category. Combine related work aggressively and summarize its overall player-facing effect rather than covering every commit separately. Use no more than three concise lines per bucket unless substantially different systems require more.
 Place each change in only its primary player-facing bucket. Do not repeat information across buckets and do not copy semantic commit prefixes.
 Return only strict JSON shaped as {"periods":[{"key":"YYYY-Www","title":"short headline","summary":{"features":["Feature recap"],"bugfixes":["Bug-fix recap"]}}]}. All six bucket keys belong inside summary, and every present bucket value must be an array of non-empty strings. Omit buckets with no updates entirely; never return empty strings or empty arrays as placeholders.
 Return exactly one period for every requested week, in this order: ${requestedKeys.join(", ")}.
@@ -326,7 +317,7 @@ export function buildDocument(
 	if (!result) throw new Error(`Ollama omitted or invalidated ${week.key}.`);
 	const categories = DEVLOG_SUMMARY_BUCKETS.filter(
 		(bucket) => result.summary[bucket]?.length,
-	).map((bucket) => SUMMARY_BUCKET_LABELS[bucket]);
+	).map((bucket) => DEVLOG_SUMMARY_BUCKET_LABELS[bucket]);
 	const periods: DevlogPeriod[] = [
 		{
 			key: week.key,

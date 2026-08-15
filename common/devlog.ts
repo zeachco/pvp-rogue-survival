@@ -21,3 +21,13 @@ export function filterCommunityRequestsByCompletion<
 
 export type DevlogSummaryBucket = (typeof DEVLOG_SUMMARY_BUCKETS)[number];
 export type DevlogSummary = Partial<Record<DevlogSummaryBucket, string[]>>;
+
+export const DEVLOG_SUMMARY_BUCKET_LABELS: Record<DevlogSummaryBucket, string> =
+	{
+		features: "Features",
+		bugfixes: "Bugfixes",
+		performance: "Performance",
+		balance: "Balance",
+		ux: "UX",
+		graphics: "Graphics & Sounds",
+	};
