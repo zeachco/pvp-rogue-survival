@@ -31,7 +31,7 @@ import { SeededRandom } from "../common/random";
 import { ArenaState } from "../src/game/ArenaState";
 import { AttackArea } from "../src/game/AttackArea";
 import { BLIZZARD_ICICLES_PER_VOLLEY, Blizzard } from "../src/game/Blizzard";
-import { correctArenaBoundary } from "../src/game/bounds";
+import { clampToArenaBoundary, correctArenaBoundary } from "../src/game/bounds";
 import { type CombatText, combatTextScale } from "../src/game/CombatText";
 import {
 	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
@@ -79,6 +79,8 @@ import {
 	ItemDrop,
 } from "../src/game/ItemDrop";
 import {
+	ARENA_DIAMETER,
+	ARENA_RADIUS,
 	arenaFloorMaterial,
 	arenaObstacleConeSides,
 	arenaObstacleMaterial,
@@ -2989,8 +2991,18 @@ describe("arena systems", () => {
 	});
 
 	test("generates reproducible safe columns that block units and projectiles", () => {
-		const first = generateArenaColumns(1600, 1000, 15, new SeededRandom(42));
-		const second = generateArenaColumns(1600, 1000, 15, new SeededRandom(42));
+		const first = generateArenaColumns(
+			ARENA_DIAMETER,
+			ARENA_DIAMETER,
+			15,
+			new SeededRandom(42),
+		);
+		const second = generateArenaColumns(
+			ARENA_DIAMETER,
+			ARENA_DIAMETER,
+			15,
+			new SeededRandom(42),
+		);
 		expect(first).toEqual(second);
 		expect(first).toHaveLength(15);
 		expect(
@@ -3010,6 +3022,10 @@ describe("arena systems", () => {
 		expect(floorMaterial).toBeInstanceOf(THREE.MeshStandardMaterial);
 		expect(floorMaterial.map).toBeNull();
 		const map = new GameMap(new SeededRandom(42));
+		expect(map.width).toBe(1500);
+		expect(map.height).toBe(1500);
+		expect(map.radius).toBe(750);
+		expect(Math.PI * map.radius ** 2).toBeGreaterThan(1600 * 1000);
 		map.buildMeshes();
 		expect(map.columns).toHaveLength(15);
 		const obstacleMeshes = map.mesh.children.filter(
@@ -3029,8 +3045,10 @@ describe("arena systems", () => {
 		const floor = map.mesh.children.find(
 			(child) =>
 				child instanceof THREE.Mesh &&
+				child.geometry instanceof THREE.CircleGeometry &&
 				child.material instanceof THREE.MeshStandardMaterial,
 		) as THREE.Mesh;
+		expect(floor).toBeDefined();
 		expect(floor.userData.castShadow).toBeFalse();
 		expect(floor.userData.receiveShadow).toBeTrue();
 		expect(
@@ -3043,8 +3061,14 @@ describe("arena systems", () => {
 		).toBeFalse();
 		expect(
 			first.every(
-				(column) => Math.hypot(column.x - 800, column.y - 500) >= 180,
+				(column) =>
+					Math.hypot(column.x - 750, column.y - 750) >= 180 &&
+					Math.hypot(column.x - 750, column.y - 750) + column.radius <=
+						ARENA_RADIUS - 100,
 			),
+		).toBeTrue();
+		expect(
+			map.mesh.children.some((child) => child instanceof THREE.LineLoop),
 		).toBeTrue();
 		const column = { x: 100, y: 100, radius: 30 };
 		const creepCollider = {
@@ -3175,9 +3199,11 @@ describe("arena systems", () => {
 
 	test("edge spawning is reproducible with a seeded random source", () => {
 		const map = new GameMap();
-		expect(map.randomEdgeSpawn(new SeededRandom(123))).toEqual(
-			map.randomEdgeSpawn(new SeededRandom(123)),
-		);
+		const spawn = map.randomEdgeSpawn(new SeededRandom(123));
+		expect(spawn).toEqual(map.randomEdgeSpawn(new SeededRandom(123)));
+		expect(
+			Math.hypot(spawn.x - map.center.x, spawn.y - map.center.y),
+		).toBeCloseTo(map.radius + 24);
 	});
 
 	test("pushes outside objects inward and locks entered objects to the arena", () => {
@@ -3196,6 +3222,15 @@ describe("arena systems", () => {
 		expect(object.position.x).toBe(10);
 		expect(object.velocity.x).toBe(0);
 		expect(object.velocity.y).toBe(4);
+	});
+
+	test("clamps diagonal movement to a radial boundary and preserves tangent velocity", () => {
+		const position = { x: 100, y: 100 };
+		const velocity = { x: 5, y: 1 };
+		expect(clampToArenaBoundary(position, 10, 100, 100, velocity)).toBeTrue();
+		expect(Math.hypot(position.x - 50, position.y - 50)).toBeCloseTo(40);
+		expect(velocity.x + velocity.y).toBeCloseTo(0);
+		expect(velocity.x - velocity.y).toBeCloseTo(4);
 	});
 
 	test("bucklers partially block with Strength and training damage stops at one", () => {

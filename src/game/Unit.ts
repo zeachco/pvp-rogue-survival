@@ -22,8 +22,9 @@ import {
 	type UnitState,
 } from "../../common/unitState";
 import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
+import { clampToArenaBoundary } from "./bounds";
 import { GameObject } from "./GameObject";
-import { clamp, type StatusEffectSnapshot, type Vector2 } from "./types";
+import type { StatusEffectSnapshot, Vector2 } from "./types";
 
 export interface StatusEffect extends StatusEffectSnapshot {
 	tick?: number;
@@ -770,8 +771,13 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	}
 
 	clampToBounds(width: number, height: number): void {
-		this.position.x = clamp(this.position.x, this.radius, width - this.radius);
-		this.position.y = clamp(this.position.y, this.radius, height - this.radius);
+		clampToArenaBoundary(
+			this.position,
+			this.radius,
+			width,
+			height,
+			this.velocity,
+		);
 	}
 }
 

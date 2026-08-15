@@ -3,6 +3,9 @@ import { type RandomSource, systemRandom } from "../../common/random";
 import { MAP_LAYER_STEP, MAP_Z } from "./render/ThreeRenderer";
 import type { Vector2 } from "./types";
 
+export const ARENA_DIAMETER = 1500;
+export const ARENA_RADIUS = ARENA_DIAMETER / 2;
+
 export interface ArenaColumn extends Vector2 {
 	radius: number;
 	coneSides: number;
@@ -43,15 +46,19 @@ export function generateArenaColumns(
 ): ArenaColumn[] {
 	const columns: ArenaColumn[] = [];
 	const center = { x: width / 2, y: height / 2 };
+	const arenaRadius = Math.min(width, height) / 2;
 	for (
 		let attempt = 0;
 		columns.length < count && attempt < count * 100;
 		attempt++
 	) {
 		const radius = 26 + random.next() * 14;
+		const angle = random.next() * Math.PI * 2;
+		const radialDistance =
+			Math.sqrt(random.next()) * (arenaRadius - 100 - radius);
 		const candidate = {
-			x: 100 + random.next() * (width - 200),
-			y: 100 + random.next() * (height - 200),
+			x: center.x + Math.cos(angle) * radialDistance,
+			y: center.y + Math.sin(angle) * radialDistance,
 			radius,
 		};
 		if (Math.hypot(candidate.x - center.x, candidate.y - center.y) < 180)
@@ -113,8 +120,9 @@ export function touchesColumn(
 }
 
 export class GameMap {
-	readonly width = 1600;
-	readonly height = 1000;
+	readonly width = ARENA_DIAMETER;
+	readonly height = ARENA_DIAMETER;
+	readonly radius = ARENA_RADIUS;
 	readonly gridSize = 50;
 	readonly mesh = new THREE.Group();
 	readonly columns: readonly ArenaColumn[];
@@ -132,14 +140,12 @@ export class GameMap {
 		x: number;
 		y: number;
 	} {
-		const margin = 24;
-		const edge = Math.floor(random.next() * 4);
-		if (edge === 0) return { x: random.next() * this.width, y: -margin };
-		if (edge === 1)
-			return { x: this.width + margin, y: random.next() * this.height };
-		if (edge === 2)
-			return { x: random.next() * this.width, y: this.height + margin };
-		return { x: -margin, y: random.next() * this.height };
+		const angle = random.next() * Math.PI * 2;
+		const distance = this.radius + 24;
+		return {
+			x: this.center.x + Math.cos(angle) * distance,
+			y: this.center.y + Math.sin(angle) * distance,
+		};
 	}
 
 	buildMeshes(): void {
@@ -147,7 +153,7 @@ export class GameMap {
 		this.built = true;
 
 		const bg = new THREE.Mesh(
-			new THREE.PlaneGeometry(this.width, this.height),
+			new THREE.CircleGeometry(this.radius, 128),
 			arenaFloorMaterial(),
 		);
 		bg.position.set(this.width / 2, this.height / 2, MAP_Z);
@@ -164,21 +170,27 @@ export class GameMap {
 		});
 		const gridVerts: number[] = [];
 		for (let x = 0; x <= this.width; x += this.gridSize) {
+			const halfSpan = Math.sqrt(
+				Math.max(0, this.radius ** 2 - (x - this.center.x) ** 2),
+			);
 			gridVerts.push(
 				x,
-				0,
+				this.center.y - halfSpan,
 				MAP_Z + MAP_LAYER_STEP,
 				x,
-				this.height,
+				this.center.y + halfSpan,
 				MAP_Z + MAP_LAYER_STEP,
 			);
 		}
 		for (let y = 0; y <= this.height; y += this.gridSize) {
+			const halfSpan = Math.sqrt(
+				Math.max(0, this.radius ** 2 - (y - this.center.y) ** 2),
+			);
 			gridVerts.push(
-				0,
+				this.center.x - halfSpan,
 				y,
 				MAP_Z + MAP_LAYER_STEP,
-				this.width,
+				this.center.x + halfSpan,
 				y,
 				MAP_Z + MAP_LAYER_STEP,
 			);
@@ -195,30 +207,16 @@ export class GameMap {
 		this.buildMajorGrid();
 		this.buildColumns();
 
-		const borderVerts = new Float32Array([
-			0,
-			0,
-			MAP_Z + MAP_LAYER_STEP * 3,
-			this.width,
-			0,
-			MAP_Z + MAP_LAYER_STEP * 3,
-			this.width,
-			this.height,
-			MAP_Z + MAP_LAYER_STEP * 3,
-			0,
-			this.height,
-			MAP_Z + MAP_LAYER_STEP * 3,
-			0,
-			0,
-			MAP_Z + MAP_LAYER_STEP * 3,
-		]);
-		const borderGeo = new THREE.BufferGeometry();
-		borderGeo.setAttribute(
-			"position",
-			new THREE.BufferAttribute(borderVerts, 3),
-		);
-		const border = new THREE.Line(
-			borderGeo,
+		const borderPoints = Array.from({ length: 128 }, (_, index) => {
+			const angle = (index / 128) * Math.PI * 2;
+			return new THREE.Vector3(
+				this.center.x + Math.cos(angle) * this.radius,
+				this.center.y + Math.sin(angle) * this.radius,
+				MAP_Z + MAP_LAYER_STEP * 3,
+			);
+		});
+		const border = new THREE.LineLoop(
+			new THREE.BufferGeometry().setFromPoints(borderPoints),
 			new THREE.LineBasicMaterial({ color: 0x3affd4, linewidth: 2 }),
 		);
 		border.renderOrder = 3;
@@ -246,24 +244,32 @@ export class GameMap {
 			opacity: 0.6,
 		});
 		const vertices: number[] = [];
-		for (let x = 0; x <= this.width; x += this.gridSize * 5)
+		for (let x = 0; x <= this.width; x += this.gridSize * 5) {
+			const halfSpan = Math.sqrt(
+				Math.max(0, this.radius ** 2 - (x - this.center.x) ** 2),
+			);
 			vertices.push(
 				x,
-				0,
+				this.center.y - halfSpan,
 				MAP_Z + MAP_LAYER_STEP * 1.5,
 				x,
-				this.height,
+				this.center.y + halfSpan,
 				MAP_Z + MAP_LAYER_STEP * 1.5,
 			);
-		for (let y = 0; y <= this.height; y += this.gridSize * 5)
+		}
+		for (let y = 0; y <= this.height; y += this.gridSize * 5) {
+			const halfSpan = Math.sqrt(
+				Math.max(0, this.radius ** 2 - (y - this.center.y) ** 2),
+			);
 			vertices.push(
-				0,
+				this.center.x - halfSpan,
 				y,
 				MAP_Z + MAP_LAYER_STEP * 1.5,
-				this.width,
+				this.center.x + halfSpan,
 				y,
 				MAP_Z + MAP_LAYER_STEP * 1.5,
 			);
+		}
 		const geometry = new THREE.BufferGeometry();
 		geometry.setAttribute(
 			"position",
