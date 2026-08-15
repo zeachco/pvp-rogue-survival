@@ -250,6 +250,25 @@ export function cameraViewOffset(
 	return clamp((right - left) / 2, -viewportWidth / 2, viewportWidth / 2);
 }
 
+export const POINTER_TRACKER_HEIGHT = 12;
+export const POINTER_TRACKER_FLOOR_CLEARANCE = 0.5;
+export const POINTER_TRACKER_ENEMY_CLEARANCE = 4;
+
+export function pointerTrackerPresentation(
+	world: { x: number; y: number },
+	enemy?: { position: { x: number; y: number }; presentationTop: number },
+): { x: number; y: number; z: number; color: number } {
+	const pointZ = enemy
+		? enemy.presentationTop + POINTER_TRACKER_ENEMY_CLEARANCE
+		: POINTER_TRACKER_FLOOR_CLEARANCE;
+	return {
+		x: enemy?.position.x ?? world.x,
+		y: enemy?.position.y ?? world.y,
+		z: pointZ + POINTER_TRACKER_HEIGHT / 2,
+		color: enemy ? 0xff3344 : 0xffffff,
+	};
+}
+
 export class ThreeRenderer {
 	readonly renderer: THREE.WebGLRenderer;
 	readonly scene: THREE.Scene;
@@ -268,6 +287,10 @@ export class ThreeRenderer {
 	private rightOcclusion = 0;
 	private readonly pointerRay = new THREE.Raycaster();
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+	private readonly pointerTracker: THREE.Mesh<
+		THREE.ConeGeometry,
+		THREE.MeshBasicMaterial
+	>;
 	private readonly ambientLight: THREE.AmbientLight;
 	private readonly keyLight: THREE.DirectionalLight;
 	private readonly heroSpellLightPool: HeroSpellLightPool;
@@ -282,6 +305,16 @@ export class ThreeRenderer {
 		this.renderer.setClearColor(SCENE_LIGHTING.clearColor);
 		this.renderer.setPixelRatio(devicePixelRatio * this.resolutionScale);
 		this.scene = new THREE.Scene();
+		this.pointerTracker = new THREE.Mesh(
+			new THREE.ConeGeometry(5, POINTER_TRACKER_HEIGHT, 4),
+			new THREE.MeshBasicMaterial({ color: 0xffffff }),
+		);
+		this.pointerTracker.rotation.x = -Math.PI / 2;
+		this.pointerTracker.visible = false;
+		this.pointerTracker.renderOrder = Z_CREEP_OVERLAY + 1;
+		this.pointerTracker.castShadow = false;
+		this.pointerTracker.receiveShadow = false;
+		this.scene.add(this.pointerTracker);
 		this.ambientLight = new THREE.AmbientLight(
 			0xbfe8ff,
 			SCENE_LIGHTING.ambientIntensity.all,
@@ -457,9 +490,16 @@ export class ThreeRenderer {
 		arena: ArenaState,
 		hovered?: Creep,
 		inspected?: Creep,
+		pointerWorld?: { x: number; y: number },
 	): void {
 		const time = performance.now() / 1000;
 		const current = new Set<THREE.Object3D>();
+		this.pointerTracker.visible = !!pointerWorld;
+		if (pointerWorld) {
+			const tracker = pointerTrackerPresentation(pointerWorld, hovered);
+			this.pointerTracker.position.set(tracker.x, tracker.y, tracker.z);
+			this.pointerTracker.material.color.setHex(tracker.color);
+		}
 		current.add(hero.mesh);
 
 		for (const creep of arena.creeps) {

@@ -132,6 +132,7 @@ export class Game {
 	private resizeObserver?: ResizeObserver;
 	private hovered?: Creep;
 	private hoveredDrop?: ItemDrop;
+	private pointerWorld?: { x: number; y: number };
 	private hoverPeeking = false;
 	private inspected?: Creep;
 	private waveMode: "competitive" | "solo" | "training" = "training";
@@ -397,6 +398,7 @@ export class Game {
 				trySetPointerCapture(this.canvas, event.pointerId);
 				return;
 			}
+			this.pointerWorld = undefined;
 			if (event.button === 2) {
 				event.preventDefault();
 				this.aimingHero = true;
@@ -441,6 +443,7 @@ export class Game {
 			this.updateHover(event);
 		});
 		this.canvas.addEventListener("pointerleave", () => {
+			this.pointerWorld = undefined;
 			this.hoveredDrop = undefined;
 			this.hud.setGroundDropPreview();
 		});
@@ -1276,6 +1279,7 @@ export class Game {
 
 	private updateHover(event: MouseEvent): void {
 		const world = this.eventWorld(event);
+		this.pointerWorld = world;
 		const dropDistance = (drop: ItemDrop): number =>
 			distance(
 				drop.position,
@@ -1384,6 +1388,7 @@ export class Game {
 			this.arena,
 			this.hovered,
 			this.inspected ?? this.aimTarget,
+			this.pointerWorld,
 		);
 		this.renderer.render();
 	}

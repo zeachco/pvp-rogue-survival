@@ -153,6 +153,10 @@ export class Creep extends Unit {
 	private readonly spriteCenterHeight: number;
 	private readonly presentationHeight: number;
 
+	get presentationTop(): number {
+		return this.presentationHeight;
+	}
+
 	constructor(
 		build: UnitBuild,
 		readonly emitterId: PlayerId | "neutral",

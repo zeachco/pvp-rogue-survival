@@ -182,6 +182,10 @@ import {
 	MAX_CAMERA_TILT_RADIANS,
 	MIN_CAMERA_TILT_RADIANS,
 	MIN_ZOOM,
+	pointerTrackerPresentation,
+	POINTER_TRACKER_ENEMY_CLEARANCE,
+	POINTER_TRACKER_FLOOR_CLEARANCE,
+	POINTER_TRACKER_HEIGHT,
 } from "../src/game/render/ThreeRenderer";
 import {
 	activeSkillIds,
@@ -364,6 +368,26 @@ describe("third-person camera", () => {
 		expect(cameraViewOffset(1_600, 0, 652)).toBe(326);
 		expect(cameraViewOffset(1_600, 332, 652)).toBe(160);
 		expect(cameraViewOffset(320, 312, 312)).toBe(0);
+	});
+
+	test("places the pointer tracker on the floor or above an intersected enemy", () => {
+		expect(pointerTrackerPresentation({ x: 12, y: 34 })).toEqual({
+			x: 12,
+			y: 34,
+			z: POINTER_TRACKER_FLOOR_CLEARANCE + POINTER_TRACKER_HEIGHT / 2,
+			color: 0xffffff,
+		});
+		expect(
+			pointerTrackerPresentation(
+				{ x: 12, y: 34 },
+				{ position: { x: 50, y: 60 }, presentationTop: 32 },
+			),
+		).toEqual({
+			x: 50,
+			y: 60,
+			z: 32 + POINTER_TRACKER_ENEMY_CLEARANCE + POINTER_TRACKER_HEIGHT / 2,
+			color: 0xff3344,
+		});
 	});
 
 	test("remeasures panel occlusion after a refreshed character becomes visible", async () => {
