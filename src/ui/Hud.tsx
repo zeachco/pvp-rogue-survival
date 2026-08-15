@@ -80,6 +80,7 @@ import type {
 } from "../../common/protocol";
 import { SPELL_SOURCES } from "../../common/spellSources";
 import { pixelsToMeters } from "../../common/units";
+import { swarmModeShouldRequest } from "../game/systems/lifecycle";
 import {
   actualSkillLevel,
   effectiveSkillLevel,
@@ -1205,15 +1206,20 @@ export class Hud {
     this.forceNextWavePending = false;
     this.updateForceNextWaveButton();
   }
-  trySwarmMode(): void {
+  trySwarmMode(activeEnemyCount: number, pendingSpawnCount: number): void {
+    const waveCleared = activeEnemyCount === 0 && pendingSpawnCount === 0;
     if (
       this.realm?.mode === "training" ||
       !this.swarmMode ||
       this.forceNextWavePending ||
-      Date.now() < this.forceNextWaveReadyAt
+      !swarmModeShouldRequest(
+        activeEnemyCount,
+        pendingSpawnCount,
+        Date.now() >= this.forceNextWaveReadyAt,
+      )
     )
       return;
-    this.requestForceNextWave();
+    this.requestForceNextWave(waveCleared);
   }
   focusChat(): void {
     this.chatInput.focus();
@@ -2858,11 +2864,11 @@ export class Hud {
     );
     return menu;
   }
-  private requestForceNextWave(): void {
+  private requestForceNextWave(waveCleared: boolean): void {
     if (this.forceNextWavePending) return;
     this.forceNextWavePending = true;
     this.updateForceNextWaveButton();
-    this.callbacks.onForceNextWave();
+    this.callbacks.onForceNextWave(waveCleared);
   }
   private updateForceNextWaveButton(): void {
     if (!this.forceNextWaveButton || !this.forceNextWaveLabel) return;

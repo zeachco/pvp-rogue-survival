@@ -494,7 +494,7 @@ describe("realm game service", () => {
 		player.maxWaveReached = 5;
 		game.handle(player.id, { type: "enterRealm", waveNumber: 5 });
 
-		game.handle(player.id, { type: "forceNextWave" });
+		game.handle(player.id, { type: "forceNextWave", waveCleared: false });
 		expect(player.waveNumber).toBe(6);
 		expect(
 			messages
@@ -507,7 +507,7 @@ describe("realm game service", () => {
 			readyAt: 11_000,
 		});
 
-		game.handle(player.id, { type: "forceNextWave" });
+		game.handle(player.id, { type: "forceNextWave", waveCleared: false });
 		expect(player.waveNumber).toBe(6);
 		expect(
 			messages
@@ -520,9 +520,22 @@ describe("realm game service", () => {
 			readyAt: 11_000,
 		});
 
-		now = 11_000;
-		game.handle(player.id, { type: "forceNextWave" });
+		game.handle(player.id, { type: "forceNextWave", waveCleared: true });
 		expect(player.waveNumber).toBe(7);
+		expect(
+			messages
+				.get(player.id)
+				?.filter((message) => message.type === "forceNextWaveResult")
+				.at(-1),
+		).toEqual({
+			type: "forceNextWaveResult",
+			accepted: true,
+			readyAt: 11_000,
+		});
+
+		now = 11_000;
+		game.handle(player.id, { type: "forceNextWave", waveCleared: false });
+		expect(player.waveNumber).toBe(8);
 		expect(
 			messages
 				.get(player.id)

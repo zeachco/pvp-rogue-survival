@@ -159,6 +159,7 @@ import {
 } from "../src/game/systems/HeroCombatSystem";
 import {
 	activeEnemyCountAllowsAutoForce,
+	swarmModeShouldRequest,
 	expediteQueuedSpawns,
 	MAX_ACTIVE_CREEPS,
 	releaseReadySpawns,
@@ -787,6 +788,13 @@ describe("arena systems", () => {
 	test("allows auto force only below the active-enemy cap", () => {
 		expect(activeEnemyCountAllowsAutoForce(99)).toBeTrue();
 		expect(activeEnemyCountAllowsAutoForce(100)).toBeFalse();
+	});
+	test("lets Swarm request during cooldown only after the current wave is fully cleared", () => {
+		expect(swarmModeShouldRequest(0, 0, false)).toBeTrue();
+		expect(swarmModeShouldRequest(0, 1, false)).toBeFalse();
+		expect(swarmModeShouldRequest(1, 0, false)).toBeFalse();
+		expect(swarmModeShouldRequest(99, 1, true)).toBeTrue();
+		expect(swarmModeShouldRequest(100, 0, true)).toBeFalse();
 	});
 	test("keeps due spawns queued until the 100-creep cap has an open slot", () => {
 		const state = new ArenaState();

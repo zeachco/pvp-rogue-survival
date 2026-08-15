@@ -403,7 +403,7 @@ export class GameService {
 						return this.notice(player, "Challenge Realm has paused waves.");
 					return this.dispatchCurrentWave(player, this.waveMode(player));
 				case "forceNextWave":
-					return this.forceNextWave(player);
+					return this.forceNextWave(player, message.waveCleared);
 				case "challengeRealm":
 					return this.challengeRealm(player);
 				case "duelState":
@@ -533,7 +533,7 @@ export class GameService {
 		this.broadcastRealms();
 	}
 
-	private forceNextWave(player: Player): void {
+	private forceNextWave(player: Player, waveCleared: boolean): void {
 		const now = this.now();
 		const readyAt = this.forceNextWaveReadyAt.get(player.id) ?? 0;
 		const realm = player.realmId ? this.realms.get(player.realmId) : undefined;
@@ -547,7 +547,7 @@ export class GameService {
 			});
 			return this.notice(player, "Enter a realm before forcing the next wave.");
 		}
-		if (now < readyAt) {
+		if (now < readyAt && !waveCleared) {
 			this.options.send(player.id, {
 				type: "forceNextWaveResult",
 				accepted: false,

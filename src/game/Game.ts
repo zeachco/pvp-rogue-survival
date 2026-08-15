@@ -65,7 +65,6 @@ import {
 	HeroCombatSystem,
 } from "./systems/HeroCombatSystem";
 import {
-	activeEnemyCountAllowsAutoForce,
 	enqueueWave,
 	expediteQueuedSpawns,
 	releaseReadySpawns,
@@ -205,7 +204,8 @@ export class Game {
 				this.socket.send({ type: "setRarityAction", rarity, action }),
 			onLeaveRealm: () => this.socket.send({ type: "leaveRealm" }),
 			onEnterRealm: (waveNumber) => this.enterRealm(waveNumber),
-			onForceNextWave: () => this.socket.send({ type: "forceNextWave" }),
+			onForceNextWave: (waveCleared) =>
+				this.socket.send({ type: "forceNextWave", waveCleared }),
 			onChallengeRealm: () => this.socket.send({ type: "challengeRealm" }),
 			onOpenDevlog,
 			onBack: () => this.clearInspection(),
@@ -1067,12 +1067,8 @@ export class Game {
 		removeInactive(this.attacks);
 		removeInactive(this.projectiles);
 		removeInactive(this.creeps);
-		if (
-			activeEnemyCountAllowsAutoForce(
-				this.creeps.filter((creep) => creep.active).length,
-			)
-		)
-			this.hud.trySwarmMode();
+		const activeEnemyCount = this.creeps.filter((creep) => creep.active).length;
+		this.hud.trySwarmMode(activeEnemyCount, this.arena.waveQueue.length);
 		removeInactive(this.drops);
 		removeInactive(this.arena.spellEffects);
 		removeInactive(this.arena.swamps);

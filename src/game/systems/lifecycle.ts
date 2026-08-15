@@ -9,6 +9,17 @@ export function activeEnemyCountAllowsAutoForce(
 	return activeEnemyCount < MAX_ACTIVE_CREEPS;
 }
 
+export function swarmModeShouldRequest(
+	activeEnemyCount: number,
+	pendingSpawnCount: number,
+	cooldownReady: boolean,
+): boolean {
+	return (
+		(activeEnemyCount === 0 && pendingSpawnCount === 0) ||
+		(cooldownReady && activeEnemyCountAllowsAutoForce(activeEnemyCount))
+	);
+}
+
 export function enqueueWave(
 	state: ArenaState,
 	wave: CreepWave,

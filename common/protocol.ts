@@ -3,7 +3,7 @@ import type { BalanceConfig } from "./balance";
 import type { ItemInstance, Rarity, SkillId } from "./items";
 import type { Stats } from "./progression";
 
-export const PROTOCOL_VERSION = 49;
+export const PROTOCOL_VERSION = 50;
 export type PlayerId = string;
 export type EnemyRole = "creep" | "champion" | "invader" | "clone" | "boss";
 export type PanelTrigger = "character" | "inventory" | "multiplayer";
@@ -211,7 +211,7 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 	}),
 	z.object({ type: z.literal("suicide") }),
 	z.object({ type: z.literal("requestWave") }),
-	z.object({ type: z.literal("forceNextWave") }),
+	z.object({ type: z.literal("forceNextWave"), waveCleared: z.boolean() }),
 	z.object({ type: z.literal("challengeRealm") }),
 	z.object({
 		type: z.literal("duelState"),
@@ -343,7 +343,8 @@ export type ClientMessage =
 	  }
 	| { type: "heroDefeated"; sourceUnitId?: string; sourcePlayerId?: PlayerId }
 	| { type: "suicide" }
-	| { type: "requestWave" | "forceNextWave" | "leaveRealm" | "challengeRealm" }
+	| { type: "requestWave" | "leaveRealm" | "challengeRealm" }
+	| { type: "forceNextWave"; waveCleared: boolean }
 	| { type: "duelState"; x: number; y: number; facing: number; hp: number }
 	| { type: "duelDamage"; amount: number }
 	| { type: "enterRealm"; waveNumber?: number }
