@@ -21,6 +21,12 @@ Use Bun for project tooling and scripts.
 - `bun run build`: typecheck and build the client.
 - `bun test`: run deterministic domain, server-service, protocol, and WebSocket integration tests.
 
+## Production releases
+
+Production is promoted from `main` to the dedicated `production` branch every Friday at 17:00 UTC by `.github/workflows/weekly-release.yml`. Railway must be configured to deploy only that branch. Ordinary pushes to `main` therefore accumulate without restarting the production server; the scheduled workflow deploys the latest validated commit once each week. Maintainers can use the workflow's manual dispatch when an urgent patch cannot wait for the next window.
+
+The workflow runs `bun run release-production`, which refuses a dirty checkout, a branch other than `main`, or a local commit that differs from `origin/main`. Promoting a commit that is already on `production` succeeds without creating another deployment.
+
 To run only the local client against the production server, open [http://localhost:3000/?prod](http://localhost:3000/?prod). The longer `?server=pvp.up.railway.app` form remains available for explicit endpoint overrides.
 
 ### View pending requests
