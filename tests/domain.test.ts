@@ -3291,6 +3291,18 @@ test("shows community request authors, voters, ownership filters, and pending ow
 	expect(devlogSource).toContain("editButton(request)");
 });
 
+test("wraps Devlog request metadata between complete labels", async () => {
+	const devlogStyles = await Bun.file(
+		new URL("../src/devlog.css", import.meta.url),
+	).text();
+	expect(devlogStyles).toMatch(
+		/\.request-meta\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s,
+	);
+	expect(devlogStyles).toMatch(
+		/\.request-kind,\s*\.request-proposer,\s*\.request-date,\s*\.request-completed\s*\{[^}]*white-space:\s*nowrap;/s,
+	);
+});
+
 test("submits forms with Enter while preserving shifted multiline input", () => {
 	expect(
 		isKeyboardFormSubmission({ key: "Enter", shiftKey: false }),

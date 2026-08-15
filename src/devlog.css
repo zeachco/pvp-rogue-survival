@@ -274,9 +274,17 @@
 
 	.request-meta {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 9px;
 		align-items: center;
 		padding-right: 72px;
+	}
+
+	.request-kind,
+	.request-proposer,
+	.request-date,
+	.request-completed {
+		white-space: nowrap;
 	}
 
 	.moderator-delete {
