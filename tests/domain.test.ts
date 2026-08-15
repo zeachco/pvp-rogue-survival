@@ -3389,7 +3389,7 @@ test("groups space-saving header actions in one accessible menu", async () => {
 		/\.header-menu-popover\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*1001;[^}]*min-width:\s*150px;/s,
 	);
 	expect(styles).toMatch(
-		/\.game-status-bar:has\(\.header-menu\[open\]\)\s*\{[^}]*z-index:\s*1000;/s,
+		/\.game-status-bar:has\(\.header-menu\[open\]\),\s*\.game-status-bar:has\(\.swarm-mode-control:hover\),\s*\.game-status-bar:has\(\.swarm-mode-control:focus-visible\)\s*\{[^}]*z-index:\s*1000;/s,
 	);
 });
 

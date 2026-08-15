@@ -274,7 +274,9 @@ input {
 	flex: none;
 }
 
-.game-status-bar:has(.header-menu[open]) {
+.game-status-bar:has(.header-menu[open]),
+.game-status-bar:has(.swarm-mode-control:hover),
+.game-status-bar:has(.swarm-mode-control:focus-visible) {
 	z-index: 1000;
 }
 
