@@ -228,10 +228,6 @@ export function itemTile(
 		extractButton.disabled = true;
 		extractButton.title = `Extracting costs ${extractCost} gold`;
 	}
-	if (extractButton && extractStatus === "unlearned-skill") {
-		extractButton.disabled = true;
-		extractButton.title = `Learn ${skills.filter((skill) => !progress.learnedSkills.includes(skill)).join(", ")} before extracting`;
-	}
 	const upgraded = levelUpItem(item, item.seed);
 	const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!;
 	let details = node.querySelector<HTMLElement>(".equipment-details")!;

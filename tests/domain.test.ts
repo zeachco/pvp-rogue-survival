@@ -313,7 +313,9 @@ describe("acquisition auto-equip", () => {
 		});
 		state.gold = 10_000;
 		expect(extractFromInventory(state, "auto-spell").changed).toBeTrue();
-		const newActive = item.skills.filter((skill) => !SKILLS[skill].passive);
+		const newActive = extractableSkills(item).filter(
+			(skill) => !SKILLS[skill].passive,
+		);
 		for (const skill of newActive) {
 			expect(state.equippedSkills).toContain(skill);
 			expect(state.autoFireSkills).toContain(skill);
@@ -1178,9 +1180,9 @@ describe("XP curve", () => {
 });
 
 describe("permanent inventory", () => {
-	test("changes extraction availability only when Gold crosses the required cost", () => {
+	test("changes Epic extraction availability only when Gold crosses the required cost", () => {
 		const state = progress();
-		const item = generateItem(2, "rare", 83);
+		const item = generateItem(2, "epic", 83);
 		item.skills = ["shockwave"];
 		const tile = {
 			id: "extractable",
@@ -1201,26 +1203,31 @@ describe("permanent inventory", () => {
 		state.mainHand = item;
 		expect(extractButtonStatus(tile, state)).toBe("equipped-only");
 	});
-	test("disables non-Epic extraction until every carried skill is permanently learned", () => {
+	test("hides extraction for Common, Uncommon, and Rare items", () => {
 		const state = progress();
-		const item = generateItem(1, "rare", 27, { allowedClasses: ["staff"] });
-		const tile = {
-			id: "unlearned",
-			key: itemStackKey(item),
-			item,
-			quantity: 1,
-		};
-		state.inventoryTiles.push(tile);
-		state.gold = 10_000;
-		expect(extractButtonStatus(tile, state)).toBe("unlearned-skill");
-		expect(extractFromInventory(state, tile.id)).toMatchObject({
-			changed: false,
-			reason: expect.stringContaining("must first be learned"),
-		});
+		for (const rarity of ["common", "uncommon", "rare"] as const) {
+			const item = generateItem(1, rarity, 27, {
+				allowedClasses: ["staff"],
+			});
+			const tile = {
+				id: `${rarity}-item`,
+				key: itemStackKey(item),
+				item,
+				quantity: 1,
+			};
+			state.inventoryTiles.push(tile);
+			for (const skill of item.skills) state.learnedSkills.push(skill);
+			expect(extractButtonStatus(tile, state)).toBe("hidden");
+			expect(extractFromInventory(state, tile.id)).toMatchObject({
+				changed: false,
+				reason: "That item has no extractable skill.",
+			});
+		}
 	});
 	test("allows Epic extraction to learn and universally bind unlearned skills", () => {
 		const state = progress();
 		const item = generateItem(1, "epic", 27, { allowedClasses: ["staff"] });
+		item.skills = ["blizzard"];
 		const tile = {
 			id: "epic-unlearned",
 			key: itemStackKey(item),
@@ -1237,7 +1244,9 @@ describe("permanent inventory", () => {
 		expect(extractFromInventory(state, tile.id)).toMatchObject({
 			changed: true,
 		});
-		for (const skill of item.skills) {
+		const extractedSkills = extractableSkills(item);
+		expect(extractedSkills).toHaveLength(1);
+		for (const skill of extractedSkills) {
 			expect(state.learnedSkills).toContain(skill);
 			expect(state.universalSkills).toContain(skill);
 			expect(state.learnedSkillLevels[skill]).toBe(previousLevels[skill] + 1);
@@ -1250,6 +1259,7 @@ describe("permanent inventory", () => {
 			const item = generateItem(1, rarity, 41, {
 				allowedClasses: ["staff"],
 			});
+			item.skills = ["blizzard"];
 			const tile = {
 				id: `${rarity}-new-spell`,
 				key: itemStackKey(item),
@@ -2264,24 +2274,8 @@ test("reconciles post-defeat drops at the previous death position", () => {
 		y: 100,
 	});
 });
-describe("Epic skill extraction", () => {
-	test("binds already learned skills globally from Epic equipment, then permits lower-rarity upgrades", () => {
-		const rareState = progress();
-		const rare = generateItem(1, "rare", 17, { allowedClasses: ["staff"] });
-		rareState.inventoryTiles.push({
-			id: "rare",
-			key: itemStackKey(rare),
-			item: rare,
-			quantity: 1,
-		});
-		rareState.gold = 10_000;
-		for (const skill of rare.skills) {
-			if (!rareState.learnedSkills.includes(skill))
-				rareState.learnedSkills.push(skill);
-			rareState.learnedSkillLevels[skill] = 1;
-		}
-		expect(extractFromInventory(rareState, "rare").changed).toBeTrue();
-		expect(rareState.universalSkills).not.toContain("arcaneBolt");
+describe("Epic and Unique skill extraction", () => {
+	test("extracts one deterministic Epic skill and every Unique skill", () => {
 		const epicState = progress();
 		const epic = generateItem(1, "epic", 27, { allowedClasses: ["staff"] });
 		epicState.inventoryTiles.push({
@@ -2297,47 +2291,54 @@ describe("Epic skill extraction", () => {
 			epicState.learnedSkillLevels[skill] = 1;
 		}
 		expect(extractFromInventory(epicState, "epic").changed).toBeTrue();
+		const epicSkill = extractableSkills(epic);
+		expect(epicSkill).toHaveLength(1);
 		expect(epicState.universalSkills).toEqual(
-			expect.arrayContaining(epic.skills),
+			expect.arrayContaining(epicSkill),
 		);
-		const upgrade = {
-			...generateItem(1, "rare", 17, { allowedClasses: ["staff"] }),
-			skills: ["arcaneBolt" as const],
-		};
-		epicState.inventoryTiles.push({
-			id: "upgrade",
-			key: itemStackKey(upgrade),
-			item: upgrade,
+
+		const uniqueState = progress();
+		const unique = generateItem(1, "unique", 27, {
+			allowedClasses: ["staff"],
+		});
+		uniqueState.inventoryTiles.push({
+			id: "unique",
+			key: itemStackKey(unique),
+			item: unique,
 			quantity: 1,
 		});
-		const level = epicState.learnedSkillLevels.arcaneBolt!;
-		expect(extractFromInventory(epicState, "upgrade").changed).toBeTrue();
-		expect(epicState.learnedSkillLevels.arcaneBolt).toBe(level + 1);
+		uniqueState.gold = 10_000;
+		expect(extractableSkills(unique)).toEqual(unique.skills);
+		expect(extractFromInventory(uniqueState, "unique").changed).toBeTrue();
+		expect(uniqueState.universalSkills).toEqual(
+			expect.arrayContaining(unique.skills),
+		);
 	});
 });
-test("adds Healing to high-rarity maces and permits permanent Healing upgrades", () => {
-	const rareMace = generateItem(5, "rare", 31, { allowedClasses: ["mace"] });
-	expect(rareMace.skills).toEqual(
+test("adds Healing to high-rarity maces and permits Epic Healing extraction", () => {
+	const epicMace = generateItem(5, "epic", 31, { allowedClasses: ["mace"] });
+	expect(epicMace.skills).toEqual(
 		expect.arrayContaining(["shockwave", "healing"]),
 	);
+	epicMace.skills = ["healing"];
 	const state = progress();
 	state.inventoryTiles.push({
 		id: "healing-mace",
-		key: itemStackKey(rareMace),
-		item: rareMace,
+		key: itemStackKey(epicMace),
+		item: epicMace,
 		quantity: 1,
 	});
 	state.gold = 100_000;
 	state.learnedSkills.push("shockwave");
 	state.learnedSkillLevels.shockwave = 1;
-	expect(extractableSkills(rareMace)).toContain("healing");
+	expect(extractableSkills(epicMace)).toEqual(["healing"]);
 	expect(extractFromInventory(state, "healing-mace").changed).toBeTrue();
 	expect(state.learnedSkillLevels.healing).toBe(2);
 	expect(state.universalSkills).toContain("healing");
 });
 test("extracts Blocking and adds half a base block percentage point per effective level", () => {
 	const state = progress();
-	const buckler = generateBuckler(1, "common", 12);
+	const buckler = generateBuckler(1, "epic", 12);
 	state.inventoryTiles.push({
 		id: "buckler",
 		key: itemStackKey(buckler),
@@ -2545,9 +2546,7 @@ describe("extractable offhand and staff skills", () => {
 		expect(relic.skills).toEqual(
 			expect.arrayContaining(["attraction", "gravityPull"]),
 		);
-		expect(extractableSkills(relic)).toEqual(
-			expect.arrayContaining(["attraction", "gravityPull"]),
-		);
+		expect(extractableSkills(relic)).toEqual([]);
 		expect(buckler.skills).toEqual(
 			expect.arrayContaining(["blocking", "thorns", "reflectiveSurge"]),
 		);
@@ -2571,7 +2570,7 @@ describe("extractable offhand and staff skills", () => {
 		}
 		expect(extractFromInventory(state, "idol").changed).toBeTrue();
 		expect(state.universalSkills).toEqual(
-			expect.arrayContaining(["attraction", "gravityPull"]),
+			expect.arrayContaining(extractableSkills(epic)),
 		);
 		expect(SKILLS.attraction.passive).toBeTrue();
 		expect(SKILLS.gravityPull.cooldown).toBe(18);
@@ -2627,7 +2626,9 @@ describe("aura equipment", () => {
 		expect(equipState.offHand?.definitionId).toBe("scepter");
 		expect(levelUpItem(scepters[0], 99).definitionId).toBe("scepter");
 		const state = progress();
-		const auraItem = scepters[0];
+		const auraItem = generateItem(8, "unique", 0, {
+			allowedClasses: ["scepter"],
+		});
 		state.gold = 100_000;
 		state.inventoryTiles.push({
 			id: "aura",
@@ -2669,10 +2670,10 @@ describe("throwing axes", () => {
 		expect(weaponUsesProjectile(axe)).toBeTrue();
 	});
 });
-test("adds extractable Whirlwind to high-rarity axes and scales its field", () => {
+test("adds Whirlwind to high-rarity axes while Rare remains non-extractable", () => {
 	const axe = generateItem(8, "rare", 17, { allowedClasses: ["axe"] });
 	expect(axe.skills).toEqual(expect.arrayContaining(["cleave", "whirlwind"]));
-	expect(extractableSkills(axe)).toContain("whirlwind");
+	expect(extractableSkills(axe)).toEqual([]);
 	expect(whirlwindRadius(1)).toBeCloseTo(91.2);
 	expect(whirlwindRadius(99)).toBe(208.8);
 	expect(whirlwindDuration(1)).toBe(3);

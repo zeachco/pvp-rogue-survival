@@ -449,25 +449,16 @@ export function extractFromInventory(
 	const carriedSkills = extractableSkills(tile.item);
 	if (!carriedSkills.length)
 		return { changed: false, reason: "That item has no extractable skill." };
-	const universal =
-		tile.item.rarity === "epic" || tile.item.rarity === "unique";
-	const skills = universal
-		? carriedSkills
-		: carriedSkills.filter((skill) => progress.learnedSkills.includes(skill));
+	const skills = carriedSkills;
 	const newlyLearned = skills.filter(
 		(skill) => !progress.learnedSkills.includes(skill),
 	);
-	if (!universal && skills.length !== carriedSkills.length)
-		return {
-			changed: false,
-			reason: `${carriedSkills.filter((skill) => !progress.learnedSkills.includes(skill)).join(", ")} must first be learned.`,
-		};
 	const cost = extractionCost(progress, skills);
 	if (progress.gold < cost)
 		return { changed: false, reason: `Extracting costs ${cost} gold.` };
 	progress.gold -= cost;
 	tile.quantity -= 1;
-	for (const skill of skills) learnSkill(progress, skill, universal);
+	for (const skill of skills) learnSkill(progress, skill, true);
 	if (progress.autoEquipSpells) {
 		const equipped = progress.equippedSkills ?? [];
 		const autoFire = new Set(progress.autoFireSkills ?? []);
@@ -483,12 +474,14 @@ export function extractFromInventory(
 	removeEmptyInventoryTiles(progress);
 	return {
 		changed: true,
-		reason: `Extracted ${skills.join(", ")} for ${cost} gold${universal ? "; available with any weapon" : ""}.`,
+		reason: `Extracted ${skills.join(", ")} for ${cost} gold; available with any weapon.`,
 	};
 }
 
 export function extractableSkills(item: ItemInstance): SkillId[] {
-	return [...item.skills];
+	if (item.rarity === "unique") return [...item.skills];
+	if (item.rarity !== "epic" || !item.skills.length) return [];
+	return [item.skills[Math.abs(item.seed) % item.skills.length]];
 }
 export function extractionCost(
 	progress: PlayerProgress,
