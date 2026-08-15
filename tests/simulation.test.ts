@@ -143,8 +143,11 @@ import {
 	THUNDER_IMPACT_LIGHT_COLOR,
 	THUNDER_IMPACT_LIGHT_INTENSITY,
 	THUNDER_IMPACT_LIGHT_OFFSET,
+	DEATH_BURST_LIGHT_INTENSITY,
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
+
+import { DEATH_BURST_DURATION } from "../src/game/systems/AuraSystem";
 import { resolveCombat } from "../src/game/systems/combat";
 import {
 	basicWeaponHitCount,
@@ -1806,6 +1809,41 @@ describe("arena systems", () => {
 		expect(sharedFlash.position.x).toBe(30);
 		expect(sharedFlash.position.y).toBe(40);
 		expect(sharedFlash.distance).toBe(200);
+
+		const deathBurst = new SpellEffect(
+			"deathBurst",
+			{ x: 70, y: 80 },
+			0,
+			90,
+			DEATH_BURST_DURATION,
+			undefined,
+			true,
+		);
+		deathBurst.updateVisuals(0);
+		const deathBurstVisuals = deathBurst.mesh.children[0] as THREE.Group;
+		const stain = deathBurstVisuals.getObjectByName(
+			"death-burst-stain",
+		) as THREE.Mesh;
+		expect(stain).toBeInstanceOf(THREE.Mesh);
+		expect(stain.scale.y).toBe(0.72);
+		expect(
+			deathBurstVisuals.children.filter((child) =>
+				child.name.startsWith("death-burst-particle-"),
+			),
+		).toHaveLength(18);
+		expect(
+			deathBurst.mesh.getObjectsByProperty("type", "PointLight"),
+		).toHaveLength(0);
+		flashPool.sync(["deathBurst"], [deathBurst], 0);
+		const deathBurstLight = flashPool.light("deathBurst") as THREE.PointLight;
+		expect(deathBurstLight.color.getHex()).toBe(0xff1838);
+		expect(deathBurstLight.position.toArray()).toEqual([70, 80, 18]);
+		expect(deathBurstLight.intensity).toBe(DEATH_BURST_LIGHT_INTENSITY);
+		deathBurst.update(0.45);
+		flashPool.sync(["deathBurst"], [deathBurst], 0.45);
+		expect(deathBurstLight.intensity).toBe(0);
+		deathBurst.update(DEATH_BURST_DURATION - 0.45);
+		expect(deathBurst.active).toBeFalse();
 
 		const thunderImpact = new SpellEffect(
 			"thunderAura",

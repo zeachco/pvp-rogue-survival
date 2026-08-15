@@ -140,6 +140,7 @@ export class AuraSystem {
 		progress: PlayerProgress,
 		creeps: Creep[],
 		random: RandomSource,
+		spellEffects: SpellEffect[],
 	): void {
 		const level = hero.isSkillOperational("deathBurst")
 			? effectiveSkillLevel(progress, "deathBurst")
@@ -153,6 +154,17 @@ export class AuraSystem {
 				distance(hero.position, dead.position) <= radius
 			) {
 				this.burst.add(dead);
+				spellEffects.push(
+					new SpellEffect(
+						"deathBurst",
+						dead.position,
+						0,
+						radius * 0.45,
+						DEATH_BURST_DURATION,
+						undefined,
+						true,
+					),
+				);
 				for (const target of creeps)
 					if (
 						target.active &&
@@ -173,6 +185,8 @@ export class AuraSystem {
 		this.thunderRemaining = 0;
 	}
 }
+
+export const DEATH_BURST_DURATION = 3;
 
 function thunderImpact(target: Creep): SpellEffect {
 	return new SpellEffect(

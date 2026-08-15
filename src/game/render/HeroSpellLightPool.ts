@@ -28,6 +28,7 @@ const EFFECT_KIND_BY_SKILL: Partial<Record<SkillId, SpellEffectKind>> = {
 	swamp: "swamp",
 	blizzard: "blizzard",
 	thunderAura: "thunderAura",
+	deathBurst: "deathBurst",
 };
 
 export const SWAMP_UPLIGHT_COLOR = 0x39ff14;

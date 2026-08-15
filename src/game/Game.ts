@@ -1054,6 +1054,7 @@ export class Game {
 			this.player.progress,
 			this.creeps,
 			systemRandom,
+			this.arena.spellEffects,
 		);
 		this.collectKills();
 		this.collectDrops();

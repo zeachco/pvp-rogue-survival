@@ -26,6 +26,7 @@ export const THUNDER_IMPACT_DURATION = 1.5;
 export const THUNDER_IMPACT_LIGHT_INTENSITY = 180;
 export const THUNDER_IMPACT_LIGHT_COLOR = 0xfafaff;
 export const THUNDER_IMPACT_LIGHT_OFFSET = 18;
+export const DEATH_BURST_LIGHT_INTENSITY = 240;
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -55,6 +56,7 @@ export function spellEffectLightColor(
 	if (kind === "gravityPull") return 0xb98cff;
 	if (kind === "reflectiveSurge") return 0xffe46b;
 	if (kind === "thunderAura") return THUNDER_IMPACT_LIGHT_COLOR;
+	if (kind === "deathBurst") return 0xff1838;
 	if (kind === "whirlwind") return 0xd8f4ff;
 	if (kind === "flurry") return 0xd9c2ff;
 	if (kind === "sweep") return 0xbafcff;
@@ -141,6 +143,8 @@ export class SpellEffect extends GameObject {
 				THUNDER_IMPACT_LIGHT_INTENSITY *
 				(1 - Math.min(1, this.age / THUNDER_IMPACT_DURATION))
 			);
+		if (this.kind === "deathBurst")
+			return DEATH_BURST_LIGHT_INTENSITY * (1 - Math.min(1, this.age / 0.45));
 		if (this.kind === "healing") return healingUplightIntensity(this.age);
 		if (this.source) return 16 + 6 * (0.5 + 0.5 * Math.sin(time * 7));
 		if (this.kind === "gravityPull")
@@ -221,8 +225,54 @@ export class SpellEffect extends GameObject {
 			impact(this.effectGroup, progress, "#68ff9c", 55, 6);
 		} else if (this.kind === "thunderAura") {
 			thunderImpact(this.effectGroup, progress, this.range);
+		} else if (this.kind === "deathBurst") {
+			deathBurst(this.effectGroup, progress, this.range);
 		}
 		if (!this.heroOwned) tintSpellObject(this.effectGroup, HOSTILE_SPELL_COLOR);
+	}
+}
+
+function deathBurst(
+	group: THREE.Group,
+	progress: number,
+	radius: number,
+): void {
+	const stain = new THREE.Mesh(
+		new THREE.CircleGeometry(Math.max(36, radius), 48),
+		new THREE.MeshBasicMaterial({
+			color: 0x8f071b,
+			transparent: true,
+			opacity: 0.42 * (1 - progress),
+			side: THREE.DoubleSide,
+			depthWrite: false,
+		}),
+	);
+	stain.name = "death-burst-stain";
+	stain.scale.set(1, 0.72, 1);
+	stain.renderOrder = Z_EFFECT;
+	group.add(stain);
+
+	const particleMaterial = new THREE.MeshBasicMaterial({
+		color: 0xff1838,
+		transparent: true,
+		opacity: 1 - progress,
+		depthWrite: false,
+	});
+	for (let index = 0; index < 18; index += 1) {
+		const angle = index * 2.399;
+		const distance = radius * progress * (0.35 + (index % 4) * 0.14);
+		const particle = new THREE.Mesh(
+			new THREE.CircleGeometry(2 + (index % 3), 8),
+			particleMaterial,
+		);
+		particle.name = `death-burst-particle-${index}`;
+		particle.position.set(
+			Math.cos(angle) * distance,
+			Math.sin(angle) * distance,
+			2 + Math.sin(Math.PI * progress) * (10 + (index % 5) * 3),
+		);
+		particle.renderOrder = Z_EFFECT + 0.001;
+		group.add(particle);
 	}
 }
 
