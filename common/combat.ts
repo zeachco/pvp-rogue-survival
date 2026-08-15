@@ -494,7 +494,7 @@ export function rapidRegenDuration(level: number): number {
 	return 10 + ((cappedSkillLevel(level) - 1) / 98) * 20;
 }
 export function rapidRegenMultiplier(level: number): number {
-	return 1.2 + ((cappedSkillLevel(level) - 1) / 98) * 3.8;
+	return 3.6 + ((cappedSkillLevel(level) - 1) / 98) * 1.4;
 }
 export function swampRadius(level: number): number {
 	return 200 + (cappedSkillLevel(level) - 1) * (300 / 98);

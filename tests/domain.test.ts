@@ -3050,7 +3050,8 @@ test("registers configurable Spirit relic perks", () => {
 	expect(SKILLS.rapidRegen).toMatchObject({ cost: 4, cooldown: 40 });
 	expect(rapidRegenDuration(1)).toBe(10);
 	expect(rapidRegenDuration(99)).toBe(30);
-	expect(rapidRegenMultiplier(1)).toBeCloseTo(1.2);
+	expect(rapidRegenMultiplier(1)).toBeCloseTo(3.6);
+	expect(rapidRegenMultiplier(50)).toBeCloseTo(4.3);
 	expect(rapidRegenMultiplier(99)).toBe(5);
 	expect(manaConversionFraction(1)).toBeCloseTo(0.01);
 	expect(manaConversionFraction(99)).toBeCloseTo(0.3);
