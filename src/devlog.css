@@ -330,12 +330,33 @@
 		font-size: 0.75rem;
 	}
 
+	.request-proposer,
+	.voter-names {
+		color: #8fb0b7;
+		font-size: 0.75rem;
+	}
+
+	.request-edit {
+		border: 1px solid #3a7d75;
+		border-radius: 5px;
+		padding: 3px 7px;
+		color: #9effec;
+		background: rgba(12, 74, 63, 0.55);
+		cursor: pointer;
+	}
+
 	.vote-controls {
 		display: grid;
 		grid-template-columns: repeat(3, auto);
 		gap: 7px;
 		align-items: center;
 		align-self: center;
+	}
+
+	.voter-names {
+		grid-column: 1 / -1;
+		max-width: 220px;
+		text-align: right;
 	}
 
 	.vote-controls button {

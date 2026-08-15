@@ -42,6 +42,7 @@ let voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
 let isModerator = false;
 let completionFilter: CommunityRequestCompletionFilter = "all";
+let ownershipFilter: "all" | "mine" | "others" = "all";
 let selectedWeekKey = weeks.at(-1)?.key ?? "";
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -224,15 +225,20 @@ function renderRequests(): void {
 		requests,
 		completionFilter,
 	);
+	const ownershipMatches = completionMatches.filter(
+		(request) =>
+			ownershipFilter === "all" ||
+			(ownershipFilter === "mine") === request.ownedByViewer,
+	);
 	const visibleRequests = query
-		? completionMatches.filter((request) =>
+		? ownershipMatches.filter((request) =>
 				`${request.title} ${request.description}`
 					.toLocaleLowerCase()
 					.includes(query),
 			)
-		: completionMatches;
+		: ownershipMatches;
 	if (!visibleRequests.length) {
-		const filtered = completionFilter !== "all";
+		const filtered = completionFilter !== "all" || ownershipFilter !== "all";
 		futureRequests.replaceChildren(
 			element(
 				"p",
@@ -285,11 +291,14 @@ requestSearch.addEventListener("input", () => {
 
 requestFilters.addEventListener("click", (event) => {
 	const button = (event.target as Element).closest<HTMLButtonElement>(
-		"button[data-completion-filter]",
+		"button[data-completion-filter], button[data-ownership-filter]",
 	);
 	if (!button || button.hidden) return;
-	completionFilter = button.dataset
-		.completionFilter as CommunityRequestCompletionFilter;
+	if (button.dataset.completionFilter)
+		completionFilter = button.dataset
+			.completionFilter as CommunityRequestCompletionFilter;
+	if (button.dataset.ownershipFilter)
+		ownershipFilter = button.dataset.ownershipFilter as typeof ownershipFilter;
 	updateRequestFilters();
 	renderRequests();
 });
@@ -303,6 +312,13 @@ function updateRequestFilters(): void {
 		button.hidden = filter === "completed" && !isModerator;
 		button.setAttribute("aria-pressed", String(filter === completionFilter));
 	}
+	for (const button of requestFilters.querySelectorAll<HTMLButtonElement>(
+		"button[data-ownership-filter]",
+	)) {
+		const filter = button.dataset.ownershipFilter as typeof ownershipFilter;
+		button.disabled = !activeSession() && filter !== "all";
+		button.setAttribute("aria-pressed", String(filter === ownershipFilter));
+	}
 }
 
 function renderRequest(request: DevlogRequest): HTMLElement {
@@ -311,6 +327,7 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	const meta = element("div", undefined, "request-meta");
 	meta.append(
 		element("span", request.kind, `request-kind ${request.kind}`),
+		element("span", `Proposed by ${request.proposerName}`, "request-proposer"),
 		element(
 			"time",
 			new Date(request.createdAt).toLocaleDateString(),
@@ -319,7 +336,9 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	);
 	if (request.completed)
 		meta.append(element("span", "Done with AI", "request-completed"));
-	if (isModerator) meta.append(deleteButton(request));
+	if (request.ownedByViewer && !request.completed)
+		meta.append(editButton(request), deleteButton(request, false));
+	else if (isModerator) meta.append(deleteButton(request, true));
 	copy.append(
 		meta,
 		element("h4", request.title),
@@ -331,14 +350,22 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	score.title = "Net score";
 	const down = voteButton(request, -1, `▼ ${request.downvotes}`, "Downvote");
 	votes.append(up, score, down);
+	const voterNames = element("small", undefined, "voter-names");
+	voterNames.textContent = `Upvoted by ${request.upvoterNames.length ? request.upvoterNames.join(", ") : "no one"} · Downvoted by ${request.downvoterNames.length ? request.downvoterNames.join(", ") : "no one"}`;
+	votes.append(voterNames);
 	card.append(copy, votes);
 	return card;
 }
 
-function deleteButton(request: DevlogRequest): HTMLButtonElement {
+function deleteButton(
+	request: DevlogRequest,
+	moderator: boolean,
+): HTMLButtonElement {
 	const button = element("button", "Delete", "moderator-delete");
 	button.type = "button";
-	button.title = "Delete completed or refused request";
+	button.title = moderator
+		? "Delete completed or refused request"
+		: "Delete your pending request";
 	button.onclick = async () => {
 		if (!confirm(`Permanently delete “${request.title}”?`)) return;
 		button.disabled = true;
@@ -362,6 +389,53 @@ function deleteButton(request: DevlogRequest): HTMLButtonElement {
 		} catch (error) {
 			requestStatus.textContent =
 				error instanceof Error ? error.message : "Deletion failed.";
+			requestStatus.className = "error";
+			button.disabled = false;
+		}
+	};
+	return button;
+}
+
+function editButton(request: DevlogRequest): HTMLButtonElement {
+	const button = element("button", "Edit", "request-edit");
+	button.type = "button";
+	button.onclick = async () => {
+		const kind = prompt("Request type: feature, bug, or balance", request.kind);
+		if (kind === null) return;
+		if (kind !== "feature" && kind !== "bug" && kind !== "balance") {
+			requestStatus.textContent = "Choose feature, bug, or balance.";
+			requestStatus.className = "error";
+			return;
+		}
+		const title = prompt("Request title", request.title);
+		if (title === null) return;
+		const description = prompt("Request details", request.description);
+		if (description === null) return;
+		button.disabled = true;
+		try {
+			const response = await fetch(
+				apiUrl(`/api/devlog/requests/${request.id}`),
+				{
+					method: "PATCH",
+					headers: authenticatedHeaders(),
+					body: JSON.stringify({ kind, title, description }),
+				},
+			);
+			const result = (await response.json()) as {
+				request?: DevlogRequest;
+				error?: string;
+			};
+			if (!response.ok || !result.request)
+				throw new Error(result.error ?? "Edit failed.");
+			requests = requests.map((entry) =>
+				entry.id === result.request?.id ? result.request : entry,
+			);
+			requestStatus.textContent = "Request updated.";
+			requestStatus.className = "success";
+			renderRequests();
+		} catch (error) {
+			requestStatus.textContent =
+				error instanceof Error ? error.message : "Edit failed.";
 			requestStatus.className = "error";
 			button.disabled = false;
 		}
@@ -483,6 +557,8 @@ function updateAuthenticationState(): void {
 	requestStatus.textContent = disabled
 		? "Log in from the game to submit requests or vote."
 		: "";
+	if (disabled) ownershipFilter = "all";
+	updateRequestFilters();
 }
 
 updateAuthenticationState();
@@ -506,6 +582,12 @@ async function loadRequests(): Promise<void> {
 		if (!response.ok || !result.requests)
 			throw new Error(result.error ?? "Could not load requests.");
 		requests = result.requests;
+		voteChoices = Object.fromEntries(
+			requests
+				.filter((request) => request.viewerVote)
+				.map((request) => [request.id, request.viewerVote!]),
+		);
+		localStorage.setItem(voteStorageKey(), JSON.stringify(voteChoices));
 		isModerator = result.isModerator === true;
 		if (!isModerator && completionFilter === "completed")
 			completionFilter = "all";

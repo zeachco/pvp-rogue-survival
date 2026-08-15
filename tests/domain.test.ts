@@ -3276,6 +3276,20 @@ test("exposes completed-only Devlog filtering to moderators", async () => {
 	);
 });
 
+test("shows community request authors, voters, ownership filters, and pending owner actions", async () => {
+	const [documentSource, devlogSource] = await Promise.all([
+		Bun.file(new URL("../index.html", import.meta.url)).text(),
+		Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
+	]);
+	expect(documentSource).toContain('data-ownership-filter="mine"');
+	expect(documentSource).toContain('data-ownership-filter="others"');
+	expect(devlogSource).toContain("`Proposed by ${request.proposerName}`");
+	expect(devlogSource).toContain("request.upvoterNames.join");
+	expect(devlogSource).toContain("request.downvoterNames.join");
+	expect(devlogSource).toContain("request.ownedByViewer && !request.completed");
+	expect(devlogSource).toContain("editButton(request)");
+});
+
 test("submits forms with Enter while preserving shifted multiline input", () => {
 	expect(
 		isKeyboardFormSubmission({ key: "Enter", shiftKey: false }),

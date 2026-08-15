@@ -39,26 +39,52 @@ describe("devlog requests", () => {
 			kind: "feature",
 			title: "Controller support",
 			description: "Allow heroes to be controlled with a gamepad.",
+			proposerId: "account-alice",
+			proposerName: "Alice",
 		});
-		expect((await store.vote(request.id, "browser-aaaaaaaa", 1))?.score).toBe(
+		expect((await store.vote(request.id, "account-bob", "Bob", 1))?.score).toBe(
 			1,
 		);
-		const switched = await store.vote(request.id, "browser-aaaaaaaa", -1);
+		const switched = await store.vote(request.id, "account-bob", "Bob", -1);
 		expect(switched).toMatchObject({ upvotes: 0, downvotes: 1, score: -1 });
+		expect(switched?.downvoterNames).toEqual(["Bob"]);
+		expect(
+			await store.update(request.id, "account-mallory", {
+				kind: "feature",
+				title: "Stolen edit",
+				description: "This edit must not be accepted.",
+			}),
+		).toBeUndefined();
+		expect(
+			await store.update(request.id, "account-alice", {
+				kind: "feature",
+				title: "Gamepad support",
+				description: "Allow heroes to be controlled with any gamepad.",
+			}),
+		).toMatchObject({ title: "Gamepad support", proposerName: "Alice" });
 		expect(await store.complete(request.id)).toMatchObject({
 			id: request.id,
 			completed: true,
 		});
+		expect(
+			await store.update(request.id, "account-alice", {
+				kind: "feature",
+				title: "Late edit",
+				description: "Completed requests cannot be edited.",
+			}),
+		).toBeUndefined();
 		await store.close();
 
 		const restored = await SqlDevlogRequestStore.open(url);
 		expect(await restored.list()).toEqual([
 			expect.objectContaining({
 				id: request.id,
-				title: "Controller support",
+				title: "Gamepad support",
 				downvotes: 1,
 				score: -1,
 				completed: true,
+				proposerName: "Alice",
+				downvoterNames: ["Bob"],
 			}),
 		]);
 		expect(await restored.delete(request.id)).toBeTrue();
@@ -234,6 +260,8 @@ describe("devlog requests", () => {
 					kind,
 					title: `${kind} request`,
 					description: `Complete this ${kind} community request.`,
+					proposerId: "account-alice",
+					proposerName: "Alice",
 				});
 				const response = await fetch(
 					`http://127.0.0.1:${address.port}/api/devlog/requests/${request.id}`,

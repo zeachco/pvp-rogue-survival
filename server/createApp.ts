@@ -111,6 +111,7 @@ export async function createApp(options: AppOptions) {
 					? (repository.get(playerId)?.accountId ?? false)
 					: false,
 			(playerId) => repository.get(playerId)?.isModerator === true,
+			(accountId) => repository.getAccountPlayers(accountId)[0]?.accountName,
 		).catch((error) => {
 			console.error(
 				"[MLH][devlog] request failed",
@@ -470,6 +471,7 @@ async function serveRequest(
 	devlogRequests: DevlogRequestStore,
 	isActiveAccount: (playerId: PlayerId) => boolean | PlayerId,
 	isModerator: (playerId: PlayerId) => boolean,
+	accountName: (accountId: PlayerId) => string | undefined,
 ): Promise<void> {
 	const url = new URL(
 		request.url ?? "/",
@@ -499,7 +501,9 @@ async function serveRequest(
 		if (request.method === "GET") {
 			const accountId = activeAccountId(request, isActiveAccount);
 			json(response, 200, {
-				requests: await devlogRequests.list(),
+				requests: (await devlogRequests.list()).map((entry) =>
+					publicRequest(entry, accountId),
+				),
 				isModerator: Boolean(accountId && isModerator(accountId)),
 			});
 			return;
@@ -520,7 +524,14 @@ async function serveRequest(
 				return;
 			}
 			json(response, 201, {
-				request: await devlogRequests.create(validated),
+				request: publicRequest(
+					await devlogRequests.create({
+						...validated,
+						proposerId: accountId,
+						proposerName: accountName(accountId) ?? "Unknown player",
+					}),
+					accountId,
+				),
 			});
 			return;
 		}
@@ -537,29 +548,58 @@ async function serveRequest(
 		}
 		if (request.method === "PATCH") {
 			const input = await readJson(request);
-			if (input?.completed !== true) {
-				json(response, 400, { error: "Set completed to true." });
+			if (input?.completed === true) {
+				const completed = await devlogRequests.complete(deleteMatch[1]);
+				if (!completed) {
+					json(response, 404, { error: "Community request not found." });
+					return;
+				}
+				json(response, 200, { request: publicRequest(completed) });
 				return;
 			}
-			const completed = await devlogRequests.complete(deleteMatch[1]);
-			if (!completed) {
-				json(response, 404, { error: "Community request not found." });
+			const accountId = activeAccountId(request, isActiveAccount);
+			if (!accountId) {
+				json(response, 401, { error: "Log in to edit a request." });
 				return;
 			}
-			json(response, 200, { request: completed });
+			const validated = parseDevlogRequestInput(input, false);
+			if (!validated) {
+				json(response, 400, {
+					error: "Use a valid request type, title, and description.",
+				});
+				return;
+			}
+			const updated = await devlogRequests.update(
+				deleteMatch[1],
+				accountId,
+				validated,
+			);
+			if (!updated) {
+				json(response, 403, {
+					error: "Only the proposer can edit a pending request.",
+				});
+				return;
+			}
+			json(response, 200, { request: publicRequest(updated, accountId) });
 			return;
 		}
-		const accountId = activeModeratorAccountId(
-			request,
-			isActiveAccount,
-			isModerator,
-		);
+		const accountId = activeAccountId(request, isActiveAccount);
 		if (!accountId) {
-			const activeAccount = activeAccountId(request, isActiveAccount);
-			json(response, activeAccount ? 403 : 401, {
-				error: activeAccount
-					? "Moderator access is required."
-					: "Log in to delete a request.",
+			json(response, 401, { error: "Log in to delete a request." });
+			return;
+		}
+		const existing = (await devlogRequests.list()).find(
+			(entry) => entry.id === deleteMatch[1],
+		);
+		const moderator = isModerator(accountId);
+		if (
+			!existing ||
+			(!moderator && (existing.proposerId !== accountId || existing.completed))
+		) {
+			json(response, existing ? 403 : 404, {
+				error: existing
+					? "Only the proposer can delete their pending request."
+					: "Request not found.",
 			});
 			return;
 		}
@@ -589,12 +629,17 @@ async function serveRequest(
 			json(response, 400, { error: "Invalid vote." });
 			return;
 		}
-		const updated = await devlogRequests.vote(voteMatch[1], accountId, value);
+		const updated = await devlogRequests.vote(
+			voteMatch[1],
+			accountId,
+			accountName(accountId) ?? "Unknown player",
+			value,
+		);
 		if (!updated) {
 			json(response, 404, { error: "Request not found." });
 			return;
 		}
-		json(response, 200, { request: updated });
+		json(response, 200, { request: publicRequest(updated, accountId) });
 		return;
 	}
 	if (url.pathname.startsWith("/api/")) {
@@ -617,6 +662,24 @@ async function serveRequest(
 		response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
 		response.end(index);
 	}
+}
+
+function publicRequest(
+	request: import("./DevlogRequestRepository.ts").DevlogRequest,
+	viewerId?: PlayerId,
+) {
+	const { proposerId, upvoterIds, downvoterIds, ...visible } = request;
+	return {
+		...visible,
+		ownedByViewer: Boolean(viewerId && proposerId === viewerId),
+		viewerVote: viewerId
+			? upvoterIds?.includes(viewerId)
+				? 1
+				: downvoterIds?.includes(viewerId)
+					? -1
+					: undefined
+			: undefined,
+	};
 }
 
 export function isLocalDevelopmentOrigin(origin: string): boolean {
@@ -678,6 +741,7 @@ function isRequestKind(value: unknown): value is DevlogRequestKind {
 
 export function parseDevlogRequestInput(
 	input: Record<string, unknown> | undefined,
+	appendBugEnvironment = true,
 ): { kind: DevlogRequestKind; title: string; description: string } | undefined {
 	const kind = input?.kind;
 	const title = typeof input?.title === "string" ? input.title.trim() : "";
@@ -691,7 +755,8 @@ export function parseDevlogRequestInput(
 		description.length > MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH
 	)
 		return undefined;
-	if (kind !== "bug") return { kind, title, description };
+	if (kind !== "bug" || !appendBugEnvironment)
+		return { kind, title, description };
 	const environment = parseBugEnvironment(input?.environment);
 	if (!environment) return undefined;
 	const storedDescription = `${description}\n\nEnvironment\nBrowser: ${environment.browser} ${environment.version}\nOS: ${environment.os}\nScreen: ${environment.resolution} physical pixels (DPR ${environment.devicePixelRatio})`;
