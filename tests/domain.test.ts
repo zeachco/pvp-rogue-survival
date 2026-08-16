@@ -3481,6 +3481,18 @@ test("aligns the resource dock beside the spell bar and chat to the right edge",
 	);
 });
 
+test("keeps long spell rails compact with half-size spell containers", async () => {
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(styles).toMatch(
+		/\.spell-slot\s*\{[^}]*flex:\s*0 0 28px;[^}]*width:\s*28px;[^}]*height:\s*28px;/s,
+	);
+	expect(styles).toMatch(
+		/\.skill-list\s*\{[^}]*flex-direction:\s*column;[^}]*gap:\s*3px;/s,
+	);
+});
+
 test("prevents camera movement from selecting game interface text", async () => {
 	const styles = await Bun.file(
 		new URL("../src/styles.css", import.meta.url),
