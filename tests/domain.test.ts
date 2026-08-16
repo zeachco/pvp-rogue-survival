@@ -25,6 +25,7 @@ import {
 	cooldownScale,
 	effectiveSkillCooldown,
 	flurryCooldown,
+	FLURRY_HALF_ARC,
 	forceFieldRange,
 	HEALING_MAX_RADIUS,
 	HEALING_MIN_RADIUS,
@@ -2926,8 +2927,8 @@ describe("spell range and recovery", () => {
 		expect(metersToPixels(3)).toBe(150);
 	});
 	test("scales skill range and cooldown slightly with weapon level while natural healing stays weak", () => {
-		expect(skillRange("bash", starterClub(), 4, 20)).toBe(145);
-		expect(skillRange("bash", starterClub(), 100, 100)).toBe(405);
+		expect(skillRange("bash", starterClub(), 4, 20)).toBe(92.5);
+		expect(skillRange("bash", starterClub(), 100, 100)).toBe(352.5);
 		const leveled = generateItem(10, "rare", 17, { allowedClasses: ["staff"] });
 		expect(skillRange("arcaneBolt", leveled, 1, 0)).toBeCloseTo(346.5);
 		expect(skillRange("healing", leveled, 1, 999)).toBe(HEALING_MIN_RADIUS);
@@ -2937,18 +2938,18 @@ describe("spell range and recovery", () => {
 			0.105,
 		);
 	});
-	test("scales Cleave base range from one to ten meters", () => {
-		expect(cleaveRange(1)).toBe(metersToPixels(1));
-		expect(cleaveRange(99)).toBe(metersToPixels(10));
-		expect(skillRange("cleave", starterClub(), 1, 0)).toBe(metersToPixels(1));
-		expect(skillRange("cleave", starterClub(), 99, 0)).toBe(metersToPixels(10));
-		expect(cleaveHalfArc(1) * 2).toBeCloseTo((45 * Math.PI) / 180);
-		expect(cleaveHalfArc(50) * 2).toBeCloseTo((157.5 * Math.PI) / 180);
-		expect(cleaveHalfArc(99) * 2).toBeCloseTo((270 * Math.PI) / 180);
+	test("scales Cleave base range and sector across the reduced endpoints", () => {
+		expect(cleaveRange(1)).toBe(metersToPixels(0.5));
+		expect(cleaveRange(99)).toBe(metersToPixels(5));
+		expect(skillRange("cleave", starterClub(), 1, 0)).toBe(metersToPixels(0.5));
+		expect(skillRange("cleave", starterClub(), 99, 0)).toBe(metersToPixels(5));
+		expect(cleaveHalfArc(1) * 2).toBeCloseTo((22.5 * Math.PI) / 180);
+		expect(cleaveHalfArc(50) * 2).toBeCloseTo((78.75 * Math.PI) / 180);
+		expect(cleaveHalfArc(99) * 2).toBeCloseTo((135 * Math.PI) / 180);
 		expect(SKILLS.cleave.damageMultiplier).toBe(0.3625);
-		expect(SKILLS.cleave.cooldown).toBe(6);
-		expect(cleaveCooldown(1)).toBe(6);
-		expect(cleaveCooldown(99)).toBe(3);
+		expect(SKILLS.cleave.cooldown).toBe(8);
+		expect(cleaveCooldown(1)).toBe(8);
+		expect(cleaveCooldown(99)).toBe(5);
 		expect(
 			skillCooldown(
 				"cleave",
@@ -2956,7 +2957,7 @@ describe("spell range and recovery", () => {
 				{ ...ZERO_STATS, agility: 500, intelligence: 500 },
 				1,
 			),
-		).toBe(6);
+		).toBe(8);
 		expect(
 			skillCooldown(
 				"cleave",
@@ -2964,27 +2965,30 @@ describe("spell range and recovery", () => {
 				{ ...ZERO_STATS, agility: 500, intelligence: 500 },
 				99,
 			),
-		).toBe(3);
+		).toBe(5);
 		expect(skillImpactForceScale("cleave")).toBe(2);
 		expect(skillImpactForceScale("bash")).toBe(1);
 	});
 });
-test("scales Flurry cooldown directly from six to three seconds", () => {
-	expect(flurryCooldown(1)).toBe(6);
-	expect(flurryCooldown(99)).toBe(3);
+test("reduces Flurry range and scales cooldown directly from eight to five seconds", () => {
+	expect(SKILLS.flurry.range).toBe(metersToPixels(1.05));
+	expect(FLURRY_HALF_ARC * 2).toBe(1.1);
+	expect(flurryCooldown(1)).toBe(8);
+	expect(flurryCooldown(99)).toBe(5);
 	const dagger = generateItem(50, "epic", 37, { allowedClasses: ["dagger"] });
 	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
-	expect(skillCooldown("flurry", dagger, boosted, 1)).toBe(6);
-	expect(skillCooldown("flurry", dagger, boosted, 99)).toBe(3);
+	expect(skillCooldown("flurry", dagger, boosted, 1)).toBe(8);
+	expect(skillCooldown("flurry", dagger, boosted, 99)).toBe(5);
 });
-test("scales Bash cooldown directly from six to three seconds", () => {
-	expect(bashCooldown(1)).toBe(6);
-	expect(bashCooldown(50)).toBe(4.5);
-	expect(bashCooldown(99)).toBe(3);
+test("reduces Bash range and scales cooldown directly from eight to five seconds", () => {
+	expect(SKILLS.bash.range).toBe(metersToPixels(1.05));
+	expect(bashCooldown(1)).toBe(8);
+	expect(bashCooldown(50)).toBe(6.5);
+	expect(bashCooldown(99)).toBe(5);
 	const club = generateItem(50, "epic", 37, { allowedClasses: ["club"] });
 	const boosted = { ...ZERO_STATS, agility: 500, intelligence: 500 };
-	expect(skillCooldown("bash", club, boosted, 1)).toBe(6);
-	expect(skillCooldown("bash", club, boosted, 99)).toBe(3);
+	expect(skillCooldown("bash", club, boosted, 1)).toBe(8);
+	expect(skillCooldown("bash", club, boosted, 99)).toBe(5);
 });
 test("scales Rent cooldown directly from six to three seconds", () => {
 	expect(rentCooldown(1)).toBe(6);

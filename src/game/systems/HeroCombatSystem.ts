@@ -12,6 +12,7 @@ import {
 	cleaveHalfArc,
 	effectiveSkillCooldown,
 	forceFieldRange,
+	FLURRY_HALF_ARC,
 	healingAutoCastThresholdMet,
 	healingBaseManaCost,
 	healingCast,
@@ -686,7 +687,7 @@ export class HeroCombatSystem {
 						: activeSkill?.id === "cleave"
 							? cleaveHalfArc(activeSkill.level)
 							: activeSkill?.id === "flurry"
-								? 1.1
+								? FLURRY_HALF_ARC
 								: 0.72,
 					0.18,
 					0.13,

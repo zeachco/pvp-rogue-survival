@@ -323,11 +323,11 @@ export function skillCooldown(
 }
 
 export function bashCooldown(level: number): number {
-	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
+	return 8 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 
 export function cleaveCooldown(level: number): number {
-	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
+	return 8 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 export function rentCooldown(level: number): number {
 	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
@@ -354,7 +354,7 @@ export function skillRange(
 }
 
 export function cleaveRange(level: number): number {
-	return 50 + (450 * (cappedSkillLevel(level) - 1)) / 98;
+	return 25 + (225 * (cappedSkillLevel(level) - 1)) / 98;
 }
 
 export function arcaneBoltExplosionRadius(level: number): number {
@@ -385,9 +385,11 @@ export function blizzardRadius(level: number): number {
 
 export function cleaveHalfArc(level: number): number {
 	const progress = (cappedSkillLevel(level) - 1) / 98;
-	const arcDegrees = 45 + 225 * progress;
+	const arcDegrees = 22.5 + 112.5 * progress;
 	return (arcDegrees * Math.PI) / 360;
 }
+
+export const FLURRY_HALF_ARC = 0.55;
 
 export function skillImpactForceScale(skill?: SkillId): number {
 	return skill === "cleave" ? 2 : 1;
@@ -460,7 +462,7 @@ export function healingRadius(level: number): number {
 	);
 }
 export function flurryCooldown(level: number): number {
-	return 6 - (3 * (cappedSkillLevel(level) - 1)) / 98;
+	return 8 - (3 * (cappedSkillLevel(level) - 1)) / 98;
 }
 export function forceFieldRange(level: number): number {
 	return 200 + (cappedSkillLevel(level) - 1) * (600 / 98);

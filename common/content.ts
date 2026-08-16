@@ -162,11 +162,11 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "bash",
 		label: "Bash",
 		damageMultiplier: 1.5,
-		cooldown: 5,
-		range: 105,
+		cooldown: 8,
+		range: 52.5,
 		resource: "rage",
 		description:
-			"A heavy full-circle strike that always stuns for 1.1 seconds, with cooldown scaling from 6s to 3s between levels 1 and 99.",
+			"A focused full-circle strike that always stuns for 1.1 seconds, with cooldown scaling from 8s to 5s between levels 1 and 99.",
 	},
 	sweep: {
 		id: "sweep",
@@ -182,11 +182,11 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "flurry",
 		label: "Flurry",
 		damageMultiplier: 0.8,
-		cooldown: 6,
-		range: 105,
+		cooldown: 8,
+		range: 52.5,
 		resource: "rage",
 		description:
-			"A fast dagger attack with shortened recovery, a wide close-range arc, and a cooldown that scales from 6s to 3s between levels 1 and 99.",
+			"A fast dagger attack with shortened recovery, a focused close-range arc, and a cooldown that scales from 8s to 5s between levels 1 and 99.",
 	},
 	shockwave: {
 		id: "shockwave",
@@ -202,11 +202,11 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		id: "cleave",
 		label: "Cleave",
 		damageMultiplier: 0.3625,
-		cooldown: 6,
+		cooldown: 8,
 		range: 100,
 		resource: "rage",
 		description:
-			"A wide, forceful axe cleave with 2× knockback that inflicts a 6-second bleed. Range scales from 1m to 10m and its attack arc widens from 45° to 270° between levels 1 and 99.",
+			"A focused, forceful axe cleave with 2× knockback that inflicts a 6-second bleed. Range scales from 0.5m to 5m and its attack arc widens from 22.5° to 135° between levels 1 and 99.",
 	},
 	whirlwind: {
 		id: "whirlwind",
