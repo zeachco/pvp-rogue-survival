@@ -190,6 +190,7 @@ export class Hud {
   private onlinePlayerCount = 0;
   private accountCharacters: HeroSummary[] = [];
   private selectedAccountCharacterId?: string;
+  private characterSelectorSelectionCommitted = false;
   private readonly onlineCount = (<div class="online-count" />) as HTMLElement;
   private readonly loginHeaderActions = (
     <nav class="header-login-actions" aria-label="Header actions" />
@@ -926,6 +927,7 @@ export class Hud {
       true,
     );
     this.selectedAccountCharacterId = this.player.id;
+    this.characterSelectorSelectionCommitted = false;
     this.renderCharacterSelector();
     this.characterSelector.classList.remove("is-hidden");
   }
@@ -3222,6 +3224,7 @@ export class Hud {
   private closeCharacterSelector(): void {
     if (this.characterSelector.classList.contains("is-hidden")) return;
     this.characterSelector.classList.add("is-hidden");
+    this.characterSelectorSelectionCommitted = false;
     this.callbacks.onBack();
   }
   private createCharacter(): void {
@@ -3275,13 +3278,32 @@ export class Hud {
         ) as HTMLButtonElement;
         card.onclick = () => {
           this.selectedAccountCharacterId = hero.id;
+          this.characterSelectorSelectionCommitted = true;
+          this.setPanelCollapsed(
+            this.characterPanel,
+            this.characterToggle,
+            "character",
+            false,
+          );
+          this.setPanelCollapsed(
+            this.inventoryPanel,
+            this.inventoryToggle,
+            "inventory",
+            false,
+          );
+          if (active) this.callbacks.onBack();
+          else this.callbacks.onInspectHero(hero.id);
           this.renderCharacterSelector();
         };
         card.onmouseenter = () => {
+          if (this.characterSelectorSelectionCommitted) return;
           if (active) this.callbacks.onBack();
           else this.callbacks.onInspectHero(hero.id);
         };
-        card.onmouseleave = this.callbacks.onBack;
+        card.onmouseleave = () => {
+          if (!this.characterSelectorSelectionCommitted)
+            this.callbacks.onBack();
+        };
         return card;
       }),
     );

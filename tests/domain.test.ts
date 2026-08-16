@@ -3621,6 +3621,44 @@ test("collapses both side panels before showing the character selector", async (
 	);
 });
 
+test("commits character-selector stats and opens both build panels", async () => {
+	const source = await Bun.file(
+		new URL("../src/ui/Hud.tsx", import.meta.url),
+	).text();
+	const renderStart = source.indexOf("private renderCharacterSelector(): void");
+	const renderSelector = source.slice(
+		renderStart,
+		source.indexOf("private renderPresenceSummary", renderStart),
+	);
+	expect(renderSelector).toContain(
+		"this.characterSelectorSelectionCommitted = true",
+	);
+	expect(renderSelector).toMatch(
+		/this\.characterToggle,\s*"character",\s*false,/,
+	);
+	expect(renderSelector).toMatch(
+		/this\.inventoryToggle,\s*"inventory",\s*false,/,
+	);
+	expect(renderSelector).toContain(
+		"else this.callbacks.onInspectHero(hero.id)",
+	);
+	expect(renderSelector).toContain(
+		"if (this.characterSelectorSelectionCommitted) return",
+	);
+	expect(renderSelector).toMatch(
+		/if \(!this\.characterSelectorSelectionCommitted\)\s*this\.callbacks\.onBack\(\)/,
+	);
+
+	const closeStart = source.indexOf("private closeCharacterSelector(): void");
+	const closeSelector = source.slice(
+		closeStart,
+		source.indexOf("private createCharacter", closeStart),
+	);
+	expect(
+		closeSelector.indexOf("this.characterSelectorSelectionCommitted = false"),
+	).toBeLessThan(closeSelector.indexOf("this.callbacks.onBack()"));
+});
+
 test("describes panel toggle actions with their primary shortcuts", () => {
 	expect(panelToggleTooltip("character", false)).toBe(
 		"Collapse character sheet (C)",
