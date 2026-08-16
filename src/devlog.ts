@@ -37,6 +37,15 @@ const futureRequests = document.querySelector(
 const requestFilters = document.querySelector(
 	"#request-filters",
 ) as HTMLElement;
+const requestEditModal = document.querySelector(
+	"#request-edit-modal",
+) as HTMLDialogElement;
+const requestEditForm = document.querySelector(
+	"#request-edit-form",
+) as HTMLFormElement;
+const requestEditStatus = document.querySelector(
+	"#request-edit-status",
+) as HTMLElement;
 const sessionStorage = new SessionStorage();
 let voteChoices = loadVoteChoices();
 let requests: DevlogRequest[] = [];
@@ -44,6 +53,7 @@ let isModerator = false;
 let completionFilter: CommunityRequestCompletionFilter = "all";
 let ownershipFilter: "all" | "mine" | "others" = "all";
 let selectedWeekKey = weeks.at(-1)?.key ?? "";
+let editedRequest: DevlogRequest | undefined;
 
 function element<K extends keyof HTMLElementTagNameMap>(
 	name: K,
@@ -390,49 +400,79 @@ function deleteButton(
 function editButton(request: DevlogRequest): HTMLButtonElement {
 	const button = element("button", "Edit", "request-edit");
 	button.type = "button";
-	button.onclick = async () => {
-		const kind = prompt("Request type: feature, bug, or balance", request.kind);
-		if (kind === null) return;
-		if (kind !== "feature" && kind !== "bug" && kind !== "balance") {
-			requestStatus.textContent = "Choose feature, bug, or balance.";
-			requestStatus.className = "error";
-			return;
-		}
-		const title = prompt("Request title", request.title);
-		if (title === null) return;
-		const description = prompt("Request details", request.description);
-		if (description === null) return;
-		button.disabled = true;
-		try {
-			const response = await fetch(
-				apiUrl(`/api/devlog/requests/${request.id}`),
-				{
-					method: "PATCH",
-					headers: authenticatedHeaders(),
-					body: JSON.stringify({ kind, title, description }),
-				},
-			);
-			const result = (await response.json()) as {
-				request?: DevlogRequest;
-				error?: string;
-			};
-			if (!response.ok || !result.request)
-				throw new Error(result.error ?? "Edit failed.");
-			requests = requests.map((entry) =>
-				entry.id === result.request?.id ? result.request : entry,
-			);
-			requestStatus.textContent = "Request updated.";
-			requestStatus.className = "success";
-			renderRequests();
-		} catch (error) {
-			requestStatus.textContent =
-				error instanceof Error ? error.message : "Edit failed.";
-			requestStatus.className = "error";
-			button.disabled = false;
-		}
+	button.onclick = () => {
+		editedRequest = request;
+		(requestEditForm.elements.namedItem("kind") as HTMLSelectElement).value =
+			request.kind;
+		(requestEditForm.elements.namedItem("title") as HTMLInputElement).value =
+			request.title;
+		(
+			requestEditForm.elements.namedItem("description") as HTMLTextAreaElement
+		).value = request.description;
+		requestEditStatus.textContent = "";
+		requestEditStatus.className = "";
+		requestEditModal.showModal();
 	};
 	return button;
 }
+
+function closeRequestEditModal(): void {
+	editedRequest = undefined;
+	requestEditModal.close();
+}
+
+for (const button of requestEditModal.querySelectorAll<HTMLButtonElement>(
+	"[data-edit-cancel]",
+))
+	button.onclick = closeRequestEditModal;
+
+requestEditModal.addEventListener("click", (event) => {
+	if (event.target === requestEditModal) closeRequestEditModal();
+});
+
+submitFormOnEnter(requestEditForm);
+requestEditForm.addEventListener("submit", async (event) => {
+	event.preventDefault();
+	if (!editedRequest) return;
+	const submit = requestEditForm.querySelector(
+		"button[type=submit]",
+	) as HTMLButtonElement;
+	submit.disabled = true;
+	requestEditStatus.textContent = "Saving…";
+	requestEditStatus.className = "";
+	const values = new FormData(requestEditForm);
+	const requestId = editedRequest.id;
+	try {
+		const response = await fetch(apiUrl(`/api/devlog/requests/${requestId}`), {
+			method: "PATCH",
+			headers: authenticatedHeaders(),
+			body: JSON.stringify({
+				kind: values.get("kind"),
+				title: values.get("title"),
+				description: values.get("description"),
+			}),
+		});
+		const result = (await response.json()) as {
+			request?: DevlogRequest;
+			error?: string;
+		};
+		if (!response.ok || !result.request)
+			throw new Error(result.error ?? "Edit failed.");
+		requests = requests.map((entry) =>
+			entry.id === result.request?.id ? result.request : entry,
+		);
+		requestStatus.textContent = "Request updated.";
+		requestStatus.className = "success";
+		closeRequestEditModal();
+		renderRequests();
+	} catch (error) {
+		requestEditStatus.textContent =
+			error instanceof Error ? error.message : "Edit failed.";
+		requestEditStatus.className = "error";
+	} finally {
+		submit.disabled = false;
+	}
+});
 
 function voteButton(
 	request: DevlogRequest,

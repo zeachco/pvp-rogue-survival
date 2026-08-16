@@ -3315,6 +3315,20 @@ test("shows community request authors, voters, ownership filters, and pending ow
 	expect(devlogSource).toContain("editButton(request)");
 });
 
+test("edits a proposed community request in the creation-style modal", async () => {
+	const [documentSource, devlogSource] = await Promise.all([
+		Bun.file(new URL("../index.html", import.meta.url)).text(),
+		Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
+	]);
+	expect(documentSource).toContain('id="request-edit-modal"');
+	expect(documentSource).toContain('id="request-edit-form"');
+	expect(documentSource).toContain('minlength="3" maxlength="100"');
+	expect(documentSource).toContain('minlength="10" maxlength="1024"');
+	expect(devlogSource).toContain("requestEditModal.showModal()");
+	expect(devlogSource).toContain("submitFormOnEnter(requestEditForm)");
+	expect(devlogSource).not.toContain('prompt("Request type:');
+});
+
 test("wraps Devlog request metadata between complete labels", async () => {
 	const devlogStyles = await Bun.file(
 		new URL("../src/devlog.css", import.meta.url),
