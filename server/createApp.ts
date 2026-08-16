@@ -562,6 +562,21 @@ async function serveRequest(
 				json(response, 401, { error: "Log in to edit a request." });
 				return;
 			}
+			if (input?.completed === false) {
+				const reopened = await devlogRequests.requireMoreWork(
+					deleteMatch[1],
+					accountId,
+					isModerator(accountId),
+				);
+				if (!reopened) {
+					json(response, 403, {
+						error: "Only the proposer or a moderator can require more work.",
+					});
+					return;
+				}
+				json(response, 200, { request: publicRequest(reopened, accountId) });
+				return;
+			}
 			const validated = parseDevlogRequestInput(input, false);
 			if (!validated) {
 				json(response, 400, {
@@ -573,6 +588,7 @@ async function serveRequest(
 				deleteMatch[1],
 				accountId,
 				validated,
+				isModerator(accountId),
 			);
 			if (!updated) {
 				json(response, 403, {

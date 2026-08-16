@@ -337,7 +337,10 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	);
 	if (request.completed)
 		meta.append(element("span", "Done with AI", "request-completed"));
-	if (request.ownedByViewer && !request.completed)
+	if (request.completed && (request.ownedByViewer || isModerator)) {
+		meta.append(requireMoreWorkButton(request));
+		if (isModerator) meta.append(deleteButton(request, true));
+	} else if (request.ownedByViewer && !request.completed)
 		meta.append(editButton(request), deleteButton(request, false));
 	else if (isModerator) meta.append(deleteButton(request, true));
 	copy.append(
@@ -356,6 +359,41 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	votes.append(voterNames);
 	card.append(copy, votes);
 	return card;
+}
+
+function requireMoreWorkButton(request: DevlogRequest): HTMLButtonElement {
+	const button = element("button", "Require more work", "request-edit");
+	button.type = "button";
+	button.onclick = async () => {
+		button.disabled = true;
+		try {
+			const response = await fetch(
+				apiUrl(`/api/devlog/requests/${request.id}`),
+				{
+					method: "PATCH",
+					headers: authenticatedHeaders(),
+					body: JSON.stringify({ completed: false }),
+				},
+			);
+			const result = (await response.json()) as {
+				request?: DevlogRequest;
+				error?: string;
+			};
+			if (!response.ok || !result.request)
+				throw new Error(result.error ?? "Could not require more work.");
+			requests = requests.map((entry) =>
+				entry.id === result.request?.id ? result.request : entry,
+			);
+			renderRequests();
+			openRequestEditModal(result.request);
+		} catch (error) {
+			requestStatus.textContent =
+				error instanceof Error ? error.message : "Could not require more work.";
+			requestStatus.className = "error";
+			button.disabled = false;
+		}
+	};
+	return button;
 }
 
 function deleteButton(
@@ -400,20 +438,22 @@ function deleteButton(
 function editButton(request: DevlogRequest): HTMLButtonElement {
 	const button = element("button", "Edit", "request-edit");
 	button.type = "button";
-	button.onclick = () => {
-		editedRequest = request;
-		(requestEditForm.elements.namedItem("kind") as HTMLSelectElement).value =
-			request.kind;
-		(requestEditForm.elements.namedItem("title") as HTMLInputElement).value =
-			request.title;
-		(
-			requestEditForm.elements.namedItem("description") as HTMLTextAreaElement
-		).value = request.description;
-		requestEditStatus.textContent = "";
-		requestEditStatus.className = "";
-		requestEditModal.showModal();
-	};
+	button.onclick = () => openRequestEditModal(request);
 	return button;
+}
+
+function openRequestEditModal(request: DevlogRequest): void {
+	editedRequest = request;
+	(requestEditForm.elements.namedItem("kind") as HTMLSelectElement).value =
+		request.kind;
+	(requestEditForm.elements.namedItem("title") as HTMLInputElement).value =
+		request.title;
+	(
+		requestEditForm.elements.namedItem("description") as HTMLTextAreaElement
+	).value = request.description;
+	requestEditStatus.textContent = "";
+	requestEditStatus.className = "";
+	requestEditModal.showModal();
 }
 
 function closeRequestEditModal(): void {

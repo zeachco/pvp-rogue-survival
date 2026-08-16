@@ -43,8 +43,14 @@ export interface DevlogRequestStore {
 		id: string,
 		proposerId: string,
 		input: Pick<DevlogRequest, "kind" | "title" | "description">,
+		moderator?: boolean,
 	): Promise<DevlogRequest | undefined>;
 	complete(id: string): Promise<DevlogRequest | undefined>;
+	requireMoreWork(
+		id: string,
+		accountId: string,
+		moderator: boolean,
+	): Promise<DevlogRequest | undefined>;
 	delete(id: string): Promise<boolean>;
 	close?(): Promise<void>;
 }
@@ -142,14 +148,15 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 		id: string,
 		proposerId: string,
 		input: Pick<DevlogRequest, "kind" | "title" | "description">,
+		moderator = false,
 	): Promise<DevlogRequest | undefined> {
 		const owned = await this.sql<Array<{ id: string }>>`
-			SELECT id FROM devlog_requests WHERE id = ${id} AND proposer_id = ${proposerId} AND completed = FALSE
+			SELECT id FROM devlog_requests WHERE id = ${id} AND (proposer_id = ${proposerId} OR ${moderator}) AND completed = FALSE
 		`;
 		if (!owned.length) return undefined;
 		await this.sql`
 			UPDATE devlog_requests SET kind = ${input.kind}, title = ${input.title}, description = ${input.description}
-			WHERE id = ${id} AND proposer_id = ${proposerId} AND completed = FALSE
+			WHERE id = ${id} AND (proposer_id = ${proposerId} OR ${moderator}) AND completed = FALSE
 		`;
 		const rows = await this.rows(id);
 		return rows[0] ? fromRow(rows[0]) : undefined;
@@ -162,6 +169,20 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 		`;
 		const rows = await this.rows(id);
 		return rows[0] ? fromRow(rows[0]) : undefined;
+	}
+
+	async requireMoreWork(
+		id: string,
+		accountId: string,
+		moderator: boolean,
+	): Promise<DevlogRequest | undefined> {
+		await this.sql`
+			UPDATE devlog_requests SET completed = FALSE
+			WHERE id = ${id} AND completed = TRUE AND (proposer_id = ${accountId} OR ${moderator})
+		`;
+		const rows = await this.rows(id);
+		const request = rows[0] ? fromRow(rows[0]) : undefined;
+		return request && !request.completed ? request : undefined;
 	}
 
 	async delete(id: string): Promise<boolean> {
@@ -315,6 +336,22 @@ export class InMemoryDevlogRequestStore implements DevlogRequestStore {
 		return request;
 	}
 
+	async requireMoreWork(
+		id: string,
+		accountId: string,
+		moderator: boolean,
+	): Promise<DevlogRequest | undefined> {
+		const request = this.requests.get(id);
+		if (
+			!request ||
+			!request.completed ||
+			(request.proposerId !== accountId && !moderator)
+		)
+			return undefined;
+		request.completed = false;
+		return request;
+	}
+
 	async vote(
 		id: string,
 		voterId: string,
@@ -356,9 +393,14 @@ export class InMemoryDevlogRequestStore implements DevlogRequestStore {
 		id: string,
 		proposerId: string,
 		input: Pick<DevlogRequest, "kind" | "title" | "description">,
+		moderator = false,
 	): Promise<DevlogRequest | undefined> {
 		const request = this.requests.get(id);
-		if (!request || request.completed || request.proposerId !== proposerId)
+		if (
+			!request ||
+			request.completed ||
+			(request.proposerId !== proposerId && !moderator)
+		)
 			return undefined;
 		Object.assign(request, input);
 		return request;

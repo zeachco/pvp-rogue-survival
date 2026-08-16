@@ -73,16 +73,45 @@ describe("devlog requests", () => {
 				description: "Completed requests cannot be edited.",
 			}),
 		).toBeUndefined();
+		expect(
+			await store.requireMoreWork(request.id, "account-mallory", false),
+		).toBeUndefined();
+		expect(
+			await store.requireMoreWork(request.id, "account-alice", false),
+		).toMatchObject({ id: request.id, completed: false });
+		expect(
+			await store.update(request.id, "account-alice", {
+				kind: "feature",
+				title: "Gamepad support retry",
+				description: "Clarify the remaining gamepad compatibility work.",
+			}),
+		).toMatchObject({ title: "Gamepad support retry" });
+		expect(await store.complete(request.id)).toMatchObject({ completed: true });
+		expect(
+			await store.requireMoreWork(request.id, "account-moderator", true),
+		).toMatchObject({ completed: false });
+		expect(
+			await store.update(
+				request.id,
+				"account-moderator",
+				{
+					kind: "feature",
+					title: "Gamepad support needs more work",
+					description: "Document the remaining controller compatibility issue.",
+				},
+				true,
+			),
+		).toMatchObject({ title: "Gamepad support needs more work" });
 		await store.close();
 
 		const restored = await SqlDevlogRequestStore.open(url);
 		expect(await restored.list()).toEqual([
 			expect.objectContaining({
 				id: request.id,
-				title: "Gamepad support",
+				title: "Gamepad support needs more work",
 				downvotes: 1,
 				score: -1,
-				completed: true,
+				completed: false,
 				proposerName: "Alice",
 				downvoterNames: ["Bob"],
 			}),
@@ -279,6 +308,20 @@ describe("devlog requests", () => {
 		} finally {
 			await app.close();
 		}
+	});
+
+	test("requires an active proposer or moderator to return completed work to editing", async () => {
+		const [serverSource, devlogSource] = await Promise.all([
+			Bun.file(new URL("../server/createApp.ts", import.meta.url)).text(),
+			Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
+		]);
+		expect(serverSource).toContain("if (input?.completed === false)");
+		expect(serverSource).toContain("isModerator(accountId)");
+		expect(serverSource).toContain(
+			"Only the proposer or a moderator can require more work.",
+		);
+		expect(devlogSource).toContain('"Require more work"');
+		expect(devlogSource).toContain("openRequestEditModal(result.request)");
 	});
 
 	test("allows production request APIs from local development origins only", () => {
