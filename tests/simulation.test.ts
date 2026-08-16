@@ -27,6 +27,7 @@ import {
 	type Stats,
 	ZERO_STATS,
 } from "../common/progression";
+import type { PlayerProgress } from "../common/protocol";
 import { SeededRandom } from "../common/random";
 import { ArenaState } from "../src/game/ArenaState";
 import { AttackArea } from "../src/game/AttackArea";
@@ -146,10 +147,13 @@ import {
 	THUNDER_IMPACT_LIGHT_INTENSITY,
 	THUNDER_IMPACT_LIGHT_OFFSET,
 	DEATH_BURST_LIGHT_INTENSITY,
+	DEATH_BURST_DURATION,
+	DEATH_BURST_EXPANSION_DURATION,
+	deathBurstExpansion,
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
 
-import { DEATH_BURST_DURATION } from "../src/game/systems/AuraSystem";
+import { AuraSystem } from "../src/game/systems/AuraSystem";
 import { resolveCombat } from "../src/game/systems/combat";
 import {
 	basicWeaponHitCount,
@@ -1827,7 +1831,9 @@ describe("arena systems", () => {
 			"death-burst-stain",
 		) as THREE.Mesh;
 		expect(stain).toBeInstanceOf(THREE.Mesh);
-		expect(stain.scale.y).toBe(0.72);
+		expect(stain.scale.x).toBe(1);
+		expect(stain.scale.y).toBe(1);
+		expect((stain.geometry as THREE.CircleGeometry).parameters.radius).toBe(0);
 		expect(
 			deathBurstVisuals.children.filter((child) =>
 				child.name.startsWith("death-burst-particle-"),
@@ -1841,7 +1847,20 @@ describe("arena systems", () => {
 		expect(deathBurstLight.color.getHex()).toBe(0xff1838);
 		expect(deathBurstLight.position.toArray()).toEqual([70, 80, 18]);
 		expect(deathBurstLight.intensity).toBe(DEATH_BURST_LIGHT_INTENSITY);
-		deathBurst.update(0.45);
+		deathBurst.update(DEATH_BURST_EXPANSION_DURATION / 2);
+		deathBurst.updateVisuals(0);
+		const halfStain = (
+			deathBurst.mesh.children[0] as THREE.Group
+		).getObjectByName("death-burst-stain") as THREE.Mesh;
+		expect(
+			(halfStain.geometry as THREE.CircleGeometry).parameters.radius,
+		).toBeCloseTo(45);
+		expect(
+			deathBurstExpansion(
+				DEATH_BURST_EXPANSION_DURATION / 2 / DEATH_BURST_DURATION,
+			),
+		).toBeCloseTo(0.5);
+		deathBurst.update(DEATH_BURST_EXPANSION_DURATION / 2);
 		flashPool.sync(["deathBurst"], [deathBurst], 0.45);
 		expect(deathBurstLight.intensity).toBe(0);
 		deathBurst.update(DEATH_BURST_DURATION - 0.45);
@@ -3797,6 +3816,43 @@ function makeCreep(
 		new SeededRandom(1),
 	);
 }
+
+describe("Death Burst", () => {
+	test("queues damage until the fixed update after a nearby death", () => {
+		const hero = new Hero({ x: 0, y: 0 });
+		hero.configureStats(ZERO_STATS);
+		hero.knownSkills.add("deathBurst");
+		hero.skillLevels.set("deathBurst", 1);
+		const dead = makeCreep("dead", { x: 20, y: 0 });
+		const target = makeCreep("target", { x: 30, y: 0 });
+		dead.takeDamage(dead.hp);
+		const targetHp = target.hp;
+		const progress: PlayerProgress = {
+			level: 1,
+			xp: 0,
+			stats: { ...ZERO_STATS },
+			allocation: { ...DEFAULT_ALLOCATION },
+			gold: 0,
+			souls: 0,
+			scraps: emptyScraps(),
+			inventoryTiles: [],
+			learnedSkills: ["deathBurst"],
+			learnedSkillLevels: { deathBurst: 1 },
+			universalSkills: [],
+		};
+		const effects: SpellEffect[] = [];
+		const auras = new AuraSystem();
+		const random = new SeededRandom(1);
+
+		auras.resolveDeaths(hero, progress, [dead, target], random, effects);
+		expect(effects).toHaveLength(1);
+		expect(target.hp).toBe(targetHp);
+
+		auras.resolveDeaths(hero, progress, [dead, target], random, effects);
+		expect(target.hp).toBeCloseTo(targetHp - dead.maxHp * 0.2);
+		expect(effects).toHaveLength(1);
+	});
+});
 
 describe("Unique rarity arena effects", () => {
 	test("a Unique staff doubles Arcane Bolt's explosion radius and applies Freeze", () => {

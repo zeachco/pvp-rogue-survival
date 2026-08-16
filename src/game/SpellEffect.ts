@@ -27,6 +27,16 @@ export const THUNDER_IMPACT_LIGHT_INTENSITY = 180;
 export const THUNDER_IMPACT_LIGHT_COLOR = 0xfafaff;
 export const THUNDER_IMPACT_LIGHT_OFFSET = 18;
 export const DEATH_BURST_LIGHT_INTENSITY = 240;
+export const DEATH_BURST_EXPANSION_DURATION = 0.45;
+export const DEATH_BURST_DURATION = 3;
+
+export function deathBurstExpansion(progress: number): number {
+	return Math.min(
+		1,
+		Math.max(0, progress) *
+			(DEATH_BURST_DURATION / DEATH_BURST_EXPANSION_DURATION),
+	);
+}
 
 export function elbowHeight(modelHeight: number): number {
 	return Math.max(0, modelHeight) * ELBO_HEIGHT;
@@ -237,8 +247,9 @@ function deathBurst(
 	progress: number,
 	radius: number,
 ): void {
+	const expansion = deathBurstExpansion(progress);
 	const stain = new THREE.Mesh(
-		new THREE.CircleGeometry(Math.max(36, radius), 48),
+		new THREE.CircleGeometry(radius * expansion, 48),
 		new THREE.MeshBasicMaterial({
 			color: 0x8f071b,
 			transparent: true,
@@ -248,7 +259,6 @@ function deathBurst(
 		}),
 	);
 	stain.name = "death-burst-stain";
-	stain.scale.set(1, 0.72, 1);
 	stain.renderOrder = Z_EFFECT;
 	group.add(stain);
 
@@ -260,7 +270,7 @@ function deathBurst(
 	});
 	for (let index = 0; index < 18; index += 1) {
 		const angle = index * 2.399;
-		const distance = radius * progress * (0.35 + (index % 4) * 0.14);
+		const distance = radius * expansion * (0.35 + (index % 4) * 0.14);
 		const particle = new THREE.Mesh(
 			new THREE.CircleGeometry(2 + (index % 3), 8),
 			particleMaterial,

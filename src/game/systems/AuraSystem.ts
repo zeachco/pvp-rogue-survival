@@ -16,7 +16,11 @@ import {
 } from "../../../common/unitState";
 import type { Creep } from "../Creep";
 import type { Hero } from "../Hero";
-import { SpellEffect, THUNDER_IMPACT_DURATION } from "../SpellEffect";
+import {
+	DEATH_BURST_DURATION,
+	SpellEffect,
+	THUNDER_IMPACT_DURATION,
+} from "../SpellEffect";
 import { distance } from "../types";
 import { effectiveSkillLevel } from "./HeroCombatSystem";
 
@@ -24,6 +28,11 @@ export class AuraSystem {
 	private sunburnRemaining = 0;
 	private thunderRemaining = 0;
 	private readonly burst = new WeakSet<Creep>();
+	private pendingBursts: Array<{
+		position: { x: number; y: number };
+		radius: number;
+		damage: number;
+	}> = [];
 	collectEffects(
 		hero: Hero,
 		progress: PlayerProgress,
@@ -142,6 +151,17 @@ export class AuraSystem {
 		random: RandomSource,
 		spellEffects: SpellEffect[],
 	): void {
+		for (const pending of this.pendingBursts)
+			for (const target of creeps)
+				if (
+					target.active &&
+					distance(pending.position, target.position) <= pending.radius
+				)
+					target.receiveDamage(pending.damage, random, hero, false, false, {
+						kind: "magic",
+					});
+		this.pendingBursts = [];
+
 		const level = hero.isSkillOperational("deathBurst")
 			? effectiveSkillLevel(progress, "deathBurst")
 			: 0;
@@ -165,15 +185,11 @@ export class AuraSystem {
 						true,
 					),
 				);
-				for (const target of creeps)
-					if (
-						target.active &&
-						target !== dead &&
-						distance(dead.position, target.position) <= radius * 0.45
-					)
-						target.receiveDamage(dead.maxHp * 0.2, random, hero, false, false, {
-							kind: "magic",
-						});
+				this.pendingBursts.push({
+					position: { ...dead.position },
+					radius: radius * 0.45,
+					damage: dead.maxHp * 0.2,
+				});
 			}
 	}
 	reduceCooldowns(seconds: number): void {
@@ -183,10 +199,9 @@ export class AuraSystem {
 	reset(): void {
 		this.sunburnRemaining = 0;
 		this.thunderRemaining = 0;
+		this.pendingBursts = [];
 	}
 }
-
-export const DEATH_BURST_DURATION = 3;
 
 function thunderImpact(target: Creep): SpellEffect {
 	return new SpellEffect(
