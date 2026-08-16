@@ -175,6 +175,7 @@ Rarity powers are Common 1, Uncommon 1.25, Rare 1.6, and Epic 2.1. A seeded rari
 
 ### Spell extraction and catalog discovery
 
+- Extraction is unavailable when any spell affected by that extraction is already at the permanent maximum level of 99. The inventory Extract action is disabled in that state, and the server rejects stale or forged extraction requests without spending Gold or consuming the item.
 - Hovering or focusing Extract previews each affected spell's permanently learned maximum after the action: the rail badge replaces its ordinary current/effective level with `min(99, current learned maximum + 1)` in green. If any affected spell is outside the currently visible equipped/passive rail, the rail's `...` spell-hub trigger turns green so the hidden projected change remains discoverable.
 - The K spell hub includes a search field. Its case-insensitive query filters cards by spell name, stable id, description, and resource label while composing with the existing Type and Learning filters; empty resource sections remain hidden.
 

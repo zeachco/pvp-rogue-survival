@@ -258,9 +258,14 @@ export function itemTile(
 	bindBulk(4, callbacks.onReroll);
 	bindBulk(5, callbacks.onExtract);
 	const extractButton = buttons[5] as HTMLButtonElement | undefined;
-	if (extractButton && extractStatus === "needs-gold") {
-		extractButton.disabled = true;
-		extractButton.title = `Extracting costs ${extractCost} gold`;
+	if (extractButton) {
+		if (extractStatus === "max-level") {
+			extractButton.disabled = true;
+			extractButton.title = "An extractable spell is already at max level";
+		} else if (extractStatus === "needs-gold") {
+			extractButton.disabled = true;
+			extractButton.title = `Extracting costs ${extractCost} gold`;
+		}
 	}
 	const upgraded = levelUpItem(item, item.seed);
 	const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!;

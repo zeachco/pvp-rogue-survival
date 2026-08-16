@@ -1253,6 +1253,31 @@ describe("permanent inventory", () => {
 		state.mainHand = item;
 		expect(extractButtonStatus(tile, state)).toBe("equipped-only");
 	});
+	test("blocks extraction when an affected spell is already at max level", () => {
+		const state = progress();
+		const item = generateItem(2, "unique", 83);
+		item.skills = ["shockwave", "blizzard"];
+		const tile = {
+			id: "maxed-extraction",
+			key: itemStackKey(item),
+			item,
+			quantity: 1,
+		};
+		state.inventoryTiles.push(tile);
+		state.learnedSkills.push("shockwave", "blizzard");
+		state.learnedSkillLevels.shockwave = 99;
+		state.learnedSkillLevels.blizzard = 4;
+		state.gold = 10_000;
+
+		expect(extractButtonStatus(tile, state)).toBe("max-level");
+		expect(extractFromInventory(state, tile.id)).toEqual({
+			changed: false,
+			reason: "An extractable spell is already at max level.",
+		});
+		expect(state.gold).toBe(10_000);
+		expect(tile.quantity).toBe(1);
+		expect(state.learnedSkillLevels.blizzard).toBe(4);
+	});
 	test("hides extraction for Common, Uncommon, and Rare items", () => {
 		const state = progress();
 		for (const rarity of ["common", "uncommon", "rare"] as const) {

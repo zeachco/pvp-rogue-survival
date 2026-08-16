@@ -1,10 +1,12 @@
 import { extractableSkills, extractionCost } from "../../common/inventory";
+import { MAX_SKILL_LEVEL } from "../../common/combat";
 import { itemStackKey } from "../../common/items";
 import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 
 export type ExtractButtonStatus =
 	| "hidden"
 	| "equipped-only"
+	| "max-level"
 	| "needs-gold"
 	| "available";
 
@@ -26,6 +28,12 @@ export function extractButtonStatus(
 ): ExtractButtonStatus {
 	const skills = extractableSkills(tile.item);
 	if (!skills.length) return "hidden";
+	if (
+		skills.some(
+			(skill) => (progress.learnedSkillLevels[skill] ?? 0) >= MAX_SKILL_LEVEL,
+		)
+	)
+		return "max-level";
 	const equippedCopies =
 		Number(itemStackKey(progress.mainHand) === tile.key) +
 		Number(

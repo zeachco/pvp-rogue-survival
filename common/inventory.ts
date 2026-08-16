@@ -450,6 +450,15 @@ export function extractFromInventory(
 	if (!carriedSkills.length)
 		return { changed: false, reason: "That item has no extractable skill." };
 	const skills = carriedSkills;
+	if (
+		skills.some(
+			(skill) => (progress.learnedSkillLevels[skill] ?? 0) >= MAX_SKILL_LEVEL,
+		)
+	)
+		return {
+			changed: false,
+			reason: "An extractable spell is already at max level.",
+		};
 	const newlyLearned = skills.filter(
 		(skill) => !progress.learnedSkills.includes(skill),
 	);
