@@ -1,43 +1,42 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-14T12:01:22.360Z",
+	"generatedAt": "2026-08-16T14:15:28.101Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Unique Economies & Deep UI Updates",
+			"summaryTitle": "Season of the Souls and Polish",
 			"summary": {
 				"features": [
-					"The Unique Item economy has been overhauled, replacing Unique Scraps with Souls and increasing the power of the Unique rarity.",
-					"- Players can now stake one Soul on defeat to gain player-killer rewards.",
-					"- Added resource tooltips and selectable realm starting waves for better preparation.",
-					"Devlog functionality was moved into the game interface (SPA routing), keeping the translucent Devlog visible in all realms, and adding support for history viewing.",
-					"Implemented a voting system within Devlogs/Feature Requests, restricted to logged-in players.",
-					"New gear options include unique bucklers and associated attributes. Also added two-handed weapon classes."
+					"The item economy is overhauled with the introduction of Souls, replacing Unique Scrap and increasing the power of Unique items. Players can now stake Souls on defeating enemies for potential rewards.",
+					"Improved Devlog functionality allows SPA routing, browser back support, and retains the translucent Devlog view in all realm states. New admin controls are also available for feature requests and general development.",
+					"A new unique buckler item and associated attributes have been added.",
+					"Players can now access improved Devlog voting and submission systems, limited to logged-in users.",
+					"The game features new item classes, including two-handed weapons, and robust authentication requirements for secure logins."
 				],
 				"bugfixes": [
-					"Fixed issues where inventory or chat could be opened while spells were active, preventing game flow disruption.",
-					"Corrected map boundaries so obstacles are more consistently circular in shape.",
-					"Resolved technical conflicts with item equipping; items that grant passive abilities via spells now correctly display and activate the procs.",
-					"Addressed visual bugs such as underground coin clipping, healing light displacement errors, and improper invader model reuse."
+					"The chat and inventory screens no longer interfere with each other's functionality.",
+					"Fixed issues where characters spawned in invalid locations (e.g., underground) or where coin graphics clipped through the map.",
+					"Echo self-messages have been corrected, ensuring players only see their own chat messages.",
+					"Specific bugs related to item equipping and spell procs were resolved, ensuring that all passive skills show and activate correctly on equipped items.",
+					"Multiple UI/UX fixes were applied, including improving the visibility and usability of various panels and providing clearer feedback during the login process."
 				],
 				"performance": [
-					"Significantly reduced rendering overhead by implementing a pooling system for light effects, optimizing the handling of numerous dynamic lights and shadows."
+					"Rendering performance has been optimized by creating a pool of light effect instances, significantly reducing the overhead of dynamic lighting and shadow calculations. Redundant asset rendering and shadow calculations have also been refined."
 				],
 				"balance": [
-					"The general magic system was streamlined by removing 'Magic Stat' in favor of Intelligence.",
-					"Combat abilities received tuning, including circularization for Katar and Swamp spells, and adjusting rapid regeneration mechanics."
+					"The core stat system has been updated: Magic stats are deprecated and now fall back to Intelligence. Spell mechanics were tuned to refine projectile and area effects (e.g., making swamp spells more circular). The resource generation rate for rapid regeneration has been increased.",
+					"Multi-hit spell proc chances and minimum level requirements for spells were adjusted to ensure a more balanced gameplay curve."
 				],
 				"ux": [
-					"Improved the Devlog experience with better responsiveness, mobile compatibility, and separated changelog updates into distinct categories.",
-					"The player interface now features cleaner visual standards, such as clarifying spell ownership colors (enemy/hero) and improving panel readability via specialized blurring effects.",
-					"New visibility enhancements were added for character stats, ensuring passive block values are correctly displayed in tooltips and panels.",
-					"Improved overall panel layouts for better screen utilization; advanced login security now features dedicated feedback mechanisms (success green, error red)."
+					"Devlog and general UI elements received major improvements, including better mobile responsiveness, clearer panel visibility, and refined type-setting for enhanced readability. Status effects are now grouped above the health bar for immediate player comprehension.",
+					"Authentication flow received comprehensive improvements, offering clear success or error feedback and robust password handling.",
+					"Spell ownership and effect visibility were clarified by applying distinct colors (red for enemies, purple for heroes) and ensuring skill-provided attributes are displayed correctly in the skill list."
 				],
 				"graphics": [
-					"Optimized rendering performance by adjusting dynamic shadow calculations and ensuring key elements like projectiles and gold remain unlit and outside shadow maps where appropriate."
+					"Visual presentations were refined to include better light and shadow handling, especially for spells. Audio experience received minor updates to ensure consistent environmental feedback and improved UI state changes."
 				]
 			},
 			"commits": [
@@ -678,7 +677,7 @@
 				"Performance",
 				"Balance",
 				"UX",
-				"Graphics"
+				"Graphics & Sounds"
 			]
 		}
 	]

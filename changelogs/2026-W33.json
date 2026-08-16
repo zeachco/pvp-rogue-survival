@@ -1,22 +1,174 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-14T12:01:22.523Z",
+	"generatedAt": "2026-08-16T14:15:28.226Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Midseason Update: Character & Content Polish",
+			"summaryTitle": "Arena Rework and Devlog Overhaul",
 			"summary": {
 				"features": [
-					"Implemented multiple character support with a shared stash, allowing seamless switching between account characters and preserving legacy heroes.",
-					"Revamped new player experience defaults, including automatic equipping of items and spells upon creation and improved hero roster functionality.",
-					"Enhanced the devlog portal by adding community request processing, status updates (including AI marking), and detailed explanations of the development process.",
-					"Added a full suite of immersive combat sounds and dynamic battle music, alongside major quality-of-life improvements for mobile touch controls and general UI alignment."
+					"The world has been significantly expanded, replacing the old rectangular board with a large, circular 30-meter radial arena for play.",
+					"New functionality allows players to receive resource bonuses immediately upon clearing enemy waves, bypassing prior cooldowns.",
+					"Development log tools have been enhanced with dedicated sections for graphics and sounds, alongside improved mechanisms to show and filter community-submitted player requests and suggestions."
+				],
+				"bugfixes": [
+					"Animation and visual effects for enemy explosions have been polished, including particle bursts and ground staining.",
+					"The game now correctly calculates camera framing when viewing multiple open HUD panels or character changes occur."
+				],
+				"performance": ["No major performance updates were noted this period."],
+				"balance": [
+					"Early-game progression has been strengthened by significantly increasing the regeneration multiplier in the first levels.",
+					"Spell extraction rules have been tightened, restricting the ability to extract skills from lower-rarity equipment, while unique items still allow full skill access."
+				],
+				"ux": [
+					"Development log usability was improved by standardizing metadata labels and providing clearer navigation for community request tracking."
+				],
+				"graphics": [
+					"General visual and audio polish improvements were applied across the system."
 				]
 			},
 			"commits": [
+				{
+					"hash": "96f2db5d6d6a96650dc5a4f18cdf290bae95c271",
+					"authoredAt": "2026-08-15T18:04:44-04:00",
+					"title": "feat(cursor): add world pointer tracker",
+					"description": "- track floor raycasts with a white low-poly pyramid\n- move the red marker above hovered enemies\n- document and test pointer tracker placement"
+				},
+				{
+					"hash": "7c3e4d36472b60515897ffcc4b540c259e77c4fe",
+					"authoredAt": "2026-08-15T17:58:52-04:00",
+					"title": "feat(releases): schedule weekly production promotions",
+					"description": "- promote validated main commits to production every Friday\\n- keep ordinary development pushes from triggering production releases\\n- add guarded, idempotent promotion checks and focused tests"
+				},
+				{
+					"hash": "cefdbfc5f09bb514571a9acb2c46e94cf3844987",
+					"authoredAt": "2026-08-15T12:13:59-04:00",
+					"title": "ux(devlog): align request metadata labels",
+					"description": "- wrap request metadata between complete labels\n- keep type, proposer, date, and completion labels intact\n- document and test responsive metadata layout"
+				},
+				{
+					"hash": "4fa95199d66e0c2d3583508f9e8f60a1e64ff8f6",
+					"authoredAt": "2026-08-15T12:01:40-04:00",
+					"title": "feat(arena): make world larger and radial",
+					"description": "- replace the rectangular board with a 30-meter circular arena\\n- use radial spawning, obstacle placement, and collision boundaries\\n- add focused arena geometry and boundary regression coverage"
+				},
+				{
+					"hash": "c4295f8fe9743419b51d7d915ace51c07f0a6aad",
+					"authoredAt": "2026-08-15T11:39:38-04:00",
+					"title": "fix(death-burst): animate enemy explosions",
+					"description": "- flash a pooled red light and scatter burst particles\n- fade a broad ground stain over three seconds\n- document and test the deterministic presentation"
+				},
+				{
+					"hash": "e5a03329ffbaad85997e4616a464f02b2a39c3f2",
+					"authoredAt": "2026-08-15T11:30:25-04:00",
+					"title": "feat(devlog): add graphics and sounds category",
+					"description": "- group visual, sound effect, and music updates together\n- share the category label between generation and rendering\n- cover prompt and generated tag behavior"
+				},
+				{
+					"hash": "725b5c3ba9f41150ca59c67661584284a0ca4bdc",
+					"authoredAt": "2026-08-15T11:26:22-04:00",
+					"title": "feat(waves): release cleared swarm waves immediately",
+					"description": "- bypass the Swarm cooldown after all active and pending enemies are gone\n- carry the cleared-wave state through the versioned protocol\n- cover cooldown and pending-spawn boundaries"
+				},
+				{
+					"hash": "ae58bcfbf926cbd090bf6735cf4649433e895fa6",
+					"authoredAt": "2026-08-15T05:52:03-04:00",
+					"title": "balance(rapid-regen): strengthen early levels",
+					"description": "- triple the level-one regeneration multiplier\n- linearly converge to the existing level 99 cap\n- document and test the updated scaling"
+				},
+				{
+					"hash": "e5e759b6d5bdc6945eff51b3d7867bf74388b855",
+					"authoredAt": "2026-08-15T02:12:45-04:00",
+					"title": "feat(devlog): show community request players",
+					"description": "- show proposers and named upvoters and downvoters\\n- add mine and others filters plus pending owner edit and delete actions\\n- persist request ownership and voter names with legacy-safe migrations"
+				},
+				{
+					"hash": "3aab04bb4530d5fd24250808a8f4511b2093e72e",
+					"authoredAt": "2026-08-14T20:41:14-04:00",
+					"title": "balance(spells): restrict skill extraction by rarity",
+					"description": "- hide extraction for common, uncommon, and rare equipment\n- roll one extractable Epic skill while Unique extracts every skill\n- cover rarity gating, selected-skill previews, and extraction progression"
+				},
+				{
+					"hash": "82aceef1507bf103c4728fd3e43852cbdc9e2ff3",
+					"authoredAt": "2026-08-14T20:16:24-04:00",
+					"title": "fix(hud): keep header tooltips above panels",
+					"description": ""
+				},
+				{
+					"hash": "a612026e6bb2c4f6844f2a2be2a9e0a999393c4b",
+					"authoredAt": "2026-08-14T19:07:53-04:00",
+					"title": "fix(spells): proc accessory active skills",
+					"description": "- show amulet and charm active spells as read-only geared procs\n- trigger accessory procs from attacks and incoming damage\n- cover Vampiric Boomerang projection and reactive activation"
+				},
+				{
+					"hash": "6d535ae0b980a00986a9301efb6fad64d3de32ef",
+					"authoredAt": "2026-08-14T17:21:34-04:00",
+					"title": "feat(spells): default catalog to learned actives",
+					"description": "- reset spell filters and search whenever the catalog opens\n- focus the spell search field on every open\n- document and test the updated catalog defaults"
+				},
+				{
+					"hash": "8f36d75b119725c2c997e9eee0e821770020faf3",
+					"authoredAt": "2026-08-14T17:18:05-04:00",
+					"title": "fix(camera): recalculate panel framing after refresh",
+					"description": "- remeasure open HUD panels after a joined character becomes visible\n- document and test refresh-time camera framing"
+				},
+				{
+					"hash": "e7362cff069cf7613ffe41b98461b1262a552da1",
+					"authoredAt": "2026-08-14T17:13:54-04:00",
+					"title": "feat(auth): add password change flow",
+					"description": "- add Change password to the Training Grounds menu\\n- reuse the password confirmation modal for authenticated changes\\n- hash and persist the replacement across account characters"
+				},
+				{
+					"hash": "f0f4c6eca841c4322cfcef04ed3b25f8748b8a00",
+					"authoredAt": "2026-08-14T17:09:03-04:00",
+					"title": "fix(graphics): stabilize blizzard and thunder lights",
+					"description": "- center Blizzard lighting without projectile interpolation\n- randomize bright-white Thunder lighting around each impact\n- cover pooled spell-light placement with focused tests"
+				},
+				{
+					"hash": "9cbbb6a7d4b95516e4ac8043c4ba03d4e2292d60",
+					"authoredAt": "2026-08-14T17:03:58-04:00",
+					"title": "fix(pvp): synchronize challenge realm defeat",
+					"description": "- broadcast authoritative duel outcomes to both players\n- stop stale duel simulation before normal waves resume\n- cover victory and defeat synchronization in server tests"
+				},
+				{
+					"hash": "75960fe1281e381845ed356bbf188b0aae0a0bfd",
+					"authoredAt": "2026-08-14T16:58:13-04:00",
+					"title": "fix(input): handle unavailable pointer capture",
+					"description": "- ignore expected browser pointer-capture state failures\n- preserve unexpected errors and cover capture behavior with focused tests"
+				},
+				{
+					"hash": "41ffc24cb3694a4e60cfde5c7a17fcd08e146969",
+					"authoredAt": "2026-08-14T16:52:35-04:00",
+					"title": "fix(attributes): prevent unchanged respec charges",
+					"description": "- disable reapply when the selected allocation matches the current ratio\n- reject unchanged respec messages before charging Gold\n- cover the HUD and authoritative server behavior"
+				},
+				{
+					"hash": "8b92948c2ca54c16d3bbf6ee16412447678109d3",
+					"authoredAt": "2026-08-14T16:46:23-04:00",
+					"title": "feat(devlog): added quick request filters",
+					"description": "- added a public filter to hide completed requests\n- added a moderator-only completed request view\n- kept completion filters compatible with search and queue ordering"
+				},
+				{
+					"hash": "0527e13760f9f73d5ef919e3519e6e7ceab5ca81",
+					"authoredAt": "2026-08-14T16:30:32-04:00",
+					"title": "balance(enemies): double agility speed scaling",
+					"description": ""
+				},
+				{
+					"hash": "c0512265b4774a21fdcd869d0aa88138a8d4025d",
+					"authoredAt": "2026-08-14T16:28:26-04:00",
+					"title": "balance(xp): reward higher-level enemy kills",
+					"description": "- grant 10% compounding bonus XP per enemy level above the hero\n- preserve existing solo and equipment reward modifiers\n- document and test the server-authoritative reward formula"
+				},
+				{
+					"hash": "7647575330053447f5cb429be576913738e244c7",
+					"authoredAt": "2026-08-14T08:05:00-04:00",
+					"title": "fix(ui): make mobile build panels accessible",
+					"description": "- scale character and inventory panels on touch layouts in portrait and landscape\\n- hide the movement joystick until a player has logged in\\n- document and test the responsive mobile HUD contract"
+				},
 				{
 					"hash": "908c528722a7592ae7c445c550411d7d70dd94dd",
 					"authoredAt": "2026-08-14T07:51:48-04:00",
@@ -252,7 +404,14 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics & Sounds"
+			]
 		}
 	]
 }
