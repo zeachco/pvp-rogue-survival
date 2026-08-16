@@ -10,7 +10,6 @@ import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";
 import { gameApiUrl } from "./navigation";
 import { SessionStorage } from "./platform/SessionStorage";
-import { submitFormOnEnter } from "./ui/keyboardFormSubmission";
 
 const files = import.meta.glob<string | WeeklyDevlog>("../changelogs/*.json", {
 	eager: true,
@@ -470,7 +469,6 @@ requestEditModal.addEventListener("click", (event) => {
 	if (event.target === requestEditModal) closeRequestEditModal();
 });
 
-submitFormOnEnter(requestEditForm);
 requestEditForm.addEventListener("submit", async (event) => {
 	event.preventDefault();
 	if (!editedRequest) return;
@@ -570,7 +568,6 @@ function voteButton(
 	return button;
 }
 
-submitFormOnEnter(requestForm);
 requestForm.addEventListener("submit", async (event) => {
 	event.preventDefault();
 	const submit = requestForm.querySelector(

@@ -3379,7 +3379,7 @@ test("edits a proposed community request in the creation-style modal", async () 
 	expect(documentSource).toContain('minlength="3" maxlength="100"');
 	expect(documentSource).toContain('minlength="10" maxlength="1024"');
 	expect(devlogSource).toContain("requestEditModal.showModal()");
-	expect(devlogSource).toContain("submitFormOnEnter(requestEditForm)");
+	expect(devlogSource).not.toContain("submitFormOnEnter(requestEditForm)");
 	expect(devlogSource).not.toContain('prompt("Request type:');
 });
 
@@ -3395,7 +3395,7 @@ test("wraps Devlog request metadata between complete labels", async () => {
 	);
 });
 
-test("submits forms with Enter while preserving shifted multiline input", () => {
+test("keeps custom Enter submission available for single-line login forms", () => {
 	expect(
 		isKeyboardFormSubmission({ key: "Enter", shiftKey: false }),
 	).toBeTrue();
@@ -3403,6 +3403,20 @@ test("submits forms with Enter while preserving shifted multiline input", () => 
 		isKeyboardFormSubmission({ key: "Enter", shiftKey: true }),
 	).toBeFalse();
 	expect(isKeyboardFormSubmission({ key: "Tab", shiftKey: false })).toBeFalse();
+});
+
+test("uses native HTML submission for community request forms", async () => {
+	const [documentSource, devlogSource] = await Promise.all([
+		Bun.file(new URL("../index.html", import.meta.url)).text(),
+		Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
+	]);
+	expect(documentSource).toMatch(
+		/<form id="request-form">[\s\S]*?<textarea name="description"[\s\S]*?<button type="submit">Submit request<\/button>[\s\S]*?<\/form>/,
+	);
+	expect(documentSource).toMatch(
+		/<form id="request-edit-form">[\s\S]*?<textarea name="description"[\s\S]*?<button type="submit">Save changes<\/button>[\s\S]*?<\/form>/,
+	);
+	expect(devlogSource).not.toContain("submitFormOnEnter");
 });
 
 test("explains the autonomous community-driven development loop", async () => {
