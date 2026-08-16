@@ -1824,7 +1824,14 @@ export class Hud {
           </span>
         ) : null}
         <span class="spell-tooltip-comparison">
-          {spellTooltipLevels(shownLevel, maxLearnedLevel).map(
+          {(this.spellPreviewKind === "extract" &&
+          this.spellPreview?.has(spell.id)
+            ? spellExtractionTooltipLevels(
+                maxLearnedLevel,
+                this.spellPreview.get(spell.id) ?? maxLearnedLevel,
+              )
+            : spellTooltipLevels(shownLevel, maxLearnedLevel)
+          ).map(
             ({ level, heading }) =>
               this.renderSkillProperties(spell, level, heading),
           )}
@@ -3984,6 +3991,21 @@ export function spellTooltipLevels(
 }
 export function extractedLearnedLevel(currentLearnedLevel: number): number {
   return cappedSkillLevel(currentLearnedLevel + 1);
+}
+export function spellExtractionTooltipLevels(
+  currentMaxLevel: number,
+  postExtractMaxLevel: number,
+): Array<{ heading: string; level: number }> {
+  return [
+    {
+      heading: "Current max level",
+      level: cappedSkillLevel(currentMaxLevel),
+    },
+    {
+      heading: "Post-extract max level",
+      level: cappedSkillLevel(postExtractMaxLevel),
+    },
+  ];
 }
 export function spellCatalogResourceOrder(
   resource: SpellSlot["resource"],

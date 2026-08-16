@@ -212,6 +212,7 @@ import {
 	effectTimeLabel,
 	equipSlotKeys,
 	extractedLearnedLevel,
+	spellExtractionTooltipLevels,
 	GOLD_TOOLTIP,
 	inspectedEquipment,
 	panelShortcut,
@@ -231,6 +232,7 @@ import {
 	xpSendBuffSummary,
 } from "../src/ui/Hud";
 import {
+	extractLevelTooltipText,
 	inventorySlotMatches,
 	orderInventoryTiles,
 } from "../src/ui/InventoryView";
@@ -543,6 +545,23 @@ test("previews extraction from the permanent learned maximum", () => {
 	expect(extractedLearnedLevel(0)).toBe(1);
 	expect(extractedLearnedLevel(5)).toBe(6);
 	expect(extractedLearnedLevel(99)).toBe(99);
+});
+
+test("limits extraction spell tooltips to current and post-extract maximums", () => {
+	expect(spellExtractionTooltipLevels(5, 6)).toEqual([
+		{ heading: "Current max level", level: 5 },
+		{ heading: "Post-extract max level", level: 6 },
+	]);
+	expect(spellExtractionTooltipLevels(99, 100)).toEqual([
+		{ heading: "Current max level", level: 99 },
+		{ heading: "Post-extract max level", level: 99 },
+	]);
+	expect(extractLevelTooltipText("Shockwave", 5)).toBe(
+		"Shockwave: max level 5 → 6",
+	);
+	expect(extractLevelTooltipText("Shockwave", 99)).toBe(
+		"Shockwave: max level 99 → 99",
+	);
 });
 
 test("ORs spell catalog filters within status and type groups, then ANDs the groups", () => {

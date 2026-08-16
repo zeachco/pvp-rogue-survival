@@ -1,5 +1,7 @@
 /** @jsx h */
 
+import { MAX_SKILL_LEVEL } from "../../common/combat";
+import { SKILLS } from "../../common/content";
 import {
 	extractableSkills,
 	extractionCost,
@@ -118,6 +120,19 @@ export function itemTile(
 							}
 						>
 							Extract
+							<span class="action-tooltip" role="tooltip">
+								{skills.map((skillId) => {
+									const current = Math.min(
+										MAX_SKILL_LEVEL,
+										progress.learnedSkillLevels[skillId] ?? 0,
+									);
+									return (
+										<span>
+											{extractLevelTooltipText(SKILLS[skillId].label, current)}
+										</span>
+									);
+								})}
+							</span>
 						</button>
 					) : null}
 				</div>
@@ -345,6 +360,14 @@ export function itemTile(
 		highlightExtractableSkills(true),
 	);
 	return node;
+}
+
+export function extractLevelTooltipText(
+	spellLabel: string,
+	currentLearnedLevel: number,
+): string {
+	const current = Math.max(0, Math.min(MAX_SKILL_LEVEL, currentLearnedLevel));
+	return `${spellLabel}: max level ${current} → ${Math.min(MAX_SKILL_LEVEL, current + 1)}`;
 }
 
 export const TOUCH_ACTION_HOLD_MS = 600;
