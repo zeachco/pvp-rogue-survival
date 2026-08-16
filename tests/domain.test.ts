@@ -217,6 +217,7 @@ import {
 	panelShortcut,
 	panelToggleTooltip,
 	passiveSkillMetrics,
+	routineNoticeSurface,
 	SOULS_TOOLTIP,
 	scrapTooltip,
 	spellCatalogSlotsById,
@@ -3582,4 +3583,19 @@ test("describes panel toggle actions with their primary shortcuts", () => {
 	);
 	expect(panelToggleTooltip("inventory", false)).toBe("Collapse inventory (V)");
 	expect(panelToggleTooltip("inventory", true)).toBe("Expand inventory (V)");
+});
+
+test("routes routine notices only to pre-game surfaces", async () => {
+	expect(routineNoticeSurface(false)).toBe("join");
+	expect(routineNoticeSurface(true)).toBe("authentication");
+
+	const hudSource = await Bun.file(
+		new URL("../src/ui/Hud.tsx", import.meta.url),
+	).text();
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(hudSource).not.toContain("notification-area");
+	expect(hudSource).not.toContain("noticeNode");
+	expect(styles).not.toContain(".notification-area");
 });

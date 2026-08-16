@@ -163,6 +163,12 @@ export function panelToggleTooltip(
   return `${action} ${kind === "character" ? "character sheet (C)" : "inventory (V)"}`;
 }
 
+export function routineNoticeSurface(
+  authenticationOpen: boolean,
+): "authentication" | "join" {
+  return authenticationOpen ? "authentication" : "join";
+}
+
 export class Hud {
   private spellTooltipOverlay?: HTMLElement;
   private player?: PlayerState;
@@ -313,11 +319,6 @@ export class Hud {
   private readonly aimReticle = (
     <div class="aim-reticle is-hidden" aria-hidden="true">
       <span />
-    </div>
-  ) as HTMLElement;
-  private readonly noticeNode = (
-    <div class="notice" role="status" aria-live="polite">
-      Enter a name to join.
     </div>
   ) as HTMLElement;
   private readonly joinNoticeNode = (
@@ -712,7 +713,6 @@ export class Hud {
         <section class="hud-top">{this.realmPanel}</section>
         {this.loginHeaderActions}
         {this.onlineCount}
-        <section class="notification-area">{this.noticeNode}</section>
         {this.inventoryToggle}
       </header>
     ) as HTMLElement;
@@ -772,7 +772,10 @@ export class Hud {
     this.gameSettings.setAutoEquipOptions(items, spells);
   }
   setNotice(notice: string, tone: "success" | "error" = "success"): void {
-    if (!this.authenticationModal.classList.contains("is-hidden")) {
+    const surface = routineNoticeSurface(
+      !this.authenticationModal.classList.contains("is-hidden"),
+    );
+    if (surface === "authentication") {
       this.authenticationNotice.textContent = notice;
       this.authenticationNotice.classList.toggle("is-hidden", !notice);
       this.authenticationNotice.classList.toggle(
@@ -785,10 +788,8 @@ export class Hud {
       );
       return;
     }
-    for (const node of [this.noticeNode, this.joinNoticeNode]) {
-      node.textContent = notice;
-      node.classList.toggle("is-hidden", !notice);
-    }
+    this.joinNoticeNode.textContent = notice;
+    this.joinNoticeNode.classList.toggle("is-hidden", !notice);
   }
   showCenterToast(message: string): void {
     clearTimeout(this.centerToastTimer);

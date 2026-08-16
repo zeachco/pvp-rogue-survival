@@ -2724,19 +2724,6 @@ input {
 	transition: left 180ms ease;
 }
 
-.notification-area {
-	position: fixed;
-	z-index: 31;
-	top: 0;
-	right: 46px;
-	display: grid;
-	align-content: center;
-	justify-items: end;
-	width: min(360px, 40vw);
-	height: var(--game-header-height);
-	pointer-events: none;
-}
-
 .realm-panel {
 	position: static;
 	max-width: 100%;
