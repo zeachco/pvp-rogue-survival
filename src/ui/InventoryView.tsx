@@ -68,6 +68,13 @@ export function itemTile(
 	onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void,
 	canSend = false,
 	onHoverChange?: (tileId?: string, actionIndex?: number) => void,
+	renderExtractionTooltip?: (
+		levels: Array<{
+			skill: InventoryTile["item"]["skills"][number];
+			currentLevel: number;
+			postExtractionLevel: number;
+		}>,
+	) => HTMLElement,
 ): HTMLElement {
 	const item = tile.item;
 	const equippedCopies = [
@@ -84,6 +91,18 @@ export function itemTile(
 	const extractCost = extractionCost(progress, skills);
 	const extractStatus = extractButtonStatus(tile, progress);
 	const stats = statsWithItemBonuses(progress.stats, item);
+	const extractionLevels = skills.map((skill) => {
+		const currentLevel = Math.min(
+			MAX_SKILL_LEVEL,
+			progress.learnedSkillLevels[skill] ?? 0,
+		);
+		return {
+			skill,
+			currentLevel,
+			postExtractionLevel: Math.min(MAX_SKILL_LEVEL, currentLevel + 1),
+		};
+	});
+	const extractionTooltip = renderExtractionTooltip?.(extractionLevels);
 	const node = (
 		<div
 			class={`item-card rarity-${item.rarity}${equipped ? " is-equipped" : ""}`}
@@ -120,19 +139,18 @@ export function itemTile(
 							}
 						>
 							Extract
-							<span class="action-tooltip" role="tooltip">
-								{skills.map((skillId) => {
-									const current = Math.min(
-										MAX_SKILL_LEVEL,
-										progress.learnedSkillLevels[skillId] ?? 0,
-									);
-									return (
+							{extractionTooltip ?? (
+								<span class="action-tooltip" role="tooltip">
+									{extractionLevels.map(({ skill, currentLevel }) => (
 										<span>
-											{extractLevelTooltipText(SKILLS[skillId].label, current)}
+											{extractLevelTooltipText(
+												SKILLS[skill].label,
+												currentLevel,
+											)}
 										</span>
-									);
-								})}
-							</span>
+									))}
+								</span>
+							)}
 						</button>
 					) : null}
 				</div>
@@ -228,7 +246,8 @@ export function itemTile(
 	): void => {
 		const button = buttons[index] as HTMLButtonElement | undefined;
 		if (!button) return;
-		if (!button.disabled) button.title = "Shift+click to repeat while possible";
+		if (!button.disabled && index !== 5)
+			button.title = "Shift+click to repeat while possible";
 		button.onclick = (event) => callback(tile.id, event.shiftKey);
 		bindTouchHoldAction(button, () => callback(tile.id, false));
 	};

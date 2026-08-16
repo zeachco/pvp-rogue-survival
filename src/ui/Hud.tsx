@@ -109,7 +109,7 @@ import {
   type PreviewValue,
   previewTone,
 } from "./preview";
-import { viewportTooltipPosition } from "./tooltipPosition";
+import { attachViewportTooltips } from "./tooltipPosition";
 import type { CurrencyPreview, HudCallbacks, SpellSlot } from "./types";
 
 export {
@@ -170,7 +170,6 @@ export function routineNoticeSurface(
 }
 
 export class Hud {
-  private spellTooltipOverlay?: HTMLElement;
   private player?: PlayerState;
   private inspected?: UnitBuild;
   private inspectedBestWave?: number;
@@ -747,6 +746,7 @@ export class Hud {
       this.authenticationModal,
     );
     this.gameSettings.appendTo(root);
+    attachViewportTooltips(root);
     this.updateVisibility();
   }
   setJoinName(name: string): void {
@@ -1747,17 +1747,6 @@ export class Hud {
         {this.renderSkillTooltip(spell, shownLevel)}
       </button>
     ) as HTMLButtonElement;
-    const tooltip = button.querySelector<HTMLElement>(".spell-tooltip");
-    if (tooltip) {
-      button.addEventListener("mouseenter", () =>
-        this.showSpellTooltip(button, tooltip),
-      );
-      button.addEventListener("mouseleave", () => this.hideSpellTooltip());
-      button.addEventListener("focus", () =>
-        this.showSpellTooltip(button, tooltip),
-      );
-      button.addEventListener("blur", () => this.hideSpellTooltip());
-    }
     button.onclick = () => {
       if (!spell.passive)
         this.callbacks.onSetSkillEquipped(spell.id, !spell.active);
@@ -1769,31 +1758,11 @@ export class Hud {
     };
     return button;
   }
-  private showSpellTooltip(
-    button: HTMLButtonElement,
-    template: HTMLElement,
-  ): void {
-    this.hideSpellTooltip();
-    const tooltip = template.cloneNode(true) as HTMLElement;
-    tooltip.classList.add("is-overlay", "is-visible");
-    document.body.append(tooltip);
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const position = viewportTooltipPosition(
-      button.getBoundingClientRect(),
-      tooltipRect.width,
-      tooltipRect.height,
-      window.innerWidth,
-      window.innerHeight,
-    );
-    tooltip.style.left = `${position.left}px`;
-    tooltip.style.top = `${position.top}px`;
-    this.spellTooltipOverlay = tooltip;
-  }
-  private hideSpellTooltip(): void {
-    this.spellTooltipOverlay?.remove();
-    this.spellTooltipOverlay = undefined;
-  }
-  private renderSkillTooltip(spell: SpellSlot, level: number): HTMLElement {
+  private renderSkillTooltip(
+    spell: SpellSlot,
+    level: number,
+    comparison?: ReturnType<typeof spellTooltipLevels>,
+  ): HTMLElement {
     const shownLevel = Math.max(0, Math.min(MAX_SKILL_LEVEL, level));
     const skill = SKILLS[spell.id];
     const progress = this.spellPreviewProgress ?? this.player?.progress;
@@ -1824,13 +1793,14 @@ export class Hud {
           </span>
         ) : null}
         <span class="spell-tooltip-comparison">
-          {(this.spellPreviewKind === "extract" &&
+          {(comparison ??
+          (this.spellPreviewKind === "extract" &&
           this.spellPreview?.has(spell.id)
             ? spellExtractionTooltipLevels(
                 maxLearnedLevel,
                 this.spellPreview.get(spell.id) ?? maxLearnedLevel,
               )
-            : spellTooltipLevels(shownLevel, maxLearnedLevel)
+            : spellTooltipLevels(shownLevel, maxLearnedLevel))
           ).map(
             ({ level, heading }) =>
               this.renderSkillProperties(spell, level, heading),
@@ -1838,6 +1808,49 @@ export class Hud {
         </span>
       </span>
     ) as HTMLElement;
+  }
+  private renderExtractionTooltip(
+    levels: Array<{
+      skill: SkillId;
+      currentLevel: number;
+      postExtractionLevel: number;
+    }>,
+  ): HTMLElement {
+    const tooltip = (
+      <span class="spell-tooltip" role="tooltip" />
+    ) as HTMLElement;
+    tooltip.append(
+      (
+        <span class="spell-tooltip-description">
+          Shift-click to repeat while possible.
+        </span>
+      ) as HTMLElement,
+    );
+    for (const { skill, currentLevel, postExtractionLevel } of levels) {
+      const authored = SKILLS[skill];
+      const spell = this.currentSpells.find((entry) => entry.id === skill) ?? {
+        id: skill,
+        label: authored.label,
+        level: currentLevel,
+        actualLevel: currentLevel,
+        cooldown: 0,
+        cooldownMax: 0,
+        affordable: true,
+        resource: authored.resource,
+        costLabel: capitalize(authored.resource),
+        active: false,
+        passive: Boolean(authored.passive),
+        autoFire: false,
+        bar: "learned" as const,
+      };
+      const details = this.renderSkillTooltip(
+        spell,
+        currentLevel,
+        spellExtractionTooltipLevels(currentLevel, postExtractionLevel),
+      );
+      tooltip.append(...details.childNodes);
+    }
+    return tooltip;
   }
   private renderSkillProperties(
     spell: SpellSlot,
@@ -2390,6 +2403,7 @@ export class Hud {
           (tileId, actionIndex) => {
             this.inventoryHover = tileId ? { tileId, actionIndex } : undefined;
           },
+          (levels) => this.renderExtractionTooltip(levels),
         );
         replacement.dataset.renderSignature = signature;
         if (node) node.replaceWith(replacement);

@@ -746,6 +746,18 @@ describe("viewport tooltip positioning", () => {
 			),
 		).toEqual({ left: 490, top: 450 });
 	});
+
+	test("clamps an oversized tooltip to both viewport margins", () => {
+		expect(
+			viewportTooltipPosition(
+				{ left: 950, right: 990, bottom: 100 },
+				1200,
+				900,
+				1000,
+				720,
+			),
+		).toEqual({ left: 8, top: 8 });
+	});
 });
 
 describe("balance and waves", () => {
