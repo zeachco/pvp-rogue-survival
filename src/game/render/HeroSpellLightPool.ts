@@ -64,6 +64,7 @@ export class HeroSpellLightPool {
 		time: number,
 		swamps: readonly GroundSwamp[] = [],
 		blizzards: readonly Blizzard[] = [],
+		lightsEnabled = true,
 	): void {
 		const required = new Set<SpellEffectKind>();
 		for (const skill of availableSkills) {
@@ -81,7 +82,10 @@ export class HeroSpellLightPool {
 
 		for (const kind of this.attached) {
 			const light = this.cache.get(kind);
-			if (light) light.intensity = 0;
+			if (light) {
+				light.intensity = 0;
+				light.visible = lightsEnabled;
+			}
 		}
 
 		for (const effect of effects) {

@@ -51,6 +51,7 @@ Attacking, winding up an attack, and casting do not reduce movement speed. When 
 ## Arena and Movement
 
 - When lighting is Off, every mesh uses an unlit material and keeps its authored color instead of being darkened by absent lights.
+- Lighting and shadow presentation state is reapplied only when its setting changes or a new scene object is attached. The renderer must not traverse and rewrite the complete scene graph every frame; newly attached enemies, models, effects, and pooled hero spell lights still inherit the active graphics modes.
 
 - The hero and creeps use velocity-based movement rather than waypoint movement.
 - A desired movement direction is converted into velocity using acceleration and capped by maximum speed for self-propelled movement. External impulses may temporarily exceed that movement speed.

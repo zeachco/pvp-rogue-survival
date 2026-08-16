@@ -115,6 +115,8 @@ import {
 	thunderLightPosition,
 } from "../src/game/render/HeroSpellLightPool";
 import {
+	applyObjectLightingMode,
+	applyObjectShadowMode,
 	applySceneLightingMode,
 	applySceneShadowMode,
 	MAP_LAYER_STEP,
@@ -393,6 +395,26 @@ describe("animated 3D characters", () => {
 		expect(heroLight.visible).toBeTrue();
 		expect(effectLight.visible).toBeTrue();
 		expect(futureEffectLight.visible).toBeTrue();
+	});
+
+	test("applies active graphics modes to a newly attached scene subtree", () => {
+		const root = new THREE.Group();
+		const mesh = new THREE.Mesh(
+			new THREE.BoxGeometry(),
+			new THREE.MeshStandardMaterial({ color: 0x336699 }),
+		);
+		const light = new THREE.PointLight();
+		root.add(mesh, light);
+
+		applyObjectLightingMode(root, "off", false);
+		applyObjectShadowMode(root, "dynamic");
+
+		expect(mesh.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+		expect(mesh.material.color.getHex()).toBe(0x336699);
+		expect(mesh.castShadow).toBeTrue();
+		expect(mesh.receiveShadow).toBeTrue();
+		expect(light.visible).toBeFalse();
+		expect(light.castShadow).toBeTrue();
 	});
 
 	test("centers fallback unit bodies above the zero-height floor", () => {

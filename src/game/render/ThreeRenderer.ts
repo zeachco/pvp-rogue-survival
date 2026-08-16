@@ -133,18 +133,30 @@ export function applySceneLightingMode(
 	ambientLight.intensity = SCENE_LIGHTING.ambientIntensity[mode];
 	ambientLight.visible = mode !== "off";
 	directionalLight.visible = mode === "all";
-	scene.traverse((object) => {
+	applyObjectLightingMode(scene, mode, (object) => {
+		if (object === ambientLight) return mode !== "off";
+		if (object === directionalLight) return mode === "all";
+		return (
+			mode === "all" || (mode === "hero" && isDescendantOf(object, heroRoot))
+		);
+	});
+}
+
+export function applyObjectLightingMode(
+	root: THREE.Object3D,
+	mode: LightingMode,
+	lightEnabled: boolean | ((light: THREE.Light) => boolean),
+): void {
+	root.traverse((object) => {
 		if (object instanceof THREE.Mesh)
 			object.material = Array.isArray(object.material)
 				? object.material.map((material) => lightingMaterial(material, mode))
 				: lightingMaterial(object.material, mode);
-		if (
-			object instanceof THREE.Light &&
-			object !== ambientLight &&
-			object !== directionalLight
-		)
+		if (object instanceof THREE.Light)
 			object.visible =
-				mode === "all" || (mode === "hero" && isDescendantOf(object, heroRoot));
+				typeof lightEnabled === "function"
+					? lightEnabled(object)
+					: lightEnabled;
 	});
 }
 
@@ -156,7 +168,15 @@ export function applySceneShadowMode(
 	const enabled = mode === "dynamic";
 	renderer.shadowMap.enabled = enabled;
 	renderer.shadowMap.type = THREE.PCFShadowMap;
-	scene.traverse((object) => {
+	applyObjectShadowMode(scene, mode);
+}
+
+export function applyObjectShadowMode(
+	root: THREE.Object3D,
+	mode: ShadowMode,
+): void {
+	const enabled = mode === "dynamic";
+	root.traverse((object) => {
 		if (object instanceof THREE.Mesh) {
 			object.castShadow = enabled && shadowEligibility(object, "castShadow");
 			object.receiveShadow =
@@ -277,6 +297,7 @@ export class ThreeRenderer {
 	private _tilt = DEFAULT_CAMERA_TILT_RADIANS;
 	private yaw = 0;
 	private readonly tracked = new Set<THREE.Object3D>();
+	private readonly trackedChildCounts = new WeakMap<THREE.Object3D, number>();
 	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
 	private readonly canvas: HTMLCanvasElement;
 	private width = 1;
@@ -532,6 +553,23 @@ export class ThreeRenderer {
 			if (!this.tracked.has(obj)) {
 				this.scene.add(obj);
 				this.tracked.add(obj);
+				this.trackedChildCounts.set(obj, obj.children.length);
+				applyObjectLightingMode(
+					obj,
+					this.lightingMode,
+					this.lightingMode === "all" ||
+						(this.lightingMode === "hero" && obj === hero.mesh),
+				);
+				applyObjectShadowMode(obj, this.shadowMode);
+			} else if (this.trackedChildCounts.get(obj) !== obj.children.length) {
+				this.trackedChildCounts.set(obj, obj.children.length);
+				applyObjectLightingMode(
+					obj,
+					this.lightingMode,
+					this.lightingMode === "all" ||
+						(this.lightingMode === "hero" && obj === hero.mesh),
+				);
+				applyObjectShadowMode(obj, this.shadowMode);
 			}
 		}
 		this.heroSpellLightPool.sync(
@@ -540,16 +578,9 @@ export class ThreeRenderer {
 			time,
 			arena.swamps,
 			arena.blizzards,
+			this.lightingMode !== "off",
 		);
 		this.heroLightRoot = hero.mesh;
-		applySceneLightingMode(
-			this.scene,
-			this.ambientLight,
-			this.keyLight,
-			this.heroLightRoot,
-			this.lightingMode,
-		);
-		applySceneShadowMode(this.renderer, this.scene, this.shadowMode);
 
 		hero.updateVisuals(time);
 		hero.faceCamera(this.camera.quaternion);
