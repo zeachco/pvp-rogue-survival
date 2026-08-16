@@ -1422,6 +1422,11 @@ export class Hud {
       const destination = (
         <button class="spell-catalog-slot" type="button">
           <small>{slot}</small>
+          {occupant ? (
+            <svg class="spell-icon spell-catalog-slot-icon" aria-hidden="true">
+              <use href={`/assets/spell-icons.svg#${occupant.id}`} />
+            </svg>
+          ) : null}
           <strong>{occupant?.label ?? "Empty"}</strong>
         </button>
       ) as HTMLButtonElement;
@@ -1495,7 +1500,12 @@ export class Hud {
           data-search={`${id} ${definition.label} ${definition.description} ${spellResourceLabel(definition.resource)}`}
         >
           <span class="spell-catalog-card-heading">
-            <strong>{definition.label}</strong>
+            <span class="spell-catalog-title">
+              <svg class="spell-icon spell-catalog-icon" aria-hidden="true">
+                <use href={`/assets/spell-icons.svg#${id}`} />
+              </svg>
+              <strong>{definition.label}</strong>
+            </span>
             <small>
               {spell?.passive || definition.passive
                 ? "Passive · Always active"
@@ -1743,7 +1753,9 @@ export class Hud {
           <span class="spell-auto-fire" aria-label="Auto-fire enabled" />
         ) : null}
         <strong>
-          {spellInitials(spell.label)}
+          <svg class="spell-icon" aria-hidden="true">
+            <use href={`/assets/spell-icons.svg#${spell.id}`} />
+          </svg>
           <small class="spell-level">lv{formatPreviewValue(levelValue)}</small>
         </strong>
         {this.renderSkillTooltip(spell, shownLevel)}
@@ -1772,28 +1784,33 @@ export class Hud {
     return (
       <span class="spell-tooltip" role="tooltip">
         <b>{skill.label}</b>
-        <span class="spell-tooltip-description">{skill.description}</span>
-        <span class="spell-tooltip-description">
-          {spell.procChancesOnAttacks !== undefined
-            ? spell.procChancesOnDamage !== undefined
-              ? "Passive item proc — may trigger from each basic attack or incoming damage event."
-              : "Passive weapon proc — may trigger from each basic attack."
-            : spell.passive
-              ? "Passive — always active while available."
-              : spell.active
-                ? `Equipped as ${spell.shortcut}. Press ${spell.shortcut} to cast; right-click toggles auto-fire.`
-                : "Click to equip this spell (maximum 6)."}
+        <span class="spell-tooltip-summary">
+          <svg class="spell-icon spell-tooltip-icon" aria-hidden="true">
+            <use href={`/assets/spell-icons.svg#${spell.id}`} />
+          </svg>
+          <span class="spell-tooltip-description">{skill.description}</span>
+          <span class="spell-tooltip-description">
+            {spell.procChancesOnAttacks !== undefined
+              ? spell.procChancesOnDamage !== undefined
+                ? "Passive item proc — may trigger from each basic attack or incoming damage event."
+                : "Passive weapon proc — may trigger from each basic attack."
+              : spell.passive
+                ? "Passive — always active while available."
+                : spell.active
+                  ? `Equipped as ${spell.shortcut}. Press ${spell.shortcut} to cast; right-click toggles auto-fire.`
+                  : "Click to equip this spell (maximum 6)."}
+          </span>
+          {spell.providedByItemName ? (
+            <span class="spell-tooltip-description">
+              Source: {spell.providedByItemName}
+            </span>
+          ) : null}
+          {skillStatBonusDescription(spell.id) ? (
+            <span class="spell-tooltip-description">
+              {skillStatBonusDescription(spell.id)}
+            </span>
+          ) : null}
         </span>
-        {spell.providedByItemName ? (
-          <span class="spell-tooltip-description">
-            Source: {spell.providedByItemName}
-          </span>
-        ) : null}
-        {skillStatBonusDescription(spell.id) ? (
-          <span class="spell-tooltip-description">
-            {skillStatBonusDescription(spell.id)}
-          </span>
-        ) : null}
         <span class="spell-tooltip-comparison">
           {(comparison ??
           (this.spellPreviewKind === "extract" &&
@@ -4005,14 +4022,6 @@ function capitalize(value: string): string {
   return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }
 
-export function spellInitials(label: string): string {
-  const words = label.trim().split(/\s+/).filter(Boolean);
-  return (
-    words.length > 1 ? words.map((word) => word[0]).join("") : label.slice(0, 2)
-  )
-    .slice(0, 2)
-    .toUpperCase();
-}
 export function spellTooltipLevels(
   level: number,
   maxLearnedLevel: number,

@@ -225,7 +225,6 @@ import {
 	spellCatalogSlotsById,
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
-	spellInitials,
 	spellRailSlots,
 	spellSlotKey,
 	spellTooltipLevels,
@@ -504,12 +503,6 @@ test("sorts the spell catalog by HP, Rage, then Mana", () => {
 			(a, b) => spellCatalogResourceOrder(a) - spellCatalogResourceOrder(b),
 		),
 	).toEqual(["life", "rage", "mana"]);
-});
-
-test("uses word initials for multi-word spell badges", () => {
-	expect(spellInitials("Rending Throw")).toBe("RT");
-	expect(spellInitials("Reflective Surge")).toBe("RS");
-	expect(spellInitials("Voodoo")).toBe("VO");
 });
 
 test("shows current, next, and maximum spell tooltip levels", () => {
@@ -3516,13 +3509,20 @@ test("aligns the resource dock beside the spell bar and chat to the right edge",
 	);
 });
 
-test("keeps long spell rails compact with half-size spell containers", async () => {
+test("renders 1.5x spell circles with one SVG symbol per spell", async () => {
 	const styles = await Bun.file(
 		new URL("../src/styles.css", import.meta.url),
 	).text();
 	expect(styles).toMatch(
-		/\.spell-slot\s*\{[^}]*flex:\s*0 0 28px;[^}]*width:\s*28px;[^}]*height:\s*28px;/s,
+		/\.spell-slot\s*\{[^}]*flex:\s*0 0 42px;[^}]*width:\s*42px;[^}]*height:\s*42px;/s,
 	);
+	const iconSheet = await Bun.file(
+		new URL("../public/assets/spell-icons.svg", import.meta.url),
+	).text();
+	const symbolIds = [...iconSheet.matchAll(/<symbol id="([^"]+)"/g)]
+		.map((match) => match[1])
+		.sort();
+	expect(symbolIds).toEqual(Object.keys(SKILLS).sort());
 	expect(styles).toMatch(
 		/\.skill-list\s*\{[^}]*flex-direction:\s*column;[^}]*gap:\s*3px;/s,
 	);

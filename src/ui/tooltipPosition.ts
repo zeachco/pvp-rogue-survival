@@ -36,12 +36,12 @@ function tooltipAnchor(
 	target: EventTarget | null,
 	root: HTMLElement,
 ): HTMLElement | undefined {
-	let node = target instanceof HTMLElement ? target : undefined;
+	let node = target instanceof Element ? target : undefined;
 	while (node && node !== root) {
 		const tooltip = Array.from(node.children).find(
 			(child): child is HTMLElement => child.matches(TOOLTIP_SELECTOR),
 		);
-		if (tooltip) return node;
+		if (tooltip && node instanceof HTMLElement) return node;
 		node = node.parentElement ?? undefined;
 	}
 	return undefined;

@@ -405,11 +405,11 @@ input {
 .skill-bar {
 	display: flex;
 	flex-direction: column;
-	width: 39px;
+	width: 64px;
 	gap: 3px;
 	align-items: center;
 	justify-content: flex-end;
-	padding: 3px;
+	padding: 12px 3px 8px;
 	overflow: hidden;
 	border: 1px solid rgba(138, 216, 255, 0.35);
 	border-radius: 4px;
@@ -462,9 +462,9 @@ input {
 .spell-slot {
 	position: relative;
 	display: grid;
-	flex: 0 0 28px;
-	width: 28px;
-	height: 28px;
+	flex: 0 0 42px;
+	width: 42px;
+	height: 42px;
 	place-items: center;
 	overflow: visible;
 	border: 1px solid #f2ce45;
@@ -595,7 +595,13 @@ input {
 .spell-slot strong {
 	display: inline-flex;
 	align-items: center;
-	font-size: 8px;
+}
+
+.spell-icon {
+	width: 20px;
+	height: 20px;
+	color: currentColor;
+	pointer-events: none;
 }
 
 .spell-slot small {
@@ -605,7 +611,7 @@ input {
 .spell-slot .spell-level {
 	margin-left: 1px;
 	color: #fff;
-	font-size: 5px;
+	font-size: 7px;
 	font-weight: 800;
 }
 
@@ -712,6 +718,12 @@ input {
 	font-size: 11px;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.spell-catalog-slot-icon {
+	width: 22px;
+	height: 22px;
+	justify-self: center;
 }
 
 .spell-catalog.has-selected-spell .spell-catalog-slot {
@@ -865,6 +877,19 @@ input {
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 12px;
+}
+
+.spell-catalog-title {
+	display: inline-flex;
+	min-width: 0;
+	align-items: center;
+	gap: 8px;
+}
+
+.spell-catalog-icon {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
 }
 
 .spell-catalog-card-heading small,
@@ -1079,8 +1104,8 @@ input {
 	z-index: 30;
 	display: grid;
 	gap: 8px;
-	width: 485px;
-	max-width: none;
+	width: 540px;
+	max-width: calc(100vw - 16px);
 	max-height: calc(100vh - 16px);
 	overflow-y: auto;
 	padding: 12px;
@@ -1205,6 +1230,28 @@ button:focus-visible > .action-tooltip {
 	line-height: 1.35;
 }
 
+.spell-tooltip-summary {
+	display: flow-root;
+}
+
+.spell-tooltip-summary > .spell-tooltip-description {
+	display: block;
+	margin-bottom: 8px;
+}
+
+.spell-tooltip-summary > .spell-tooltip-description:last-child {
+	margin-bottom: 0;
+}
+
+.spell-tooltip-icon {
+	float: right;
+	width: 88px;
+	height: 88px;
+	margin: 0 0 8px 14px;
+	color: #e8f9ff;
+	filter: drop-shadow(0 0 9px currentColor);
+}
+
 .spell-tooltip-stats {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
@@ -1225,7 +1272,8 @@ button:focus-visible > .action-tooltip {
 
 .spell-tooltip-stats strong {
 	font-size: 12px;
-	white-space: nowrap;
+	text-align: right;
+	overflow-wrap: anywhere;
 }
 
 .join-panel,
