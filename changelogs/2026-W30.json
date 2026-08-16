@@ -1,38 +1,30 @@
 {
 	"week": "2026-W30",
 	"label": "Week of July 20, 2026",
-	"generatedAt": "2026-08-09T19:04:46.252Z",
+	"generatedAt": "2026-08-16T17:46:04.572Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W30",
 			"label": "Week of July 20, 2026",
-			"summaryTitle": "New mechanics and quality of life improvements",
+			"summaryTitle": "Lore Integration and Quality of Life Improvements",
 			"summary": {
 				"features": [
-					"Added freeze mechanics to combat",
-					"Reworked multiple spells and specialization files",
-					"Updated user experience elements and incorporated new lore into the game world",
-					"Improved the first-time user experience (FTUE) and general UI bugs"
+					"Introduced new lore elements and UX improvements to enhance player immersion and guide first-time users.",
+					"Addressed critical UI bugs and refined the initial onboarding experience."
 				],
 				"bugfixes": [
-					"Resolved issues with amulet slots being unusable",
-					"Fixed the force field skill functionality"
+					"Resolved issues related to amulet slot functionality.",
+					"Fixed unintended behavior in the Force Field skill implementation."
+				],
+				"ux": [
+					"Implemented key UX enhancements and polished the overall player experience."
+				],
+				"graphics": [
+					"General polish and fixes were applied across the visual presentation."
 				]
 			},
 			"commits": [
-				{
-					"hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
-					"authoredAt": "2026-07-27T14:17:45-04:00",
-					"title": "feat: freeze mechanics",
-					"description": ""
-				},
-				{
-					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
-					"authoredAt": "2026-07-27T12:55:53-04:00",
-					"title": "feat: reworked a few spells and spec files",
-					"description": ""
-				},
 				{
 					"hash": "9cabea4ea71299fba76186daf9093d12ea42e52c",
 					"authoredAt": "2026-07-27T08:46:50-04:00",
@@ -58,7 +50,7 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes"]
+			"categories": ["Features", "Bugfixes", "UX", "Graphics & Sounds"]
 		}
 	]
 }

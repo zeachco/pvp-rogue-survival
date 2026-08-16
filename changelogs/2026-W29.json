@@ -1,25 +1,36 @@
 {
 	"week": "2026-W29",
 	"label": "Week of July 13, 2026",
-	"generatedAt": "2026-08-09T19:04:46.211Z",
+	"generatedAt": "2026-08-16T17:46:04.529Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W29",
 			"label": "Week of July 13, 2026",
-			"summaryTitle": "Major Updates & Quality-of-Life Improvements",
+			"summaryTitle": "Blood Magic and Quality of Life Upgrades",
 			"summary": {
 				"features": [
-					"Enhanced progression systems with new rings, amulets, and blood magic spells.",
-					"Added dynamic top player mechanics, including updated leaderboards and suicide system functionality.",
-					"Significant quality-of-life improvements to the inventory and UI, including new panels and visible stats for characters like Hui Char.",
-					"Tweaks applied across core game mechanics, multiplayer experience, solo play, and weapon systems."
+					"Added new blood magic spells, rings, and amulets to expand player options.",
+					"Implemented a new leaderboard system for tracking player performance.",
+					"Introduced mechanics related to top players and suicide for advanced gameplay.",
+					"Improved the core user experience with new panel information and overall UI/UX redesigns.",
+					"Added various system improvements, including weapon tweaks, character stat updates (HUI), and general game mechanic refinements."
 				],
 				"bugfixes": [
-					"Resolved issues with resource auras (rent and scepter) and extracted button functionality."
+					"Resolved issues concerning rent and scepter aura mechanics.",
+					"Fixed various bugs related to button extraction and general inventory/UI functionality."
+				],
+				"performance": [
+					"Enhanced server stability and resilience through database-backed server architecture and general server tweaks."
+				],
+				"balance": [
+					"General improvements and tweaks to existing game mechanics and weapon systems."
 				],
 				"ux": [
-					"General overhaul of the user interface, refining UI elements and adding detailed panel information for better player clarity."
+					"Significant overhaul and refinement of the inventory system and overall user interface aesthetics and usability."
+				],
+				"graphics": [
+					"Improved UI and visual display elements across the board."
 				]
 			},
 			"commits": [
@@ -162,7 +173,14 @@
 					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes", "UX"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics & Sounds"
+			]
 		}
 	]
 }

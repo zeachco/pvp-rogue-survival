@@ -1,24 +1,40 @@
 {
 	"week": "2026-W31",
 	"label": "Week of July 27, 2026",
-	"generatedAt": "2026-08-09T19:04:46.296Z",
+	"generatedAt": "2026-08-16T17:46:04.621Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W31",
 			"label": "Week of July 27, 2026",
-			"summaryTitle": "Combat Quality of Life and Controls Update",
+			"summaryTitle": "Combat Systems and Interface Overhaul",
 			"summary": {
 				"features": [
-					"The Spell Management Window has been added, allowing for organized spell management.",
-					"New combat controls feature editable spell loadouts with 1–6 persistent slots, supporting both manual casting and right-click auto-fire. Camera orbit now uses left-drag without disrupting hero facing, keeping the explicit aiming function intact.",
-					"Improved visual display includes rendering creep resource bars above overlapping units.",
-					"Gameplay improvements include aim-with-camera functionality and the ability to use progressive 3D transforms for environments.",
-					"General quality-of-life additions include dedicated full-screen mode and mouse move recentering, alongside new filtering columns in various interfaces."
+					"Introduced a dedicated Spell Management window and enhanced spell loadouts, allowing players to customize and persist up to six active spell slots for manual or right-click auto-casting.",
+					"Updated combat controls to support camera orbiting via left-drag and dedicated aiming via right-click, while ensuring passive skills remain permanently active.",
+					"Improved visual feedback by rendering creep resource bars above overlapping units and enabling aim directly with the camera view.",
+					"Implemented progressive 3D transformations and integrated 3D animated models into the environment and character rendering.",
+					"Added a new chat system for communication, alongside system improvements for player progress, such as receiving bonus XP."
 				],
 				"bugfixes": [
-					"Corrected instances where aura spells were incorrectly deemed non-dropable.",
-					"Multiple visual and positioning issues were addressed, including fixes for ground clipping, general 3D rendering/positioning artifacts, and adjustments needed for optimal mobile experience."
+					"Resolved multiple visual and spatial bugs, including general ground clipping issues and incorrect 3D rendering/positioning, ensuring smoother gameplay.",
+					"Fixed UI inconsistencies, addressed the long spell bar display, and resolved issues related to auras spells being incorrectly dropable.",
+					"Improved the overall mobile and visual experience by making necessary adjustments across various game components.",
+					"Corrected several bugs related to core mechanics, such as healing spells and camera zoom."
+				],
+				"performance": [
+					"System optimizations were made to support complex visual and mechanical updates without degradation."
+				],
+				"balance": [
+					"Core spell mechanics and spec files were reworked and updated to balance various abilities and character builds."
+				],
+				"ux": [
+					"Enhanced user experience through the addition of columns for organized data viewing and comprehensive updates to the UI and skill mechanics.",
+					"Optimized camera controls, allowing for fullscreen functionality and reliable mouse movement recentering.",
+					"Streamlined the interface by removing unnecessary context menu options and implementing a dedicated full-screen mode."
+				],
+				"graphics": [
+					"Significant visual and audio polish was applied across the board, incorporating assets and improved visual presentation to enhance immersion."
 				]
 			},
 			"commits": [
@@ -171,9 +187,28 @@
 					"authoredAt": "2026-07-27T15:51:03-04:00",
 					"title": "feat: updated UI and skills mechanics",
 					"description": ""
+				},
+				{
+					"hash": "721fb92037adb54fb14c8d4492400c719c9c39be",
+					"authoredAt": "2026-07-27T14:17:45-04:00",
+					"title": "feat: freeze mechanics",
+					"description": ""
+				},
+				{
+					"hash": "31c94c7fd2d3f1485681cf9b132977ce2bdbe858",
+					"authoredAt": "2026-07-27T12:55:53-04:00",
+					"title": "feat: reworked a few spells and spec files",
+					"description": ""
 				}
 			],
-			"categories": ["Features", "Bugfixes"]
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Performance",
+				"Balance",
+				"UX",
+				"Graphics & Sounds"
+			]
 		}
 	]
 }

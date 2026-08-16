@@ -1,50 +1,78 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-16T16:28:37.916Z",
+	"generatedAt": "2026-08-16T17:46:04.716Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Stability and Polish",
+			"summaryTitle": "Game Development Cycle Update",
 			"summary": {
 				"features": [
-					"The Devlog area now supports advanced workflow requests, allowing owners and moderators to reopen and follow up on previously completed AI work. Community request displays have been enhanced to show proposers, voters, and advanced filtering options.",
-					"New world pointer tracking is available, showing a low-poly pyramid on the floor and a red marker above hovered enemies.",
-					"The game's central arena has been updated from a rectangular board to a larger, circular area, utilizing radial spawning and collision geometry.",
-					"The system allows for the scheduling of weekly production promotions, ensuring stable delivery of validated commits to the live environment.",
-					"Account management has been expanded to allow multiple character creation and shared stash functionality across different characters."
+					"Spell and equipment icons are now displayed for easier identification.",
+					"New character roster viewing allows selection and inspection of heroes while preserving stats and details.",
+					"The auction house (Devlog) system has been improved, allowing users to re-open and continue AI-assisted feature requests.",
+					"Added a persistent world pointer tracker that follows the camera, and placed a red marker above hovered enemies.",
+					"A new, larger circular arena geometry has been introduced for combat, replacing the previous rectangular board.",
+					"Implemented a dedicated 'Graphics & Sounds' category for better organization of visual and audio updates.",
+					"Players can now schedule and trigger weekly production promotions through the system.",
+					"The game introduced multiple persistent characters and a shared stashed inventory across an entire account.",
+					"Added various combat and sound effects, including distinct cues for spells, attacks, Gold drops, and enemy death.",
+					"Implemented the ability to participate in Realm Challenges, allowing players to PvP and claim significant resources from opponents.",
+					"Added support for DualShock controllers, improving movement and spell activation mapping.",
+					"Enhanced the game by adding a robust Swarm Mode, complete with timers and procedural wave management."
 				],
 				"bugfixes": [
-					"Fixed UI issues with tooltips, ensuring they remain fully visible and clamped within the viewport boundaries regardless of size or position.",
-					"UI elements, such as spell containers and HUD components, have been condensed and resized for a more compact and polished look.",
-					"Corrected the cinematic death burst mechanic to ensure the blast wave expands correctly and the damage calculations are reliable.",
-					"The mobile build now features fully scalable panels, ensuring optimal readability and functionality on both portrait and landscape touch screen layouts.",
-					"Resolved camera framing issues, recalculating panel positions and centering the character when HUD elements are opened or refreshed."
+					"Improved UI responsiveness by ensuring tooltips remain visible and clamped within the viewport boundaries.",
+					"Optimized spell container spacing and visual management for a cleaner HUD layout.",
+					"Corrected and prevented various interface layout issues, such as header tooltips being obscured or mismatched panels on mobile devices.",
+					"Fixed issues related to equipment and spell persistence, ensuring learned weapon skills remain active spells and character stats are maintained correctly even after refreshes.",
+					"Stabilized complex visual effects like Blizzard and Thunder lighting, ensuring predictable and smooth visual behavior.",
+					"Refined character selection flow to reliably preserve the selected hero's inspection state and stats across multiple character choices.",
+					"Updated character roster view to properly display equipment and spell details for every hero on the account.",
+					"Improved multiplayer session synchronization for duel outcomes and roster member naming clarity.",
+					"Addressed resource and spell calculation bugs, preventing incorrect respec charge application if no changes were made.",
+					"Optimized character panel framing to automatically recalculate positions after roster or inventory panel toggles."
 				],
 				"performance": [
-					"Improved graphics rendering by minimizing expensive per-frame scene traversals, applying lighting and shadow modes only when essential settings or scene roots change."
+					"Overall performance was boosted by making world updates and lighting calculations less frequent, reserving heavy rendering loads for major state changes rather than continuous frame traversals."
 				],
 				"balance": [
-					"Spell abilities have received targeted tuning, notably adjusting the reach and cooldown curves of major attacks (Cleave, Flurry, Bash).",
-					"The 'Extract' skill system now guides players by showing current and projected learned spell maximums when hovering over the skill.",
-					"Improvements were made to the character progression system, specifically strengthening regeneration rates in early levels.",
-					"In combat, blocking rules were refined to allow consecutive rolls and ensure consistent recovery, while also implementing caps on certain block chances to prevent spamming."
+					"Rage attack spells (Cleave, Flurry, Bash) have been tuned down with reduced reach and increased cooldown times.",
+					"The system for extracting skills from equipment has been revised, now requiring specific rarity levels for certain skills.",
+					"Early level regeneration scaling has been significantly strengthened to improve early game progression.",
+					"Core combat mechanics were adjusted, modifying blocking rules to allow consecutive rolls and guaranteeing reliable Mana recovery during successful blocks.",
+					"Enemy agility scaling has been increased to balance the challenge curve.",
+					"The experience reward formula has been updated to provide compounding bonus XP for defeating higher-level enemies."
 				],
 				"ux": [
-					"Developer/Devlog functionality was greatly improved, allowing users to edit requests within a dedicated modal form and organizing metadata labels into a more readable format.",
-					"The main interface layout was streamlined by moving secondary options and Devlog access into a compact, easily accessible hamburger menu.",
-					"Users can now improve the in-game experience through clearer alignment of resource bars and chat windows.",
-					"The general mobile experience was enhanced with safe-area responsive layouts and improvements to touch controls, such as previewing actions on tap and executing them on hold."
+					"Added a comprehensive option for auto-equipping both items and spells for faster setup.",
+					"The in-game menu structure was overhauled, moving options and devlog functionality behind a compact, accessible hamburger menu.",
+					"New player characters now benefit from improved default settings, including automatic equipping of items and spells.",
+					"The Devlog and community request systems were greatly improved, providing detailed metadata, filtering options, and better explainability of the AI process.",
+					"The header UI was streamlined, improving the visual alignment of resource bars and chat panels.",
+					"The character roster flow is more informative, showing current equipment, spells, and advanced character details."
 				],
 				"graphics": [
-					"Graphics quality was optimized for stable lighting effects, specifically refining the appearance of Blizzard and Thunder lighting to prevent visual jitter and interpolation errors.",
-					"The 'Death Burst' sequence now includes a flash of red light and scattered particles, enhancing the visual impact of enemy elimination.",
-					"Overall graphic polish focused on improving the visual presentation of various spell effects and enemy encounters."
+					"The rendering system now performs scene traversals more efficiently, limiting complex lighting and shadow calculations to only when necessary.",
+					"Visual effects, such as enemy death bursts, are now more dramatic and visually distinct, accompanied by ground staining.",
+					"The overall visual presentation of combat effects (e.g., lightning, ground impacts) has been refined and standardized across the board."
 				]
 			},
 			"commits": [
+				{
+					"hash": "121b1c69a3aafb160847d7f05835e6185e954662",
+					"authoredAt": "2026-08-16T13:12:14-04:00",
+					"title": "feat: spell icons",
+					"description": ""
+				},
+				{
+					"hash": "dd3390f108b30ee459cdd021e78c2162adb7efd9",
+					"authoredAt": "2026-08-16T12:49:54-04:00",
+					"title": "fix(characters): keep selected hero stats visible",
+					"description": "- open character and inventory panels for a roster selection\n- preserve the clicked hero inspection until another choice or close\n- document and test the persistent roster behavior"
+				},
 				{
 					"hash": "45ba021d781821081aa3a428c3f7a322de2cb0af",
 					"authoredAt": "2026-08-16T11:43:27-04:00",
