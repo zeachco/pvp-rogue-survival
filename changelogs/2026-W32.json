@@ -1,42 +1,42 @@
 {
 	"week": "2026-W32",
 	"label": "Week of August 3, 2026",
-	"generatedAt": "2026-08-16T14:15:28.101Z",
+	"generatedAt": "2026-08-16T16:28:37.774Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W32",
 			"label": "Week of August 3, 2026",
-			"summaryTitle": "Season of the Souls and Polish",
+			"summaryTitle": "Update 8.x",
 			"summary": {
 				"features": [
-					"The item economy is overhauled with the introduction of Souls, replacing Unique Scrap and increasing the power of Unique items. Players can now stake Souls on defeating enemies for potential rewards.",
-					"Improved Devlog functionality allows SPA routing, browser back support, and retains the translucent Devlog view in all realm states. New admin controls are also available for feature requests and general development.",
-					"A new unique buckler item and associated attributes have been added.",
-					"Players can now access improved Devlog voting and submission systems, limited to logged-in users.",
-					"The game features new item classes, including two-handed weapons, and robust authentication requirements for secure logins."
+					"Souls economy introduced, replacing Unique Scrap by allowing players to stake souls on defeat for rewards.",
+					"Added new unique equipment including a unique buckler with specific attributes.",
+					"Devlog viewing moved into the game, offering SPA routing and improved navigation across realms.",
+					"Implemented administrative controls for feature request submission and development testing.",
+					"Added new two-handed weapon classes and enhanced the overall inventory system to better handle overflow and death drops."
 				],
 				"bugfixes": [
-					"The chat and inventory screens no longer interfere with each other's functionality.",
-					"Fixed issues where characters spawned in invalid locations (e.g., underground) or where coin graphics clipped through the map.",
-					"Echo self-messages have been corrected, ensuring players only see their own chat messages.",
-					"Specific bugs related to item equipping and spell procs were resolved, ensuring that all passive skills show and activate correctly on equipped items.",
-					"Multiple UI/UX fixes were applied, including improving the visibility and usability of various panels and providing clearer feedback during the login process."
+					"Fixed visible issues with self-messaging in the chat (players now see their own messages).",
+					"Resolved graphical warnings and corrected clipping issues (e.g., coins underground, healing light displacement).",
+					"Addressed issues where equipment with spells failed to activate or display correctly in the skill bar.",
+					"Improved stability and visual polish across the UI, including fixes for panel visibility, login authentication, and realm headers."
 				],
 				"performance": [
-					"Rendering performance has been optimized by creating a pool of light effect instances, significantly reducing the overhead of dynamic lighting and shadow calculations. Redundant asset rendering and shadow calculations have also been refined."
+					"Optimized rendering by reducing shadow overhead and ensuring critical elements (projectiles, gold) remain unlit.",
+					"Introduced a pooled system for light effects to drastically reduce performance cost and improve scalability."
 				],
 				"balance": [
-					"The core stat system has been updated: Magic stats are deprecated and now fall back to Intelligence. Spell mechanics were tuned to refine projectile and area effects (e.g., making swamp spells more circular). The resource generation rate for rapid regeneration has been increased.",
-					"Multi-hit spell proc chances and minimum level requirements for spells were adjusted to ensure a more balanced gameplay curve."
+					"Adjusted several systems, including unifying the core item economy around Souls, removing specific magic stats, and updating spell mechanics (e.g., circular patterns for obstacles and spells).",
+					"Refined resource management, including improvements to rapid regeneration mechanics and skill cooldowns."
 				],
 				"ux": [
-					"Devlog and general UI elements received major improvements, including better mobile responsiveness, clearer panel visibility, and refined type-setting for enhanced readability. Status effects are now grouped above the health bar for immediate player comprehension.",
-					"Authentication flow received comprehensive improvements, offering clear success or error feedback and robust password handling.",
-					"Spell ownership and effect visibility were clarified by applying distinct colors (red for enemies, purple for heroes) and ensuring skill-provided attributes are displayed correctly in the skill list."
+					"Completely redesigned the Devlog and changelog experience, adding better mobile responsiveness, search functionality, and segregated content into clear update categories.",
+					"Significantly enhanced general UI/UX across the board, including improved panel spacing, clearer skill list display (showing passive procs), and detailed status indicators (e.g., group hero effects above health)."
 				],
 				"graphics": [
-					"Visual presentations were refined to include better light and shadow handling, especially for spells. Audio experience received minor updates to ensure consistent environmental feedback and improved UI state changes."
+					"Improved visual fidelity with enhanced lighting and shading for various spells and environments.",
+					"Refined combat feedback and visual presentation across the board, including updates to resource tooltips and visual improvements for drops (physique and gold)."
 				]
 			},
 			"commits": [

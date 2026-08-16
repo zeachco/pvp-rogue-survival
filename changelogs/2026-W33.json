@@ -1,36 +1,110 @@
 {
 	"week": "2026-W33",
 	"label": "Week of August 10, 2026",
-	"generatedAt": "2026-08-16T14:15:28.226Z",
+	"generatedAt": "2026-08-16T16:28:37.916Z",
 	"model": "gemma4:latest",
 	"periods": [
 		{
 			"key": "2026-W33",
 			"label": "Week of August 10, 2026",
-			"summaryTitle": "Arena Rework and Devlog Overhaul",
+			"summaryTitle": "Stability and Polish",
 			"summary": {
 				"features": [
-					"The world has been significantly expanded, replacing the old rectangular board with a large, circular 30-meter radial arena for play.",
-					"New functionality allows players to receive resource bonuses immediately upon clearing enemy waves, bypassing prior cooldowns.",
-					"Development log tools have been enhanced with dedicated sections for graphics and sounds, alongside improved mechanisms to show and filter community-submitted player requests and suggestions."
+					"The Devlog area now supports advanced workflow requests, allowing owners and moderators to reopen and follow up on previously completed AI work. Community request displays have been enhanced to show proposers, voters, and advanced filtering options.",
+					"New world pointer tracking is available, showing a low-poly pyramid on the floor and a red marker above hovered enemies.",
+					"The game's central arena has been updated from a rectangular board to a larger, circular area, utilizing radial spawning and collision geometry.",
+					"The system allows for the scheduling of weekly production promotions, ensuring stable delivery of validated commits to the live environment.",
+					"Account management has been expanded to allow multiple character creation and shared stash functionality across different characters."
 				],
 				"bugfixes": [
-					"Animation and visual effects for enemy explosions have been polished, including particle bursts and ground staining.",
-					"The game now correctly calculates camera framing when viewing multiple open HUD panels or character changes occur."
+					"Fixed UI issues with tooltips, ensuring they remain fully visible and clamped within the viewport boundaries regardless of size or position.",
+					"UI elements, such as spell containers and HUD components, have been condensed and resized for a more compact and polished look.",
+					"Corrected the cinematic death burst mechanic to ensure the blast wave expands correctly and the damage calculations are reliable.",
+					"The mobile build now features fully scalable panels, ensuring optimal readability and functionality on both portrait and landscape touch screen layouts.",
+					"Resolved camera framing issues, recalculating panel positions and centering the character when HUD elements are opened or refreshed."
 				],
-				"performance": ["No major performance updates were noted this period."],
+				"performance": [
+					"Improved graphics rendering by minimizing expensive per-frame scene traversals, applying lighting and shadow modes only when essential settings or scene roots change."
+				],
 				"balance": [
-					"Early-game progression has been strengthened by significantly increasing the regeneration multiplier in the first levels.",
-					"Spell extraction rules have been tightened, restricting the ability to extract skills from lower-rarity equipment, while unique items still allow full skill access."
+					"Spell abilities have received targeted tuning, notably adjusting the reach and cooldown curves of major attacks (Cleave, Flurry, Bash).",
+					"The 'Extract' skill system now guides players by showing current and projected learned spell maximums when hovering over the skill.",
+					"Improvements were made to the character progression system, specifically strengthening regeneration rates in early levels.",
+					"In combat, blocking rules were refined to allow consecutive rolls and ensure consistent recovery, while also implementing caps on certain block chances to prevent spamming."
 				],
 				"ux": [
-					"Development log usability was improved by standardizing metadata labels and providing clearer navigation for community request tracking."
+					"Developer/Devlog functionality was greatly improved, allowing users to edit requests within a dedicated modal form and organizing metadata labels into a more readable format.",
+					"The main interface layout was streamlined by moving secondary options and Devlog access into a compact, easily accessible hamburger menu.",
+					"Users can now improve the in-game experience through clearer alignment of resource bars and chat windows.",
+					"The general mobile experience was enhanced with safe-area responsive layouts and improvements to touch controls, such as previewing actions on tap and executing them on hold."
 				],
 				"graphics": [
-					"General visual and audio polish improvements were applied across the system."
+					"Graphics quality was optimized for stable lighting effects, specifically refining the appearance of Blizzard and Thunder lighting to prevent visual jitter and interpolation errors.",
+					"The 'Death Burst' sequence now includes a flash of red light and scattered particles, enhancing the visual impact of enemy elimination.",
+					"Overall graphic polish focused on improving the visual presentation of various spell effects and enemy encounters."
 				]
 			},
 			"commits": [
+				{
+					"hash": "45ba021d781821081aa3a428c3f7a322de2cb0af",
+					"authoredAt": "2026-08-16T11:43:27-04:00",
+					"title": "balance(spells): rein in rage attacks",
+					"description": "- halve Cleave, Flurry, and Bash reach or sectors\\n- increase their final cooldown curves from 6-3s to 8-5s\\n- synchronize spell specs, descriptions, and focused coverage"
+				},
+				{
+					"hash": "08ebceaca3946e5e7e2aaabb356f575808584d25",
+					"authoredAt": "2026-08-16T11:27:27-04:00",
+					"title": "fix(ui): keep tooltips inside viewport",
+					"description": "- portal authored HUD tooltips outside clipping containers\n- flip and clamp overlays to every viewport edge\n- cover oversized tooltip positioning"
+				},
+				{
+					"hash": "b768287f44600e049fdc679d656576789f161c0b",
+					"authoredAt": "2026-08-16T11:19:44-04:00",
+					"title": "ux(spells): preview extract levels",
+					"description": "- show current and post-extract learned maximums on Extract hover\n- limit extract spell tooltips to the two relevant level projections\n- cover capped extraction preview labels"
+				},
+				{
+					"hash": "00d8928a882eb8c78ce294a16495acd6450ec5e8",
+					"authoredAt": "2026-08-16T11:19:44-04:00",
+					"title": "ux(spells): preview extract levels",
+					"description": "- show current and post-extract learned maximums on Extract hover\n- limit extract spell tooltips to the two relevant level projections\n- cover capped extraction preview labels"
+				},
+				{
+					"hash": "0b5a5fe87af83818cfc005ec5dc01573e280540d",
+					"authoredAt": "2026-08-16T11:10:30-04:00",
+					"title": "feat(devlog): allow requests to require more work",
+					"description": "- let request owners and moderators reopen completed AI work\n- open reopened requests in the editor for follow-up details\n- return retried requests to the feature-agent queue"
+				},
+				{
+					"hash": "d1221e793e92fe3879540af47385c641cef80f4c",
+					"authoredAt": "2026-08-16T11:05:59-04:00",
+					"title": "fix(hud): compact spell rail containers",
+					"description": "- halve spell containers and proportional rail chrome\\n- document compact spell rail sizing\\n- cover the half-size layout with a focused regression test"
+				},
+				{
+					"hash": "4e77fed16f0872c7b49eec00ac7ebc981b9dd4f6",
+					"authoredAt": "2026-08-16T10:58:37-04:00",
+					"title": "balance(hud): remove top notifications",
+					"description": "- remove the in-game top-right notification DOM surface\n- keep join and authentication feedback available before gameplay\n- cover the remaining routine notice destinations"
+				},
+				{
+					"hash": "0698244c305cd0d2a2ef25da3787fadfd48dedf2",
+					"authoredAt": "2026-08-16T10:53:57-04:00",
+					"title": "ux(devlog): edit requests in modal",
+					"description": "- replace browser prompts with a prefilled request form modal\n- reuse creation validation and keyboard submission behavior\n- document and test modal editing and cancellation"
+				},
+				{
+					"hash": "bc85db848aec4cea80098760bd656fd8d4a6e2bd",
+					"authoredAt": "2026-08-16T10:43:22-04:00",
+					"title": "perf(graphics): avoid per-frame scene traversals",
+					"description": "- apply lighting and shadow modes only when settings or scene roots change\n- keep pooled spell lights and newly attached models aligned with active modes\n- cover incremental graphics-mode application"
+				},
+				{
+					"hash": "44263043d322d99cff92a4b0ccc98f1613114a93",
+					"authoredAt": "2026-08-16T10:21:56-04:00",
+					"title": "fix(spells): make death burst circular",
+					"description": "- expand the death burst wave from its center to its full radius\n- resolve burst damage on the following fixed update"
+				},
 				{
 					"hash": "96f2db5d6d6a96650dc5a4f18cdf290bae95c271",
 					"authoredAt": "2026-08-15T18:04:44-04:00",
