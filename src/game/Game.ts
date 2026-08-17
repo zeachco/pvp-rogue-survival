@@ -23,7 +23,7 @@ import { trySetPointerCapture } from "../platform/PointerCapture";
 import { Hud, panelShortcut } from "../ui/Hud";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import { AttackArea } from "./AttackArea";
-import { correctArenaBoundary } from "./bounds";
+import { clampToArenaBoundary, correctArenaBoundary } from "./bounds";
 import { Creep } from "./Creep";
 import {
 	BACKGROUND_FRAME_INTERVAL_MS,
@@ -1279,6 +1279,7 @@ export class Game {
 
 	private updateHover(event: MouseEvent): void {
 		const world = this.eventWorld(event);
+		clampToArenaBoundary(world, 0, this.map.width, this.map.height);
 		this.pointerWorld = world;
 		const dropDistance = (drop: ItemDrop): number =>
 			distance(

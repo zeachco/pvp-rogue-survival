@@ -3274,6 +3274,14 @@ describe("arena systems", () => {
 		expect(velocity.x - velocity.y).toBeCloseTo(4);
 	});
 
+	test("clamps the zero-radius 3D cursor to the radial map", () => {
+		const pointerWorld = { x: 125, y: 150 };
+		expect(clampToArenaBoundary(pointerWorld, 0, 100, 100)).toBeTrue();
+		expect(Math.hypot(pointerWorld.x - 50, pointerWorld.y - 50)).toBeCloseTo(
+			50,
+		);
+	});
+
 	test("bucklers partially block with Strength and training damage stops at one", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const buckler = { ...generateBuckler(0, "common", 12), perks: {} };
