@@ -2456,13 +2456,29 @@ export class Hud {
   private previewItem(
     item?: ItemInstance,
     equipped = false,
-    action: "card" | "upgrade" | "reroll" = "card",
+    action: "inspect" | "equip" | "upgrade" | "reroll" = "inspect",
+    baselineItem?: ItemInstance,
   ): void {
     if (!this.player || this.inspected) return;
     const p = this.player.progress;
-    this.highlightDestinationSlot(item);
+    this.highlightDestinationSlot(action === "equip" ? item : undefined);
     this.highlightDisplacedItems(item, equipped, action);
+    this.previewInventoryDetails(
+      item,
+      equipped,
+      action === "equip",
+      baselineItem,
+      action,
+    );
     if (!item) {
+      this.previewBuild(p.mainHand, p.offHand, p.amulet, p.charm, false);
+      this.spellPreview = undefined;
+      this.spellPreviewProgress = undefined;
+      this.spellPreviewKind = undefined;
+      this.renderSpellSlots();
+      return;
+    }
+    if (action === "inspect") {
       this.previewBuild(p.mainHand, p.offHand, p.amulet, p.charm, false);
       this.spellPreview = undefined;
       this.spellPreviewProgress = undefined;
@@ -2509,6 +2525,78 @@ export class Hud {
     );
     this.renderSpellSlots();
   }
+  private previewInventoryDetails(
+    item?: ItemInstance,
+    equipped = false,
+    compareEquipment = false,
+    baselineItem?: ItemInstance,
+    action: "inspect" | "equip" | "upgrade" | "reroll" = "inspect",
+  ): void {
+    this.itemHoverCard.replaceChildren();
+    this.itemHoverCard.classList.toggle("is-hidden", !item);
+    this.itemHoverCard.toggleAttribute("aria-hidden", !item);
+    if (!item || !this.player) return;
+    const p = this.player.progress;
+    const equippedItem = !compareEquipment || equipped
+      ? undefined
+      : item.itemKind === "weapon"
+        ? p.mainHand
+        : item.itemKind === "amulet"
+          ? p.amulet
+          : item.itemKind === "charm"
+            ? p.charm
+            : p.offHand;
+    const comparison =
+      equippedItem && itemStackKey(equippedItem) !== itemStackKey(item)
+        ? equippedItem
+        : undefined;
+    const detailsCard = (
+      shown: ItemInstance,
+      label: string,
+      baseline?: ItemInstance,
+    ): HTMLElement => {
+      const shownStats = statsWithItemBonuses(p.stats, shown);
+      return (
+        <section class={`inventory-detail-card rarity-${shown.rarity}`}>
+          <small>{label}</small>
+          <strong>{shown.name}</strong>
+          <span>
+            L
+            {baseline
+              ? formatProjectedValue({
+                  currentVal: baseline.level,
+                  newVal: shown.level,
+                })
+              : shown.level} · {shown.rarity}
+          </span>
+          {itemDetails(
+            shown,
+            shownStats,
+            baseline,
+            baseline ? statsWithItemBonuses(p.stats, baseline) : undefined,
+            false,
+            Boolean(baseline),
+          )}
+        </section>
+      ) as HTMLElement;
+    };
+    this.itemHoverCard.append(
+      ...(baselineItem
+        ? [
+            detailsCard(
+              item,
+              action === "upgrade" ? "Upgrade preview" : "Reroll preview",
+              baselineItem,
+            ),
+          ]
+        : comparison
+        ? [
+            detailsCard(comparison, "Equipped"),
+            detailsCard(item, "Candidate", comparison),
+          ]
+        : [detailsCard(item, equipped ? "Equipped" : "Candidate")]),
+    );
+  }
   private highlightDestinationSlot(item?: ItemInstance): void {
     const destinationSlots = new Set(item ? equipSlotKeys(item) : []);
     for (const cell of this.loadoutNode.querySelectorAll<HTMLElement>(
@@ -2542,13 +2630,13 @@ export class Hud {
   private highlightDisplacedItems(
     item?: ItemInstance,
     equipped = false,
-    action: "card" | "upgrade" | "reroll" = "card",
+    action: "inspect" | "equip" | "upgrade" | "reroll" = "inspect",
   ): void {
     for (const card of this.backpackScroll.querySelectorAll<HTMLElement>(
       ".item-card",
     ))
       card.classList.remove("is-replacement-preview");
-    if (!this.player || !item || action !== "card") return;
+    if (!this.player || !item || action !== "equip") return;
     const p = this.player.progress;
     const displaced = new Set<string>();
     if (equipped) displaced.add(itemStackKey(item));

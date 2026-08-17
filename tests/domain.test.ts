@@ -233,6 +233,7 @@ import {
 } from "../src/ui/Hud";
 import {
 	extractLevelTooltipText,
+	inventoryItemIconId,
 	inventorySlotMatches,
 	orderInventoryTiles,
 } from "../src/ui/InventoryView";
@@ -649,6 +650,13 @@ test("keeps inventory chronology while applying the slot filter as an AND clause
 		),
 	).toEqual(["new-charm"]);
 	expect(inventorySlotMatches(newCharm, "mainhand")).toBeFalse();
+});
+
+test("maps inventory equipment to stable SVG silhouettes", () => {
+	expect(inventoryItemIconId(starterClub())).toBe("club");
+	expect(inventoryItemIconId(generateAccessory(1, "rare", 3, "amulet"))).toBe(
+		"amulet",
+	);
 });
 
 test("makes learned spells available without minimum hero levels", () => {

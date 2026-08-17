@@ -131,7 +131,7 @@ export function itemDetails(
 						<b class="requirement-values">
 							{requirements.map((requirement, index) => (
 								<span
-									class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal !== requirement.newVal ? " is-gain-preview" : ""}`}
+									class={`requirement-value${requirement.unmet ? " is-unmet" : requirement.currentVal === requirement.newVal ? "" : requirement.newVal > requirement.currentVal ? " is-cost-preview" : " is-gain-preview"}`}
 								>
 									{index ? ", " : ""}
 									{capitalize(requirement.key)}{" "}

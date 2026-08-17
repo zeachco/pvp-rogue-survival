@@ -16,16 +16,13 @@ import {
 	levelUpItem,
 	MAX_ITEM_LEVEL,
 	rerollItem,
-	statsWithItemBonuses,
 } from "../../common/items";
 import type { InventoryTile, PlayerProgress } from "../../common/protocol";
 import { h } from "./dom";
-import { bindRequirementPreview, itemDetails } from "./ItemDetails";
 import {
 	extractButtonStatus,
 	extractionLearnsNewSkill,
 } from "./inventoryAvailability";
-import { formatProjectedValue } from "./preview";
 import type { CurrencyPreview, HudCallbacks } from "./types";
 
 export type InventorySlotFilter = "all" | "mainhand" | "charms" | "offhands";
@@ -62,7 +59,8 @@ export function itemTile(
 	onPreview?: (
 		item?: InventoryTile["item"],
 		equipped?: boolean,
-		action?: "card" | "upgrade" | "reroll",
+		action?: "inspect" | "equip" | "upgrade" | "reroll",
+		baselineItem?: InventoryTile["item"],
 	) => void,
 	onCurrencyPreview?: (preview?: CurrencyPreview) => void,
 	onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void,
@@ -90,7 +88,6 @@ export function itemTile(
 	const skills = extractableSkills(item);
 	const extractCost = extractionCost(progress, skills);
 	const extractStatus = extractButtonStatus(tile, progress);
-	const stats = statsWithItemBonuses(progress.stats, item);
 	const extractionLevels = skills.map((skill) => {
 		const currentLevel = Math.min(
 			MAX_SKILL_LEVEL,
@@ -109,36 +106,42 @@ export function itemTile(
 			data-tile-id={tile.id}
 			data-stack-key={tile.key}
 		>
-			<div class="item-card-content">
-				<div class="item-title">
-					<span class="tile-text-anchor item-name-anchor" tabindex="0">
-						<strong>{item.name}</strong>
-						<span class="tile-text-tooltip" role="tooltip">
-							{item.name}
-						</span>
-					</span>
-					<b>x{tile.quantity}</b>
-				</div>
-				<small class="item-subtitle">
-					L{item.level} · {itemKindLabel(item)} · {item.rarity}
-				</small>
-				{itemDetails(item, stats)}
+			<div
+				class="item-card-content"
+				tabindex="0"
+				aria-label={`${item.name}, level ${item.level}, ${item.rarity}, quantity ${tile.quantity}`}
+			>
+				{itemIcon(item)}
+				<b class="item-quantity">{tile.quantity}</b>
+				<span class="item-tile-name">{item.name}</span>
 			</div>
 			<div class="item-card-controls">
-				<div class="item-menu">
-					<button type="button">Sell {sellYield(item)}g</button>
-					<button type="button">Purge</button>
-					<button type="button">Upgrade</button>
-					<button type="button">Bonk foe</button>
-					<button type="button">Reroll</button>
+				<div
+					class="item-menu inventory-item-context-menu"
+					role="menu"
+					aria-label={`${item.name} actions`}
+				>
+					{actionButton(
+						equipped ? "unequip" : "equip",
+						equipped ? "Unequip" : "Equip",
+					)}
+					{actionButton("sell", `Sell for ${sellYield(item)} gold`)}
+					{actionButton("purge", "Purge")}
+					{actionButton("upgrade", "Upgrade")}
+					{actionButton("send", "Bonk foe")}
+					{actionButton("reroll", "Reroll")}
 					{skills.length ? (
 						<button
 							type="button"
+							aria-label="Extract"
+							title="Extract"
+							data-action="extract"
 							class={
 								extractionLearnsNewSkill(tile, progress) ? "has-new-spell" : ""
 							}
 						>
-							Extract
+							{actionIcon("extract")}
+							<span class="item-action-label">Extract</span>
 							{extractionTooltip ?? (
 								<span class="action-tooltip" role="tooltip">
 									{extractionLevels.map(({ skill, currentLevel }) => (
@@ -157,22 +160,12 @@ export function itemTile(
 			</div>
 		</div>
 	) as HTMLElement;
-	bindRequirementPreview(
-		node.querySelector<HTMLElement>(".equipment-details")!,
-		item,
-		stats,
-	);
 	const buttons = [...node.querySelectorAll("button")];
 	buttons.forEach((button) => {
 		(button as HTMLButtonElement).disabled = tile.quantity === 0;
 	});
-	node.onclick = (event) => {
-		if (
-			event.button === 0 &&
-			(!(event.target instanceof Element) || !event.target.closest("button"))
-		)
-			callbacks.onEquip(tile.id);
-	};
+	const menu = node.querySelector<HTMLElement>(".item-menu");
+	const closeMenu = bindItemContextMenu(node, menu);
 	if (tile.quantity > 0 && onPreview) {
 		node.onmouseenter = () => {
 			onHoverChange?.(tile.id);
@@ -186,12 +179,27 @@ export function itemTile(
 		};
 		node.addEventListener("focusin", (event) => {
 			if (!(event.target instanceof Element)) return;
+			if (event.target.closest(".item-card-content")) {
+				onHoverChange?.(tile.id);
+				onPreview(item, equipped);
+				return;
+			}
 			if (!event.target.closest(".item-skill-list [data-skill-id]")) return;
 			onHoverChange?.(tile.id);
 			onPreview(item, equipped);
 		});
 		node.addEventListener("focusout", (event) => {
 			if (!(event.target instanceof Element)) return;
+			if (event.target.closest(".item-card-content")) {
+				if (
+					event.relatedTarget instanceof Node &&
+					node.contains(event.relatedTarget)
+				)
+					return;
+				onHoverChange?.();
+				onPreview();
+				return;
+			}
 			if (!event.target.closest(".item-skill-list [data-skill-id]")) return;
 			if (
 				event.relatedTarget instanceof Node &&
@@ -203,15 +211,21 @@ export function itemTile(
 		});
 	}
 	if (spare <= 0)
-		for (const index of [0, 1, 3, 5])
+		for (const index of [1, 2, 4, 6])
 			if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
-	const sendButton = buttons[3] as HTMLButtonElement | undefined;
+	const equipButton = buttons[0] as HTMLButtonElement | undefined;
+	if (equipButton)
+		equipButton.onclick = () => {
+			closeMenu();
+			callbacks.onEquip(tile.id);
+		};
+	const sendButton = buttons[4] as HTMLButtonElement | undefined;
 	if (sendButton && !canSend) {
 		sendButton.disabled = true;
 		sendButton.title = "Waiting for realm state";
 	}
 	const costs = upgradeCosts(item);
-	const upgradeButton = buttons[2] as HTMLButtonElement | undefined;
+	const upgradeButton = buttons[3] as HTMLButtonElement | undefined;
 	if (
 		upgradeButton &&
 		((item.rarity === "epic" && item.level >= MAX_ITEM_LEVEL.epic) ||
@@ -235,7 +249,7 @@ export function itemTile(
 				? `Requires ${costs.souls} Soul`
 				: `Requires ${costs.gold} gold and ${costs.scraps} ${item.rarity} scraps`;
 	}
-	const rerollButton = buttons[4] as HTMLButtonElement | undefined;
+	const rerollButton = buttons[5] as HTMLButtonElement | undefined;
 	if (rerollButton && progress.souls < REROLL_SOUL_COST) {
 		rerollButton.disabled = true;
 		rerollButton.title = `Requires ${REROLL_SOUL_COST} Soul`;
@@ -246,18 +260,20 @@ export function itemTile(
 	): void => {
 		const button = buttons[index] as HTMLButtonElement | undefined;
 		if (!button) return;
-		if (!button.disabled && index !== 5)
+		if (!button.disabled && index !== 6)
 			button.title = "Shift+click to repeat while possible";
-		button.onclick = (event) => callback(tile.id, event.shiftKey);
-		bindTouchHoldAction(button, () => callback(tile.id, false));
+		button.onclick = (event) => {
+			closeMenu();
+			callback(tile.id, event.shiftKey);
+		};
 	};
-	bindBulk(0, callbacks.onSell);
-	bindBulk(1, callbacks.onPurge);
-	bindBulk(2, callbacks.onUpgrade);
-	bindBulk(3, callbacks.onSend);
-	bindBulk(4, callbacks.onReroll);
-	bindBulk(5, callbacks.onExtract);
-	const extractButton = buttons[5] as HTMLButtonElement | undefined;
+	bindBulk(1, callbacks.onSell);
+	bindBulk(2, callbacks.onPurge);
+	bindBulk(3, callbacks.onUpgrade);
+	bindBulk(4, callbacks.onSend);
+	bindBulk(5, callbacks.onReroll);
+	bindBulk(6, callbacks.onExtract);
+	const extractButton = buttons[6] as HTMLButtonElement | undefined;
 	if (extractButton) {
 		if (extractStatus === "max-level") {
 			extractButton.disabled = true;
@@ -268,122 +284,221 @@ export function itemTile(
 		}
 	}
 	const upgraded = levelUpItem(item, item.seed);
-	const subtitle = node.querySelector<HTMLElement>(".item-subtitle")!;
-	let details = node.querySelector<HTMLElement>(".equipment-details")!;
-	const highlightExtractableSkills = (active: boolean): void => {
-		const extractable = new Set(skills);
-		for (const row of details.querySelectorAll<HTMLElement>(
-			".item-skill-list [data-skill-id]",
-		))
-			row.classList.toggle(
-				"is-extract-preview",
-				active &&
-					extractable.has(row.dataset.skillId as (typeof skills)[number]),
-			);
-	};
-	const previewUpgradeCard = (active: boolean): void => {
-		const shown = active ? upgraded : item;
-		const shownStats = statsWithItemBonuses(progress.stats, shown);
-		const level = formatProjectedValue({
-			currentVal: item.level,
-			newVal: shown.level,
-		});
-		subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`;
-		subtitle.classList.toggle("is-gain-preview", active);
-		const replacement = itemDetails(
-			shown,
-			shownStats,
-			active ? item : undefined,
-			active ? stats : undefined,
-		);
-		details.replaceWith(replacement);
-		details = replacement;
-		bindRequirementPreview(details, shown, shownStats);
-	};
 	const bindActionPreview = (
 		index: number,
 		currency?: CurrencyPreview,
 		enter?: () => void,
+		action: "inspect" | "equip" | "upgrade" | "reroll" = "inspect",
+		shownItem = item,
+		baselineItem?: InventoryTile["item"],
 	): void => {
 		const button = buttons[index] as HTMLButtonElement | undefined;
 		if (!button) return;
-		button.addEventListener("mouseenter", () => {
+		const show = () => {
 			onHoverChange?.(tile.id, index);
-			onPreview?.();
+			onPreview?.(
+				shownItem,
+				action === "equip" ? equipped : equipped && spare <= 0,
+				action,
+				baselineItem,
+			);
 			onCurrencyPreview?.(currency);
 			onSpellPreview?.();
 			enter?.();
-		});
-		button.addEventListener("mouseleave", () => {
+		};
+		const hide = () => {
 			onHoverChange?.(tile.id);
 			onCurrencyPreview?.();
 			onSpellPreview?.();
 			onPreview?.(item, equipped);
-		});
+		};
+		button.addEventListener("mouseenter", show);
+		button.addEventListener("mouseleave", hide);
+		button.addEventListener("focus", show);
+		button.addEventListener("blur", hide);
 	};
-	bindActionPreview(0, { gold: sellYield(item) });
+	bindActionPreview(0, undefined, undefined, "equip");
+	bindActionPreview(1, { gold: sellYield(item) });
 	bindActionPreview(
-		1,
+		2,
 		item.rarity === "unique"
 			? { souls: purgeYield(item) }
 			: { [item.rarity]: purgeYield(item) },
-	);
-	const upgradePreview = buttons[2] as HTMLButtonElement | undefined;
-	upgradePreview?.addEventListener("mouseenter", () =>
-		previewUpgradeCard(true),
-	);
-	upgradePreview?.addEventListener("mouseleave", () =>
-		previewUpgradeCard(false),
 	);
 	const upgradeCurrency: CurrencyPreview =
 		costs.souls > 0
 			? { souls: -costs.souls }
 			: { gold: -costs.gold, [item.rarity]: -costs.scraps };
-	bindActionPreview(2, upgradeCurrency, () => {
-		if (equipped && spare <= 0) onPreview?.(upgraded, true, "upgrade");
-	});
-	bindActionPreview(3);
+	bindActionPreview(3, upgradeCurrency, undefined, "upgrade", upgraded, item);
+	bindActionPreview(4);
 	const rerolled = rerollItem(item, itemPendingRerollSeed(item));
-	const previewRerollCard = (active: boolean): void => {
-		const shown = active ? rerolled : item;
-		const shownStats = statsWithItemBonuses(progress.stats, shown);
-		const level = formatProjectedValue({
-			currentVal: item.level,
-			newVal: shown.level,
-		});
-		subtitle.textContent = `L${level} · ${itemKindLabel(shown)} · ${shown.rarity}`;
-		subtitle.classList.toggle("is-gain-preview", active);
-		const replacement = itemDetails(
-			shown,
-			shownStats,
-			active ? item : undefined,
-			active ? stats : undefined,
-			false,
-			true,
-		);
-		details.replaceWith(replacement);
-		details = replacement;
-		bindRequirementPreview(details, shown, shownStats);
-	};
-	rerollButton?.addEventListener("mouseenter", () => previewRerollCard(true));
-	rerollButton?.addEventListener("mouseleave", () => previewRerollCard(false));
-	bindActionPreview(4, { souls: -REROLL_SOUL_COST }, () => {
-		if (equipped && spare <= 0) onPreview?.(rerolled, true, "reroll");
-	});
-	bindActionPreview(5, { gold: -extractCost }, () => {
+	bindActionPreview(
+		5,
+		{ souls: -REROLL_SOUL_COST },
+		undefined,
+		"reroll",
+		rerolled,
+		item,
+	);
+	bindActionPreview(6, { gold: -extractCost }, () => {
 		onSpellPreview?.(skills);
-		highlightExtractableSkills(true);
 	});
-	extractButton?.addEventListener("mouseleave", () =>
-		highlightExtractableSkills(false),
-	);
-	extractButton?.addEventListener("blur", () =>
-		highlightExtractableSkills(false),
-	);
-	extractButton?.addEventListener("focus", () =>
-		highlightExtractableSkills(true),
-	);
 	return node;
+}
+
+export type InventoryActionIcon =
+	| "equip"
+	| "unequip"
+	| "sell"
+	| "purge"
+	| "upgrade"
+	| "send"
+	| "reroll"
+	| "extract";
+
+export function inventoryItemIconId(item: InventoryTile["item"]): string {
+	return item.itemKind === "weapon" ? item.definitionId : item.itemKind;
+}
+
+function itemIcon(item: InventoryTile["item"]): HTMLElement {
+	const id = inventoryItemIconId(item);
+	const shapes: Record<string, HTMLElement> = {
+		buckler: (
+			<g>
+				<circle cx="12" cy="12" r="8" />
+				<path d="M12 4v16M4 12h16" />
+			</g>
+		) as HTMLElement,
+		relic: (
+			<g>
+				<path d="M12 3 18 8v8l-6 5-6-5V8Z" />
+				<circle cx="12" cy="12" r="3" />
+			</g>
+		) as HTMLElement,
+		amulet: (
+			<g>
+				<path d="M6 3c0 6 2 8 6 8s6-2 6-8" />
+				<circle cx="12" cy="16" r="4" />
+			</g>
+		) as HTMLElement,
+		charm: (
+			<g>
+				<path d="M12 3v5m-5-2 3 4m7-4-3 4" />
+				<path d="M8 11h8l2 8H6Z" />
+			</g>
+		) as HTMLElement,
+		staff: (
+			<g>
+				<path d="m7 21 8-16" />
+				<circle cx="16" cy="5" r="3" />
+			</g>
+		) as HTMLElement,
+		dagger: (
+			<g>
+				<path d="m6 19 11-11 2-4-4 2L4 17Z" />
+				<path d="m4 14 6 6" />
+			</g>
+		) as HTMLElement,
+		hammer: (
+			<g>
+				<path d="m9 9 4 4-8 8" />
+				<path d="m8 4 4-2 6 6-4 4Z" />
+			</g>
+		) as HTMLElement,
+		mace: (
+			<g>
+				<path d="m6 20 9-11" />
+				<path d="m14 3 6 5-5 4-5-5Z" />
+			</g>
+		) as HTMLElement,
+		axe: (
+			<g>
+				<path d="m6 21 8-14" />
+				<path d="M13 4c4-1 7 1 7 1l-5 7-5-4Z" />
+			</g>
+		) as HTMLElement,
+		throwingAxe: (
+			<g>
+				<path d="M5 7c5-4 10-3 14 1l-5 4-3-3-3 3Z" />
+				<path d="m14 12 5 7" />
+			</g>
+		) as HTMLElement,
+	};
+	return (
+		<svg class="inventory-item-icon" viewBox="0 0 24 24" aria-hidden="true">
+			{shapes[id] ?? (
+				<g>
+					<path d="m5 19 14-14" />
+					<path d="m13 5 6 6M4 16l4 4" />
+				</g>
+			)}
+		</svg>
+	) as HTMLElement;
+}
+
+function actionButton(action: InventoryActionIcon, label: string): HTMLElement {
+	return (
+		<button type="button" aria-label={label} title={label} data-action={action}>
+			{actionIcon(action)}
+			<span class="item-action-label">{label}</span>
+		</button>
+	) as HTMLElement;
+}
+
+function actionIcon(action: InventoryActionIcon): HTMLElement {
+	const paths: Record<InventoryActionIcon, HTMLElement> = {
+		equip: (
+			<g>
+				<path d="M4 12.5 9 17l11-11" />
+				<path d="M4 4h7M4 20h16" />
+			</g>
+		) as HTMLElement,
+		unequip: (
+			<g>
+				<path d="m6 6 12 12M18 6 6 18" />
+				<path d="M4 3h16v18H4Z" />
+			</g>
+		) as HTMLElement,
+		sell: (
+			<g>
+				<circle cx="12" cy="12" r="8" />
+				<path d="M9 10c0-2 6-2 6 0s-6 2-6 4 6 2 6 0M12 7v10" />
+			</g>
+		) as HTMLElement,
+		purge: (
+			<path d="m12 2 2.2 6.1L20 5l-3.1 5.8L23 13l-6.1 2.2L20 21l-5.8-3.1L12 24l-2.2-6.1L4 21l3.1-5.8L1 13l6.1-2.2L4 5l5.8 3.1Z" />
+		) as HTMLElement,
+		upgrade: (
+			<g>
+				<path d="m5 11 7-7 7 7" />
+				<path d="M12 4v16M6 20h12" />
+			</g>
+		) as HTMLElement,
+		send: (
+			<g>
+				<path d="M4 18c3-7 7-9 14-9" />
+				<path d="m14 5 5 4-5 4" />
+			</g>
+		) as HTMLElement,
+		reroll: (
+			<g>
+				<path d="M5 9a8 8 0 0 1 13-3l2 2" />
+				<path d="M20 3v5h-5M19 15a8 8 0 0 1-13 3l-2-2" />
+				<path d="M4 21v-5h5" />
+			</g>
+		) as HTMLElement,
+		extract: (
+			<g>
+				<path d="M19 12a7 7 0 1 1-7-7c4 0 6 3 5 6-1 4-7 4-7 0 0-2 3-3 4-1" />
+				<path d="m12 2 2 3-2 3" />
+			</g>
+		) as HTMLElement,
+	};
+	return (
+		<svg class="item-action-icon" viewBox="0 0 24 24" aria-hidden="true">
+			{paths[action]}
+		</svg>
+	) as HTMLElement;
 }
 
 export function extractLevelTooltipText(
@@ -395,6 +510,100 @@ export function extractLevelTooltipText(
 }
 
 export const TOUCH_ACTION_HOLD_MS = 600;
+
+export function bindItemContextMenu(
+	card: HTMLElement,
+	menu?: HTMLElement | null,
+): () => void {
+	let holdTimer: ReturnType<typeof setTimeout> | undefined;
+	let openedByTouch = false;
+	let cleanupOutside: (() => void) | undefined;
+	const portal = card.closest<HTMLElement>(".game-hud") ?? document.body;
+	const cancelHold = () => {
+		if (holdTimer !== undefined) clearTimeout(holdTimer);
+		holdTimer = undefined;
+	};
+	const close = () => {
+		cancelHold();
+		card.classList.remove("is-menu-open");
+		menu?.classList.remove("is-open");
+		const controls = card.querySelector<HTMLElement>(".item-card-controls");
+		if (menu?.parentElement === portal) {
+			if (controls && card.isConnected) controls.append(menu);
+			else menu.remove();
+		}
+		cleanupOutside?.();
+		cleanupOutside = undefined;
+	};
+	const open = (clientX: number, clientY: number) => {
+		if (!menu) return;
+		document.dispatchEvent(new CustomEvent("inventory-context-close"));
+		cleanupOutside?.();
+		card.classList.add("is-menu-open");
+		menu.classList.add("is-open");
+		menu.style.setProperty(
+			"--rarity-rgb",
+			getComputedStyle(card).getPropertyValue("--rarity-rgb"),
+		);
+		portal.append(menu);
+		menu.style.left = `${clientX}px`;
+		menu.style.top = `${clientY}px`;
+		const rect = menu.getBoundingClientRect();
+		const inset = 8;
+		menu.style.left = `${Math.max(inset, Math.min(clientX, window.innerWidth - rect.width - inset))}px`;
+		menu.style.top = `${Math.max(inset, Math.min(clientY, window.innerHeight - rect.height - inset))}px`;
+		const onPointerDown = (event: PointerEvent) => {
+			if (!(event.target instanceof Node) || !menu.contains(event.target))
+				close();
+		};
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") close();
+		};
+		const onContextClose = () => close();
+		document.addEventListener("pointerdown", onPointerDown);
+		document.addEventListener("keydown", onKeyDown);
+		document.addEventListener("inventory-context-close", onContextClose);
+		cleanupOutside = () => {
+			document.removeEventListener("pointerdown", onPointerDown);
+			document.removeEventListener("keydown", onKeyDown);
+			document.removeEventListener("inventory-context-close", onContextClose);
+		};
+		menu.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+	};
+	card.addEventListener("contextmenu", (event) => {
+		event.preventDefault();
+		open(event.clientX, event.clientY);
+	});
+	card.addEventListener("keydown", (event) => {
+		if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10"))
+			return;
+		event.preventDefault();
+		const rect = card.getBoundingClientRect();
+		open(rect.right, rect.top);
+	});
+	card.addEventListener("pointerdown", (event) => {
+		if (
+			event.pointerType !== "touch" ||
+			(event.target instanceof Element && event.target.closest("button"))
+		)
+			return;
+		cancelHold();
+		holdTimer = setTimeout(() => {
+			holdTimer = undefined;
+			openedByTouch = true;
+			open(event.clientX, event.clientY);
+		}, TOUCH_ACTION_HOLD_MS);
+	});
+	for (const type of ["pointerup", "pointercancel", "pointerleave"] as const)
+		card.addEventListener(type, cancelHold);
+	card.addEventListener("click", (event) => {
+		if (!openedByTouch) return;
+		event.preventDefault();
+		event.stopImmediatePropagation();
+		openedByTouch = false;
+	});
+	return close;
+}
 
 export function bindTouchHoldAction(
 	button: HTMLButtonElement,
@@ -424,15 +633,4 @@ export function bindTouchHoldAction(
 		event.stopImmediatePropagation();
 		touchPress = false;
 	});
-}
-function itemKindLabel(item: InventoryTile["item"]): string {
-	return item.itemKind === "weapon"
-		? `${item.hands}H`
-		: item.itemKind === "buckler"
-			? `${Math.round(item.blockChance * 100)}% block`
-			: item.itemKind === "relic"
-				? "Relic"
-				: item.itemKind === "amulet"
-					? "Amulet"
-					: "Charm";
 }
