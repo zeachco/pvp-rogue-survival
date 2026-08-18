@@ -11,7 +11,7 @@
 		"changelog": "bun scripts/changelog.ts",
 		"changelogs": "bun scripts/changelog.ts --all",
 		"features": "bun scripts/listFeatureRequests.ts",
-		"feature": "bun scripts/runFeatureAgent.ts codex",
+		"feature": "bun scripts/runFeatureAgent.ts pi",
 		"release-check": "sh scripts/release-check.sh",
 		"release-push": "sh scripts/release-push.sh",
 		"release-production": "sh scripts/release-production.sh",

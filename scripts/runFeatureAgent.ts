@@ -12,6 +12,7 @@ export const FEATURE_AGENT_PROMPT =
 export const FEATURE_AGENT_RESULT_PREFIX = "FEATURE_AGENT_RESULT ";
 
 export type FeatureHarness = "codex" | "claude" | "pi" | "opencode";
+export const DEFAULT_FEATURE_HARNESS: FeatureHarness = "pi";
 export type FeatureAgentResult = {
 	status: "implemented" | "already_done";
 	summary: string;
@@ -21,7 +22,7 @@ export type FeatureAgentResult = {
 const HARNESS_COMMANDS: Record<FeatureHarness, readonly string[]> = {
 	codex: ["codex", "exec", "--approve-for-me"],
 	claude: ["claude", "--print", "--permission-mode", "auto"],
-	pi: ["pi", "--print", "--no-session"],
+	pi: ["pi", "--print", "--no-session", "--model", "ollama/qwen"],
 	opencode: ["opencode", "run", "--auto"],
 };
 
@@ -276,9 +277,11 @@ async function readHarnessOutput(
 }
 
 async function main(): Promise<void> {
-	const harness = Bun.argv[2] ?? "";
+	const harness = Bun.argv[2] ?? DEFAULT_FEATURE_HARNESS;
 	if (!isFeatureHarness(harness))
-		throw new Error("Usage: bun run feature-agent <codex|claude|pi|opencode>");
+		throw new Error(
+			`Usage: bun run feature-agent <codex|claude|pi|opencode> (default: ${DEFAULT_FEATURE_HARNESS})`,
+		);
 	if (!(await cleanWorktree()))
 		throw new Error("Feature-agent requires a clean Git worktree.");
 	if (!Bun.which(HARNESS_COMMANDS[harness][0]))

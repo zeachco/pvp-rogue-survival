@@ -47,12 +47,12 @@ bun run features |
 
 ### Run a feature agent
 
-`bun run feature-agent <harness>` launches an autonomous implementation workflow with `codex`, `claude`, `pi`, or `opencode`. It requires a clean worktree and an interactive terminal, randomly selects an incomplete feature, prints the request and any security warnings, then starts the AI harness without another confirmation prompt. The harness is instructed to implement, validate, commit, and push the selected request. Only after the launcher confirms a new commit, a clean worktree, and that HEAD matches its configured upstream does it mark the request `Done with AI` through the public completion API.
+`bun run feature-agent <harness>` launches an autonomous implementation workflow with `codex`, `claude`, `pi`, or `opencode`. The default `bun feature` runs `pi` with the qwen model through ollama. It requires a clean worktree and an interactive terminal, randomly selects an incomplete feature, prints the request and any security warnings, then starts the AI harness without another confirmation prompt. The harness is instructed to implement, validate, commit, and push the selected request. Only after the launcher confirms a new commit, a clean worktree, and that HEAD matches its configured upstream does it mark the request `Done with AI` through the public completion API.
 
 ```bash
+bun feature
 bun run feature-agent codex
 bun run feature-agent claude
-bun run feature-agent pi
 bun run feature-agent opencode
 ```
 

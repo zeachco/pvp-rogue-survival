@@ -45,6 +45,8 @@ describe("feature agent launcher", () => {
 			"pi",
 			"--print",
 			"--no-session",
+			"--model",
+			"ollama/qwen",
 			"task",
 		]);
 		expect(harnessCommand("opencode", "task")).toEqual([
