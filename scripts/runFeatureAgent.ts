@@ -23,7 +23,7 @@ const HARNESS_COMMANDS: Record<FeatureHarness, readonly string[]> = {
 	codex: ["codex", "exec", "--approve-for-me"],
 	claude: ["claude", "--print", "--permission-mode", "auto"],
 	pi: ["pi", "--print", "--no-session", "--model", "ollama/qwen"],
-	opencode: ["opencode", "run", "--auto"],
+	opencode: ["opencode", "run", "--auto", "--model", "ollama/qwen3.8:latest"],
 };
 
 const SECURITY_PATTERNS: Array<{ label: string; pattern: RegExp }> = [

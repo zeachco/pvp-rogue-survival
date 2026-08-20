@@ -53,6 +53,8 @@ describe("feature agent launcher", () => {
 			"opencode",
 			"run",
 			"--auto",
+			"--model",
+			"ollama/qwen3.8:latest",
 			"task",
 		]);
 		expect(
