@@ -49,8 +49,10 @@ describe("feature agent launcher", () => {
 			"pi",
 			"--print",
 			"--no-session",
+			"--thinking",
+			"low",
 			"--model",
-			"ollama/qwen",
+			"llamacpp/qwen3.8",
 			"task",
 		]);
 		const planCommand = harnessCommand("opencode", "plan", "task");

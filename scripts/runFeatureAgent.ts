@@ -13,7 +13,7 @@ export const PLAN_RESULT_PREFIX = "FEATURE_PLAN ";
 export const FEATURE_AGENT_RESULT_PREFIX = "FEATURE_AGENT_RESULT ";
 
 export type FeatureHarness = "codex" | "claude" | "pi" | "opencode";
-export const DEFAULT_FEATURE_HARNESS: FeatureHarness = "opencode";
+export const DEFAULT_FEATURE_HARNESS: FeatureHarness = "pi";
 export type FeatureAgentResult = {
   status: "implemented" | "already_done";
   summary: string;
@@ -25,7 +25,7 @@ export type FeaturePhase = "plan" | "build";
 const HARNESS_COMMANDS: Record<FeatureHarness, readonly string[]> = {
   codex: ["codex", "exec", "--approve-for-me"],
   claude: ["claude", "--print", "--permission-mode", "auto"],
-  pi: ["pi", "--print", "--no-session"],
+  pi: ["pi", "--print", "--no-session", "--thinking", "low"],
   opencode: ["opencode", "run", "--auto"],
 };
 
@@ -36,8 +36,8 @@ const PHASE_MODELS: Record<FeatureHarness, Record<FeaturePhase, string>> = {
   codex: { plan: "", build: "" },
   claude: { plan: "", build: "" },
   pi: {
-    plan: "ollama/qwen",
-    build: "ollama/qwen",
+    plan: "llamacpp/qwen3.8",
+    build: "llamacpp/qwen3.8",
   },
   opencode: {
     plan: "llamacpp/qwen3.8",
