@@ -2,12 +2,16 @@ import { describe, expect, test } from "bun:test";
 import {
 	FEATURE_AGENT_PROMPT,
 	FEATURE_AGENT_RESULT_PREFIX,
-	featurePrompt,
+	PLAN_RESULT_PREFIX,
+	buildPrompt,
 	formattedFeatureRecap,
 	harnessCommand,
 	isFeatureHarness,
 	markFeatureCompleted,
 	parseFeatureAgentResult,
+	parsePlanResult,
+	phaseBanner,
+	planPrompt,
 	securityFindings,
 	selectHighestVotedFeature,
 } from "../scripts/runFeatureAgent";
@@ -28,20 +32,20 @@ const request: DevlogRequest = {
 
 describe("feature agent launcher", () => {
 	test("builds non-interactive commands for every supported harness", () => {
-		expect(harnessCommand("codex", "task")).toEqual([
+		expect(harnessCommand("codex", "plan", "task")).toEqual([
 			"codex",
 			"exec",
 			"--approve-for-me",
 			"task",
 		]);
-		expect(harnessCommand("claude", "task")).toEqual([
+		expect(harnessCommand("claude", "build", "task")).toEqual([
 			"claude",
 			"--print",
 			"--permission-mode",
 			"auto",
 			"task",
 		]);
-		expect(harnessCommand("pi", "task")).toEqual([
+		expect(harnessCommand("pi", "plan", "task")).toEqual([
 			"pi",
 			"--print",
 			"--no-session",
@@ -49,14 +53,17 @@ describe("feature agent launcher", () => {
 			"ollama/qwen",
 			"task",
 		]);
-		expect(harnessCommand("opencode", "task")).toEqual([
+		const planCommand = harnessCommand("opencode", "plan", "task");
+		const buildCommand = harnessCommand("opencode", "build", "task");
+		expect(planCommand).toEqual([
 			"opencode",
 			"run",
 			"--auto",
 			"--model",
-			"ollama/qwen3.8:latest",
+			"llamacpp/qwen3.8",
 			"task",
 		]);
+		expect(buildCommand.slice(0, -1)).toEqual(planCommand.slice(0, -1));
 		expect(
 			["codex", "claude", "pi", "opencode"].every(isFeatureHarness),
 		).toBeTrue();
@@ -76,15 +83,47 @@ describe("feature agent launcher", () => {
 				},
 			])?.id,
 		).toBe("bug-2");
-		const prompt = featurePrompt(request);
-		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
+		const prompt = planPrompt(request);
 		expect(prompt).toContain("<untrusted-feature-request>");
 		expect(prompt).toContain('"title": "Controller support"');
-		expect(prompt).toContain("Do not fetch or select another request");
+		expect(prompt).toContain("Do NOT modify, create, or delete any files");
+		expect(prompt).toContain(PLAN_RESULT_PREFIX);
+	});
+
+	test("wraps the plan as untrusted data in the build prompt", () => {
+		const prompt = buildPrompt(request, "1. Update specs\n2. Add tests");
+		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
+		expect(prompt).toContain("<untrusted-feature-plan>");
+		expect(prompt).toContain("1. Update specs\n2. Add tests");
+		expect(prompt).toContain("<untrusted-feature-request>");
 		expect(prompt).toContain("create one semantic commit");
 		expect(prompt).toContain("push that commit");
-		expect(prompt).toContain('"already_done"');
 		expect(prompt).toContain(FEATURE_AGENT_RESULT_PREFIX);
+	});
+
+	test("parses the structured planning result", () => {
+		expect(
+			parsePlanResult(`thinking
+${PLAN_RESULT_PREFIX}{"already_done":false,"plan":"Update spec, add tests, implement"}
+done`),
+		).toEqual({
+			already_done: false,
+			plan: "Update spec, add tests, implement",
+		});
+		expect(() => parsePlanResult("no plan here")).toThrow(
+			"did not return a structured plan",
+		);
+		expect(() =>
+			parsePlanResult(`${PLAN_RESULT_PREFIX}{"already_done":true,"plan":""}`),
+		).toThrow("invalid plan result");
+	});
+
+	test("renders blue plan and orange build phase banners", () => {
+		expect(phaseBanner("plan")).toContain("\x1b[34m");
+		expect(phaseBanner("build")).toContain("\x1b[38;5;208m");
+	});
+
+	test("selects the highest-voted eligible request", () => {
 		expect(
 			selectHighestVotedFeature([{ ...request, completed: true }]),
 		).toBeUndefined();

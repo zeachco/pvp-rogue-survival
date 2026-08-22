@@ -398,7 +398,9 @@ describe("third-person camera", () => {
 		const hudSource = await Bun.file(
 			new URL("../src/ui/Hud.tsx", import.meta.url),
 		).text();
-		const setPlayerStart = hudSource.indexOf("  setPlayer(player: PlayerState)");
+		const setPlayerStart = hudSource.indexOf(
+			"  setPlayer(player: PlayerState)",
+		);
 		const setPlayerSource = hudSource.slice(
 			setPlayerStart,
 			hudSource.indexOf("\n  configurePanelTriggers", setPlayerStart),
@@ -3654,12 +3656,8 @@ test("collapses both side panels before showing the character selector", async (
 		selectorStart,
 		source.indexOf("showAuthentication(", selectorStart),
 	);
-	expect(openSelector).toMatch(
-		/this\.characterToggle,\s*"character",\s*true,/,
-	);
-	expect(openSelector).toMatch(
-		/this\.inventoryToggle,\s*"inventory",\s*true,/,
-	);
+	expect(openSelector).toMatch(/this\.characterToggle,\s*"character",\s*true,/);
+	expect(openSelector).toMatch(/this\.inventoryToggle,\s*"inventory",\s*true,/);
 	expect(openSelector.indexOf('"character"')).toBeLessThan(
 		openSelector.indexOf("this.characterSelector.classList.remove"),
 	);
