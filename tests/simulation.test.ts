@@ -1804,7 +1804,7 @@ describe("arena systems", () => {
 		).toHaveLength(4);
 		expect(
 			whirlwindVisuals.getObjectByName("whirlwind-magic-sword"),
-		).toBeInstanceOf(THREE.Mesh);
+		).toBeUndefined();
 		expect(
 			whirlwindVisuals.children.filter(
 				(child) =>

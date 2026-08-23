@@ -845,26 +845,6 @@ function whirlwind(
 			effectFade,
 		);
 	}
-
-	const sword = new THREE.Mesh(
-		new THREE.ConeGeometry(5.5, 40, 4),
-		new THREE.MeshStandardMaterial({
-			color: 0xfff0df,
-			emissive: 0xff2746,
-			emissiveIntensity: 3.5,
-			metalness: 0.85,
-			roughness: 0.12,
-		}),
-	);
-	sword.name = "whirlwind-magic-sword";
-	sword.position.set(
-		Math.cos(headAngle) * (radius - 16),
-		Math.sin(headAngle) * (radius - 16),
-		0,
-	);
-	sword.rotation.z = headAngle - Math.PI / 2;
-	sword.renderOrder = Z_EFFECT + 0.01;
-	group.add(sword);
 }
 
 function whirlwindTrail(
