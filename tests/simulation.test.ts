@@ -51,12 +51,14 @@ import {
 import { GroundSwamp } from "../src/game/GroundSwamp";
 import {
 	DEFAULT_GRAPHICS_SETTINGS,
+	detectGraphicsDefaultProfile,
 	FULLSCREEN_MODE_STORAGE_KEY,
 	LIGHTING_MODE_STORAGE_KEY,
 	loadFullscreenMode,
 	loadLightingMode,
 	loadResolutionScale,
 	loadShadowMode,
+	MOBILE_DEFAULT_GRAPHICS_SETTINGS,
 	RESOLUTION_SCALE_STORAGE_KEY,
 	SHADOW_MODE_STORAGE_KEY,
 	saveFullscreenMode,
@@ -187,16 +189,50 @@ describe("animated 3D characters", () => {
 		expect(matchingAnimationClip([idle, walk], ["Run", "walk"])).toBe(walk);
 		expect(matchingAnimationClip([idle], ["Attack"])).toBeUndefined();
 	});
-	test("stores shadows locally with an off default", () => {
+	test("uses device shadow defaults and preserves saved selections", () => {
 		const values = new Map<string, string>();
 		const storage = {
 			getItem: (key: string) => values.get(key) ?? null,
 			setItem: (key: string, value: string) => values.set(key, value),
 		};
-		expect(loadShadowMode(storage)).toBe("off");
+		expect(loadShadowMode(storage, "mobile")).toBe("off");
+		expect(loadShadowMode(storage, "desktop")).toBe("dynamic");
 		saveShadowMode(storage, "dynamic");
 		expect(values.get(SHADOW_MODE_STORAGE_KEY)).toBe("dynamic");
-		expect(loadShadowMode(storage)).toBe("dynamic");
+		expect(loadShadowMode(storage, "mobile")).toBe("dynamic");
+		values.set(SHADOW_MODE_STORAGE_KEY, "off");
+		expect(loadShadowMode(storage, "desktop")).toBe("off");
+		values.set(SHADOW_MODE_STORAGE_KEY, "invalid");
+		expect(loadShadowMode(storage, "mobile")).toBe("off");
+		expect(loadShadowMode(storage, "desktop")).toBe("dynamic");
+	});
+
+	test("falls back to device graphics defaults when storage is inaccessible", () => {
+		const storage = {
+			getItem: () => {
+				throw new Error("storage disabled");
+			},
+			setItem: () => {
+				throw new Error("storage disabled");
+			},
+		};
+		expect(loadLightingMode(storage, "mobile")).toBe("off");
+		expect(loadShadowMode(storage, "mobile")).toBe("off");
+		expect(loadLightingMode(storage, "desktop")).toBe("all");
+		expect(loadShadowMode(storage, "desktop")).toBe("dynamic");
+	});
+
+	test("classifies narrow or coarse-pointer clients as mobile", () => {
+		const matcher = (matches: Record<string, boolean>) => (query: string) => ({
+			matches: matches[query] ?? false,
+		});
+		expect(detectGraphicsDefaultProfile(matcher({}))).toBe("desktop");
+		expect(
+			detectGraphicsDefaultProfile(matcher({ "(max-width: 720px)": true })),
+		).toBe("mobile");
+		expect(
+			detectGraphicsDefaultProfile(matcher({ "(pointer: coarse)": true })),
+		).toBe("mobile");
 	});
 	test("stores fullscreen-on-start locally with an on default", () => {
 		const values = new Map<string, string>();
@@ -277,6 +313,9 @@ describe("animated 3D characters", () => {
 
 	test("uses a dark global baseline and short-radius role lights", () => {
 		expect(DEFAULT_GRAPHICS_SETTINGS.lightingMode).toBe("all");
+		expect(DEFAULT_GRAPHICS_SETTINGS.shadowMode).toBe("dynamic");
+		expect(MOBILE_DEFAULT_GRAPHICS_SETTINGS.lightingMode).toBe("off");
+		expect(MOBILE_DEFAULT_GRAPHICS_SETTINGS.shadowMode).toBe("off");
 		expect(SCENE_LIGHTING).toEqual({
 			clearColor: 0x05080c,
 			ambientIntensity: { off: 1.1, hero: 0.25, all: 0.05 },
@@ -321,18 +360,21 @@ describe("animated 3D characters", () => {
 		hero.updateAuraVisuals(1);
 		expect(hero.auraGroup.position.toArray()).toEqual([90, 130, 0]);
 	});
-	test("stores lighting as a browser-local preference and defaults invalid values to all", () => {
+	test("uses device lighting defaults and preserves saved selections", () => {
 		const values = new Map<string, string>();
 		const storage = {
 			getItem: (key: string) => values.get(key) ?? null,
 			setItem: (key: string, value: string) => values.set(key, value),
 		};
-		expect(loadLightingMode(storage)).toBe("all");
-		saveLightingMode(storage, "all");
-		expect(values.get(LIGHTING_MODE_STORAGE_KEY)).toBe("all");
-		expect(loadLightingMode(storage)).toBe("all");
+		expect(loadLightingMode(storage, "mobile")).toBe("off");
+		expect(loadLightingMode(storage, "desktop")).toBe("all");
+		saveLightingMode(storage, "hero");
+		expect(values.get(LIGHTING_MODE_STORAGE_KEY)).toBe("hero");
+		expect(loadLightingMode(storage, "mobile")).toBe("hero");
+		expect(loadLightingMode(storage, "desktop")).toBe("hero");
 		values.set(LIGHTING_MODE_STORAGE_KEY, "invalid");
-		expect(loadLightingMode(storage)).toBe("all");
+		expect(loadLightingMode(storage, "mobile")).toBe("off");
+		expect(loadLightingMode(storage, "desktop")).toBe("all");
 	});
 
 	test("applies ambient-only, hero-only, and all lighting modes", () => {

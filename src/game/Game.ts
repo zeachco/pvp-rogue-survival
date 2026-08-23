@@ -36,6 +36,7 @@ import {
 } from "./GamepadInput";
 import {
 	type FullscreenMode,
+	detectGraphicsDefaultProfile,
 	loadFullscreenMode,
 	loadLightingMode,
 	loadResolutionScale,
@@ -169,8 +170,11 @@ export class Game {
 		this.renderer = new ThreeRenderer(this.canvas);
 		this.fullscreenMode = loadFullscreenMode(localStorage);
 		const resolutionScale = loadResolutionScale(localStorage);
-		const lightingMode = loadLightingMode(localStorage);
-		const shadowMode = loadShadowMode(localStorage);
+		const graphicsDefaultProfile = detectGraphicsDefaultProfile(
+			window.matchMedia.bind(window),
+		);
+		const lightingMode = loadLightingMode(localStorage, graphicsDefaultProfile);
+		const shadowMode = loadShadowMode(localStorage, graphicsDefaultProfile);
 		const keepAwakeMode = loadKeepAwakeMode(localStorage);
 		this.wakeLock.setEnabled(keepAwakeMode === "on");
 		this.renderer.setLightingMode(lightingMode);

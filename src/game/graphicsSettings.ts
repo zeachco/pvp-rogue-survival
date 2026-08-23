@@ -1,6 +1,7 @@
 export type LightingMode = "off" | "hero" | "all";
 export type ShadowMode = "off" | "dynamic";
 export type FullscreenMode = "on" | "off";
+export type GraphicsDefaultProfile = "desktop" | "mobile";
 
 export const FULLSCREEN_MODE_STORAGE_KEY =
 	"multi-line-tower.game.fullscreen-on-start";
@@ -12,17 +13,44 @@ export const MIN_RESOLUTION_SCALE = 0.2;
 export const MAX_RESOLUTION_SCALE = 1;
 export const RESOLUTION_SCALE_STEP = 0.1;
 
-export const DEFAULT_GRAPHICS_SETTINGS = {
-	fullscreenMode: "on",
-	resolutionScale: 1,
-	lightingMode: "all",
-	shadowMode: "off",
-} as const satisfies {
+interface GraphicsSettings {
 	fullscreenMode: FullscreenMode;
 	resolutionScale: number;
 	lightingMode: LightingMode;
 	shadowMode: ShadowMode;
-};
+}
+
+export const DEFAULT_GRAPHICS_SETTINGS = {
+	fullscreenMode: "on",
+	resolutionScale: 1,
+	lightingMode: "all",
+	shadowMode: "dynamic",
+} as const satisfies GraphicsSettings;
+
+export const MOBILE_DEFAULT_GRAPHICS_SETTINGS = {
+	...DEFAULT_GRAPHICS_SETTINGS,
+	lightingMode: "off",
+	shadowMode: "off",
+} as const satisfies GraphicsSettings;
+
+interface MediaQueryMatcher {
+	(query: string): Pick<MediaQueryList, "matches">;
+}
+
+export function detectGraphicsDefaultProfile(
+	matchMedia: MediaQueryMatcher,
+): GraphicsDefaultProfile {
+	return matchMedia("(max-width: 720px)").matches ||
+		matchMedia("(pointer: coarse)").matches
+		? "mobile"
+		: "desktop";
+}
+
+function defaultGraphicsSettings(profile: GraphicsDefaultProfile) {
+	return profile === "mobile"
+		? MOBILE_DEFAULT_GRAPHICS_SETTINGS
+		: DEFAULT_GRAPHICS_SETTINGS;
+}
 
 type GraphicsStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -60,12 +88,15 @@ export function saveResolutionScale(
 	} catch {}
 }
 
-export function loadLightingMode(storage: GraphicsStorage): LightingMode {
+export function loadLightingMode(
+	storage: GraphicsStorage,
+	profile: GraphicsDefaultProfile = "desktop",
+): LightingMode {
 	try {
 		const saved = storage.getItem(LIGHTING_MODE_STORAGE_KEY);
 		if (saved === "off" || saved === "hero" || saved === "all") return saved;
 	} catch {}
-	return DEFAULT_GRAPHICS_SETTINGS.lightingMode;
+	return defaultGraphicsSettings(profile).lightingMode;
 }
 
 export function saveLightingMode(
@@ -77,12 +108,15 @@ export function saveLightingMode(
 	} catch {}
 }
 
-export function loadShadowMode(storage: GraphicsStorage): ShadowMode {
+export function loadShadowMode(
+	storage: GraphicsStorage,
+	profile: GraphicsDefaultProfile = "desktop",
+): ShadowMode {
 	try {
-		if (storage.getItem(SHADOW_MODE_STORAGE_KEY) === "dynamic")
-			return "dynamic";
+		const saved = storage.getItem(SHADOW_MODE_STORAGE_KEY);
+		if (saved === "off" || saved === "dynamic") return saved;
 	} catch {}
-	return DEFAULT_GRAPHICS_SETTINGS.shadowMode;
+	return defaultGraphicsSettings(profile).shadowMode;
 }
 
 export function saveShadowMode(
