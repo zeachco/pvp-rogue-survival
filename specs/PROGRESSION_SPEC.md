@@ -2,9 +2,13 @@
 
 This specification extends `specs/SPEC.md` and `specs/MECHANICS_SPEC.md` and is authoritative for progression and itemization.
 
+> Workflow note (2026-08-23): the repository-referenced preview workflow at `skills/td-war-preview-driven-tweaks/SKILL.md` is unavailable. Resource and spell changes use focused automated tests, the full test suite, a production build, and direct preview checks until it is restored.
+
 Selling equipment returns Gold equal to ten times the item's base `sellValue` in every mode, including the Halls of Realms lobby, unmatched play, and competitive realms. This multiplier applies only to direct sale proceeds; upgrade prices, extraction prices, enemy bounty, and other base-value calculations remain unchanged. Inventory labels and previews show the multiplied proceeds.
 
 ## Optional Loadouts and Spell Binding
+
+Toggleable skills behave like passive skills and never occupy one of the six active spell slots. They default to enabled when available, persist their enabled/disabled state, and toggle when their spell-rail entry is clicked. Ordinary passives remain always active.
 
 Hero, public-profile, rival-clone, and death-echo main-hand slots may be empty. Heroes and copied player builds have four independent equipment slots: main hand, offhand, amulet, and charm. Equipping an equipped item toggles it off without creating or restoring a Plain Club; the backpack stack retains the equipped copy. Offhands, amulets, and charms may be equipped while empty-handed. Equipping a two-handed weapon still displaces an offhand but never displaces the amulet or charm. Generated ordinary enemies remain weapon-equipped.
 

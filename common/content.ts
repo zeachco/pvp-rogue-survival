@@ -23,6 +23,7 @@ export interface SkillDefinition {
 	resource: "rage" | "mana" | "life";
 	description: string;
 	passive?: boolean;
+	toggleable?: boolean;
 	upkeep?: { resource: "mana" | "rage"; perLevelPerSecond: number };
 	cost?: number;
 	enemyEligible?: boolean;
@@ -290,6 +291,17 @@ export const SKILLS: Readonly<Record<SkillId, SkillDefinition>> = {
 		passive: true,
 		description:
 			"An aura that tears open every critical wound you inflict. Critical damage from attacks, spells, projectiles, auras, reflection, statuses, and continuous effects restores level-scaled Mana and echoes the same amount as bonus Cold damage. The Cold echo cannot critically strike or trigger Spirit Wounds again.",
+	},
+	manaShield: {
+		id: "manaShield",
+		label: "Mana Shield",
+		damageMultiplier: 0,
+		cooldown: 0,
+		resource: "mana",
+		passive: true,
+		toggleable: true,
+		description:
+			"Toggleable: redirects 10–99% of final incoming damage to Mana before HP.",
 	},
 	penance: {
 		id: "penance",

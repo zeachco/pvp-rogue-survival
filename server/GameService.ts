@@ -831,6 +831,24 @@ export class GameService {
 			!providedByEquipment
 		)
 			return;
+		if (SKILLS[skillId].toggleable) {
+			const disabled = new Set(player.progress.disabledSkills ?? []);
+			if (shouldEquip) disabled.delete(skillId);
+			else disabled.add(skillId);
+			player.progress.disabledSkills = [...disabled];
+			player.progress.equippedSkills = (
+				player.progress.equippedSkills ?? []
+			).filter((id) => id !== skillId);
+			player.progress.autoFireSkills = (
+				player.progress.autoFireSkills ?? []
+			).filter((id) => id !== skillId);
+			this.options.repository.markDirty(player.id);
+			this.sendProgress(
+				player,
+				`${SKILLS[skillId].label} ${shouldEquip ? "enabled" : "disabled"}.`,
+			);
+			return;
+		}
 		if (SKILLS[skillId].passive) return;
 		const availableActive = new Set([
 			...player.progress.learnedSkills,
@@ -1132,6 +1150,8 @@ export class GameService {
 						}),
 					]
 				: [];
+		const manaShield =
+			isRival && !allowedClasses && this.options.random.next() < 0.5;
 		return {
 			id: this.createId(),
 			name,
@@ -1146,7 +1166,10 @@ export class GameService {
 			mainHand,
 			offHand,
 			carried,
-			bonusSkills: [],
+			bonusSkills: manaShield ? ["manaShield"] : [],
+			skillLevels: manaShield
+				? { manaShield: Math.min(99, Math.max(1, level)) }
+				: undefined,
 			isRival,
 			enemyRole: isRival ? "champion" : "creep",
 			xpReward: isRival ? rivalXpReward(level) : 10 + level,

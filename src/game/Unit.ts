@@ -1,7 +1,9 @@
+import * as THREE from "three";
 import {
 	effectiveSkillCooldown,
 	MAX_RAGE,
 	manaConversionFraction,
+	manaShieldConversionFraction,
 	RAGE_DECAY_PER_SECOND,
 	reflectiveSurgeDuration,
 	skillUpkeepPerSecond,
@@ -24,6 +26,7 @@ import {
 import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
 import { clampToArenaBoundary } from "./bounds";
 import { GameObject } from "./GameObject";
+import { createManaShieldBubble } from "./render/ManaShieldBubble";
 import type { StatusEffectSnapshot, Vector2 } from "./types";
 
 export interface StatusEffect extends StatusEffectSnapshot {
@@ -103,6 +106,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	readonly knownSkills = new Set<SkillId>();
 	readonly skillLevels = new Map<SkillId, number>();
 	private readonly suspendedUpkeep = new Set<"mana" | "rage">();
+	private readonly manaShieldBubble: THREE.Mesh;
 	onCombatText?: (text: CombatText) => void;
 	lastHitDodged = false;
 	presentationAttackVersion = 0;
@@ -124,6 +128,11 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		hp: number,
 	) {
 		super();
+		this.manaShieldBubble = createManaShieldBubble(
+			radius,
+			this.constructor.name === "Hero" ? "hero" : "enemy",
+		);
+		this.mesh.add(this.manaShieldBubble);
 		this.position = { ...position };
 		this.hp = hp;
 		this.maxHp = hp;
@@ -246,13 +255,28 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	}
 
 	takeDamage(amount: number): void {
-		const lostHp = Math.min(this.hp, Math.max(0, amount));
+		let hpDamage = Math.max(0, amount);
+		if (hpDamage > 0 && this.isSkillOperational("manaShield")) {
+			const converted =
+				hpDamage *
+				manaShieldConversionFraction(this.skillLevels.get("manaShield") ?? 1);
+			const manaSpent = Math.min(this.mana, converted);
+			this.mana -= manaSpent;
+			hpDamage -= manaSpent;
+		}
+		const lostHp = Math.min(this.hp, hpDamage);
 		if (lostHp > 0) {
 			this.presentationHitVersion += 1;
 			this.damageSlowRemaining = 0.35;
 		}
-		this.hp = Math.max(0, this.hp - amount);
+		this.hp = Math.max(0, this.hp - hpDamage);
 		if (this.hp === 0) this.active = false;
+	}
+
+	override updateVisuals(time: number): void {
+		super.updateVisuals(time);
+		this.manaShieldBubble.visible =
+			this.active && this.hp > 0 && this.isSkillOperational("manaShield");
 	}
 
 	spendLife(amount: number): void {
@@ -457,22 +481,27 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			).build.id;
 		remaining *= 1 - voodooDamageReduction(this);
 		if (invulnerable || this.damageFloorOne) {
-			this.hp = Math.max(1, this.hp - remaining);
-		} else if (
-			reflectable &&
-			this.amulet?.rarity === "unique" &&
-			this.hp - remaining <= 0 &&
-			this.deathPreventionWaveUsed !== this.currentWave
-		) {
-			this.hp = 1;
-			this.immunityRemaining = 1;
-			this.deathPreventionWaveUsed = this.currentWave;
-		} else {
 			this.takeDamage(remaining);
+			if (this.hp <= 0) {
+				this.hp = 1;
+				this.active = true;
+			}
+		} else {
+			const canPreventDeath =
+				reflectable &&
+				this.amulet?.rarity === "unique" &&
+				this.deathPreventionWaveUsed !== this.currentWave;
+			this.takeDamage(remaining);
+			if (canPreventDeath && this.hp <= 0) {
+				this.hp = 1;
+				this.active = true;
+				this.immunityRemaining = 1;
+				this.deathPreventionWaveUsed = this.currentWave;
+			}
 		}
+		const damageDealt = Math.max(0, hpBefore - this.hp);
 		if (remaining > 0)
 			this.emitCombatText(remaining, presentation.kind, critical);
-		const damageDealt = Math.max(0, hpBefore - this.hp);
 		if (damageDealt > 0 && !blocked && !this.lastHitDodged)
 			this.grantDefensiveRage("damage");
 		if (

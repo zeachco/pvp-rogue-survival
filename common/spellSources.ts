@@ -16,6 +16,7 @@ export const SPELL_SOURCES: Readonly<Record<SkillId, string>> = {
 	attraction:
 		"New-hero passive; Attraction Idol; some Staves, Relics, Amulets, and Charms",
 	manaDrain: "Spirit Wounds Idol relic",
+	manaShield: "Spirit Relic",
 	penance: "Penance Idol relic",
 	thorns: "Rare or Epic Spiked Buckler",
 	reflectiveSurge: "Rare or Epic Spiked Buckler",

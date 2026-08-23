@@ -36,6 +36,7 @@ import {
 	healingRadius,
 	katarBlockChance,
 	manaConversionFraction,
+	manaShieldConversionFraction,
 	orbitingHammerDuration,
 	RENDING_THROW_BLEED_DURATION,
 	rapidRegenDuration,
@@ -398,12 +399,12 @@ describe("third-person camera", () => {
 		const hudSource = await Bun.file(
 			new URL("../src/ui/Hud.tsx", import.meta.url),
 		).text();
-		const setPlayerStart = hudSource.indexOf(
-			"  setPlayer(player: PlayerState)",
+		const setPlayerStart = hudSource.search(
+			/\n\s+setPlayer\(player: PlayerState\)/,
 		);
 		const setPlayerSource = hudSource.slice(
 			setPlayerStart,
-			hudSource.indexOf("\n  configurePanelTriggers", setPlayerStart),
+			hudSource.indexOf("configurePanelTriggers", setPlayerStart),
 		);
 		expect(setPlayerSource).toMatch(
 			/this\.applyPanelTriggers\(player\.progress\);\s*this\.updateVisibility\(\);\s*this\.callbacks\.onPanelLayoutChange\(\);/,
@@ -608,10 +609,10 @@ test("clears and focuses spell search whenever the catalog opens", async () => {
 	const source = await Bun.file(
 		new URL("../src/ui/Hud.tsx", import.meta.url),
 	).text();
-	const toggleStart = source.indexOf("  toggleSpellCatalog(): void");
+	const toggleStart = source.search(/\n\s+toggleSpellCatalog\(\): void/);
 	const toggleSource = source.slice(
 		toggleStart,
-		source.indexOf("  assignHoveredSpell", toggleStart),
+		source.indexOf("assignHoveredSpell", toggleStart),
 	);
 	expect(toggleSource).toContain('this.spellCatalogSearch = "";');
 	expect(toggleSource).toContain(
@@ -3175,7 +3176,7 @@ test("registers configurable Spirit relic perks", () => {
 			(variant) => perkRoll < variant.maxRoll,
 		) ?? {
 			name: hasAttraction ? "Attracting Relic" : "Spirit Relic",
-			skills: [],
+			skills: ["manaShield"],
 		};
 		expect(relic.name).toBe(expected.name);
 		expect(
@@ -3184,6 +3185,17 @@ test("registers configurable Spirit relic perks", () => {
 			),
 		).toEqual(expected.skills);
 	}
+});
+
+test("Mana Shield scales its final-damage conversion across exact endpoints", () => {
+	expect(manaShieldConversionFraction(1)).toBeCloseTo(0.1);
+	expect(manaShieldConversionFraction(50)).toBeCloseTo(0.545);
+	expect(manaShieldConversionFraction(99)).toBeCloseTo(0.99);
+	expect(SKILLS.manaShield.toggleable).toBeTrue();
+	expect(SPELL_SOURCES.manaShield).toBe("Spirit Relic");
+	expect(passiveSkillMetrics("manaShield", 99)).toEqual([
+		{ label: "Damage to Mana", value: "99%" },
+	]);
 });
 test("item skill rows reuse the skillbar descriptions", () => {
 	expect(itemSkillDescription("reflectiveSurge")).toEqual({

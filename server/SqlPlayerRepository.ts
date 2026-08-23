@@ -269,6 +269,11 @@ function fromRow(row: HeroRow): Player | undefined {
 	);
 	migrateLegacyEquipment(blob.progress);
 	blob.progress.disabledSkills ??= [];
+	blob.progress.disabledSkills = [
+		...new Set(
+			blob.progress.disabledSkills.filter((skill) => SKILLS[skill]?.toggleable),
+		),
+	];
 	if (!blob.progress.equippedSkills) {
 		const disabled = new Set(blob.progress.disabledSkills);
 		const available = [

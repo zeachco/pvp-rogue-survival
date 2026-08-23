@@ -17,6 +17,7 @@ Each registered `SkillId` has exactly one contract in this directory, named afte
 | `gravityPull` | [Force Field](gravity-pull.md) |
 | `attraction` | [Attraction](attraction.md) |
 | `manaDrain` | [Spirit Wounds](mana-drain.md) |
+| `manaShield` | [Mana Shield](mana-shield.md) |
 | `penance` | [Penance](penance.md) |
 | `thorns` | [Thorns](thorns.md) |
 | `reflectiveSurge` | [Reflective Surge](reflective-surge.md) |

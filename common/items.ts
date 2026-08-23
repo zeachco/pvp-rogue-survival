@@ -36,6 +36,7 @@ export type SkillId =
 	| "gravityPull"
 	| "attraction"
 	| "manaDrain"
+	| "manaShield"
 	| "penance"
 	| "thorns"
 	| "reflectiveSurge"
@@ -143,7 +144,7 @@ const RELIC_VARIANTS = [
 	{ name: "Spirit Wounds Idol", maxRoll: 0.55, skills: ["manaDrain"] },
 	{ name: "Penance Idol", maxRoll: 0.7, skills: ["penance"] },
 	{ name: "Renewal Idol", maxRoll: 0.85, skills: ["rapidRegen"] },
-	{ name: "Spirit Relic", maxRoll: 1, skills: [] },
+	{ name: "Spirit Relic", maxRoll: 1, skills: ["manaShield"] },
 ] as const satisfies readonly RelicVariant[];
 
 function relicVariantForRoll(roll: number): RelicVariant {

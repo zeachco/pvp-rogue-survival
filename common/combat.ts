@@ -15,6 +15,11 @@ import type { RandomSource } from "./random";
 
 export const STAFF_BASIC_HALF_ARC = Math.PI / 3;
 
+export function manaShieldConversionFraction(level: number): number {
+	const clamped = Math.min(99, Math.max(1, level));
+	return 0.1 + ((clamped - 1) / 98) * 0.89;
+}
+
 export function rollWeaponDamage(
 	item: ItemInstance,
 	stats: Stats,

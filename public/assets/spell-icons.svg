@@ -18,6 +18,7 @@
   <symbol id="gravityPull" viewBox="0 0 24 24"><circle class="line" cx="12" cy="12" r="3"/><path class="line" d="M3 12h5m-2-3 2 3-2 3m15-3h-5m2-3-2 3 2 3M12 3v5m-3-2 3 2 3-2m-3 15v-5m-3 2 3-2 3 2"/></symbol>
   <symbol id="attraction" viewBox="0 0 24 24"><path class="line" d="M5 4v7a7 7 0 0 0 14 0V4h-4v7a3 3 0 0 1-6 0V4z"/><path class="fill" d="M5 3h4v3H5zm10 0h4v3h-4z"/></symbol>
   <symbol id="manaDrain" viewBox="0 0 24 24"><path class="line" d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11zM8 14h8m-3-3 3 3-3 3"/></symbol>
+  <symbol id="manaShield" viewBox="0 0 24 24"><path class="line" d="M12 2 4 6v6c0 5 3 8 8 10 5-2 8-5 8-10V6z"/><path class="line" d="M12 6c3 4 4 6 4 8a4 4 0 0 1-8 0c0-2 1-4 4-8z"/></symbol>
   <symbol id="penance" viewBox="0 0 24 24"><path class="line" d="M12 3v18M5 8h14M7 3l10 18"/></symbol>
   <symbol id="thorns" viewBox="0 0 24 24"><path class="line" d="M12 3 9 9l-5-2 3 5-4 3 6 1 1 5 3-5 5 3-2-6 5-2-6-2z"/></symbol>
   <symbol id="reflectiveSurge" viewBox="0 0 24 24"><path class="line" d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6zM9 9h6l-2-2m2 8H9l2 2"/></symbol>

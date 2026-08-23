@@ -55,6 +55,7 @@ export interface SpellSlot {
 	costLabel: string;
 	active: boolean;
 	passive: boolean;
+	toggleable: boolean;
 	procChancesOnAttacks?: number;
 	procChancesOnDamage?: number;
 	providedByItemName?: string;

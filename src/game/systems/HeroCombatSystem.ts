@@ -831,6 +831,7 @@ export class HeroCombatSystem {
 				costLabel: skillCostLabel(id, progress),
 				active: isSkillActive(progress, id),
 				passive: Boolean(SKILLS[id].passive),
+				toggleable: Boolean(SKILLS[id].toggleable),
 				autoFire: autoFire.has(id),
 				shortcut: equipped.includes(id) ? equipped.indexOf(id) + 1 : undefined,
 				bar: learnedSkillIds(progress).includes(id)
@@ -852,6 +853,7 @@ export class HeroCombatSystem {
 				costLabel: "Free attack proc",
 				active: true,
 				passive: true,
+				toggleable: false,
 				procChancesOnAttacks: itemProcTriggerChance(progress, proc),
 				procChancesOnDamage: proc.triggersOnDamage
 					? itemProcTriggerChance(progress, proc)
@@ -1346,8 +1348,12 @@ export function orderedSkillIds(progress: PlayerProgress): SkillId[] {
 }
 export function activeSkillIds(progress: PlayerProgress): SkillId[] {
 	const equipped = new Set(equippedActiveSkillIds(progress));
+	const disabled = new Set(progress.disabledSkills ?? []);
 	return availableSkillIds(progress).filter(
-		(skill) => SKILLS[skill].passive || equipped.has(skill),
+		(skill) =>
+			(SKILLS[skill].passive &&
+				(!SKILLS[skill].toggleable || !disabled.has(skill))) ||
+			equipped.has(skill),
 	);
 }
 export const MAX_EQUIPPED_SPELLS = 6;

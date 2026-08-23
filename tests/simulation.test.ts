@@ -566,6 +566,23 @@ describe("hero facing attacks", () => {
 });
 
 describe("arena systems", () => {
+	test("Mana Shield spends Mana first and spills only the unpaid final damage to HP", () => {
+		const hero = new Hero({ x: 10, y: 10 });
+		hero.knownSkills.add("manaShield");
+		hero.skillLevels.set("manaShield", 99);
+		hero.mana = 40;
+		const hpBefore = hero.hp;
+		hero.takeDamage(100);
+		expect(hero.mana).toBe(0);
+		expect(hero.hp).toBe(hpBefore - 60);
+		hero.updateVisuals(0);
+		expect(hero.mesh.getObjectByName("mana-shield-bubble")?.visible).toBeTrue();
+		hero.knownSkills.delete("manaShield");
+		hero.updateVisuals(0);
+		expect(
+			hero.mesh.getObjectByName("mana-shield-bubble")?.visible,
+		).toBeFalse();
+	});
 	test("preserves emitted linear and radial impact directions", () => {
 		const source = new Hero({ x: 0, y: 0 });
 		source.configureStats({ ...ZERO_STATS, strength: 10 });

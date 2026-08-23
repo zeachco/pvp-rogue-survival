@@ -475,6 +475,7 @@ export function isSkillId(value: string): value is SkillId {
 		"gravityPull",
 		"attraction",
 		"manaDrain",
+		"manaShield",
 		"penance",
 		"thorns",
 		"reflectiveSurge",

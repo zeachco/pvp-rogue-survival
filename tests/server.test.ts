@@ -124,7 +124,7 @@ describe("realm game service", () => {
 		expect(1 - (30 / 31) ** 2).toBeCloseTo(0.0635, 4);
 	});
 	test("starts new players with Frozen Orb on the Staff and Attraction learned", () => {
-		const { game, messages } = harness();
+		const { game } = harness();
 		const player = game.join("Starter");
 		expect(player.progress.level).toBe(1);
 		expect(player.progress.xp).toBe(cumulativeXpForLevel(1));
@@ -182,6 +182,27 @@ describe("realm game service", () => {
 			equipped: false,
 		});
 		expect(player.progress.equippedSkills).toEqual([]);
+	});
+	test("persists Mana Shield toggles without consuming an active slot", () => {
+		const { game } = harness();
+		const player = game.join("ManaShieldToggle");
+		player.progress.learnedSkills.push("manaShield");
+		player.progress.learnedSkillLevels.manaShield = 1;
+		player.progress.equippedSkills = ["frostOrb"];
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "manaShield",
+			equipped: false,
+		});
+		expect(player.progress.disabledSkills).toEqual(["manaShield"]);
+		expect(player.progress.equippedSkills).toEqual(["frostOrb"]);
+		game.handle(player.id, {
+			type: "setSkillEquipped",
+			skillId: "manaShield",
+			equipped: true,
+		});
+		expect(player.progress.disabledSkills).toEqual([]);
+		expect(player.progress.equippedSkills).toEqual(["frostOrb"]);
 	});
 	test("assigns an acquired spell to an exact occupied loadout slot", () => {
 		const { game } = harness();
