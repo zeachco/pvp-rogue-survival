@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { generateItem } from "../common/items";
+import { generateBuckler, generateItem } from "../common/items";
 import { ZERO_STATS } from "../common/progression";
 import {
 	compileUnitState,
@@ -74,12 +74,28 @@ describe("unit state compiler", () => {
 		expect(state.blockChance).toBeCloseTo(0.1);
 	});
 
-	test("caps ordinary blocking at 75% and allows 100% only during Reflective Surge", () => {
+	test("raises an ordinary 75% block cap during Reflective Surge", () => {
 		const target = new TestTarget();
 		target.state.blockChance = 0.95;
 		target.state.blockChanceCap = 0.75;
 		new ReflectiveSurgeEffect(99, 1).handler(target);
 		expect(target.state.blockChanceCap).toBe(1);
+		expect(target.state.blockChance).toBe(1);
+	});
+
+	test("compiles scaled bucklers above the ordinary cap and surges up to 100%", () => {
+		const buckler = {
+			...generateBuckler(10, "common", 12),
+			level: 100,
+			blockChance: 0.85,
+			requirements: {},
+		};
+		const state = projectUnitState({ baseStats: ZERO_STATS, offHand: buckler });
+		expect(state.blockChance).toBeCloseTo(0.855);
+		expect(state.blockChanceCap).toBe(1);
+		const target = new TestTarget();
+		target.state = state;
+		new ReflectiveSurgeEffect(99, 1).handler(target);
 		expect(target.state.blockChance).toBe(1);
 	});
 

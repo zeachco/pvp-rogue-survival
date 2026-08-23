@@ -190,6 +190,12 @@ export const weaponLevelScale = (level: number): number =>
 	1 + Math.max(0, level) * 0.025;
 export const weaponSkillLevelScale = (level: number): number =>
 	1 + Math.max(0, level) * 0.005;
+export const bucklerLevelBlockChance = (level: number): number =>
+	Math.ceil(Math.max(0, level) * 0.75) / 100;
+export const bucklerBlockChanceValue = (
+	level: number,
+	rarity: Rarity,
+): number => 0.1 * RARITY_POWER[rarity] + bucklerLevelBlockChance(level);
 
 export interface ItemModifiers {
 	damageMultiplier: number;
@@ -300,6 +306,8 @@ export function migrateLegacyItem(item: ItemInstance): ItemInstance {
 			bonuses.rageSkillLevels = bonuses.staminaSkillLevels;
 		delete bonuses.staminaSkillLevels;
 	}
+	if (item.itemKind === "buckler")
+		item.blockChance = bucklerBlockChanceValue(item.level, item.rarity);
 	delete legacy.staminaCost;
 	return item;
 }
@@ -441,7 +449,7 @@ export function generateBuckler(
 				1,
 				Math.round((level + 1) * power * (spiked ? 5 : 4)),
 			),
-			blockChance: 0.1 * power,
+			blockChance: bucklerBlockChanceValue(level, rarity),
 			reflectionComponents,
 			attractionSpeed: 0,
 		},
@@ -671,7 +679,7 @@ export function levelUpItem(base: ItemInstance, seed: number): ItemInstance {
 		return preserveRolledTraits(base, {
 			...next,
 			name: base.name,
-			blockChance: 0.1 * RARITY_POWER[rarity],
+			blockChance: bucklerBlockChanceValue(nextLevel, rarity),
 			sellValue: Math.max(
 				1,
 				Math.round(

@@ -3339,6 +3339,26 @@ describe("arena systems", () => {
 		hero.receiveDamage(10, { next: () => 1 });
 		expect(hero.rage).toBe(3);
 	});
+	test("resolves damage rolls immediately below and above scaled buckler chance", () => {
+		const hero = new Hero({ x: 50, y: 50 });
+		const buckler = {
+			...generateBuckler(10, "common", 12),
+			level: 100,
+			blockChance: 0.85,
+			requirements: {},
+			perks: {},
+		};
+		hero.configureStats(
+			{ agility: 0, strength: 1, magic: 0, spirit: 0, intelligence: 0 },
+			buckler,
+		);
+		const hp = hero.hp;
+		hero.receiveDamage(10, { next: () => 0.8599 });
+		expect(hero.hp).toBeGreaterThan(hp - 10);
+		hero.hp = hp;
+		hero.receiveDamage(10, { next: () => 0.8601 });
+		expect(hero.hp).toBe(hp - 10);
+	});
 	test("Poison, Bleed, and Burn ticks cannot be blocked or dodged", () => {
 		for (const kind of ["poison", "bleed", "burn"] as const) {
 			const hero = new Hero({ x: 50, y: 50 });

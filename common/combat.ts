@@ -3,6 +3,7 @@ import type { BalanceConfig } from "./balance";
 import { SKILLS, WEAPONS } from "./content";
 import {
 	AURA_SKILLS,
+	bucklerLevelBlockChance,
 	type ItemInstance,
 	itemRequirementMultiplier,
 	RARITY_POWER,
@@ -184,6 +185,7 @@ export function weaponUsesProjectile(item: ItemInstance): boolean {
 	);
 }
 export const MAX_BLOCK_CHANCE = 0.75;
+export const MAX_BUCKLER_BLOCK_CHANCE = 1;
 export const REFLECTIVE_SURGE_MAX_BLOCK_CHANCE = 1;
 export function bucklerBlockChance(
 	item: ItemInstance | undefined,
@@ -191,12 +193,20 @@ export function bucklerBlockChance(
 	blockingLevel = 0,
 ): number {
 	const passiveChance = 0.005 * Math.max(0, blockingLevel);
-	const bucklerChance =
-		item?.itemKind === "buckler"
-			? (item.blockChance + 0.005 * (stats.strength + stats.agility)) *
-				itemRequirementMultiplier(item, stats)
-			: 0;
-	return Math.min(MAX_BLOCK_CHANCE, passiveChance + bucklerChance);
+	if (item?.itemKind !== "buckler")
+		return Math.min(MAX_BLOCK_CHANCE, passiveChance);
+	const effectiveness = itemRequirementMultiplier(item, stats);
+	const levelChance = bucklerLevelBlockChance(item.level) * effectiveness;
+	const ordinaryChance =
+		passiveChance +
+		(item.blockChance -
+			bucklerLevelBlockChance(item.level) +
+			0.005 * (stats.strength + stats.agility)) *
+			effectiveness;
+	return Math.min(
+		MAX_BUCKLER_BLOCK_CHANCE,
+		Math.min(MAX_BLOCK_CHANCE, ordinaryChance) + levelChance,
+	);
 }
 
 export function katarBlockChance(

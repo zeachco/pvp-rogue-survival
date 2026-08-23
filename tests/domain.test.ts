@@ -94,6 +94,9 @@ import {
 } from "../common/inventory";
 import {
 	AURA_SKILLS,
+	bucklerBlockChanceValue,
+	bucklerLevelBlockChance,
+	changeItemRarity,
 	equippedBonusXp,
 	equippedImmunities,
 	equippedPerks,
@@ -936,6 +939,41 @@ test("resolves the configured unarmed profile from effective Strength", () => {
 	});
 });
 describe("equipment requirements", () => {
+	test("scales buckler block chance across generation, upgrades, promotion, and migration", () => {
+		expect(bucklerLevelBlockChance(0)).toBe(0);
+		expect(bucklerLevelBlockChance(1)).toBe(0.01);
+		expect(bucklerLevelBlockChance(2)).toBe(0.02);
+		expect(bucklerLevelBlockChance(4)).toBe(0.03);
+		expect(bucklerBlockChanceValue(100, "common")).toBeCloseTo(0.85);
+
+		const generated = generateBuckler(8, "common", 12);
+		expect(generated.blockChance).toBeCloseTo(0.16);
+		expect(generateBuckler(8, "common", 12)).toEqual(generated);
+		const upgraded = levelUpItem(generated, 13);
+		expect(upgraded.blockChance).toBeCloseTo(0.17);
+		const promoted = changeItemRarity(generated, "rare", 14);
+		expect(promoted.blockChance).toBeCloseTo(
+			bucklerBlockChanceValue(promoted.level, "rare"),
+		);
+		const legacy = { ...generated, blockChance: 0.1 };
+		migrateLegacyItem(legacy);
+		expect(legacy.blockChance).toBeCloseTo(generated.blockChance);
+	});
+
+	test("uses scaled buckler values in equipped and upgrade projections", () => {
+		const base = { ...generateBuckler(8, "common", 12), requirements: {} };
+		const upgraded = { ...levelUpItem(base, 13), requirements: {} };
+		const stats = { ...ZERO_STATS, strength: 20 };
+		const row = (item: ItemInstance) =>
+			new Map(
+				effectiveStatRows(undefined, item, undefined, undefined, stats),
+			).get("Block chance");
+		expect(row(base)).toBe("26%");
+		expect(row(upgraded)).toBe("27%");
+		expect(bucklerBlockChance(base, stats)).toBeCloseTo(0.26);
+		expect(bucklerBlockChance(upgraded, stats)).toBeCloseTo(0.27);
+	});
+
 	test("rolls and preserves requirement-active immunities only from generated level-25+ items", () => {
 		const lowLevel = Array.from({ length: 500 }, (_, seed) =>
 			generateItem(24, "rare", seed),

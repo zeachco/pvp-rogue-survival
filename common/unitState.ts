@@ -6,6 +6,7 @@ import {
 	bucklerBlockChance,
 	bucklerBlockCost,
 	katarBlockChance,
+	MAX_BUCKLER_BLOCK_CHANCE,
 	MAX_BLOCK_CHANCE,
 	REFLECTIVE_SURGE_MAX_BLOCK_CHANCE,
 	RAGE_DECAY_PER_SECOND,
@@ -260,11 +261,11 @@ export function defaultBaseState(input: UnitStateInput): UnitState {
 		},
 		immunities,
 		blockChance: Math.min(
-			MAX_BLOCK_CHANCE,
+			buckler ? MAX_BUCKLER_BLOCK_CHANCE : MAX_BLOCK_CHANCE,
 			bucklerBlockChance(buckler, attributes, input.blockingLevel ?? 0) +
 				katarBlockChance(input.mainHand, attributes),
 		),
-		blockChanceCap: MAX_BLOCK_CHANCE,
+		blockChanceCap: buckler ? MAX_BUCKLER_BLOCK_CHANCE : MAX_BLOCK_CHANCE,
 		blockCost: buckler ? bucklerBlockCost(buckler, attributes) : 0,
 		lifeSteal,
 		healthOnKill: onKill.health,
