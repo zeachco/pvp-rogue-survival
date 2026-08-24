@@ -1,5 +1,75 @@
 import { describe, expect, test } from "bun:test";
-import { trySetPointerCapture } from "../src/platform/PointerCapture";
+import {
+	tryRequestPointerLock,
+	trySetPointerCapture,
+} from "../src/platform/PointerCapture";
+
+describe("tryRequestPointerLock", () => {
+	test("supports a Firefox-style void return", () => {
+		let requestCount = 0;
+		const element = {
+			requestPointerLock() {
+				requestCount += 1;
+			},
+		};
+
+		expect(() => tryRequestPointerLock(element)).not.toThrow();
+		expect(requestCount).toBe(1);
+	});
+
+	test("supports a successful Promise return", async () => {
+		let requestCount = 0;
+		const element = {
+			requestPointerLock() {
+				requestCount += 1;
+				return Promise.resolve();
+			},
+		};
+
+		tryRequestPointerLock(element);
+		await Promise.resolve();
+		expect(requestCount).toBe(1);
+	});
+
+	test("absorbs asynchronous rejection so pointer capture remains usable", async () => {
+		let requestCount = 0;
+		let capturedPointerId: number | undefined;
+		const element = {
+			requestPointerLock() {
+				requestCount += 1;
+				return Promise.reject(new DOMException("Denied", "NotAllowedError"));
+			},
+			setPointerCapture(pointerId: number) {
+				capturedPointerId = pointerId;
+			},
+		};
+
+		tryRequestPointerLock(element);
+		expect(trySetPointerCapture(element, 17)).toBe(true);
+		await Promise.resolve();
+		expect(requestCount).toBe(1);
+		expect(capturedPointerId).toBe(17);
+	});
+
+	test("absorbs synchronous failure so pointer capture remains usable", () => {
+		let requestCount = 0;
+		let capturedPointerId: number | undefined;
+		const element = {
+			requestPointerLock(): Promise<void> {
+				requestCount += 1;
+				throw new DOMException("Denied", "NotAllowedError");
+			},
+			setPointerCapture(pointerId: number) {
+				capturedPointerId = pointerId;
+			},
+		};
+
+		expect(() => tryRequestPointerLock(element)).not.toThrow();
+		expect(trySetPointerCapture(element, 17)).toBe(true);
+		expect(requestCount).toBe(1);
+		expect(capturedPointerId).toBe(17);
+	});
+});
 
 describe("trySetPointerCapture", () => {
 	test("captures an active pointer", () => {

@@ -19,3 +19,15 @@ export function trySetPointerCapture(
 		throw error;
 	}
 }
+
+export function tryRequestPointerLock(
+	element: Pick<Element, "requestPointerLock">,
+): void {
+	try {
+		void Promise.resolve(element.requestPointerLock()).catch(() => {
+			// Pointer capture remains the fallback when locking is denied.
+		});
+	} catch {
+		// Pointer capture remains the fallback when locking fails synchronously.
+	}
+}

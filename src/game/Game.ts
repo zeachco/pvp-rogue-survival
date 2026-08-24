@@ -19,7 +19,10 @@ import type {
 import { systemRandom } from "../../common/random";
 import { SocketClient } from "../net/SocketClient";
 import { SessionStorage } from "../platform/SessionStorage";
-import { trySetPointerCapture } from "../platform/PointerCapture";
+import {
+	tryRequestPointerLock,
+	trySetPointerCapture,
+} from "../platform/PointerCapture";
 import { Hud, panelShortcut } from "../ui/Hud";
 import { ArenaState, type QueuedSpawn } from "./ArenaState";
 import { AttackArea } from "./AttackArea";
@@ -413,9 +416,7 @@ export class Game {
 				this.orbitingCamera = true;
 				trySetPointerCapture(this.canvas, event.pointerId);
 				if (typeof this.canvas.requestPointerLock === "function")
-					void this.canvas.requestPointerLock().catch(() => {
-						// Pointer capture above remains the fallback when locking is denied.
-					});
+					tryRequestPointerLock(this.canvas);
 				return;
 			}
 			if (event.button !== 0) return;
@@ -423,9 +424,7 @@ export class Game {
 			this.orbitingCamera = true;
 			trySetPointerCapture(this.canvas, event.pointerId);
 			if (typeof this.canvas.requestPointerLock === "function")
-				void this.canvas.requestPointerLock().catch(() => {
-					// Pointer capture above remains the fallback when locking is denied.
-				});
+				tryRequestPointerLock(this.canvas);
 		});
 		this.canvas.addEventListener("pointermove", (event) => {
 			if (event.pointerId === this.touchCameraPointerId) {
