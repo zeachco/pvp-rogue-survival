@@ -3586,6 +3586,11 @@ button:focus-visible > .action-tooltip {
 		overflow-x: auto;
 	}
 
+	.touch-ui .inventory-column {
+		bottom: max(8px, env(safe-area-inset-bottom));
+		scale: 1;
+	}
+
 	.character-panel,
 	.inventory-column {
 		width: calc(100vw - 16px);
@@ -3634,6 +3639,28 @@ button:focus-visible > .action-tooltip {
 	.game-hud,
 	.game-hud.character-panel-open {
 		--bottom-left-hud-offset: 8px;
+	}
+
+	.resource-dock {
+		grid-template-areas:
+			"health xp"
+			"mana xp";
+		grid-template-columns: minmax(140px, 1fr) 92px;
+		width: min(300px, calc(100vw - var(--bottom-left-hud-offset) - 98px));
+		gap: 4px 8px;
+	}
+
+	.health-cluster {
+		grid-area: health;
+	}
+
+	.xp-cluster {
+		grid-area: xp;
+		align-self: end;
+	}
+
+	.mana-cluster {
+		grid-area: mana;
 	}
 
 	.game-hud.inventory-panel-open .chat-area {

@@ -3673,6 +3673,15 @@ test("keeps touch movement behind login and scales mobile build panels", async (
 	expect(styles).toMatch(
 		/@media \(max-width: 960px\)[\s\S]*\.touch-ui \.inventory-column\s*\{[^}]*scale:\s*0\.72;[^}]*transform-origin:\s*right top;/s,
 	);
+	expect(styles).toMatch(
+		/@media \(max-width: 720px\)[\s\S]*\.touch-ui \.inventory-column\s*\{[^}]*bottom:\s*max\(8px, env\(safe-area-inset-bottom\)\);[^}]*scale:\s*1;/s,
+	);
+	expect(styles).toMatch(
+		/@media \(max-width: 720px\)[\s\S]*\.resource-dock\s*\{[^}]*grid-template-areas:\s*"health xp"\s*"mana xp";[^}]*grid-template-columns:\s*minmax\(140px, 1fr\) 92px;[^}]*width:\s*min\(\s*300px,\s*calc\(100vw - var\(--bottom-left-hud-offset\) - 98px\)\s*\);/s,
+	);
+	expect(styles).toMatch(
+		/@media \(max-width: 720px\)[\s\S]*\.health-cluster\s*\{[^}]*grid-area:\s*health;[^}]*\}[\s\S]*\.xp-cluster\s*\{[^}]*grid-area:\s*xp;[^}]*\}[\s\S]*\.mana-cluster\s*\{[^}]*grid-area:\s*mana;/s,
+	);
 });
 
 test("describes a server-side WebSocket close in the client log", () => {
