@@ -3653,6 +3653,41 @@ test("stores the mobile keep-awake preference and defines touch hold actions", a
 	expect(inventorySource).toContain('event.pointerType !== "touch"');
 });
 
+test("keeps touch inventory previews on-screen with collapsed accessible details", async () => {
+	const [hudSource, inventorySource, styles] = await Promise.all([
+		Bun.file(new URL("../src/ui/Hud.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/ui/InventoryView.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/styles.css", import.meta.url)).text(),
+	]);
+	expect(hudSource).toContain('class="inventory-preview-summary"');
+	expect(hudSource).toContain('class="inventory-preview-disclosure"');
+	expect(hudSource).toContain('aria-expanded="false"');
+	expect(hudSource).toContain("aria-controls={detailsId}");
+	expect(hudSource).toContain('detailsCard(comparison, "Equipped"');
+	expect(hudSource).toContain('detailsCard(item, "Candidate"');
+	expect(hudSource).toContain('action === "upgrade" ? "Upgrade preview"');
+	expect(hudSource).toContain('"Reroll preview"');
+	expect(inventorySource).toContain(
+		'node.querySelector<HTMLElement>(".item-card-content")?.focus()',
+	);
+	expect(styles).toMatch(
+		/@media \(max-width: 960px\)[\s\S]*\.touch-ui \.item-hover-card\s*\{[^}]*top:\s*calc\(var\(--game-header-height\) \+ max\(8px, env\(safe-area-inset-top\)\)\);[^}]*right:\s*max\(8px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*max\(8px, env\(safe-area-inset-bottom\)\);[^}]*left:\s*max\(8px, env\(safe-area-inset-left\)\);[^}]*max-height:\s*calc\([^}]*100dvh[^}]*overflow-y:\s*auto;/s,
+	);
+	expect(styles).toMatch(
+		/\.touch-ui \.inventory-preview-disclosure\s*\{[^}]*pointer-events:\s*auto;/s,
+	);
+	expect(styles).toMatch(
+		/\.touch-ui \.inventory-preview-properties\.is-collapsed\s*\{[^}]*display:\s*none;/s,
+	);
+	// Desktop keeps the established side preview and complete, non-interactive card.
+	expect(styles).toMatch(
+		/\.item-hover-card\s*\{[^}]*right:\s*calc\([^}]*var\(--inventory-panel-preview-width\)[^}]*width:\s*min\(650px,[^}]*pointer-events:\s*none;/s,
+	);
+	expect(styles).toMatch(
+		/\.inventory-preview-disclosure\s*\{[^}]*display:\s*none;/s,
+	);
+});
+
 test("keeps touch movement behind login and scales mobile build panels", async () => {
 	const hudSource = await Bun.file(
 		new URL("../src/ui/Hud.tsx", import.meta.url),

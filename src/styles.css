@@ -129,15 +129,24 @@ input {
 	background: rgba(8, 14, 17, 0.96);
 	box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65);
 }
-.inventory-detail-card > small {
+.inventory-preview-summary {
+	display: grid;
+	gap: 4px;
+}
+
+.inventory-preview-summary > small {
 	color: #9fb8bf;
 	font-size: 9px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
-.inventory-detail-card > span {
+.inventory-preview-summary > span {
 	color: #9fb8bf;
 	font-size: 10px;
+}
+
+.inventory-preview-disclosure {
+	display: none;
 }
 
 .item-hover-card-copy {
@@ -3511,6 +3520,39 @@ button:focus-visible > .action-tooltip {
 	.touch-ui .inventory-column {
 		scale: 0.72;
 		transform-origin: right top;
+	}
+
+	.touch-ui .item-hover-card {
+		top: calc(var(--game-header-height) + max(8px, env(safe-area-inset-top)));
+		right: max(8px, env(safe-area-inset-right));
+		bottom: max(8px, env(safe-area-inset-bottom));
+		left: max(8px, env(safe-area-inset-left));
+		width: auto;
+		max-height: calc(
+			100dvh -
+			var(--game-header-height) -
+			max(16px, env(safe-area-inset-top)) -
+			max(8px, env(safe-area-inset-bottom))
+		);
+		flex-direction: column;
+		overflow-x: hidden;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.touch-ui .item-hover-card .inventory-detail-card {
+		flex: 0 0 auto;
+	}
+
+	.touch-ui .inventory-preview-disclosure {
+		display: block;
+		width: 100%;
+		min-height: 36px;
+		pointer-events: auto;
+	}
+
+	.touch-ui .inventory-preview-properties.is-collapsed {
+		display: none;
 	}
 }
 

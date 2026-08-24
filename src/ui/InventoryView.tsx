@@ -167,6 +167,14 @@ export function itemTile(
 	const menu = node.querySelector<HTMLElement>(".item-menu");
 	const closeMenu = bindItemContextMenu(node, menu);
 	if (tile.quantity > 0 && onPreview) {
+		node.addEventListener("pointerdown", (event) => {
+			if (
+				event.pointerType !== "touch" ||
+				(event.target instanceof Element && event.target.closest("button"))
+			)
+				return;
+			node.querySelector<HTMLElement>(".item-card-content")?.focus();
+		});
 		node.onmouseenter = () => {
 			onHoverChange?.(tile.id);
 			onPreview(item, equipped);

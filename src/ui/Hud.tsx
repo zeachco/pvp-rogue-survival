@@ -332,7 +332,7 @@ export class Hud {
 		<div class="inventory-content" />
 	) as HTMLElement;
 	private readonly itemHoverCard = (
-		<aside class="item-hover-card is-hidden" aria-hidden="true" inert="" />
+		<aside class="item-hover-card is-hidden" aria-hidden="true" />
 	) as HTMLElement;
 	private readonly allocationNode = (
 		<form class="allocation-panel" />
@@ -2560,30 +2560,54 @@ export class Hud {
 			shown: ItemInstance,
 			label: string,
 			baseline?: ItemInstance,
+			index = 0,
 		): HTMLElement => {
 			const shownStats = statsWithItemBonuses(p.stats, shown);
+			const detailsId = `inventory-preview-details-${index}`;
+			const details = itemDetails(
+				shown,
+				shownStats,
+				baseline,
+				baseline ? statsWithItemBonuses(p.stats, baseline) : undefined,
+				false,
+				Boolean(baseline),
+			);
+			details.id = detailsId;
+			details.classList.add("inventory-preview-properties", "is-collapsed");
+			const disclosure = (
+				<button
+					type="button"
+					class="inventory-preview-disclosure"
+					aria-expanded="false"
+					aria-controls={detailsId}
+				>
+					Details
+				</button>
+			) as HTMLButtonElement;
+			disclosure.addEventListener("click", () => {
+				const expanded = disclosure.getAttribute("aria-expanded") !== "true";
+				disclosure.setAttribute("aria-expanded", String(expanded));
+				disclosure.textContent = expanded ? "Hide details" : "Details";
+				details.classList.toggle("is-collapsed", !expanded);
+			});
 			return (
 				<section class={`inventory-detail-card rarity-${shown.rarity}`}>
-					<small>{label}</small>
-					<strong>{shown.name}</strong>
-					<span>
-						L
-						{baseline
-							? formatProjectedValue({
-									currentVal: baseline.level,
-									newVal: shown.level,
-								})
-							: shown.level}{" "}
-						· {shown.rarity}
-					</span>
-					{itemDetails(
-						shown,
-						shownStats,
-						baseline,
-						baseline ? statsWithItemBonuses(p.stats, baseline) : undefined,
-						false,
-						Boolean(baseline),
-					)}
+					<div class="inventory-preview-summary">
+						<small>{label}</small>
+						<strong>{shown.name}</strong>
+						<span>
+							L
+							{baseline
+								? formatProjectedValue({
+										currentVal: baseline.level,
+										newVal: shown.level,
+									})
+								: shown.level}{" "}
+							· {shown.rarity}
+						</span>
+					</div>
+					{disclosure}
+					{details}
 				</section>
 			) as HTMLElement;
 		};
@@ -2598,8 +2622,8 @@ export class Hud {
 					]
 				: comparison
 					? [
-							detailsCard(comparison, "Equipped"),
-							detailsCard(item, "Candidate", comparison),
+							detailsCard(comparison, "Equipped", undefined, 0),
+							detailsCard(item, "Candidate", comparison, 1),
 						]
 					: [detailsCard(item, equipped ? "Equipped" : "Candidate")]),
 		);
