@@ -220,6 +220,7 @@ import {
 	spellExtractionTooltipLevels,
 	GOLD_TOOLTIP,
 	inspectedEquipment,
+	inventoryHoverRefreshAction,
 	panelShortcut,
 	panelToggleTooltip,
 	passiveSkillMetrics,
@@ -2974,6 +2975,14 @@ describe("XP presentation", () => {
 	});
 });
 describe("HUD preview values", () => {
+	test("resets a removed final-copy preview but restores a surviving stack preview", () => {
+		const extractionHover = { tileId: "epic-staff", actionIndex: 6 };
+
+		expect(inventoryHoverRefreshAction(undefined, false)).toBe("none");
+		expect(inventoryHoverRefreshAction(extractionHover, false)).toBe("reset");
+		expect(inventoryHoverRefreshAction(extractionHover, true)).toBe("restore");
+	});
+
 	test("highlights both hand slots for a two-handed equip preview", () => {
 		const staff = generateItem(1, "common", 1, {
 			allowedClasses: ["staff"],

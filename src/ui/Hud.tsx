@@ -129,6 +129,14 @@ import {
 
 export type { HudCallbacks, SpellSlot } from "./types";
 
+export function inventoryHoverRefreshAction(
+	tracked: { tileId: string; actionIndex?: number } | undefined,
+	tileStillExists: boolean,
+): "none" | "restore" | "reset" {
+	if (!tracked) return "none";
+	return tileStillExists ? "restore" : "reset";
+}
+
 declare global {
 	namespace JSX {
 		interface IntrinsicElements {
@@ -2448,15 +2456,21 @@ export class Hud {
 		const card = [
 			...this.backpackScroll.querySelectorAll<HTMLElement>(".item-card"),
 		].find((node) => node.dataset.tileId === active.tileId);
-		if (!card) {
-			this.inventoryHover = undefined;
+		if (inventoryHoverRefreshAction(active, Boolean(card)) === "reset") {
+			this.restoreAuthoritativeInventoryPreview();
 			return;
 		}
+		if (!card) return;
 		card.onmouseenter?.(new MouseEvent("mouseenter"));
 		if (active.actionIndex !== undefined)
 			card
 				.querySelectorAll<HTMLButtonElement>("button")
 				[active.actionIndex]?.dispatchEvent(new MouseEvent("mouseenter"));
+	}
+	private restoreAuthoritativeInventoryPreview(): void {
+		this.inventoryHover = undefined;
+		this.previewCurrencies();
+		this.previewItem();
 	}
 	private previewItem(
 		item?: ItemInstance,
