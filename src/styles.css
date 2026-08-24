@@ -2546,6 +2546,14 @@ button:focus-visible > .action-tooltip {
 .inventory-item-context-menu button:disabled {
 	opacity: 0.35;
 }
+.inventory-item-context-menu .extract-tooltip-anchor {
+	position: relative;
+	display: block;
+	width: 100%;
+}
+.inventory-item-context-menu .extract-tooltip-anchor > button {
+	width: 100%;
+}
 .item-action-icon {
 	flex: 0 0 auto;
 	width: 14px;

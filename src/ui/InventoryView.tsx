@@ -131,17 +131,25 @@ export function itemTile(
 					{actionButton("send", "Bonk foe")}
 					{actionButton("reroll", "Reroll")}
 					{skills.length ? (
-						<button
-							type="button"
-							aria-label="Extract"
-							title="Extract"
-							data-action="extract"
-							class={
-								extractionLearnsNewSkill(tile, progress) ? "has-new-spell" : ""
-							}
+						<span
+							class="extract-tooltip-anchor"
+							tabindex="0"
+							aria-label="Extract spell preview"
 						>
-							{actionIcon("extract")}
-							<span class="item-action-label">Extract</span>
+							<button
+								type="button"
+								aria-label="Extract"
+								title="Extract"
+								data-action="extract"
+								class={
+									extractionLearnsNewSkill(tile, progress)
+										? "has-new-spell"
+										: ""
+								}
+							>
+								{actionIcon("extract")}
+								<span class="item-action-label">Extract</span>
+							</button>
 							{extractionTooltip ?? (
 								<span class="action-tooltip" role="tooltip">
 									{extractionLevels.map(({ skill, currentLevel }) => (
@@ -154,7 +162,7 @@ export function itemTile(
 									))}
 								</span>
 							)}
-						</button>
+						</span>
 					) : null}
 				</div>
 			</div>
@@ -299,9 +307,11 @@ export function itemTile(
 		action: "inspect" | "equip" | "upgrade" | "reroll" = "inspect",
 		shownItem = item,
 		baselineItem?: InventoryTile["item"],
+		previewTarget?: HTMLElement,
 	): void => {
 		const button = buttons[index] as HTMLButtonElement | undefined;
 		if (!button) return;
+		const target = previewTarget ?? button;
 		const show = () => {
 			onHoverChange?.(tile.id, index);
 			onPreview?.(
@@ -320,10 +330,10 @@ export function itemTile(
 			onSpellPreview?.();
 			onPreview?.(item, equipped);
 		};
-		button.addEventListener("mouseenter", show);
-		button.addEventListener("mouseleave", hide);
-		button.addEventListener("focus", show);
-		button.addEventListener("blur", hide);
+		target.addEventListener("mouseenter", show);
+		target.addEventListener("mouseleave", hide);
+		target.addEventListener("focus", show);
+		target.addEventListener("blur", hide);
 	};
 	bindActionPreview(0, undefined, undefined, "equip");
 	bindActionPreview(1, { gold: sellYield(item) });
@@ -348,9 +358,17 @@ export function itemTile(
 		rerolled,
 		item,
 	);
-	bindActionPreview(6, { gold: -extractCost }, () => {
-		onSpellPreview?.(skills);
-	});
+	bindActionPreview(
+		6,
+		{ gold: -extractCost },
+		() => {
+			onSpellPreview?.(skills);
+		},
+		"inspect",
+		item,
+		undefined,
+		node.querySelector<HTMLElement>(".extract-tooltip-anchor") ?? undefined,
+	);
 	return node;
 }
 

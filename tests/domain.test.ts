@@ -565,6 +565,33 @@ test("limits extraction spell tooltips to current and post-extract maximums", ()
 	);
 });
 
+test("keeps extraction details hoverable and focusable while Extract is disabled", async () => {
+	const [inventorySource, hudSource, styles] = await Promise.all([
+		Bun.file(new URL("../src/ui/InventoryView.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/ui/Hud.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/styles.css", import.meta.url)).text(),
+	]);
+	const anchorStart = inventorySource.indexOf('class="extract-tooltip-anchor"');
+	const extractStatusStart = inventorySource.indexOf(
+		'if (extractStatus === "max-level")',
+	);
+	expect(anchorStart).toBeGreaterThan(-1);
+	expect(anchorStart).toBeLessThan(extractStatusStart);
+	expect(inventorySource).toContain('tabindex="0"');
+	expect(inventorySource).toContain('aria-label="Extract spell preview"');
+	expect(inventorySource).toContain(
+		'node.querySelector<HTMLElement>(".extract-tooltip-anchor") ?? undefined',
+	);
+	expect(inventorySource).toContain('extractStatus === "needs-gold"');
+	expect(inventorySource).toContain("if (spare <= 0)");
+	expect(hudSource).toContain("Current max level");
+	expect(hudSource).toContain("Post-extract max level");
+	expect(hudSource).toContain("Shift-click to repeat while possible.");
+	expect(styles).toMatch(
+		/\.inventory-item-context-menu \.extract-tooltip-anchor\s*\{[^}]*display:\s*block;[^}]*width:\s*100%;/s,
+	);
+});
+
 test("ORs spell catalog filters within status and type groups, then ANDs the groups", () => {
 	const learnedPassive = {
 		learned: true,
