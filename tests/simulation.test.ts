@@ -1854,6 +1854,15 @@ describe("arena systems", () => {
 					child.material instanceof THREE.ShaderMaterial,
 			),
 		).toHaveLength(4);
+		const persistentRibbon = whirlwindVisuals.children[0] as THREE.Mesh;
+		const persistentGeometry = persistentRibbon.geometry;
+		const persistentMaterial = persistentRibbon.material;
+		whirlwind.update(0.1);
+		whirlwind.updateVisuals(1.05);
+		expect(whirlwindVisuals.children[0]).toBe(persistentRibbon);
+		expect(persistentRibbon.geometry).toBe(persistentGeometry);
+		expect(persistentRibbon.material).toBe(persistentMaterial);
+		expect(persistentRibbon.rotation.z).not.toBe(0);
 
 		const firstRentLight = rentLight;
 		lightPool.sync([], [], 2);
@@ -1912,9 +1921,9 @@ describe("arena systems", () => {
 			"death-burst-stain",
 		) as THREE.Mesh;
 		expect(stain).toBeInstanceOf(THREE.Mesh);
-		expect(stain.scale.x).toBe(1);
-		expect(stain.scale.y).toBe(1);
-		expect((stain.geometry as THREE.CircleGeometry).parameters.radius).toBe(0);
+		expect(stain.scale.x).toBe(0);
+		expect(stain.scale.y).toBe(0);
+		expect((stain.geometry as THREE.CircleGeometry).parameters.radius).toBe(90);
 		expect(
 			deathBurstVisuals.children.filter((child) =>
 				child.name.startsWith("death-burst-particle-"),
@@ -1933,9 +1942,10 @@ describe("arena systems", () => {
 		const halfStain = (
 			deathBurst.mesh.children[0] as THREE.Group
 		).getObjectByName("death-burst-stain") as THREE.Mesh;
-		expect(
-			(halfStain.geometry as THREE.CircleGeometry).parameters.radius,
-		).toBeCloseTo(45);
+		expect(halfStain).toBe(stain);
+		expect(halfStain.geometry).toBe(stain.geometry);
+		expect(halfStain.material).toBe(stain.material);
+		expect(halfStain.scale.x).toBeCloseTo(0.5);
 		expect(
 			deathBurstExpansion(
 				DEATH_BURST_EXPANSION_DURATION / 2 / DEATH_BURST_DURATION,
@@ -1985,6 +1995,9 @@ describe("arena systems", () => {
 			4,
 		]);
 		expect(thunderLight.intensity).toBe(THUNDER_IMPACT_LIGHT_INTENSITY);
+		thunderLightPool.sync(["thunderAura"], [thunderImpact], 0.05);
+		expect(thunderLight.position.x).toBe(44 + THUNDER_IMPACT_LIGHT_OFFSET);
+		expect(thunderAngles).toHaveLength(1);
 		thunderImpact.update(THUNDER_IMPACT_DURATION / 2);
 		thunderLightPool.sync(["thunderAura"], [thunderImpact], 0.75);
 		expect(thunderLight.position.x).toBeCloseTo(44);
@@ -1998,6 +2011,39 @@ describe("arena systems", () => {
 			x: 12 + THUNDER_IMPACT_LIGHT_OFFSET,
 			y: 4.5,
 		});
+
+		let geometryDisposals = 0;
+		let materialDisposals = 0;
+		const disposable = new SpellEffect("shockwave", { x: 0, y: 0 });
+		disposable.updateVisuals(0);
+		disposable.mesh.traverse((child) => {
+			if (!(child instanceof THREE.Mesh || child instanceof THREE.Line)) return;
+			const originalGeometryDispose = child.geometry.dispose.bind(
+				child.geometry,
+			);
+			child.geometry.dispose = () => {
+				geometryDisposals += 1;
+				originalGeometryDispose();
+			};
+			const materials = Array.isArray(child.material)
+				? child.material
+				: [child.material];
+			for (const material of materials) {
+				const originalMaterialDispose = material.dispose.bind(material);
+				material.dispose = () => {
+					materialDisposals += 1;
+					originalMaterialDispose();
+				};
+			}
+		});
+		disposable.dispose();
+		const firstGeometryDisposals = geometryDisposals;
+		const firstMaterialDisposals = materialDisposals;
+		expect(firstGeometryDisposals).toBeGreaterThan(0);
+		expect(firstMaterialDisposals).toBeGreaterThan(0);
+		disposable.dispose();
+		expect(geometryDisposals).toBe(firstGeometryDisposals);
+		expect(materialDisposals).toBe(firstMaterialDisposals);
 	});
 	test("bottom-aligns every projectile silhouette above the ground", () => {
 		expect(projectilePresentationCenter("arcaneBolt")).toBe(13);
@@ -3829,8 +3875,10 @@ describe("arena systems", () => {
 		expect(uplight.distance).toBe(HEALING_MAX_RADIUS * 2);
 		expect(uplight.intensity).toBeCloseTo(healingUplightIntensity(0.24));
 		expect(
-			group.children.some((child) => child.name === "healing-plus"),
-		).toBeFalse();
+			group.children
+				.filter((child) => child.name === "healing-plus")
+				.every((child) => !child.visible),
+		).toBeTrue();
 
 		effect.update(0.01);
 		effect.updateVisuals(0);

@@ -65,6 +65,12 @@ export function distance(a: Vector2, b: Vector2): number {
 	return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+export function distanceSquared(a: Vector2, b: Vector2): number {
+	const x = a.x - b.x;
+	const y = a.y - b.y;
+	return x * x + y * y;
+}
+
 export function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value));
 }

@@ -21,13 +21,14 @@ import {
 	SpellEffect,
 	THUNDER_IMPACT_DURATION,
 } from "../SpellEffect";
-import { distance } from "../types";
+import { distanceSquared } from "../types";
 import { effectiveSkillLevel } from "./HeroCombatSystem";
 
 export class AuraSystem {
 	private sunburnRemaining = 0;
 	private thunderRemaining = 0;
 	private readonly burst = new WeakSet<Creep>();
+	private readonly nearbyTargets: Creep[] = [];
 	private pendingBursts: Array<{
 		position: { x: number; y: number };
 		radius: number;
@@ -42,24 +43,24 @@ export class AuraSystem {
 			hero.isSkillOperational(skill) ? effectiveSkillLevel(progress, skill) : 0;
 		const slowLevel = levelOf("slowAura");
 		const hinderLevel = levelOf("hinderingAura");
+		if (slowLevel <= 0 && hinderLevel <= 0) return;
+		const slowRadius = slowLevel ? auraRadius(slowLevel, hero.stats.spirit) : 0;
+		const hinderRadius = hinderLevel
+			? auraRadius(hinderLevel, hero.stats.spirit)
+			: 0;
+		const slowRadiusSquared = slowRadius * slowRadius;
+		const hinderRadiusSquared = hinderRadius * hinderRadius;
 		for (const creep of creeps) {
 			if (!creep.active) continue;
-			if (
-				slowLevel > 0 &&
-				distance(hero.position, creep.position) <=
-					auraRadius(slowLevel, hero.stats.spirit)
-			)
+			const separationSquared = distanceSquared(hero.position, creep.position);
+			if (slowLevel > 0 && separationSquared <= slowRadiusSquared)
 				creep.addFrameEffect(
 					new MovementMultiplierEffect(
 						"slowAura",
 						auraSlowMultiplier(slowLevel),
 					),
 				);
-			if (
-				hinderLevel > 0 &&
-				distance(hero.position, creep.position) <=
-					auraRadius(hinderLevel, hero.stats.spirit)
-			)
+			if (hinderLevel > 0 && separationSquared <= hinderRadiusSquared)
 				creep.addFrameEffect(
 					new AttackSpeedMultiplierEffect(
 						"hinderingAura",
@@ -88,14 +89,17 @@ export class AuraSystem {
 				| "thunderAura",
 		) => {
 			const level = levelOf(skill);
-			return level
-				? creeps.filter(
-						(creep) =>
-							creep.active &&
-							distance(hero.position, creep.position) <=
-								auraRadius(level, hero.stats.spirit),
-					)
-				: [];
+			this.nearbyTargets.length = 0;
+			if (!level) return this.nearbyTargets;
+			const radius = auraRadius(level, hero.stats.spirit);
+			const radiusSquared = radius * radius;
+			for (const creep of creeps)
+				if (
+					creep.active &&
+					distanceSquared(hero.position, creep.position) <= radiusSquared
+				)
+					this.nearbyTargets.push(creep);
+			return this.nearbyTargets;
 		};
 		const stats = hero.stats;
 		const sunLevel = levelOf("sunburnAura");
@@ -131,8 +135,15 @@ export class AuraSystem {
 				);
 				spellEffects.push(thunderImpact(first));
 				if (critical) {
-					const others = targets.filter((target) => target !== first);
-					const chained = others[Math.floor(random.next() * others.length)];
+					const chainedIndex = Math.floor(random.next() * (targets.length - 1));
+					const chained =
+						targets.length > 1
+							? targets[
+									chainedIndex >= targets.indexOf(first)
+										? chainedIndex + 1
+										: chainedIndex
+								]
+							: undefined;
 					if (chained) {
 						chained.receiveDamage(damage * 0.6, random, hero, false, false, {
 							kind: "electric",
@@ -151,15 +162,17 @@ export class AuraSystem {
 		random: RandomSource,
 		spellEffects: SpellEffect[],
 	): void {
-		for (const pending of this.pendingBursts)
+		for (const pending of this.pendingBursts) {
+			const radiusSquared = pending.radius * pending.radius;
 			for (const target of creeps)
 				if (
 					target.active &&
-					distance(pending.position, target.position) <= pending.radius
+					distanceSquared(pending.position, target.position) <= radiusSquared
 				)
 					target.receiveDamage(pending.damage, random, hero, false, false, {
 						kind: "magic",
 					});
+		}
 		this.pendingBursts = [];
 
 		const level = hero.isSkillOperational("deathBurst")
@@ -167,11 +180,12 @@ export class AuraSystem {
 			: 0;
 		if (!level) return;
 		const radius = auraRadius(level, hero.stats.spirit);
+		const radiusSquared = radius * radius;
 		for (const dead of creeps)
 			if (
 				!dead.active &&
 				!this.burst.has(dead) &&
-				distance(hero.position, dead.position) <= radius
+				distanceSquared(hero.position, dead.position) <= radiusSquared
 			) {
 				this.burst.add(dead);
 				spellEffects.push(

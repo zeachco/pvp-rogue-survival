@@ -5,7 +5,7 @@ import type { Creep } from "./Creep";
 import { GameObject } from "./GameObject";
 import type { Hero } from "./Hero";
 import { Z_SWAMP } from "./render/ThreeRenderer";
-import { damageStatusDuration, distance, type Vector2 } from "./types";
+import { damageStatusDuration, distanceSquared, type Vector2 } from "./types";
 
 export class GroundSwamp extends GameObject {
 	private remaining = 8;
@@ -56,7 +56,8 @@ export class GroundSwamp extends GameObject {
 		for (const creep of creeps) {
 			if (
 				!creep.active ||
-				distance(this.position, creep.position) > this.radius + creep.radius
+				distanceSquared(this.position, creep.position) >
+					(this.radius + creep.radius) ** 2
 			) {
 				this.occupancy.delete(creep);
 				continue;
@@ -78,7 +79,8 @@ export class GroundSwamp extends GameObject {
 		for (const creep of creeps)
 			if (
 				creep.active &&
-				distance(this.position, creep.position) <= this.radius + creep.radius
+				distanceSquared(this.position, creep.position) <=
+					(this.radius + creep.radius) ** 2
 			)
 				creep.addFrameEffect(new MovementMultiplierEffect("groundSwamp", 0.5));
 	}

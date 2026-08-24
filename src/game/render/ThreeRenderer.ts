@@ -14,6 +14,7 @@ import {
 	type ShadowMode,
 } from "../graphicsSettings";
 import type { Hero } from "../Hero";
+import type { SpellEffect } from "../SpellEffect";
 import { clamp } from "../types";
 import { HeroSpellLightPool } from "./HeroSpellLightPool";
 
@@ -298,6 +299,10 @@ export class ThreeRenderer {
 	private yaw = 0;
 	private readonly tracked = new Set<THREE.Object3D>();
 	private readonly trackedChildCounts = new WeakMap<THREE.Object3D, number>();
+	private readonly spellEffectsByRoot = new WeakMap<
+		THREE.Object3D,
+		SpellEffect
+	>();
 	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
 	private readonly canvas: HTMLCanvasElement;
 	private width = 1;
@@ -308,6 +313,9 @@ export class ThreeRenderer {
 	private rightOcclusion = 0;
 	private readonly pointerRay = new THREE.Raycaster();
 	private readonly arenaPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+	private readonly projectedPosition = new THREE.Vector3();
+	private readonly pointerIntersection = new THREE.Vector3();
+	private readonly pointerNdc = new THREE.Vector2();
 	private readonly pointerTracker: THREE.Mesh<
 		THREE.ConeGeometry,
 		THREE.MeshBasicMaterial
@@ -430,9 +438,9 @@ export class ThreeRenderer {
 	}
 
 	isWorldPositionInView(position: { x: number; y: number }): boolean {
-		const projected = new THREE.Vector3(position.x, position.y, 0).project(
-			this.camera,
-		);
+		const projected = this.projectedPosition
+			.set(position.x, position.y, 0)
+			.project(this.camera);
 		return (
 			projected.z >= -1 &&
 			projected.z <= 1 &&
@@ -497,11 +505,12 @@ export class ThreeRenderer {
 		const rect = this.canvas.getBoundingClientRect();
 		const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
 		const ndcY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-		this.pointerRay.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+		this.pointerNdc.set(ndcX, ndcY);
+		this.pointerRay.setFromCamera(this.pointerNdc, this.camera);
 		this.arenaPlane.constant = -worldZ;
 		const hit = this.pointerRay.ray.intersectPlane(
 			this.arenaPlane,
-			new THREE.Vector3(),
+			this.pointerIntersection,
 		);
 		return hit ? { x: hit.x, y: hit.y } : { x: this.focusX, y: this.focusY };
 	}
@@ -536,7 +545,10 @@ export class ThreeRenderer {
 		for (const drop of arena.drops) current.add(drop.mesh);
 		for (const attack of arena.attacks) current.add(attack.mesh);
 		for (const projectile of arena.projectiles) current.add(projectile.mesh);
-		for (const effect of arena.spellEffects) current.add(effect.mesh);
+		for (const effect of arena.spellEffects) {
+			current.add(effect.mesh);
+			this.spellEffectsByRoot.set(effect.mesh, effect);
+		}
 		for (const swamp of arena.swamps) current.add(swamp.mesh);
 		for (const blizzard of arena.blizzards) current.add(blizzard.mesh);
 		for (const death of arena.characterDeaths) current.add(death.mesh);
@@ -546,6 +558,7 @@ export class ThreeRenderer {
 		for (const obj of this.tracked) {
 			if (!current.has(obj)) {
 				this.scene.remove(obj);
+				this.spellEffectsByRoot.get(obj)?.dispose();
 				this.tracked.delete(obj);
 			}
 		}

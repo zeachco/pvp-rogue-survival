@@ -3,7 +3,7 @@ import type { RandomSource } from "../../common/random";
 import type { Creep } from "./Creep";
 import { GameObject } from "./GameObject";
 import type { Hero } from "./Hero";
-import { distance, type Vector2 } from "./types";
+import { distanceSquared, type Vector2 } from "./types";
 
 const ICICLE_FALL_TIME = 0.35;
 const ICICLE_START_HEIGHT = 110;
@@ -118,7 +118,8 @@ export class Blizzard extends GameObject {
 		for (const creep of creeps) {
 			if (
 				!creep.active ||
-				distance(this.position, creep.position) > this.radius + creep.radius
+				distanceSquared(this.position, creep.position) >
+					(this.radius + creep.radius) ** 2
 			)
 				continue;
 			creep.receiveDamage(this.damage, random, this.source, false, false, {

@@ -38,6 +38,7 @@ export const BLIZZARD_PROJECTILE_LIGHT_COLOR = 0x8de7ff;
 export const BLIZZARD_PROJECTILE_LIGHT_INTENSITY = 95;
 export const BLIZZARD_PROJECTILE_LIGHT_DISTANCE = 150;
 export const BLIZZARD_PROJECTILE_LIGHT_MIN_HEIGHT = 10;
+export const THUNDER_LIGHT_POLL_INTERVAL = 0.1;
 
 export function thunderLightPosition(
 	position: { x: number; y: number },
@@ -53,6 +54,10 @@ export function thunderLightPosition(
 export class HeroSpellLightPool {
 	private readonly cache = new Map<SpellEffectKind, PooledLight>();
 	private readonly attached = new Set<SpellEffectKind>();
+	private readonly thunderOffsets = new WeakMap<
+		SpellEffect,
+		{ x: number; y: number; nextPoll: number }
+	>();
 	constructor(
 		private readonly scene: THREE.Scene,
 		private readonly random: () => number = Math.random,
@@ -92,10 +97,23 @@ export class HeroSpellLightPool {
 			if (!effect.heroOwned || !effect.active) continue;
 			const light = this.cache.get(effect.kind);
 			if (!light) continue;
-			const lightPosition =
-				effect.kind === "thunderAura"
-					? thunderLightPosition(effect.position, this.random)
-					: effect.position;
+			let lightPosition = effect.position;
+			if (effect.kind === "thunderAura") {
+				let jitter = this.thunderOffsets.get(effect);
+				if (!jitter || time >= jitter.nextPoll) {
+					const sampled = thunderLightPosition({ x: 0, y: 0 }, this.random);
+					jitter = {
+						x: sampled.x,
+						y: sampled.y,
+						nextPoll: time + THUNDER_LIGHT_POLL_INTERVAL,
+					};
+					this.thunderOffsets.set(effect, jitter);
+				}
+				lightPosition = {
+					x: effect.position.x + jitter.x,
+					y: effect.position.y + jitter.y,
+				};
+			}
 			light.position.set(
 				lightPosition.x,
 				lightPosition.y,

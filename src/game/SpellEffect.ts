@@ -94,6 +94,8 @@ export class SpellEffect extends GameObject {
 	private readonly source?: { position: Vector2 };
 
 	private readonly effectGroup: THREE.Group;
+	private visualsInitialized = false;
+	private disposed = false;
 	readonly heroOwned: boolean;
 
 	constructor(
@@ -187,19 +189,12 @@ export class SpellEffect extends GameObject {
 					? HEALING_GROUND_DURATION
 					: this.lifetime;
 		const progress = Math.min(1, this.age / animationDuration);
-		while (this.effectGroup.children.length > 0) {
-			const child = this.effectGroup.children[0];
-			this.effectGroup.remove(child);
-			if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
-				child.geometry.dispose();
-				if (child.material instanceof THREE.Material) child.material.dispose();
-			} else if (child instanceof THREE.Sprite) {
-				child.material.dispose();
-			}
-		}
-
 		this.mesh.position.set(this.position.x, this.position.y, 0);
 		this.mesh.rotation.z = this.facing;
+		if (this.visualsInitialized) {
+			this.animateVisuals(progress, _time);
+			return;
+		}
 
 		if (this.kind === "bash") {
 			impact(this.effectGroup, progress, "#e7c889", 76, 8);
@@ -239,6 +234,121 @@ export class SpellEffect extends GameObject {
 			deathBurst(this.effectGroup, progress, this.range);
 		}
 		if (!this.heroOwned) tintSpellObject(this.effectGroup, HOSTILE_SPELL_COLOR);
+		this.effectGroup.traverse((child) => {
+			if (
+				!(
+					child instanceof THREE.Mesh ||
+					child instanceof THREE.Line ||
+					child instanceof THREE.Sprite
+				)
+			)
+				return;
+			const materials = Array.isArray(child.material)
+				? child.material
+				: [child.material];
+			for (const material of materials)
+				material.userData.effectBaseOpacity = material.opacity;
+		});
+		this.visualsInitialized = true;
+		this.animateVisuals(progress, _time);
+	}
+
+	dispose(): void {
+		if (this.disposed) return;
+		this.disposed = true;
+		const geometries = new Set<THREE.BufferGeometry>();
+		const materials = new Set<THREE.Material>();
+		this.effectGroup.traverse((child) => {
+			if (child instanceof THREE.Mesh || child instanceof THREE.Line) {
+				geometries.add(child.geometry);
+				const owned = Array.isArray(child.material)
+					? child.material
+					: [child.material];
+				for (const material of owned) materials.add(material);
+			} else if (child instanceof THREE.Sprite) materials.add(child.material);
+		});
+		for (const geometry of geometries) geometry.dispose();
+		for (const material of materials) material.dispose();
+	}
+
+	private animateVisuals(progress: number, time: number): void {
+		const fade = 1 - progress;
+		this.effectGroup.traverse((child) => {
+			if (
+				!(
+					child instanceof THREE.Mesh ||
+					child instanceof THREE.Line ||
+					child instanceof THREE.Sprite
+				)
+			)
+				return;
+			const materials = Array.isArray(child.material)
+				? child.material
+				: [child.material];
+			for (const material of materials) {
+				const base = material.userData.effectBaseOpacity;
+				if (
+					typeof base === "number" &&
+					!(material instanceof THREE.ShaderMaterial)
+				)
+					material.opacity = base * fade;
+				if (material instanceof THREE.ShaderMaterial) {
+					if (material.uniforms.uOpacity)
+						material.uniforms.uOpacity.value =
+							this.kind === "whirlwind"
+								? Math.min(1, progress * 8, (1 - progress) * 8)
+								: Math.sin(progress * Math.PI);
+					if (material.uniforms.uPhase)
+						material.uniforms.uPhase.value = progress * Math.PI * 8;
+				}
+			}
+		});
+		if (this.kind === "whirlwind") {
+			for (const child of this.effectGroup.children)
+				if (child.name.startsWith("whirlwind-blur-trail-"))
+					child.rotation.z = time * WHIRLWIND_RADIANS_PER_SECOND;
+		} else if (this.kind === "healing") {
+			const radius = this.range || HEALING_MIN_RADIUS;
+			const auraOpacity = healingAuraOpacity(progress);
+			const fill = this.effectGroup.getObjectByName("healing-aura-light") as
+				| THREE.Mesh
+				| undefined;
+			const ring = this.effectGroup.getObjectByName("healing-aura") as
+				| THREE.Mesh
+				| undefined;
+			if (fill && fill.material instanceof THREE.MeshBasicMaterial)
+				fill.material.opacity = auraOpacity * HEALING_AURA_FILL_MAX_OPACITY;
+			if (ring && ring.material instanceof THREE.MeshBasicMaterial)
+				ring.material.opacity = auraOpacity * HEALING_AURA_RING_MAX_OPACITY;
+			const plusProgress = Math.max(0, (progress - 0.25) / 0.75);
+			let plusIndex = 0;
+			for (const child of this.effectGroup.children) {
+				if (!(child instanceof THREE.Sprite) || child.name !== "healing-plus")
+					continue;
+				child.material.opacity = healingPlusOpacity(progress);
+				child.visible = progress >= 0.25;
+				child.position.z =
+					8 + plusProgress * (radius * 0.22 + plusIndex * radius * 0.012);
+				plusIndex += 1;
+			}
+		} else if (this.kind === "deathBurst") {
+			const expansion = deathBurstExpansion(progress);
+			const stain = this.effectGroup.getObjectByName("death-burst-stain");
+			stain?.scale.setScalar(expansion);
+			for (let index = 0; index < 18; index += 1) {
+				const particle = this.effectGroup.getObjectByName(
+					`death-burst-particle-${index}`,
+				);
+				if (!particle) continue;
+				const angle = index * 2.399;
+				const radial = this.range * expansion * (0.35 + (index % 4) * 0.14);
+				particle.position.set(
+					Math.cos(angle) * radial,
+					Math.sin(angle) * radial,
+					2 + Math.sin(Math.PI * progress) * (10 + (index % 5) * 3),
+				);
+			}
+		}
 	}
 }
 
@@ -247,9 +357,8 @@ function deathBurst(
 	progress: number,
 	radius: number,
 ): void {
-	const expansion = deathBurstExpansion(progress);
 	const stain = new THREE.Mesh(
-		new THREE.CircleGeometry(radius * expansion, 48),
+		new THREE.CircleGeometry(radius, 48),
 		new THREE.MeshBasicMaterial({
 			color: 0x8f071b,
 			transparent: true,
@@ -270,7 +379,7 @@ function deathBurst(
 	});
 	for (let index = 0; index < 18; index += 1) {
 		const angle = index * 2.399;
-		const distance = radius * expansion * (0.35 + (index % 4) * 0.14);
+		const distance = 0;
 		const particle = new THREE.Mesh(
 			new THREE.CircleGeometry(2 + (index % 3), 8),
 			particleMaterial,
@@ -590,9 +699,7 @@ function healing(group: THREE.Group, progress: number, radius: number): void {
 	aura.renderOrder = Z_EFFECT + 0.001;
 	group.add(aura);
 
-	if (progress < 0.25) return;
-
-	const plusProgress = (progress - 0.25) / 0.75;
+	const plusProgress = Math.max(0, (progress - 0.25) / 0.75);
 	const plusMat = new THREE.SpriteMaterial({
 		map: healingPlusTexture(),
 		color: 0x72f2a7,
