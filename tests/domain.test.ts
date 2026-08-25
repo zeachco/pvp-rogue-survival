@@ -3479,6 +3479,20 @@ test("edits a proposed community request in the creation-style modal", async () 
 	expect(devlogSource).not.toContain('prompt("Request type:');
 });
 
+test("heads the community request panel as Community Change Request with a Graphics & Sounds type", async () => {
+	const [documentSource, devlogSource] = await Promise.all([
+		Bun.file(new URL("../index.html", import.meta.url)).text(),
+		Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
+	]);
+	expect(documentSource).toContain(
+		'<h2 id="request-heading">Community Change Request</h2>',
+	);
+	expect(documentSource).toContain(
+		'<option value="graphics">Graphics &amp; Sounds</option>',
+	);
+	expect(devlogSource).toContain("COMMUNITY_REQUEST_KIND_LABELS[request.kind]");
+});
+
 test("wraps Devlog request metadata between complete labels", async () => {
 	const devlogStyles = await Bun.file(
 		new URL("../src/devlog.css", import.meta.url),

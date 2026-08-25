@@ -188,6 +188,17 @@ describe("devlog requests", () => {
 		});
 		expect(
 			parseDevlogRequestInput({
+				kind: "graphics",
+				title: "  Sparkle effects  ",
+				description: "  Add particle sparkles to hero attacks.  ",
+			}),
+		).toEqual({
+			kind: "graphics",
+			title: "Sparkle effects",
+			description: "Add particle sparkles to hero attacks.",
+		});
+		expect(
+			parseDevlogRequestInput({
 				kind: "idea",
 				title: "x",
 				description: "too short",
@@ -284,7 +295,7 @@ describe("devlog requests", () => {
 			const address = app.server.address();
 			if (!address || typeof address === "string")
 				throw new Error("Expected a TCP test server.");
-			for (const kind of ["feature", "bug", "balance"] as const) {
+			for (const kind of ["feature", "bug", "balance", "graphics"] as const) {
 				const request = await app.devlogRequests.create({
 					kind,
 					title: `${kind} request`,

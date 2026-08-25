@@ -1,6 +1,7 @@
 import "./devlog.css";
 import {
 	type CommunityRequestCompletionFilter,
+	COMMUNITY_REQUEST_KIND_LABELS,
 	DEVLOG_SUMMARY_BUCKETS,
 	DEVLOG_SUMMARY_BUCKET_LABELS,
 	filterCommunityRequestsByCompletion,
@@ -326,7 +327,11 @@ function renderRequest(request: DevlogRequest): HTMLElement {
 	const copy = element("div", undefined, "request-copy");
 	const meta = element("div", undefined, "request-meta");
 	meta.append(
-		element("span", request.kind, `request-kind ${request.kind}`),
+		element(
+			"span",
+			COMMUNITY_REQUEST_KIND_LABELS[request.kind] ?? request.kind,
+			`request-kind ${request.kind}`,
+		),
 		element("span", `Proposed by ${request.proposerName}`, "request-proposer"),
 		element(
 			"time",

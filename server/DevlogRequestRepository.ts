@@ -1,6 +1,6 @@
 import { SQL } from "bun";
 
-export type DevlogRequestKind = "feature" | "bug" | "balance";
+export type DevlogRequestKind = "feature" | "bug" | "balance" | "graphics";
 export const MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH = 1_024;
 
 export interface DevlogRequest {

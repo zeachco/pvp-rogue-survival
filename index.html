@@ -50,11 +50,11 @@
             </section>
             <section class="request-panel" aria-labelledby="request-heading">
               <div class="request-intro">
-                <div><small>Shape what comes next</small><h2 id="request-heading">Request a feature or report a bug</h2></div>
+                <div><small>Shape what comes next</small><h2 id="request-heading">Community Change Request</h2></div>
                 <p>Log in from the game to submit requests or vote on what matters most.</p>
               </div>
               <form id="request-form">
-                <label>Request type<select name="kind" required><option value="feature">Feature</option><option value="bug">Bug</option><option value="balance">Balance</option></select></label>
+                <label>Request type<select name="kind" required><option value="feature">Feature</option><option value="bug">Bug</option><option value="balance">Balance</option><option value="graphics">Graphics &amp; Sounds</option></select></label>
                 <label>Title<input name="title" type="text" minlength="3" maxlength="100" required placeholder="A short, specific summary" /></label>
                 <label>Details<textarea name="description" minlength="10" maxlength="1024" required placeholder="What should happen, or what went wrong?"></textarea></label>
                 <div class="form-actions"><button type="submit">Submit request</button><span id="request-status" role="status" aria-live="polite"></span></div>
@@ -66,7 +66,7 @@
       <dialog id="request-edit-modal" class="request-edit-modal" aria-labelledby="request-edit-heading">
         <form id="request-edit-form">
           <div class="request-edit-heading"><div><small>Proposed change</small><h2 id="request-edit-heading">Edit request</h2></div><button type="button" data-edit-cancel aria-label="Cancel editing">×</button></div>
-          <label>Request type<select name="kind" required><option value="feature">Feature</option><option value="bug">Bug</option><option value="balance">Balance</option></select></label>
+          <label>Request type<select name="kind" required><option value="feature">Feature</option><option value="bug">Bug</option><option value="balance">Balance</option><option value="graphics">Graphics &amp; Sounds</option></select></label>
           <label>Title<input name="title" type="text" minlength="3" maxlength="100" required placeholder="A short, specific summary" /></label>
           <label>Details<textarea name="description" minlength="10" maxlength="1024" required placeholder="What should happen, or what went wrong?"></textarea></label>
           <div class="form-actions"><button type="submit">Save changes</button><button type="button" data-edit-cancel>Cancel</button><span id="request-edit-status" role="status" aria-live="polite"></span></div>

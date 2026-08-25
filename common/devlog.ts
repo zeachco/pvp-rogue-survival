@@ -1,3 +1,5 @@
+import type { DevlogRequestKind } from "../server/DevlogRequestRepository";
+
 export const DEVLOG_SUMMARY_BUCKETS = [
 	"features",
 	"bugfixes",
@@ -21,6 +23,14 @@ export function filterCommunityRequestsByCompletion<
 
 export type DevlogSummaryBucket = (typeof DEVLOG_SUMMARY_BUCKETS)[number];
 export type DevlogSummary = Partial<Record<DevlogSummaryBucket, string[]>>;
+
+export const COMMUNITY_REQUEST_KIND_LABELS: Record<DevlogRequestKind, string> =
+	{
+		feature: "Feature",
+		bug: "Bug",
+		balance: "Balance",
+		graphics: "Graphics & Sounds",
+	};
 
 export const DEVLOG_SUMMARY_BUCKET_LABELS: Record<DevlogSummaryBucket, string> =
 	{
