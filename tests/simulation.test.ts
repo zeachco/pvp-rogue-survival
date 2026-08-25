@@ -33,7 +33,12 @@ import { ArenaState } from "../src/game/ArenaState";
 import { AttackArea } from "../src/game/AttackArea";
 import { BLIZZARD_ICICLES_PER_VOLLEY, Blizzard } from "../src/game/Blizzard";
 import { clampToArenaBoundary, correctArenaBoundary } from "../src/game/bounds";
-import { type CombatText, combatTextScale } from "../src/game/CombatText";
+import {
+	type CombatText,
+	combatTextRenderSignature,
+	combatTextScale,
+	formatCombatAmount,
+} from "../src/game/CombatText";
 import {
 	CREEP_RESOURCE_BAR_CAMERA_OFFSET,
 	Creep,
@@ -127,6 +132,10 @@ import {
 	Z_CREEP_OVERLAY,
 } from "../src/game/render/ThreeRenderer";
 import {
+	DEATH_BURST_DURATION,
+	DEATH_BURST_EXPANSION_DURATION,
+	DEATH_BURST_LIGHT_INTENSITY,
+	deathBurstExpansion,
 	ELBO_HEIGHT,
 	elbowHeight,
 	FORCE_FIELD_ANIMATION_DURATION,
@@ -150,10 +159,6 @@ import {
 	THUNDER_IMPACT_LIGHT_COLOR,
 	THUNDER_IMPACT_LIGHT_INTENSITY,
 	THUNDER_IMPACT_LIGHT_OFFSET,
-	DEATH_BURST_LIGHT_INTENSITY,
-	DEATH_BURST_DURATION,
-	DEATH_BURST_EXPANSION_DURATION,
-	deathBurstExpansion,
 	WHIRLWIND_RADIANS_PER_SECOND,
 } from "../src/game/SpellEffect";
 
@@ -172,11 +177,11 @@ import {
 } from "../src/game/systems/HeroCombatSystem";
 import {
 	activeEnemyCountAllowsAutoForce,
-	swarmModeShouldRequest,
 	expediteQueuedSpawns,
 	MAX_ACTIVE_CREEPS,
 	releaseReadySpawns,
 	removeInactive,
+	swarmModeShouldRequest,
 } from "../src/game/systems/lifecycle";
 import { resolveUnitCollisions } from "../src/game/systems/movement";
 import { damageStatusDuration, type Vector2 } from "../src/game/types";
@@ -3341,6 +3346,39 @@ describe("arena systems", () => {
 	test("sizes ordinary combat text at sixty percent and critical text fully", () => {
 		expect(combatTextScale(false)).toBe(0.6);
 		expect(combatTextScale(true)).toBe(1);
+	});
+
+	test("formats combat amounts for small, fractional, and large values", () => {
+		expect(formatCombatAmount(3)).toBe("3");
+		expect(formatCombatAmount(3.5)).toBe("3.5");
+		expect(formatCombatAmount(12)).toBe("12");
+	});
+
+	test("keeps the combat text render signature stable across age changes", () => {
+		const text: CombatText = {
+			position: { x: 0, y: 0 },
+			amount: 3,
+			kind: "magic",
+			critical: false,
+			age: 0,
+			lifetime: 1,
+			drift: 0,
+		};
+		expect(combatTextRenderSignature({ ...text, age: 0.5 })).toBe(
+			combatTextRenderSignature(text),
+		);
+		expect(combatTextRenderSignature({ ...text, amount: 4 })).not.toBe(
+			combatTextRenderSignature(text),
+		);
+		expect(combatTextRenderSignature({ ...text, critical: true })).not.toBe(
+			combatTextRenderSignature(text),
+		);
+		expect(combatTextRenderSignature({ ...text, kind: "fire" })).not.toBe(
+			combatTextRenderSignature(text),
+		);
+		expect(combatTextRenderSignature({ ...text, label: "Critical!" })).not.toBe(
+			combatTextRenderSignature(text),
+		);
 	});
 
 	test("edge spawning is reproducible with a seeded random source", () => {

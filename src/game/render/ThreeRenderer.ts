@@ -5,7 +5,9 @@ import type { CombatText } from "../CombatText";
 import {
 	COMBAT_TEXT_COLORS,
 	CRITICAL_TEXT_COLOR,
+	combatTextRenderSignature,
 	combatTextScale,
+	formatCombatAmount,
 } from "../CombatText";
 import type { Creep } from "../Creep";
 import {
@@ -303,7 +305,15 @@ export class ThreeRenderer {
 		THREE.Object3D,
 		SpellEffect
 	>();
-	private readonly combatTextObjects = new Map<CombatText, THREE.Sprite>();
+	private readonly combatTextObjects = new Map<
+		CombatText,
+		{
+			sprite: THREE.Sprite;
+			texture: THREE.CanvasTexture;
+			canvas: HTMLCanvasElement;
+			signature: string;
+		}
+	>();
 	private readonly canvas: HTMLCanvasElement;
 	private width = 1;
 	private height = 1;
@@ -622,71 +632,71 @@ export class ThreeRenderer {
 
 	private syncCombatText(texts: CombatText[]): void {
 		const active = new Set(texts);
-		for (const [text, sprite] of this.combatTextObjects) {
+		for (const [text, entry] of this.combatTextObjects) {
 			if (!active.has(text)) {
-				this.scene.remove(sprite);
-				sprite.material.map?.dispose();
-				sprite.material.dispose();
+				this.scene.remove(entry.sprite);
+				entry.texture.dispose();
+				entry.sprite.material.dispose();
 				this.combatTextObjects.delete(text);
 			}
 		}
 		for (const text of texts) {
-			let sprite = this.combatTextObjects.get(text);
 			const progress = Math.min(1, text.age / text.lifetime);
-			const color = text.critical
-				? CRITICAL_TEXT_COLOR
-				: COMBAT_TEXT_COLORS[text.kind];
-			const weight = text.critical ? 700 : 600;
-			const fontSize = 19;
-			const sizeScale = combatTextScale(text.critical);
-			const value =
-				text.label ??
-				`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`;
+			const signature = combatTextRenderSignature(text);
+			let entry = this.combatTextObjects.get(text);
+			if (!entry || entry.signature !== signature) {
+				const value =
+					text.label ??
+					`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`;
+				const color = text.critical
+					? CRITICAL_TEXT_COLOR
+					: COMBAT_TEXT_COLORS[text.kind];
+				const weight = text.critical ? 700 : 600;
+				const fontSize = 19;
+				const sizeScale = combatTextScale(text.critical);
+				const canvas = entry?.canvas ?? document.createElement("canvas");
+				const ctx = canvas2dContext(canvas);
+				const font = `${weight} ${fontSize}px Inter, sans-serif`;
+				ctx.font = font;
+				const textWidth = Math.ceil(ctx.measureText(value).width);
+				const padding = 6;
+				const w = textWidth + padding * 2;
+				const h = fontSize + 4 + padding * 2;
+				canvas.width = w;
+				canvas.height = h;
+				ctx.font = font;
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle";
+				ctx.shadowColor = "rgba(0,0,0,.8)";
+				ctx.shadowBlur = 3;
+				ctx.fillStyle = color;
+				ctx.fillText(value, w / 2, h / 2);
 
-			const canvas = document.createElement("canvas");
-			const ctx = canvas2dContext(canvas);
-			const font = `${weight} ${fontSize}px Inter, sans-serif`;
-			ctx.font = font;
-			const metrics = ctx.measureText(value);
-			const textWidth = Math.ceil(metrics.width);
-			const textHeight = fontSize + 4;
-			const padding = 6;
-			const w = textWidth + padding * 2;
-			const h = textHeight + padding * 2;
-			canvas.width = w;
-			canvas.height = h;
-			ctx.font = font;
-			ctx.textAlign = "center";
-			ctx.textBaseline = "middle";
-			ctx.shadowColor = "rgba(0,0,0,.8)";
-			ctx.shadowBlur = 3;
-			ctx.fillStyle = color;
-			ctx.globalAlpha = 1 - progress;
-			ctx.fillText(value, w / 2, h / 2);
-
-			if (!sprite) {
-				const texture = new THREE.CanvasTexture(canvas);
-				const mat = new THREE.SpriteMaterial({
-					map: texture,
-					depthTest: false,
-					transparent: true,
-				});
-				sprite = new THREE.Sprite(mat);
-				sprite.layers.set(0);
-				this.scene.add(sprite);
-				this.combatTextObjects.set(text, sprite);
-			} else {
-				sprite.material.map!.image = canvas;
-				sprite.material.map!.needsUpdate = true;
-				sprite.material.opacity = 1;
+				if (!entry) {
+					const texture = new THREE.CanvasTexture(canvas);
+					const mat = new THREE.SpriteMaterial({
+						map: texture,
+						depthTest: false,
+						transparent: true,
+					});
+					const sprite = new THREE.Sprite(mat);
+					sprite.layers.set(0);
+					this.scene.add(sprite);
+					entry = { sprite, texture, canvas, signature };
+					this.combatTextObjects.set(text, entry);
+				} else {
+					entry.texture.needsUpdate = true;
+					entry.signature = signature;
+				}
+				entry.sprite.scale.set(w * sizeScale, h * sizeScale, 1);
 			}
 
-			sprite.position.set(
+			entry.sprite.material.opacity = 1 - progress;
+			entry.sprite.position.set(
 				text.position.x + text.drift * progress,
 				text.position.y,
 				(text.elevation ?? 0) + 38 * progress,
 			);
-			sprite.scale.set(w * sizeScale, h * sizeScale, 1);
 		}
 	}
 
@@ -697,12 +707,6 @@ export class ThreeRenderer {
 	dispose(): void {
 		this.renderer.dispose();
 	}
-}
-
-function formatCombatAmount(amount: number): string {
-	return amount < 10
-		? amount.toFixed(1).replace(/\.0$/, "")
-		: String(Math.round(amount));
 }
 
 export {

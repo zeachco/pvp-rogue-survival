@@ -41,3 +41,16 @@ export const CRITICAL_TEXT_COLOR = "#fff3bd";
 export function combatTextScale(critical: boolean): number {
 	return critical ? 1 : 0.6;
 }
+
+export function formatCombatAmount(amount: number): string {
+	return amount < 10
+		? amount.toFixed(1).replace(/\.0$/, "")
+		: String(Math.round(amount));
+}
+
+export function combatTextRenderSignature(text: CombatText): string {
+	const value =
+		text.label ??
+		`${text.kind === "healing" ? "+" : ""}${formatCombatAmount(text.amount)}`;
+	return `${value}|${text.kind}|${text.critical}`;
+}
