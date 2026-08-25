@@ -593,6 +593,60 @@ test("keeps extraction details hoverable and focusable while Extract is disabled
 	);
 });
 
+test("keeps the Extract tooltip mechanism reachable from the open context menu", async () => {
+	const [inventorySource, styles] = await Promise.all([
+		Bun.file(new URL("../src/ui/InventoryView.tsx", import.meta.url)).text(),
+		Bun.file(new URL("../src/styles.css", import.meta.url)).text(),
+	]);
+	// The menu portal must be resolved when the menu opens, not when the
+	// card is built: inventory cards are constructed before they are
+	// attached to the DOM, so a bind-time portal resolves to document.body
+	// and the menu escapes the HUD root that attachViewportTooltips listens
+	// on, hiding the Extract tooltip.
+	const bindStart = inventorySource.indexOf(
+		"export function bindItemContextMenu(",
+	);
+	const bindEnd = inventorySource.indexOf(
+		"export function bindTouchHoldAction(",
+	);
+	expect(bindStart).toBeGreaterThan(-1);
+	expect(bindEnd).toBeGreaterThan(bindStart);
+	const bindSource = inventorySource.slice(bindStart, bindEnd);
+	const portalFallback =
+		'card.closest<HTMLElement>(".game-hud") ?? document.body';
+	expect(bindSource).toContain(portalFallback);
+	const openStart = bindSource.indexOf(
+		"const open = (clientX: number, clientY: number) => {",
+	);
+	expect(openStart).toBeGreaterThan(-1);
+	const portalStart = bindSource.indexOf(portalFallback);
+	expect(portalStart).toBeGreaterThan(openStart);
+	expect(bindSource.slice(0, openStart)).not.toContain("document.body");
+	expect(bindSource).toContain("let openPortal: HTMLElement | undefined;");
+	expect(bindSource).toContain("openPortal = portal;");
+	expect(bindSource).toContain(
+		"if (openPortal && menu?.parentElement === openPortal)",
+	);
+	// The tooltip overlay must paint above the context menu, which stacks at
+	// z-index 1000, for both the spell tooltip and the fallback action
+	// tooltip.
+	const menuMatch = styles.match(
+		/\.inventory-item-context-menu\s*\{[^}]*z-index:\s*(\d+)/s,
+	);
+	const spellOverlayMatch = styles.match(
+		/\.viewport-tooltip-overlay\.spell-tooltip\s*\{[^}]*z-index:\s*(\d+)/s,
+	);
+	const fallbackOverlayMatch = styles.match(
+		/\.viewport-tooltip-overlay\[role="tooltip"\]:not\(\.spell-tooltip\)\s*\{[^}]*z-index:\s*(\d+)\s*!important/s,
+	);
+	expect(menuMatch).not.toBeNull();
+	expect(spellOverlayMatch).not.toBeNull();
+	expect(fallbackOverlayMatch).not.toBeNull();
+	const menuZ = Number(menuMatch?.[1]);
+	expect(Number(spellOverlayMatch?.[1])).toBeGreaterThan(menuZ);
+	expect(Number(fallbackOverlayMatch?.[1])).toBeGreaterThan(menuZ);
+});
+
 test("ORs spell catalog filters within status and type groups, then ANDs the groups", () => {
 	const learnedPassive = {
 		learned: true,

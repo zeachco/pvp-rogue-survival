@@ -543,8 +543,8 @@ export function bindItemContextMenu(
 ): () => void {
 	let holdTimer: ReturnType<typeof setTimeout> | undefined;
 	let openedByTouch = false;
+	let openPortal: HTMLElement | undefined;
 	let cleanupOutside: (() => void) | undefined;
-	const portal = card.closest<HTMLElement>(".game-hud") ?? document.body;
 	const cancelHold = () => {
 		if (holdTimer !== undefined) clearTimeout(holdTimer);
 		holdTimer = undefined;
@@ -554,10 +554,11 @@ export function bindItemContextMenu(
 		card.classList.remove("is-menu-open");
 		menu?.classList.remove("is-open");
 		const controls = card.querySelector<HTMLElement>(".item-card-controls");
-		if (menu?.parentElement === portal) {
+		if (openPortal && menu?.parentElement === openPortal) {
 			if (controls && card.isConnected) controls.append(menu);
 			else menu.remove();
 		}
+		openPortal = undefined;
 		cleanupOutside?.();
 		cleanupOutside = undefined;
 	};
@@ -571,6 +572,10 @@ export function bindItemContextMenu(
 			"--rarity-rgb",
 			getComputedStyle(card).getPropertyValue("--rarity-rgb"),
 		);
+		// Resolve the portal when opening so cards built before they are
+		// attached to the DOM still keep the menu inside the HUD root.
+		const portal = card.closest<HTMLElement>(".game-hud") ?? document.body;
+		openPortal = portal;
 		portal.append(menu);
 		menu.style.left = `${clientX}px`;
 		menu.style.top = `${clientY}px`;

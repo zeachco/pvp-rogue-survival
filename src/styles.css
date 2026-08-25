@@ -1160,6 +1160,7 @@ input {
 }
 
 .viewport-tooltip-overlay.spell-tooltip {
+	z-index: 1002;
 	opacity: 1;
 	visibility: visible;
 	transform: none;
@@ -1171,7 +1172,7 @@ input {
 
 .viewport-tooltip-overlay[role="tooltip"]:not(.spell-tooltip) {
 	position: fixed !important;
-	z-index: 100 !important;
+	z-index: 1002 !important;
 	display: block !important;
 	width: max-content;
 	max-width: min(340px, calc(100vw - 16px)) !important;
