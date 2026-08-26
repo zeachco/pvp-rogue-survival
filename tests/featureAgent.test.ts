@@ -1,13 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import {
+	buildPrompt,
 	FEATURE_AGENT_PROMPT,
 	FEATURE_AGENT_RESULT_PREFIX,
-	PLAN_RESULT_PREFIX,
-	buildPrompt,
 	formattedFeatureRecap,
+	formattedFeatureRequest,
 	harnessCommand,
 	isFeatureHarness,
+	MAINTENANCE_AGENT_PROMPT,
+	MAINTENANCE_TASK,
+	maintenanceBuildPrompt,
+	maintenancePlanPrompt,
 	markFeatureCompleted,
+	PLAN_RESULT_PREFIX,
 	parseFeatureAgentResult,
 	parsePlanResult,
 	phaseBanner,
@@ -101,6 +106,32 @@ describe("feature agent launcher", () => {
 		expect(prompt).toContain("create one semantic commit");
 		expect(prompt).toContain("push that commit");
 		expect(prompt).toContain(FEATURE_AGENT_RESULT_PREFIX);
+	});
+
+	test("falls back to the built-in maintenance task when no request is pending", () => {
+		const plan = maintenancePlanPrompt();
+		expect(plan).toContain("<maintenance-task>");
+		expect(plan).toContain(MAINTENANCE_TASK.title);
+		expect(plan).toContain("trusted launcher content");
+		expect(plan).toContain("Do NOT modify, create, or delete any files");
+		expect(plan).toContain(PLAN_RESULT_PREFIX);
+		const build = maintenanceBuildPrompt(
+			"1. Profile hot paths\n2. Fix the bug",
+		);
+		expect(build.startsWith(MAINTENANCE_AGENT_PROMPT)).toBeTrue();
+		expect(build).toContain("<untrusted-feature-plan>");
+		expect(build).toContain("1. Profile hot paths\n2. Fix the bug");
+		expect(build).toContain("<maintenance-task>");
+		expect(build).toContain("create one semantic commit");
+		expect(build).toContain("push that commit");
+		expect(build).toContain(FEATURE_AGENT_RESULT_PREFIX);
+	});
+
+	test("labels the maintenance task box in the formatted request", () => {
+		expect(formattedFeatureRequest(request)).toContain("╭─ SELECTED FEATURE ");
+		expect(
+			formattedFeatureRequest(MAINTENANCE_TASK, "MAINTENANCE TASK"),
+		).toContain("╭─ MAINTENANCE TASK ");
 	});
 
 	test("parses the structured planning result", () => {
