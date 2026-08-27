@@ -1,0 +1,93 @@
+{
+	"week": "2026-W35",
+	"label": "Week of August 24, 2026",
+	"generatedAt": "2026-08-27T11:14:15.978Z",
+	"model": "gemma-4-E4B-it-GGUF",
+	"periods": [
+		{
+			"key": "2026-W35",
+			"label": "Week of August 24, 2026",
+			"summaryTitle": "Performance Upgrades and Community Panel Overhaul",
+			"summary": {
+				"features": [
+					"Implemented an AI development maintenance mode fallback system, improving stability for AI task management."
+				],
+				"bugfixes": [
+					"Resolved several inventory issues related to spell extraction, ensuring tooltips are correctly displayed and spell previews are cleared properly.",
+					"Restored camera orbit controls for Firefox users to ensure consistent movement experience.",
+					"Improved the mobile experience by fixing layout issues within inventory and ensuring item descriptions remain visible on screen."
+				],
+				"performance": [
+					"Significant performance boost applied to combat text rendering by utilizing cached canvases and opacity fading, reducing overhead per frame.",
+					"Reduced frame costs associated with spell effects and auras through optimizations like bounded light polling and allocation-free area checks."
+				],
+				"ux": [
+					"The Community Change Request panel was updated, including a renaming of the panel and the addition of a dedicated 'Graphics & Sounds' submission category for assets and effects."
+				]
+			},
+			"commits": [
+				{
+					"hash": "e048dca8070d42a58d7955f99c58d40e492b9bd2",
+					"authoredAt": "2026-08-26T18:34:09-04:00",
+					"title": "feat(AI-dev): add maintenance mode fallback to when there's no available tasks",
+					"description": ""
+				},
+				{
+					"hash": "a54e1f9fa076dea64478288ec17ff5df3d8532b1",
+					"authoredAt": "2026-08-25T16:49:22-04:00",
+					"title": "fix(inventory): show the extracted spell when hovering the Extract action",
+					"description": "- resolve the context menu portal when opening instead of when the card is built, so the menu stays inside the HUD root and the viewport tooltip listeners can see it\n- raise the viewport tooltip overlay above the context menu z-index for both the spell and fallback tooltips\n- add a regression test keeping the Extract tooltip reachable from the open menu"
+				},
+				{
+					"hash": "a094a79d05692afc91eb68c6dafa7688b3b8f236",
+					"authoredAt": "2026-08-25T07:51:19-04:00",
+					"title": "perf(combat-text): allocate floating text canvases once and fade via opacity",
+					"description": "- cached canvas + CanvasTexture per combat text, redrawn only when value, kind, or critical state changes\n- per-frame fade now updates sprite material opacity instead of re-uploading the texture\n- moved formatCombatAmount to CombatText and added combatTextRenderSignature with unit tests\n- extended the runtime performance contract spec accordingly"
+				},
+				{
+					"hash": "a22dc00e13da094e6728da5bdf03568c7e5c8d5a",
+					"authoredAt": "2026-08-25T06:38:11-04:00",
+					"title": "ux(devlog): rename request panel and add Graphics & Sounds category",
+					"description": "- renamed 'Request a feature or report a bug' heading to 'Community Change Request'\n- added Graphics & Sounds request type for assets, effects, particles, and engine details\n- extended kind validation, badge label, and specs"
+				},
+				{
+					"hash": "cc28af3f43e4100cc734af50f6637efe054ca516",
+					"authoredAt": "2026-08-24T19:31:54-04:00",
+					"title": "fix(camera): restore Firefox mouse drag orbit",
+					"description": ""
+				},
+				{
+					"hash": "cb871ac4ff4f17649b086f0d855219ef4bbc5aff",
+					"authoredAt": "2026-08-24T19:15:09-04:00",
+					"title": "fix(inventory): clear spell preview after extraction",
+					"description": ""
+				},
+				{
+					"hash": "9ac49384e561c18973289ac552bdbe8ba81be63c",
+					"authoredAt": "2026-08-24T19:05:30-04:00",
+					"title": "fix(inventory): restore spell extraction tooltip",
+					"description": ""
+				},
+				{
+					"hash": "93d81e76bb081a65864d16c4fe6b6d2488c7c910",
+					"authoredAt": "2026-08-24T18:55:00-04:00",
+					"title": "fix(mobile): keep item descriptions on-screen",
+					"description": ""
+				},
+				{
+					"hash": "c436851f2ef422500f60b8ca6e41fbaf4ec5d25d",
+					"authoredAt": "2026-08-24T09:01:07-04:00",
+					"title": "perf(spells): reduce effect and aura frame costs",
+					"description": "- retain persistent spell visuals and shared capped particle resources\n- bound Thunder Aura light jitter polling while preserving continuous fades\n- use allocation-free squared-distance area checks"
+				},
+				{
+					"hash": "8a2c7b55acd67b375f82333e58127ce138d6cd44",
+					"authoredAt": "2026-08-24T08:53:21-04:00",
+					"title": "fix(mobile): improve inventory and resource HUD layout",
+					"description": ""
+				}
+			],
+			"categories": ["Features", "Bugfixes", "Performance", "UX"]
+		}
+	]
+}

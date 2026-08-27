@@ -1,0 +1,95 @@
+{
+	"week": "2026-W34",
+	"label": "Week of August 17, 2026",
+	"generatedAt": "2026-08-27T11:14:15.928Z",
+	"model": "gemma-4-E4B-it-GGUF",
+	"periods": [
+		{
+			"key": "2026-W34",
+			"label": "Week of August 17, 2026",
+			"summaryTitle": "Shields, Inventory Overhaul, and Device Graphics",
+			"summary": {
+				"features": [
+					"Added a toggleable Mana Shield as a new spell mechanic.",
+					"Enhanced feature development workflow with integrated planning phases and local LLM support."
+				],
+				"bugfixes": [
+					"Resolved an issue where the 3D cursor was incorrectly clamping to the radial map."
+				],
+				"balance": [
+					"The buckler's block chance has been scaled to dynamically increase based on the player's level."
+				],
+				"ux": [
+					"The inventory system was overhauled, replacing old item cards with detailed SVG tiles for better organization and accessibility.",
+					"The Whirlwind visual effect was refined, replacing the rotating cone with a continuous circular ribbon spin for smoother animation."
+				],
+				"graphics": [
+					"Implemented device-specific graphical presets, allowing mobile devices to default to lower settings (Lights/Shadows Off) while desktop uses maximum quality, while still honoring existing browser preferences."
+				]
+			},
+			"commits": [
+				{
+					"hash": "fff27e1495c2ef365eb3dfc05213466e3660d009",
+					"authoredAt": "2026-08-23T18:43:49-04:00",
+					"title": "feat(graphics): default settings by device",
+					"description": "- default mobile Lights and Shadows to Off\n- default desktop graphics to maximum Lights and Dynamic Shadows\n- preserve valid browser-local graphics preferences"
+				},
+				{
+					"hash": "c64d12f9b10b80feda843558f22dc4d29de7b178",
+					"authoredAt": "2026-08-23T17:57:52-04:00",
+					"title": "balance(blocking): scale buckler block chance by level",
+					"description": ""
+				},
+				{
+					"hash": "c80ec21d27f24824bd3467a473397911e6d2c15e",
+					"authoredAt": "2026-08-23T11:19:09-04:00",
+					"title": "ux(spells): removed whirlwind cone for continuous spin",
+					"description": "- removed the rotating magic-sword cone from the whirlwind visual\n- kept the shader-displaced circular ribbons as a continuous spin\n- updated the whirlwind spec and the whirlwind visual test"
+				},
+				{
+					"hash": "a1dadf32608fda198cb2c5c43f110d4e43bd45f5",
+					"authoredAt": "2026-08-23T10:13:20-04:00",
+					"title": "feat(spells): added toggleable mana shield",
+					"description": ""
+				},
+				{
+					"hash": "0046917a6f56dfd0c49f0ba30e34ae96ccec19e6",
+					"authoredAt": "2026-08-21T20:36:19-04:00",
+					"title": "feat: plan/build phase for feature dev",
+					"description": ""
+				},
+				{
+					"hash": "b18a98cb9ad4730bc7ba93d597b4ca23b2b65adc",
+					"authoredAt": "2026-08-21T16:49:48-04:00",
+					"title": "feat: opencode for feature harness",
+					"description": ""
+				},
+				{
+					"hash": "d66d05910f12b77719280394ede6d66ee6982afa",
+					"authoredAt": "2026-08-18T18:43:35-04:00",
+					"title": "feat: defaultt to local llm for feature dev",
+					"description": ""
+				},
+				{
+					"hash": "7509a34d3df5bc246c84cd1573b113c7f2d53f81",
+					"authoredAt": "2026-08-17T18:55:37-04:00",
+					"title": "ux(inventory): replace item cards with SVG tiles",
+					"description": "- render compact rarity-outline equipment icons in a half-width inventory\\n- show candidate and equipped item details side by side on hover or focus\\n- expose inventory actions as accessible SVG icon controls"
+				},
+				{
+					"hash": "cca0b3a80c79345d726748cbde1d1726b3e4749f",
+					"authoredAt": "2026-08-17T08:00:58-04:00",
+					"title": "fix(cursor): clamp 3D cursor to radial map",
+					"description": ""
+				}
+			],
+			"categories": [
+				"Features",
+				"Bugfixes",
+				"Balance",
+				"UX",
+				"Graphics & Sounds"
+			]
+		}
+	]
+}
