@@ -3,8 +3,8 @@ import { join, resolve } from "node:path";
 import { $ } from "bun";
 import { z } from "zod";
 import {
-	DEVLOG_SUMMARY_BUCKETS,
 	DEVLOG_SUMMARY_BUCKET_LABELS,
+	DEVLOG_SUMMARY_BUCKETS,
 	type DevlogSummary,
 } from "../common/devlog";
 
@@ -73,7 +73,8 @@ interface ChangelogOptions {
 	all: boolean;
 }
 
-export const CHANGELOG_MODEL = "gemma4:latest";
+export const CHANGELOG_MODEL = "gemma-4-E4B-it-GGUF";
+export const CHANGELOG_BASE_URL = "http://oli-llms.local:8080/v1";
 export const PROJECT_INITIALIZATION_MODEL = "deterministic";
 export const CHANGELOG_MAX_ATTEMPTS = 3;
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
@@ -296,7 +297,7 @@ export function extractPeriods(raw: string): GeneratedPeriod[] {
 		json = JSON.parse(candidate);
 	} catch (error) {
 		throw new Error(
-			`Ollama returned invalid changelog JSON: ${error instanceof Error ? error.message : String(error)}`,
+			`LLM returned invalid changelog JSON: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
 	const parsed = generatedResponseSchema.safeParse(
@@ -304,7 +305,7 @@ export function extractPeriods(raw: string): GeneratedPeriod[] {
 	);
 	if (!parsed.success)
 		throw new Error(
-			`Ollama returned invalid changelog JSON: ${z.prettifyError(parsed.error)}`,
+			`llama.cpp returned invalid changelog JSON: ${z.prettifyError(parsed.error)}`,
 		);
 	return parsed.data.periods;
 }
@@ -316,7 +317,7 @@ export function buildDocument(
 	model: string = CHANGELOG_MODEL,
 ): WeeklyDevlog {
 	const result = generated.get(week.key);
-	if (!result) throw new Error(`Ollama omitted or invalidated ${week.key}.`);
+	if (!result) throw new Error(`llama.cpp omitted or invalidated ${week.key}.`);
 	const categories = DEVLOG_SUMMARY_BUCKETS.filter(
 		(bucket) => result.summary[bucket]?.length,
 	).map((bucket) => DEVLOG_SUMMARY_BUCKET_LABELS[bucket]);
@@ -385,13 +386,32 @@ async function sourceWeeks(
 
 type RunModel = (model: string, prompt: string) => Promise<string>;
 
-async function runOllama(model: string, prompt: string): Promise<string> {
-	return await $`printf %s ${prompt} | ollama run ${model} --format json --hidethinking --nowordwrap`.text();
+async function runLLM(model: string, prompt: string): Promise<string> {
+	const response = await fetch(`${CHANGELOG_BASE_URL}/chat/completions`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			model,
+			messages: [{ role: "user", content: prompt }],
+			response_format: { type: "json_object" },
+		}),
+	});
+	if (!response.ok)
+		throw new Error(
+			`llama.cpp request failed: ${response.status} ${response.statusText}`,
+		);
+	const payload = (await response.json()) as {
+		choices?: Array<{ message?: { content?: unknown } }>;
+	};
+	const content = payload.choices?.[0]?.message?.content;
+	if (typeof content !== "string")
+		throw new Error("llama.cpp returned no completion content.");
+	return content;
 }
 
 export async function generatePeriods(
 	weeks: WeekSource[],
-	runModel: RunModel = runOllama,
+	runModel: RunModel = runLLM,
 ): Promise<{
 	periods: Map<string, GeneratedPeriod>;
 	models: Map<string, string>;
@@ -415,7 +435,7 @@ export async function generatePeriods(
 				const periods = extractPeriods(await runModel(CHANGELOG_MODEL, prompt));
 				const period = periods.find(({ key }) => key === week.key);
 				if (!period)
-					throw new Error(`Ollama omitted expected period ${week.key}.`);
+					throw new Error(`llama.cpp omitted expected period ${week.key}.`);
 				generated.set(week.key, period);
 				models.set(week.key, CHANGELOG_MODEL);
 				break;

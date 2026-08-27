@@ -94,7 +94,7 @@ describe("generated devlog history", () => {
 			extractPeriods(
 				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":{}}]}',
 			),
-		).toThrow("Ollama returned invalid changelog JSON");
+		).toThrow("llama.cpp returned invalid changelog JSON");
 		expect(() =>
 			extractPeriods(
 				'{"periods":[{"key":"2026-W32","title":"Realm work","summary":{"other":["Unstructured update."]}}]}',
@@ -102,7 +102,7 @@ describe("generated devlog history", () => {
 		).toThrow('Unrecognized key: "other"');
 	});
 
-	test("normalizes observed Ollama bucket shape drift", () => {
+	test("normalizes observed llama.cpp bucket shape drift", () => {
 		expect(
 			extractPeriods(
 				'{"periods":[{"key":"2026-W28","title":"Started","summary":{"features":["Project initialized"],"bugfixes":[""],"performance":[],"balance":["  "],"ux":[],"graphics":[]}}]}',
@@ -142,7 +142,7 @@ describe("generated devlog history", () => {
 		]);
 	});
 
-	test("uses only gemma4:latest for generation", async () => {
+	test("uses only the configured changelog model for generation", async () => {
 		const attempts: string[] = [];
 		const result = await generatePeriods(
 			[
@@ -170,7 +170,7 @@ describe("generated devlog history", () => {
 		expect(result.models.get("2026-W32")).toBe(CHANGELOG_MODEL);
 	});
 
-	test("retries malformed Ollama output for the same week", async () => {
+	test("retries malformed llama.cpp output for the same week", async () => {
 		let attempts = 0;
 		const result = await generatePeriods(
 			[
@@ -200,7 +200,7 @@ describe("generated devlog history", () => {
 		expect(result.periods.get("2026-W32")?.title).toBe("Started");
 	});
 
-	test("generates an initialization-only week without Ollama", async () => {
+	test("generates an initialization-only week without a model call", async () => {
 		let calls = 0;
 		const result = await generatePeriods(
 			[
@@ -226,7 +226,7 @@ describe("generated devlog history", () => {
 		});
 	});
 
-	test("fails clearly when gemma4:latest rejects the week", async () => {
+	test("fails clearly when the changelog model rejects the week", async () => {
 		let attempts = 0;
 		await expect(
 			generatePeriods(
@@ -251,7 +251,7 @@ describe("generated devlog history", () => {
 				},
 			),
 		).rejects.toThrow(
-			`Changelog generation failed for 2026-W32 with gemma4:latest after ${CHANGELOG_MAX_ATTEMPTS} attempts`,
+			`Changelog generation failed for 2026-W32 with ${CHANGELOG_MODEL} after ${CHANGELOG_MAX_ATTEMPTS} attempts`,
 		);
 		expect(attempts).toBe(CHANGELOG_MAX_ATTEMPTS);
 	});
