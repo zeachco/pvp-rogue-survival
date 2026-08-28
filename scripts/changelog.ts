@@ -73,9 +73,9 @@ interface ChangelogOptions {
   all: boolean;
 }
 
-// export const CHANGELOG_MODEL = "gemma-4-E4B-it-GGUF";
-export const CHANGELOG_MODEL = "qwen3.8";
+export const CHANGELOG_MODEL = "gemma-4-E4B-it-GGUF";
 export const CHANGELOG_BASE_URL = "http://oli-llms.local:8080/v1";
+export const CHANGELOG_MAX_TOKENS = 1200;
 export const PROJECT_INITIALIZATION_MODEL = "deterministic";
 export const CHANGELOG_MAX_ATTEMPTS = 3;
 const GIT_LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b";
@@ -284,6 +284,11 @@ function normalizeGeneratedResponse(value: unknown): unknown {
   };
 }
 
+function rawSnippet(raw: string): string {
+  const flat = raw.replace(/\s+/g, " ").trim();
+  return flat.length > 300 ? `${flat.slice(0, 300)}...` : flat;
+}
+
 export function extractPeriods(raw: string): GeneratedPeriod[] {
   const clean = raw
     // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences intentionally start with ESC.
@@ -297,8 +302,9 @@ export function extractPeriods(raw: string): GeneratedPeriod[] {
   try {
     json = JSON.parse(candidate);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `LLM returned invalid changelog JSON: ${error instanceof Error ? error.message : String(error)}`,
+      `LLM returned invalid changelog JSON: ${message}\nModel output: ${rawSnippet(raw)}`,
     );
   }
   const parsed = generatedResponseSchema.safeParse(
@@ -306,7 +312,7 @@ export function extractPeriods(raw: string): GeneratedPeriod[] {
   );
   if (!parsed.success)
     throw new Error(
-      `llama.cpp returned invalid changelog JSON: ${z.prettifyError(parsed.error)}`,
+      `llama.cpp returned invalid changelog JSON: ${z.prettifyError(parsed.error)}\nModel output: ${rawSnippet(raw)}`,
     );
   return parsed.data.periods;
 }
@@ -387,26 +393,75 @@ async function sourceWeeks(
 
 type RunModel = (model: string, prompt: string) => Promise<string>;
 
+function debug(message: string): void {
+  console.error(`[changelog] ${message}`);
+}
+
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause =
+    error.cause === undefined ? "" : ` (cause: ${describeError(error.cause)})`;
+  return `${error.name}: ${error.message}${cause}`;
+}
+
+function elapsedSince(startedAt: number): string {
+  return `${((performance.now() - startedAt) / 1000).toFixed(1)}s`;
+}
+
+interface CompletionPayload {
+  choices?: Array<{ message?: { content?: unknown } }>;
+}
+
 async function runLLM(model: string, prompt: string): Promise<string> {
-  const response = await fetch(`${CHANGELOG_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-    }),
-  });
-  if (!response.ok)
+  const endpoint = `${CHANGELOG_BASE_URL}/chat/completions`;
+  debug(`request ${endpoint} model=${model} promptChars=${prompt.length}`);
+  const startedAt = performance.now();
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: CHANGELOG_MAX_TOKENS,
+      }),
+    });
+  } catch (error) {
+    debug(
+      `request failed after ${elapsedSince(startedAt)}: ${describeError(error)}`,
+    );
+    throw error;
+  }
+  if (!response.ok) {
+    const body = await response.text().catch(() => "<unreadable body>");
+    debug(
+      `request failed after ${elapsedSince(startedAt)}: status=${response.status} ${response.statusText} body=${body}`,
+    );
     throw new Error(
       `llama.cpp request failed: ${response.status} ${response.statusText}`,
     );
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
+  }
+  let payload: CompletionPayload;
+  try {
+    payload = (await response.json()) as CompletionPayload;
+  } catch (error) {
+    debug(
+      `invalid payload after ${elapsedSince(startedAt)}: ${describeError(error)}`,
+    );
+    throw error;
+  }
   const content = payload.choices?.[0]?.message?.content;
-  if (typeof content !== "string")
+  if (typeof content !== "string") {
+    debug(
+      `no completion content after ${elapsedSince(startedAt)}: payload=${JSON.stringify(payload)}`,
+    );
     throw new Error("llama.cpp returned no completion content.");
+  }
+  debug(
+    `response ok after ${elapsedSince(startedAt)}: contentChars=${content.length}`,
+  );
   return content;
 }
 
@@ -441,8 +496,11 @@ export async function generatePeriods(
         models.set(week.key, CHANGELOG_MODEL);
         break;
       } catch (error) {
+        const reason = describeError(error);
+        debug(
+          `attempt ${attempt}/${CHANGELOG_MAX_ATTEMPTS} for ${week.key} failed: ${reason}`,
+        );
         if (attempt < CHANGELOG_MAX_ATTEMPTS) continue;
-        const reason = error instanceof Error ? error.message : String(error);
         throw new Error(
           `Changelog generation failed for ${week.key} with ${CHANGELOG_MODEL} after ${CHANGELOG_MAX_ATTEMPTS} attempts: ${reason}`,
         );
@@ -460,6 +518,14 @@ async function main(): Promise<void> {
     throw new Error(`Unknown argument: ${unknownArguments.join(", ")}`);
   const all = Bun.argv.includes("--all");
   const weeks = await sourceWeeks({ all });
+  debug(
+    `processing ${weeks
+      .map(
+        ({ key, commits, groupedCategories }) =>
+          `${key} [${commits.length} commits, ${groupedCategories.length} grouped]`,
+      )
+      .join(", ")}`,
+  );
   const generated = await generatePeriods(weeks);
 
   const outputDirectory = resolve(process.cwd(), "changelogs");
