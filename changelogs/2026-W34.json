@@ -1,33 +1,71 @@
 {
 	"week": "2026-W34",
 	"label": "Week of August 17, 2026",
-	"generatedAt": "2026-08-27T11:14:15.928Z",
-	"model": "gemma-4-E4B-it-GGUF",
+	"generatedAt": "2026-08-30T03:22:03.403Z",
+	"model": "qwen3.8",
 	"periods": [
 		{
 			"key": "2026-W34",
 			"label": "Week of August 17, 2026",
-			"summaryTitle": "Shields, Inventory Overhaul, and Device Graphics",
+			"summaryTitle": "Mana Shield & Whirlwind Rework",
 			"summary": {
 				"features": [
-					"Added a toggleable Mana Shield as a new spell mechanic.",
-					"Enhanced feature development workflow with integrated planning phases and local LLM support."
+					"Added a toggleable mana shield spell",
+					"Devlog development tooling: plan/build phase workflow, opencode feature harness, and local LLM defaults for feature development"
 				],
 				"bugfixes": [
-					"Resolved an issue where the 3D cursor was incorrectly clamping to the radial map."
+					"Restored Firefox mouse drag orbit for camera control",
+					"Fixed spell extraction in inventory: preview now clears after extraction and tooltip is restored",
+					"Improved mobile layout: item descriptions stay on-screen and inventory/resource HUD layout is refined"
 				],
-				"balance": [
-					"The buckler's block chance has been scaled to dynamically increase based on the player's level."
+				"performance": [
+					"Reduced spell effect and aura frame costs through persistent visuals, shared particle resources, bounded light jitter polling, and allocation-free distance checks"
 				],
+				"balance": ["Buckler block chance now scales with character level"],
 				"ux": [
-					"The inventory system was overhauled, replacing old item cards with detailed SVG tiles for better organization and accessibility.",
-					"The Whirlwind visual effect was refined, replacing the rotating cone with a continuous circular ribbon spin for smoother animation."
+					"Whirlwind visual reworked: removed the rotating magic-sword cone in favor of continuous circular ribbons"
 				],
 				"graphics": [
-					"Implemented device-specific graphical presets, allowing mobile devices to default to lower settings (Lights/Shadows Off) while desktop uses maximum quality, while still honoring existing browser preferences."
+					"Device-aware default graphics settings: mobile defaults to Lights & Shadows off, desktop defaults to maximum Lights & Dynamic Shadows"
 				]
 			},
 			"commits": [
+				{
+					"hash": "cc28af3f43e4100cc734af50f6637efe054ca516",
+					"authoredAt": "2026-08-24T19:31:54-04:00",
+					"title": "fix(camera): restore Firefox mouse drag orbit",
+					"description": ""
+				},
+				{
+					"hash": "cb871ac4ff4f17649b086f0d855219ef4bbc5aff",
+					"authoredAt": "2026-08-24T19:15:09-04:00",
+					"title": "fix(inventory): clear spell preview after extraction",
+					"description": ""
+				},
+				{
+					"hash": "9ac49384e561c18973289ac552bdbe8ba81be63c",
+					"authoredAt": "2026-08-24T19:05:30-04:00",
+					"title": "fix(inventory): restore spell extraction tooltip",
+					"description": ""
+				},
+				{
+					"hash": "93d81e76bb081a65864d16c4fe6b6d2488c7c910",
+					"authoredAt": "2026-08-24T18:55:00-04:00",
+					"title": "fix(mobile): keep item descriptions on-screen",
+					"description": ""
+				},
+				{
+					"hash": "c436851f2ef422500f60b8ca6e41fbaf4ec5d25d",
+					"authoredAt": "2026-08-24T09:01:07-04:00",
+					"title": "perf(spells): reduce effect and aura frame costs",
+					"description": "- retain persistent spell visuals and shared capped particle resources\n- bound Thunder Aura light jitter polling while preserving continuous fades\n- use allocation-free squared-distance area checks"
+				},
+				{
+					"hash": "8a2c7b55acd67b375f82333e58127ce138d6cd44",
+					"authoredAt": "2026-08-24T08:53:21-04:00",
+					"title": "fix(mobile): improve inventory and resource HUD layout",
+					"description": ""
+				},
 				{
 					"hash": "fff27e1495c2ef365eb3dfc05213466e3660d009",
 					"authoredAt": "2026-08-23T18:43:49-04:00",
@@ -69,23 +107,12 @@
 					"authoredAt": "2026-08-18T18:43:35-04:00",
 					"title": "feat: defaultt to local llm for feature dev",
 					"description": ""
-				},
-				{
-					"hash": "7509a34d3df5bc246c84cd1573b113c7f2d53f81",
-					"authoredAt": "2026-08-17T18:55:37-04:00",
-					"title": "ux(inventory): replace item cards with SVG tiles",
-					"description": "- render compact rarity-outline equipment icons in a half-width inventory\\n- show candidate and equipped item details side by side on hover or focus\\n- expose inventory actions as accessible SVG icon controls"
-				},
-				{
-					"hash": "cca0b3a80c79345d726748cbde1d1726b3e4749f",
-					"authoredAt": "2026-08-17T08:00:58-04:00",
-					"title": "fix(cursor): clamp 3D cursor to radial map",
-					"description": ""
 				}
 			],
 			"categories": [
 				"Features",
 				"Bugfixes",
+				"Performance",
 				"Balance",
 				"UX",
 				"Graphics & Sounds"
