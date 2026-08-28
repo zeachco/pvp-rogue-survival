@@ -581,7 +581,16 @@ export class Hud {
 				<span class="inspect-back-label">Back to hero</span>
 			</button>
 		) as HTMLButtonElement;
-		back.onclick = callbacks.onBack;
+		back.onclick = () => {
+			callbacks.onBack();
+			if (window.matchMedia("(max-width: 720px)").matches)
+				this.setPanelCollapsed(
+					this.characterPanel,
+					this.characterToggle,
+					"character",
+					true,
+				);
+		};
 		this.characterToggle = (
 			<button
 				class="header-panel-toggle character-panel-toggle"
@@ -2598,6 +2607,11 @@ export class Hud {
 					Details
 				</button>
 			) as HTMLButtonElement;
+			disclosure.addEventListener("pointerdown", (event) => {
+				// Retain the inventory tile's focus so its focusout handler does not
+				// dismiss this preview before the disclosure click can expand it.
+				event.preventDefault();
+			});
 			disclosure.addEventListener("click", () => {
 				const expanded = disclosure.getAttribute("aria-expanded") !== "true";
 				disclosure.setAttribute("aria-expanded", String(expanded));

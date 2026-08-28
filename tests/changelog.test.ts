@@ -172,6 +172,7 @@ describe("generated devlog history", () => {
 
 	test("retries malformed llama.cpp output for the same week", async () => {
 		let attempts = 0;
+		const prompts: string[] = [];
 		const result = await generatePeriods(
 			[
 				{
@@ -188,8 +189,9 @@ describe("generated devlog history", () => {
 					projectInitialized: false,
 				},
 			],
-			async () => {
+			async (_model, prompt) => {
 				attempts += 1;
+				prompts.push(prompt);
 				return attempts === 1
 					? '{"periods":["invalid"]}'
 					: '{"periods":[{"key":"2026-W32","title":"Started","summary":{"features":["Added realms."]}}]}';
@@ -197,6 +199,9 @@ describe("generated devlog history", () => {
 		);
 
 		expect(attempts).toBe(2);
+		expect(prompts[0]).not.toContain("previous response failed validation");
+		expect(prompts[1]).toContain("previous response failed validation");
+		expect(prompts[1]).toContain("invalid changelog JSON");
 		expect(result.periods.get("2026-W32")?.title).toBe("Started");
 	});
 

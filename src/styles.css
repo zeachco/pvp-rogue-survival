@@ -71,14 +71,14 @@ input {
 .touch-joystick {
 	display: none;
 	position: absolute;
-	z-index: 24;
+	z-index: 7;
 	left: 88px;
-	bottom: 104px;
+	bottom: 96px;
 	width: 112px;
 	height: 112px;
 	border: 2px solid rgba(58, 255, 212, 0.65);
 	border-radius: 50%;
-	background: rgba(5, 20, 24, 0.48);
+	background: rgba(5, 20, 24, 0.3);
 	box-shadow: inset 0 0 24px rgba(58, 255, 212, 0.12);
 	pointer-events: auto;
 	touch-action: none;
@@ -1034,6 +1034,14 @@ input {
 }
 
 @media (max-width: 640px) {
+	.spell-catalog {
+		top: calc(max(8px, env(safe-area-inset-top)) + 1rem);
+		bottom: calc(max(8px, env(safe-area-inset-bottom)) + 1rem);
+		height: auto;
+		max-height: none;
+		transform: translateX(-50%);
+	}
+
 	.spell-catalog-slots {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
@@ -3575,6 +3583,33 @@ button:focus-visible > .action-tooltip {
 		--inventory-panel-right-inset: 8px;
 	}
 
+	/* Two-row in-game header while a hero is joined: toggles and the presence
+	   summary share the top row at the viewport edges, the realm-summary row
+	   moves onto a second full-width row, and the panels/previews clear it. */
+	#hud.is-joined {
+		--game-header-height: 88px;
+		--build-panel-top-inset: 100px;
+	}
+
+	#hud.is-joined .hud-top {
+		top: 46px;
+		left: 8px;
+		right: 8px;
+	}
+
+	#hud.is-joined .online-count {
+		top: 22px;
+		left: 62px;
+		right: 62px;
+		transform: translateY(-50%);
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	#hud.is-joined .header-menu-popover {
+		top: calc(var(--game-header-height) + 4px);
+	}
+
 	.header-login-actions {
 		top: max(6px, env(safe-area-inset-top));
 		left: max(8px, env(safe-area-inset-left));
@@ -3716,6 +3751,17 @@ button:focus-visible > .action-tooltip {
 
 	.game-hud.inventory-panel-open .chat-area {
 		right: 8px;
+	}
+
+	.chat-area {
+		right: 8px;
+		bottom: calc(max(8px, env(safe-area-inset-bottom)) + 112px);
+		left: 98px;
+		width: auto;
+	}
+
+	.chat-log {
+		max-height: calc(3 * 1.35em + 12px);
 	}
 
 	#game-canvas {

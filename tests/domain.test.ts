@@ -513,6 +513,15 @@ test("sorts the spell catalog by HP, Rage, then Mana", () => {
 	).toEqual(["life", "rage", "mana"]);
 });
 
+test("keeps the mobile spell catalog clear of browser chrome", async () => {
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	expect(styles).toMatch(
+		/@media \(max-width: 640px\)[\s\S]*\.spell-catalog\s*\{[^}]*top:\s*calc\(max\(8px, env\(safe-area-inset-top\)\) \+ 1rem\);[^}]*bottom:\s*calc\(max\(8px, env\(safe-area-inset-bottom\)\) \+ 1rem\);[^}]*height:\s*auto;[^}]*max-height:\s*none;[^}]*transform:\s*translateX\(-50%\);/s,
+	);
+});
+
 test("shows current, next, and maximum spell tooltip levels", () => {
 	expect(spellTooltipLevels(7, 12)).toEqual([
 		{ heading: "Current level", level: 7 },
@@ -645,6 +654,51 @@ test("keeps the Extract tooltip mechanism reachable from the open context menu",
 	const menuZ = Number(menuMatch?.[1]);
 	expect(Number(spellOverlayMatch?.[1])).toBeGreaterThan(menuZ);
 	expect(Number(fallbackOverlayMatch?.[1])).toBeGreaterThan(menuZ);
+});
+
+test("splits the in-game header into two rows on narrow joined screens", async () => {
+	const styles = await Bun.file(
+		new URL("../src/styles.css", import.meta.url),
+	).text();
+	const mobileStart = styles.indexOf("@media (max-width: 720px)");
+	expect(mobileStart).toBeGreaterThan(-1);
+	const mobile = styles.slice(mobileStart);
+	const desktop = styles.slice(0, mobileStart);
+
+	// The joined mobile header grows past the single-row 52px baseline and
+	// pushes the build panels and previews below it.
+	const vars = mobile.match(
+		/#hud\.is-joined\s*\{[^}]*--game-header-height:\s*(\d+)px;[^}]*--build-panel-top-inset:\s*(\d+)px;/s,
+	);
+	expect(vars).not.toBeNull();
+	expect(Number(vars?.[1])).toBeGreaterThan(52);
+	expect(Number(vars?.[2])).toBeGreaterThan(60);
+
+	// The realm-summary row moves onto a second full-width row.
+	expect(mobile).toMatch(
+		/#hud\.is-joined\s+\.hud-top\s*\{[^}]*top:\s*46px;[^}]*left:\s*8px;[^}]*right:\s*8px;/s,
+	);
+
+	// The presence summary stays on the top row between the toggles and
+	// scrolls horizontally rather than overflowing the viewport.
+	const presence = mobile.match(
+		/#hud\.is-joined\s+\.online-count\s*\{[^}]*left:\s*62px;[^}]*right:\s*62px;[^}]*overflow-x:\s*auto;/s,
+	);
+	expect(presence).not.toBeNull();
+	expect(presence?.[0]).not.toMatch(/left:\s*50%/);
+
+	// The hamburger dropdown opens below the taller header.
+	expect(mobile).toMatch(
+		/#hud\.is-joined\s+\.header-menu-popover\s*\{[^}]*top:\s*calc\(var\(--game-header-height\)\s*\+\s*4px\);/s,
+	);
+
+	// The desktop single-row header is unchanged.
+	expect(desktop).toMatch(
+		/\.hud-top\s*\{[^}]*left:\s*62px;[^}]*right:\s*62px;/s,
+	);
+	expect(desktop).toMatch(
+		/\.online-count\s*\{[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
+	);
 });
 
 test("ORs spell catalog filters within status and type groups, then ANDs the groups", () => {
@@ -3605,6 +3659,12 @@ test("keeps mobile enemy preview and Devlog exits fixed at the safe top-right ed
 		Bun.file(new URL("../src/devlog.css", import.meta.url)).text(),
 	]);
 	expect(hudSource).toContain('aria-label="Close enemy preview"');
+	expect(hudSource).toContain(
+		'window.matchMedia("(max-width: 720px)").matches',
+	);
+	expect(hudSource).toContain(
+		"this.setPanelCollapsed(\n\t\t\t\t\tthis.characterPanel",
+	);
 	expect(hudStyles).toMatch(
 		/\.inspect-back\s*\{[^}]*position:\s*fixed;[^}]*top:\s*max\(8px, env\(safe-area-inset-top\)\);[^}]*right:\s*max\(8px, env\(safe-area-inset-right\)\);/s,
 	);
@@ -3710,6 +3770,13 @@ test("aligns the resource dock beside the spell bar and chat to the right edge",
 	expect(styles).toMatch(
 		/\.chat-area\s*\{[^}]*bottom:\s*12px;[^}]*right:\s*12px;/s,
 	);
+	const mobile = styles.slice(styles.indexOf("@media (max-width: 720px)"));
+	expect(mobile).toMatch(
+		/\.chat-area\s*\{[^}]*right:\s*8px;[^}]*bottom:\s*calc\(max\(8px, env\(safe-area-inset-bottom\)\) \+ 112px\);[^}]*left:\s*98px;[^}]*width:\s*auto;/s,
+	);
+	expect(mobile).toMatch(
+		/\.chat-log\s*\{[^}]*max-height:\s*calc\(3 \* 1\.35em \+ 12px\);/s,
+	);
 });
 
 test("renders 1.5x spell circles with one SVG symbol per spell", async () => {
@@ -3767,6 +3834,10 @@ test("keeps touch inventory previews on-screen with collapsed accessible details
 	expect(hudSource).toContain('class="inventory-preview-disclosure"');
 	expect(hudSource).toContain('aria-expanded="false"');
 	expect(hudSource).toContain("aria-controls={detailsId}");
+	expect(hudSource).toContain(
+		'disclosure.addEventListener("pointerdown", (event) =>',
+	);
+	expect(hudSource).toContain("event.preventDefault()");
 	expect(hudSource).toContain('detailsCard(comparison, "Equipped"');
 	expect(hudSource).toContain('detailsCard(item, "Candidate"');
 	expect(hudSource).toContain('action === "upgrade" ? "Upgrade preview"');
@@ -3806,6 +3877,9 @@ test("keeps touch movement behind login and scales mobile build panels", async (
 		/\.touch-ui #hud\.is-joined > \.touch-joystick\s*\{[^}]*display:\s*block;/s,
 	);
 	expect(styles).not.toMatch(/\.touch-ui \.touch-joystick\s*\{/);
+	expect(styles).toMatch(
+		/\.touch-joystick\s*\{[^}]*z-index:\s*7;[^}]*bottom:\s*96px;[^}]*background:\s*rgba\(5, 20, 24, 0\.3\);/s,
+	);
 	expect(styles).toMatch(
 		/@media \(max-width: 960px\)\s*\{[^}]*\.touch-ui \.character-panel\s*\{[^}]*scale:\s*0\.72;[^}]*transform-origin:\s*left top;/s,
 	);
