@@ -36,13 +36,18 @@ export function releaseReadySpawns(
 	state: ArenaState,
 	now: number,
 ): UnitBuild[] {
-	if (state.creeps.filter((creep) => creep.active).length >= MAX_ACTIVE_CREEPS)
-		return [];
-	const index = state.waveQueue.findIndex((entry) => entry.spawnAt <= now);
-	if (index === -1) return [];
+	let activeCreepCount = 0;
+	for (const creep of state.creeps) {
+		if (!creep.active) continue;
+		activeCreepCount += 1;
+		if (activeCreepCount >= MAX_ACTIVE_CREEPS) return [];
+	}
 
-	const build = state.waveQueue[index].build;
-	state.waveQueue.splice(index, 1);
+	const nextSpawn = state.waveQueue[0];
+	if (!nextSpawn || nextSpawn.spawnAt > now) return [];
+
+	const build = nextSpawn.build;
+	state.waveQueue.shift();
 	return [build];
 }
 export function expediteQueuedSpawns(state: ArenaState, now: number): void {

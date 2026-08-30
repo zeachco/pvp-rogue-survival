@@ -853,6 +853,34 @@ describe("arena systems", () => {
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["one"]);
 		expect(releaseReadySpawns(state, 100).map(({ id }) => id)).toEqual(["two"]);
 	});
+	test("does not bypass a future FIFO spawn for a later due spawn", () => {
+		const state = new ArenaState();
+		const build = {
+			id: "queued",
+			name: "Queued",
+			kind: "melee" as const,
+			level: 0,
+			stats: { ...ZERO_STATS },
+			carried: [],
+			isRival: false,
+			xpReward: 0,
+			goldReward: 0,
+			seed: 1,
+		};
+		state.waveQueue.push(
+			{ build: { ...build, id: "first" }, spawnAt: 200 },
+			{ build: { ...build, id: "second" }, spawnAt: 100 },
+		);
+
+		expect(releaseReadySpawns(state, 100)).toEqual([]);
+		expect(state.waveQueue.map(({ build: queued }) => queued.id)).toEqual([
+			"first",
+			"second",
+		]);
+		expect(releaseReadySpawns(state, 200).map(({ id }) => id)).toEqual([
+			"first",
+		]);
+	});
 	test("makes every pending spawn due without releasing them together", () => {
 		const state = new ArenaState();
 		const build = {
