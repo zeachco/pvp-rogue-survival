@@ -1339,9 +1339,7 @@ export function isSkillAvailable(
 	);
 }
 export function availableSkillIds(progress: PlayerProgress): SkillId[] {
-	return [...learnedSkillIds(progress), ...gearedSkillIds(progress)].filter(
-		(skill) => isSkillAvailable(progress, skill),
-	);
+	return [...learnedSkillIds(progress), ...gearedSkillIds(progress)];
 }
 export function orderedSkillIds(progress: PlayerProgress): SkillId[] {
 	return availableSkillIds(progress);

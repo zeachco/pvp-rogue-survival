@@ -195,16 +195,19 @@ import {
 import {
 	activeSkillIds,
 	actualSkillLevel,
+	availableSkillIds,
 	bloodSkillDamage,
 	bloodSkillLifeCost,
 	effectiveSkillLevel,
 	forceField,
 	forceFieldDamage,
 	forceFieldFalloff,
+	gearedSkillIds,
 	HeroCombatSystem,
 	itemProcSkills,
 	isSkillActive,
 	isSkillAvailable,
+	learnedSkillIds,
 	shouldAutoCastHealing,
 	skillHealthRequirementMet,
 	weaponProcSkills,
@@ -811,6 +814,22 @@ test("makes learned spells available without minimum hero levels", () => {
 	expect(isSkillAvailable(state, "orbitingHammers")).toBeTrue();
 	expect(isSkillAvailable(state, "frostOrb")).toBeTrue();
 	expect(isSkillAvailable(state, "blizzard")).toBeTrue();
+});
+
+test("availableSkillIds is the exact learned-plus-geared union, order preserved", () => {
+	const state = progress();
+	state.learnedSkills.push("orbitingHammers", "frostOrb");
+	state.learnedSkillLevels.orbitingHammers = 3;
+	state.learnedSkillLevels.frostOrb = 2;
+	state.offHand = {
+		...generateAccessory(10, "epic", 3, "amulet"),
+		skills: ["thorns"],
+	};
+	const expected = [...learnedSkillIds(state), ...gearedSkillIds(state)];
+	expect(availableSkillIds(state)).toEqual(expected);
+	// the geared passive must survive the union (nothing removed)
+	expect(availableSkillIds(state)).toContain("thorns");
+	expect(availableSkillIds(state)).toContain("orbitingHammers");
 });
 
 test("projects a retroactive allocation across every current level", () => {
