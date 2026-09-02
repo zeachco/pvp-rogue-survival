@@ -414,7 +414,19 @@ describe("third-person camera", () => {
 			hudSource.indexOf("configurePanelTriggers", setPlayerStart),
 		);
 		expect(setPlayerSource).toMatch(
-			/this\.applyPanelTriggers\(player\.progress\);\s*this\.updateVisibility\(\);\s*this\.callbacks\.onPanelLayoutChange\(\);/,
+			/this\.applyPanelTriggers\(player\.progress\);\s*this\.updateVisibility\(\);/,
+		);
+		expect(setPlayerSource).not.toMatch(/onPanelLayoutChange/);
+		const updateVisibilityStart = hudSource.search(
+			/\n\s+private updateVisibility\(\)/,
+		);
+		expect(updateVisibilityStart).toBeGreaterThanOrEqual(0);
+		const updateVisibilitySource = hudSource.slice(
+			updateVisibilityStart,
+			hudSource.indexOf("panelOcclusion", updateVisibilityStart),
+		);
+		expect(updateVisibilitySource).toMatch(
+			/if \(joined !== this\.joinedVisible\) \{\s*this\.joinedVisible = joined;\s*this\.callbacks\.onPanelLayoutChange\(\);/,
 		);
 	});
 

@@ -180,6 +180,7 @@ export function routineNoticeSurface(
 
 export class Hud {
 	private player?: PlayerState;
+	private joinedVisible = false;
 	private inspected?: UnitBuild;
 	private inspectedBestWave?: number;
 	private inspectedMaxHp?: number;
@@ -859,7 +860,6 @@ export class Hud {
 		}
 		this.applyPanelTriggers(player.progress);
 		this.updateVisibility();
-		this.callbacks.onPanelLayoutChange();
 	}
 	configurePanelTriggers(triggers: PanelTriggers): void {
 		this.panelTriggers = { ...triggers };
@@ -3526,6 +3526,10 @@ export class Hud {
 		if (joined) {
 			this.authenticationMask.classList.add("is-hidden");
 			this.authenticationModal.classList.add("is-hidden");
+		}
+		if (joined !== this.joinedVisible) {
+			this.joinedVisible = joined;
+			this.callbacks.onPanelLayoutChange();
 		}
 	}
 }
