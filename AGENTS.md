@@ -2,11 +2,12 @@
 
 ## Spec-Driven Development
 
-This repository uses the Markdown files in `specs/` as the source of truth for product behavior, architecture, workflow, UX constraints, mechanics, progression, and game rules.
+This repository uses the Markdown files in `specs/` as the source of truth for product behavior, architecture, workflow, UX constraints, mechanics, progression, game rules, and visual theme.
 
 - `specs/SPEC.md`: product goals, runtime architecture, server ownership, multiplayer/economy boundaries, UX direction, WebSocket protocol, and development process.
 - `specs/MECHANICS_SPEC.md`: arena simulation, movement, targeting, attack telegraphs, projectiles, collision resolution, damage sources, and local defeat reset.
 - `specs/PROGRESSION_SPEC.md`: permanent XP, attributes, derived stats, item generation, equipment, skills, generated enemy builds, drops, wave composition, and rival scaling.
+- `specs/ART_DIRECTION_SPEC.md`: design, graphics, and visual theme: visual identity, shading model, palette, environment, 3D assets, particle policy, HUD coherence, and asset licensing. `specs/ART_DIRECTION_PLAN.md` tracks its implementation phases.
 
 For every request:
 

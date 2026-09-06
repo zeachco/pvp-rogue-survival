@@ -1,93 +1,120 @@
 import * as THREE from "three";
 
-const FLOOR_BASE = { r: 0.052, g: 0.08, b: 0.1 };
-
-function hash2(ix: number, iy: number): number {
-  let h = (ix * 374761393 + iy * 668265263) | 0;
-  h = ((h ^ (h >>> 13)) * 1274126177) | 0;
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967295;
+function hash2(x: number, y: number): number {
+	const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+	return s - Math.floor(s);
 }
 
 function valueNoise(x: number, y: number): number {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = x - ix;
-  const fy = y - iy;
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-  const a = hash2(ix, iy);
-  const b = hash2(ix + 1, iy);
-  const c = hash2(ix, iy + 1);
-  const d = hash2(ix + 1, iy + 1);
-  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+	const ix = Math.floor(x);
+	const iy = Math.floor(y);
+	const fx = x - ix;
+	const fy = y - iy;
+	const ux = fx * fx * (3 - 2 * fx);
+	const uy = fy * fy * (3 - 2 * fy);
+	const a = hash2(ix, iy);
+	const b = hash2(ix + 1, iy);
+	const c = hash2(ix, iy + 1);
+	const d = hash2(ix + 1, iy + 1);
+	return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
 }
 
-function fbm(x: number, y: number, octaves: number): number {
-  let value = 0;
-  let amplitude = 0.5;
-  let frequency = 1;
-  let norm = 0;
-  for (let i = 0; i < octaves; i++) {
-    value += amplitude * valueNoise(x * frequency, y * frequency);
-    norm += amplitude;
-    amplitude *= 0.5;
-    frequency *= 2;
-  }
-  return value / norm;
+function fbm(x: number, y: number): number {
+	let value = 0;
+	let amplitude = 0.5;
+	for (let octave = 0; octave < 4; octave++) {
+		value += amplitude * valueNoise(x, y);
+		x *= 2.02;
+		y *= 1.98;
+		amplitude *= 0.5;
+	}
+	return value;
 }
 
 function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
+	const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+	return t * t * (3 - 2 * t);
 }
 
-const textureCache = new Map<number, THREE.DataTexture>();
+type Rgb = { r: number; g: number; b: number };
 
-export function createArenaFloorTexture(size = 1024): THREE.DataTexture {
-  const cached = textureCache.get(size);
-  if (cached) return cached;
-  const data = new Uint8Array(size * size * 4);
-  let o = 0;
-  for (let py = 0; py < size; py++) {
-    const v = (py + 0.5) / size;
-    for (let px = 0; px < size; px++) {
-      const u = (px + 0.5) / size;
-      const dx = u - 0.5;
-      const dy = v - 0.5;
-      const d = Math.sqrt(dx * dx + dy * dy) * 2;
+function mix(a: Rgb, b: Rgb, t: number): Rgb {
+	return {
+		r: a.r + (b.r - a.r) * t,
+		g: a.g + (b.g - a.g) * t,
+		b: a.b + (b.b - a.b) * t,
+	};
+}
 
-      const mottle = fbm(u * 7, v * 7, 4);
-      const warp = fbm(u * 2.6 + 13.1, v * 2.6 + 7.7, 3);
-      const stain = fbm(u * 3.4 + warp * 1.6, v * 3.4 + warp * 1.6, 3);
+function clamp01(value: number): number {
+	return Math.min(1, Math.max(0, value));
+}
 
-      const m = 0.86 + (mottle - 0.5) * 0.5;
-      const s = (stain - 0.5) * 0.16;
-      const ring = (Math.sin(d * Math.PI * 12) * 0.5 + 0.5) * 0.5;
-      const center = smoothstep(0.55, 0, d);
-      const vignette = 1 - smoothstep(0.7, 1, d) * 0.55;
+const STONE: Rgb = { r: 0.29, g: 0.26, b: 0.22 };
+const STONE_DARK: Rgb = { r: 0.17, g: 0.15, b: 0.125 };
+const STONE_WARM: Rgb = { r: 0.34, g: 0.29, b: 0.22 };
+const MORTAR: Rgb = { r: 0.09, g: 0.075, b: 0.062 };
+const EMBER: Rgb = { r: 0.32, g: 0.2, b: 0.09 };
+const FLOOR_VIGNETTE: Rgb = { r: 0.045, g: 0.038, b: 0.03 };
 
-      const r = (FLOOR_BASE.r * m + s * 0.9) * vignette;
-      const g =
-        (FLOOR_BASE.g * m + s + ring * 0.016 + center * 0.02) * vignette;
-      const b =
-        (FLOOR_BASE.b * m + s * 1.05 + ring * 0.02 + center * 0.026) * vignette;
+export function createArenaFloorTexture(size = 1024): {
+	texture: THREE.DataTexture;
+	dispose: () => void;
+} {
+	const data = new Uint8Array(size * size * 4);
+	const tiles = 10;
+	const tile = size / tiles;
 
-      data[o++] = Math.round(Math.min(1, Math.max(0, r)) * 255);
-      data[o++] = Math.round(Math.min(1, Math.max(0, g)) * 255);
-      data[o++] = Math.round(Math.min(1, Math.max(0, b)) * 255);
-      data[o++] = 255;
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.LinearFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.generateMipmaps = true;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.anisotropy = 4;
-  texture.needsUpdate = true;
-  textureCache.set(size, texture);
-  return texture;
+	for (let y = 0; y < size; y++) {
+		for (let x = 0; x < size; x++) {
+			const u = x / size;
+			const v = y / size;
+			const radius = Math.hypot(u - 0.5, v - 0.5) * 2;
+
+			const tx = Math.floor(u * tiles);
+			const ty = Math.floor(v * tiles);
+			const stone = hash2(tx * 7.31, ty * 9.17);
+			const grain = fbm(u * 22, v * 22);
+			const mottle = fbm(u * 7 + 13.7, v * 7 + 5.3);
+
+			let color = mix(STONE_DARK, STONE, stone * 0.85);
+			color = mix(color, STONE_WARM, mottle * 0.35);
+			color = mix(color, STONE_DARK, (grain - 0.5) * 0.5);
+
+			const localX = (x - tx * tile) / tile;
+			const localY = (y - ty * tile) / tile;
+			const edge = Math.min(
+				Math.min(localX, 1 - localX),
+				Math.min(localY, 1 - localY),
+			);
+			const seam = 1 - smoothstep(0.012, 0.045, edge);
+			color = mix(color, MORTAR, seam * 0.92);
+			const crack =
+				Math.abs(fbm(u * 3.1 + 31, v * 3.1 + 17) - 0.5) < 0.012 ? 0.35 : 0;
+			color = mix(color, MORTAR, crack * (1 - seam) * 0.8);
+
+			const emberGlow = smoothstep(0.92, 0.35, radius) * 0.55;
+			color = mix(color, EMBER, emberGlow * (0.35 + 0.65 * mottle));
+			color = mix(color, FLOOR_VIGNETTE, smoothstep(0.78, 1.02, radius));
+
+			const index = (y * size + x) * 4;
+			data[index] = Math.round(clamp01(color.r) * 255);
+			data[index + 1] = Math.round(clamp01(color.g) * 255);
+			data[index + 2] = Math.round(clamp01(color.b) * 255);
+			data[index + 3] = 255;
+		}
+	}
+
+	const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 4;
+	texture.flipY = true;
+	texture.needsUpdate = true;
+
+	return {
+		texture,
+		dispose: () => {
+			texture.dispose();
+		},
+	};
 }

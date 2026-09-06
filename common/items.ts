@@ -164,6 +164,13 @@ export const RARITY_POWER: Record<Rarity, number> = {
 	epic: 2.1,
 	unique: 4,
 };
+export const RARITY_COLORS: Record<Rarity, string> = {
+	common: "#d8e5e8",
+	uncommon: "#62e88a",
+	rare: "#6ca8ff",
+	epic: "#ca75ff",
+	unique: "#e3b52c",
+};
 export const MAX_ITEM_LEVEL: Record<Rarity, number> = {
 	common: 10,
 	uncommon: 15,

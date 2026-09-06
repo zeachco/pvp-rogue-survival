@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { WebSocket } from "ws";
 import { BALANCE } from "../common/balance";
 import {
+	PROTOCOL_VERSION,
 	parseClientMessage,
 	parseServerMessage,
-	PROTOCOL_VERSION,
 	type ServerMessage,
 } from "../common/protocol";
 import type { RandomSource } from "../common/random";

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { type GLTF, GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
+import { THEME, toonGradientMap } from "../theme";
 
 export type CharacterModelKind =
 	| "hero"
@@ -45,7 +46,7 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 		path: "/assets/models/hero.glb",
 		footprint: 50,
 		facingOffset: Math.PI / 2,
-		baseTint: 0xc9fff2,
+		baseTint: THEME.heroBody,
 		renderOrder: 50,
 		clips: {
 			idle: ["Idle", "Look"],
@@ -59,7 +60,7 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 		path: "/assets/models/hero.glb",
 		footprint: 37.5,
 		facingOffset: Math.PI / 2,
-		baseTint: 0xc9fff2,
+		baseTint: THEME.cloneBody,
 		renderOrder: 40,
 		clips: {
 			idle: ["Idle", "Look"],
@@ -73,7 +74,7 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 		path: "/assets/models/boss.glb",
 		footprint: 70,
 		facingOffset: Math.PI / 2,
-		baseTint: 0xffd166,
+		baseTint: THEME.bossBody,
 		renderOrder: 40,
 		clips: {
 			idle: ["Idle", "Look"],
@@ -87,7 +88,7 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 		path: "/assets/models/creep.glb",
 		footprint: 40,
 		facingOffset: Math.PI / 2,
-		baseTint: 0xff6f7d,
+		baseTint: THEME.creepBody,
 		renderOrder: 40,
 		clips: {
 			idle: ["Idle", "Look"],
@@ -101,7 +102,7 @@ export const CHARACTER_MODEL_MANIFESTS: Record<
 		path: "/assets/models/champion.glb",
 		footprint: 62,
 		facingOffset: Math.PI / 2,
-		baseTint: 0xffd166,
+		baseTint: THEME.championBody,
 		renderOrder: 40,
 		clips: {
 			idle: ["CharacterArmature|Idle"],
@@ -139,12 +140,60 @@ export function matchingAnimationClip(
 }
 
 interface ModelMaterial {
-	material: THREE.MeshStandardMaterial;
+	material: THREE.MeshToonMaterial;
 	color: THREE.Color;
 	emissive: THREE.Color;
 	map: THREE.Texture | null;
-	metalness: number;
-	roughness: number;
+}
+
+function toonFromStandard(source: THREE.Material): THREE.Material {
+	if (!(source instanceof THREE.MeshStandardMaterial)) return source;
+	const toon = new THREE.MeshToonMaterial({
+		color: source.color.clone(),
+		emissive: source.emissive.clone(),
+		emissiveIntensity: source.emissiveIntensity,
+		map: source.map,
+		gradientMap: toonGradientMap(),
+	});
+	toon.transparent = source.transparent;
+	toon.opacity = source.opacity;
+	toon.side = source.side;
+	source.dispose();
+	return toon;
+}
+
+function estimateTriangles(geometry: THREE.BufferGeometry): number {
+	const count = geometry.index
+		? geometry.index.count
+		: (geometry.attributes.position?.count ?? 0);
+	return count / 3;
+}
+
+const _localInverse = new THREE.Matrix4();
+const _localMatrix = new THREE.Matrix4();
+const _localBox = new THREE.Box3();
+
+function modelLocalBox(root: THREE.Object3D): THREE.Box3 {
+	const result = new THREE.Box3();
+	root.updateWorldMatrix(true, true);
+	root.traverse((object) => {
+		const geometry = (object as THREE.Mesh | THREE.Line).geometry;
+		if (!geometry || object.userData.isOutline) return;
+		let sourceBox: THREE.Box3 | null;
+		if (object instanceof THREE.SkinnedMesh) {
+			object.computeBoundingBox();
+			sourceBox = object.boundingBox;
+		} else {
+			geometry.computeBoundingBox();
+			sourceBox = geometry.boundingBox;
+		}
+		if (!sourceBox) return;
+		_localInverse.copy(root.matrixWorld).invert();
+		_localMatrix.multiplyMatrices(_localInverse, object.matrixWorld);
+		_localBox.copy(sourceBox).applyMatrix4(_localMatrix);
+		result.union(_localBox);
+	});
+	return result;
 }
 
 export class AnimatedCharacter {
@@ -231,16 +280,49 @@ export class AnimatedCharacter {
 		try {
 			const gltf = await loadModel(this.manifest.path);
 			const model = cloneSkeleton(gltf.scene);
+			// SkeletonUtils.clone() reuses the original skeleton's boneInverses array
+			// across every clone of the same model (bones are cloned, boneInverses are
+			// shared by reference). Rebinding below (bind without a bindMatrix) calls
+			// Skeleton.calculateInverses(), which truncates and repopulates that shared
+			// array in place, clobbering every other character that shares it. Without
+			// this, only one character per model path (e.g. one of many creeps, or one of
+			// hero+invader+clone on hero.glb) skins correctly; the rest collapse to a
+			// point. Give each character its own boneInverses so rebinding is isolated.
+			model.traverse((object) => {
+				if (object instanceof THREE.SkinnedMesh) {
+					object.skeleton.boneInverses = object.skeleton.boneInverses.map(
+						(matrix) => matrix.clone(),
+					);
+				}
+			});
 			model.rotation.x = Math.PI / 2;
+			this.root.add(model);
+			model.scale.setScalar(1);
+			model.position.set(0, 0, 0);
 			model.updateMatrixWorld(true);
-			let box = new THREE.Box3().setFromObject(model);
-			const size = box.getSize(new THREE.Vector3());
+
+			const bindAll = () => {
+				model.traverse((object) => {
+					if (object instanceof THREE.SkinnedMesh) object.bind(object.skeleton);
+				});
+			};
+			bindAll();
+
+			model.updateMatrix();
+			const restBox = modelLocalBox(model).clone().applyMatrix4(model.matrix);
+			const size = restBox.getSize(new THREE.Vector3());
 			const footprint = Math.max(size.x, size.y, 0.001);
 			model.scale.setScalar(this.manifest.footprint / footprint);
 			model.updateMatrixWorld(true);
-			box = new THREE.Box3().setFromObject(model);
-			const center = box.getCenter(new THREE.Vector3());
-			model.position.set(-center.x, -center.y, -box.min.z);
+			bindAll();
+
+			const groundedLocal = modelLocalBox(model);
+			model.updateMatrix();
+			const groundedBox = groundedLocal.clone().applyMatrix4(model.matrix);
+			const center = groundedBox.getCenter(new THREE.Vector3());
+			model.position.set(-center.x, -center.y, -groundedBox.min.z);
+			model.updateMatrixWorld(true);
+			bindAll();
 
 			model.traverse((object) => {
 				if (!(object instanceof THREE.Mesh)) return;
@@ -249,21 +331,54 @@ export class AnimatedCharacter {
 				const sourceMaterials = Array.isArray(object.material)
 					? object.material
 					: [object.material];
-				const cloned = sourceMaterials.map((source) => source.clone());
+				const cloned = sourceMaterials.map((source) =>
+					toonFromStandard(source.clone()),
+				);
 				object.material = Array.isArray(object.material) ? cloned : cloned[0];
 				for (const material of cloned)
-					if (material instanceof THREE.MeshStandardMaterial)
+					if (material instanceof THREE.MeshToonMaterial)
 						this.materials.push({
 							material,
 							color: material.color.clone(),
 							emissive: material.emissive.clone(),
 							map: material.map,
-							metalness: material.metalness,
-							roughness: material.roughness,
 						});
 			});
 
-			this.root.add(model);
+			let dominant: THREE.Mesh | undefined;
+			let maxTriangles = 0;
+			model.traverse((object) => {
+				if (!(object instanceof THREE.Mesh) || !object.geometry) return;
+				const triangles = estimateTriangles(object.geometry);
+				if (triangles > maxTriangles) {
+					maxTriangles = triangles;
+					dominant = object;
+				}
+			});
+			if (dominant) {
+				const outlineMaterial = new THREE.MeshBasicMaterial({
+					color: THEME.outline,
+					side: THREE.BackSide,
+				});
+				const outline =
+					dominant instanceof THREE.SkinnedMesh
+						? new THREE.SkinnedMesh(dominant.geometry, outlineMaterial)
+						: new THREE.Mesh(dominant.geometry, outlineMaterial);
+				if (dominant instanceof THREE.SkinnedMesh)
+					(outline as THREE.SkinnedMesh).bind(
+						dominant.skeleton,
+						(dominant as THREE.SkinnedMesh).bindMatrix,
+					);
+				outline.position.copy(dominant.position);
+				outline.quaternion.copy(dominant.quaternion);
+				outline.scale.copy(dominant.scale).multiplyScalar(1.04);
+				outline.castShadow = false;
+				outline.receiveShadow = false;
+				outline.frustumCulled = false;
+				outline.renderOrder = this.manifest.renderOrder - 1;
+				outline.userData.isOutline = true;
+				(dominant.parent ?? model).add(outline);
+			}
 			this.mixer = new THREE.AnimationMixer(model);
 			for (const state of Object.keys(
 				this.manifest.clips,
@@ -333,16 +448,8 @@ export class AnimatedCharacter {
 			entry.material.emissive.copy(entry.emissive);
 			if (flash) entry.material.emissive.set(0xffffff);
 			const map = reflectiveSurge ? null : entry.map;
-			const metalness = reflectiveSurge ? 0.9 : entry.metalness;
-			const roughness = reflectiveSurge ? 0.35 : entry.roughness;
-			if (
-				entry.material.map !== map ||
-				entry.material.metalness !== metalness ||
-				entry.material.roughness !== roughness
-			) {
+			if (entry.material.map !== map) {
 				entry.material.map = map;
-				entry.material.metalness = metalness;
-				entry.material.roughness = roughness;
 				entry.material.needsUpdate = true;
 			}
 		}

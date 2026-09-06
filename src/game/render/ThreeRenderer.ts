@@ -17,6 +17,7 @@ import {
 } from "../graphicsSettings";
 import type { Hero } from "../Hero";
 import type { SpellEffect } from "../SpellEffect";
+import { THEME } from "../theme";
 import { clamp } from "../types";
 import { HeroSpellLightPool } from "./HeroSpellLightPool";
 
@@ -50,7 +51,8 @@ const Z_SELECTION = 95;
 const Z_THREAT = 96;
 
 export const SCENE_LIGHTING = {
-	clearColor: 0x05080c,
+	clearColor: THEME.clearColor,
+	fogDensity: THEME.fogDensity,
 	ambientIntensity: {
 		off: 1.1,
 		hero: 0.25,
@@ -344,6 +346,10 @@ export class ThreeRenderer {
 		this.renderer.setClearColor(SCENE_LIGHTING.clearColor);
 		this.renderer.setPixelRatio(devicePixelRatio * this.resolutionScale);
 		this.scene = new THREE.Scene();
+		this.scene.fog = new THREE.FogExp2(
+			THEME.clearColor,
+			SCENE_LIGHTING.fogDensity,
+		);
 		this.pointerTracker = new THREE.Mesh(
 			new THREE.ConeGeometry(5, POINTER_TRACKER_HEIGHT, 4),
 			new THREE.MeshBasicMaterial({ color: 0xffffff }),
@@ -355,11 +361,11 @@ export class ThreeRenderer {
 		this.pointerTracker.receiveShadow = false;
 		this.scene.add(this.pointerTracker);
 		this.ambientLight = new THREE.AmbientLight(
-			0xbfe8ff,
+			THEME.ambientLight,
 			SCENE_LIGHTING.ambientIntensity.all,
 		);
 		this.keyLight = new THREE.DirectionalLight(
-			0xffffff,
+			THEME.keyLight,
 			SCENE_LIGHTING.keyIntensity,
 		);
 		this.keyLight.position.set(-80, -120, 220);

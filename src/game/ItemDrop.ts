@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Rarity } from "../../common/items";
+import { RARITY_COLORS, type Rarity } from "../../common/items";
 import type { GroundDrop } from "../../common/protocol";
 import { GameObject } from "./GameObject";
 import { Z_DROP } from "./render/ThreeRenderer";
@@ -317,13 +317,6 @@ function deterministicFraction(id: string, salt: number): number {
 	return (hash >>> 0) / 0x1_0000_0000;
 }
 
-const DROP_RARITY_COLORS: Record<Rarity, string> = {
-	common: "#d8e5e8",
-	uncommon: "#62e88a",
-	rare: "#6ca8ff",
-	epic: "#ca75ff",
-	unique: "#e3b52c",
-};
 export function dropRarityColor(rarity: Rarity): string {
-	return DROP_RARITY_COLORS[rarity] ?? DROP_RARITY_COLORS.common;
+	return RARITY_COLORS[rarity] ?? RARITY_COLORS.common;
 }

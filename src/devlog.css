@@ -1,6 +1,6 @@
 .devlog-panel {
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-	color: #dffeff;
+	color: #e6dcc6;
 	position: fixed;
 	inset: 0;
 	z-index: 10000;
@@ -8,8 +8,8 @@
 	overflow: hidden;
 	background: radial-gradient(
 		circle at top,
-		rgba(16, 40, 45, 0.7) 0,
-		rgba(7, 16, 20, 0.7) 38rem
+		rgba(36, 31, 25, 0.7) 0,
+		rgba(16, 12, 9, 0.7) 38rem
 	);
 	backdrop-filter: blur(6px);
 	cursor: pointer;
@@ -23,13 +23,13 @@
 		top: 12px;
 		right: 18px;
 		z-index: 2;
-		border: 1px solid #47717a;
+		border: 1px solid #4a3f2c;
 		border-radius: 6px;
 		padding: 2px 10px 5px;
-		color: #dffeff;
+		color: #e6dcc6;
 		font-size: 28px;
 		line-height: 1;
-		background: rgba(7, 16, 20, 0.9);
+		background: rgba(16, 12, 9, 0.9);
 		cursor: pointer;
 	}
 
@@ -71,7 +71,7 @@
 		left: 18px;
 		box-sizing: border-box;
 		width: calc(100vh - 56px);
-		border-bottom: 1px solid #274750;
+		border-bottom: 1px solid var(--line);
 		padding: 0 0 18px;
 		text-align: right;
 		transform: rotate(-90deg);
@@ -80,7 +80,7 @@
 
 	h1 {
 		margin: 0 0 8px;
-		color: #6fffe2;
+		color: #ffa03c;
 		font-size: clamp(2rem, 6vh, 4rem);
 		letter-spacing: -0.04em;
 	}
@@ -93,16 +93,16 @@
 	header p,
 	.calendar-heading small,
 	.month-heading span {
-		color: #9fb8bf;
+		color: var(--muted);
 	}
 
 	.calendar-panel,
 	.request-panel,
 	.future-panel,
 	article {
-		border: 1px solid #274750;
+		border: 1px solid var(--line);
 		border-radius: 10px;
-		background: rgba(10, 24, 29, 0.7);
+		background: rgba(26, 20, 16, 0.7);
 		box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
 	}
 
@@ -139,7 +139,7 @@
 	.muted {
 		max-width: 440px;
 		margin-top: 4px;
-		color: #9fb8bf;
+		color: var(--muted);
 		line-height: 1.5;
 	}
 
@@ -147,7 +147,7 @@
 		display: grid;
 		gap: 6px;
 		margin: 18px 0;
-		color: #b8cdd2;
+		color: var(--ink-dim);
 		font-size: 0.82rem;
 		font-weight: 700;
 	}
@@ -161,8 +161,8 @@
 
 	.request-filters button {
 		padding: 7px 11px;
-		color: #9fb8bf;
-		background: #101d21;
+		color: var(--muted);
+		background: #16130f;
 	}
 
 	.request-filters button[aria-pressed="true"] {
@@ -184,7 +184,7 @@
 	#request-form label {
 		display: grid;
 		gap: 6px;
-		color: #b8cdd2;
+		color: var(--ink-dim);
 		font-size: 0.82rem;
 		font-weight: 700;
 	}
@@ -199,11 +199,11 @@
 	textarea {
 		box-sizing: border-box;
 		width: 100%;
-		border: 1px solid #35646d;
+		border: 1px solid #4a3f2c;
 		border-radius: 6px;
 		padding: 10px 12px;
-		color: #dffeff;
-		background: #071014;
+		color: #e6dcc6;
+		background: #0c0a08;
 		font: inherit;
 	}
 
@@ -220,11 +220,11 @@
 
 	.form-actions button,
 	.vote-controls button {
-		border: 1px solid #3a7d75;
+		border: 1px solid #5a4a30;
 		border-radius: 6px;
 		padding: 9px 13px;
-		color: #dffeff;
-		background: #12463f;
+		color: #e6dcc6;
+		background: #241d14;
 		cursor: pointer;
 		font: inherit;
 	}
@@ -235,7 +235,7 @@
 	}
 
 	.success {
-		color: #6fffe2;
+		color: #ffa03c;
 	}
 
 	.future-month h3 {
@@ -307,8 +307,8 @@
 	.request-kind {
 		border-radius: 999px;
 		padding: 2px 8px;
-		color: #071014;
-		background: #6fffe2;
+		color: #0c0a08;
+		background: #ffa03c;
 		font-size: 0.68rem;
 		font-weight: 800;
 		text-transform: uppercase;
@@ -327,49 +327,49 @@
 	}
 
 	.request-completed {
-		border: 1px solid rgba(111, 255, 226, 0.5);
+		border: 1px solid rgba(255, 160, 60, 0.5);
 		border-radius: 999px;
 		padding: 2px 8px;
-		color: #9effec;
-		background: rgba(12, 74, 63, 0.55);
+		color: #ffc98a;
+		background: rgba(74, 63, 44, 0.55);
 		font-size: 0.68rem;
 		font-weight: 800;
 		text-transform: uppercase;
 	}
 
 	.request-date {
-		color: #718d94;
+		color: var(--muted-2);
 		font-size: 0.75rem;
 	}
 
 	.request-proposer,
 	.voter-names {
-		color: #8fb0b7;
+		color: var(--muted);
 		font-size: 0.75rem;
 	}
 
 	.request-edit {
-		border: 1px solid #3a7d75;
+		border: 1px solid #5a4a30;
 		border-radius: 5px;
 		padding: 3px 7px;
-		color: #9effec;
-		background: rgba(12, 74, 63, 0.55);
+		color: #ffc98a;
+		background: rgba(74, 63, 44, 0.55);
 		cursor: pointer;
 	}
 
 	.request-edit-modal {
 		box-sizing: border-box;
 		width: min(620px, calc(100vw - 32px));
-		border: 1px solid #35646d;
+		border: 1px solid #4a3f2c;
 		border-radius: 10px;
 		padding: 22px;
-		color: #dffeff;
-		background: rgba(10, 24, 29, 0.98);
+		color: #e6dcc6;
+		background: rgba(26, 20, 16, 0.98);
 		box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65);
 	}
 
 	.request-edit-modal::backdrop {
-		background: rgba(2, 8, 10, 0.72);
+		background: rgba(6, 5, 4, 0.72);
 		backdrop-filter: blur(4px);
 	}
 
@@ -382,7 +382,7 @@
 	#request-edit-form label {
 		display: grid;
 		gap: 6px;
-		color: #b8cdd2;
+		color: var(--ink-dim);
 		font-size: 0.82rem;
 		font-weight: 700;
 	}
@@ -413,7 +413,7 @@
 	.request-edit-heading button {
 		border: 0;
 		padding: 0 4px;
-		color: #dffeff;
+		color: #e6dcc6;
 		background: transparent;
 		font-size: 28px;
 		cursor: pointer;
@@ -436,7 +436,7 @@
 	.vote-controls button {
 		min-width: 54px;
 		padding: 7px 9px;
-		background: #101d21;
+		background: #16130f;
 	}
 
 	.vote-controls button[aria-pressed="true"] {
@@ -466,26 +466,26 @@
 
 	.calendar-grid button {
 		min-height: 42px;
-		border: 1px solid #28464d;
+		border: 1px solid var(--line);
 		border-radius: 5px;
-		color: #a9c3ca;
-		background: #101d21;
+		color: var(--ink-dim);
+		background: #16130f;
 		cursor: pointer;
 		font: inherit;
 		font-size: 0.75rem;
 	}
 
 	.calendar-grid button.intensity-1 {
-		background: #0e4429;
+		background: var(--line);
 	}
 	.calendar-grid button.intensity-2 {
-		background: #006d32;
+		background: var(--accent);
 	}
 	.calendar-grid button.intensity-3 {
 		background: #26a641;
 	}
 	.calendar-grid button.intensity-4 {
-		color: #06140c;
+		color: var(--panel);
 		background: #39d353;
 	}
 	.calendar-grid button.is-selected {
@@ -521,7 +521,7 @@
 	}
 
 	article p {
-		color: #c4d9de;
+		color: var(--ink-dim);
 		line-height: 1.65;
 	}
 
@@ -532,13 +532,13 @@
 
 	.legacy-summary hr {
 		border: 0;
-		border-top: 1px solid #274750;
+		border-top: 1px solid var(--line);
 		margin: 16px 0;
 	}
 
 	.summary-section h4 {
 		margin: 0 0 6px;
-		color: #6fffe2;
+		color: #ffa03c;
 		font-size: 0.82rem;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
@@ -551,7 +551,7 @@
 
 	.summary-section li {
 		margin: 5px 0;
-		color: #c4d9de;
+		color: var(--ink-dim);
 	}
 
 	.tags {
@@ -562,7 +562,7 @@
 	}
 
 	.tags span {
-		border: 1px solid #35646d;
+		border: 1px solid #4a3f2c;
 		border-radius: 999px;
 		padding: 3px 8px;
 		color: #9eeede;
@@ -570,12 +570,12 @@
 	}
 
 	.commit-details {
-		border-top: 1px solid #203b42;
+		border-top: 1px solid var(--line-soft);
 		padding-top: 12px;
 	}
 
 	.commit-details > summary {
-		color: #9fb8bf;
+		color: var(--muted);
 		cursor: pointer;
 		font-weight: 600;
 		user-select: none;
@@ -583,17 +583,17 @@
 
 	.commit-details > summary:hover,
 	.commit-details > summary:focus-visible {
-		color: #dffeff;
+		color: #e6dcc6;
 	}
 	li {
 		margin: 9px 0;
-		color: #b8cdd2;
+		color: var(--ink-dim);
 		line-height: 1.45;
 	}
 	li small {
 		display: block;
 		margin-top: 3px;
-		color: #718d94;
+		color: var(--muted-2);
 		white-space: pre-wrap;
 	}
 	.error {

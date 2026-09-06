@@ -3502,12 +3502,18 @@ export class Hud {
 		this.callbacks.onPanelLayoutChange();
 	}
 	panelOcclusion(viewportWidth: number): { left: number; right: number } {
-		const left = this.characterPanel.classList.contains("is-collapsed")
-			? 0
-			: this.characterPanel.getBoundingClientRect().right;
-		const right = this.inventoryPanel.classList.contains("is-collapsed")
-			? 0
-			: viewportWidth - this.inventoryPanel.getBoundingClientRect().left;
+		const characterRect = this.characterPanel.getBoundingClientRect();
+		const inventoryRect = this.inventoryPanel.getBoundingClientRect();
+		const left =
+			this.characterPanel.classList.contains("is-collapsed") ||
+			characterRect.width <= 0
+				? 0
+				: characterRect.right;
+		const right =
+			this.inventoryPanel.classList.contains("is-collapsed") ||
+			inventoryRect.width <= 0
+				? 0
+				: viewportWidth - inventoryRect.left;
 		return {
 			left: Math.max(0, Math.min(viewportWidth, left)),
 			right: Math.max(0, Math.min(viewportWidth, right)),

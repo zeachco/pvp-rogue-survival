@@ -21,6 +21,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - `specs/SPEC.md` is authoritative for product goals, runtime architecture, server ownership, multiplayer/economy boundaries, UX direction, WebSocket protocol, and development process.
 - `specs/MECHANICS_SPEC.md` is authoritative for arena simulation, movement, targeting, attack telegraphs, projectiles, collision resolution, damage sources, and local defeat reset.
 - `specs/PROGRESSION_SPEC.md` is authoritative for permanent XP, attributes, derived stats, item generation, equipment, shared skill rules, generated enemy builds, drops, wave composition, and rival scaling. `specs/spells/` contains the authoritative per-spell contracts; `specs/item-effects/` contains the authoritative contracts for item-applied slow effects.
+- `specs/ART_DIRECTION_SPEC.md` is authoritative for design, graphics, and visual theme: visual identity, shading model, palette, environment, 3D assets, particle policy, HUD coherence, and asset licensing. `specs/ART_DIRECTION_PLAN.md` tracks its implementation phases.
 
 ## 4. Hero and Combat Summary
 
@@ -31,7 +32,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - Generated enemy weapons can drop into the arena and be collected into the backpack. Weapon classes, requirements, affixes, skills, and progression follow `specs/PROGRESSION_SPEC.md`.
 - Hero auto-aim, automatic attacks, attack areas, projectiles, and dodge rules follow `specs/MECHANICS_SPEC.md`.
 - Active weapon and learned skill availability, costs, and scaling follow `specs/PROGRESSION_SPEC.md`.
-- Particle effects remain future work.
+- Torch embers, pooled spell bursts, and the particle policy are defined in `specs/ART_DIRECTION_SPEC.md`; a broader pooled GPU particle system is a later phase of that spec.
 
 ## 5. Creep and Wave Rules
 
@@ -84,7 +85,7 @@ Multi-Line Hero is a multiplayer-first browser arena survival game. Each player 
 - A creep inspection character panel is intentionally compact: it shows only the creep name, level, live/current HP against combat maximum HP, current timed states, unmodified base attributes, and equipped Main hand, Offhand, Amulet, and Charm details. It does not show XP reward or the derived Effective stats section. Local and public hero character panels retain their existing advanced-stat presentation.
 - Pointer-hover creep preview never replaces or expands the character panel. It appears as a compact, non-interactive tooltip centered at the top of the arena and shows only name, level, live/current HP against combat maximum HP, current timed states, equipped-item icons, and unmodified base attributes. Poison, Burn, Bleed, Frost/Freeze, Stun, Shock, Curse, Rapid Regeneration, and Reflective Surge use compact state badges, including stack count and the shared edge countdown suffix when applicable. Leaving the creep hides the tooltip and preserves whichever hero or committed creep inspection was already shown in the character panel.
 
-- Use futuristic, simple geometric shapes with no required external art pipeline.
+- Use the dark-dungeon visual identity defined in `specs/ART_DIRECTION_SPEC.md`: warm torch-lit stone, light toon shading with subtle outlines, a bright ember FX palette, and a procedural environment. External 3D models must be CC0 and documented per that spec.
 - Telegraph and combat rendering rules follow `specs/MECHANICS_SPEC.md`.
 - Show controls, drops, and inspected enemy highlight. Every local or public hero profile header shows that hero's lifetime best wave beside their level. Selecting a creep replaces the character column with its inspection details, shows its live combat maximum HP after enemy-level and sent-item scaling rather than its unscaled derived build HP, and shows the XP that defeating that creep is currently worth after mode and balance reward modifiers; Training Grounds therefore show 0 XP. While in Training Grounds, `[Training Grounds - No Rewards]` remains visible immediately above the central level/XP circle. Moving over an active creep temporarily peeks the same inspection details without changing the committed selection, and moving away from all creeps restores the previously selected creep, hero, or local character sheet. Guard and attacker names in the realm header are clickable and replace the same character column with that hero's public stats and exact equipment; an empty inspected slot remains empty and never falls back to the local hero's equipment. The same Back to hero button restores the local hero. The current first-ranked Souls leaderboard hero has a warning icon before their name everywhere realm membership is shown; its hover/focus tooltip explains that all other heroes' death echoes are sent into that hero's realm to fight.
 - Show movement and auto-attack guidance as a centered, non-blocking notification that fades after a few seconds.

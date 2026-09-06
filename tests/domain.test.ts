@@ -24,8 +24,8 @@ import {
 	cleaveRange,
 	cooldownScale,
 	effectiveSkillCooldown,
-	flurryCooldown,
 	FLURRY_HALF_ARC,
+	flurryCooldown,
 	forceFieldRange,
 	HEALING_MAX_RADIUS,
 	HEALING_MIN_RADIUS,
@@ -41,12 +41,12 @@ import {
 	RENDING_THROW_BLEED_DURATION,
 	rapidRegenDuration,
 	rapidRegenMultiplier,
-	rentCooldown,
 	reflectiveSurgeBlockChanceBonus,
 	reflectiveSurgeCooldown,
 	reflectiveSurgeDuration,
 	rendingThrowPierce,
 	rendingThrowTargetLimit,
+	rentCooldown,
 	STAFF_BASIC_HALF_ARC,
 	skillCastTime,
 	skillCooldown,
@@ -128,8 +128,8 @@ import {
 	higherLevelEnemyXpMultiplier,
 	lerpXpDisplay,
 	levelForXp,
-	sameAllocation,
 	STAT_KEYS,
+	sameAllocation,
 	scaledStats,
 	xpForNextLevel,
 	ZERO_STATS,
@@ -187,10 +187,10 @@ import {
 	MAX_CAMERA_TILT_RADIANS,
 	MIN_CAMERA_TILT_RADIANS,
 	MIN_ZOOM,
-	pointerTrackerPresentation,
 	POINTER_TRACKER_ENEMY_CLEARANCE,
 	POINTER_TRACKER_FLOOR_CLEARANCE,
 	POINTER_TRACKER_HEIGHT,
+	pointerTrackerPresentation,
 } from "../src/game/render/ThreeRenderer";
 import {
 	activeSkillIds,
@@ -204,9 +204,9 @@ import {
 	forceFieldFalloff,
 	gearedSkillIds,
 	HeroCombatSystem,
-	itemProcSkills,
 	isSkillActive,
 	isSkillAvailable,
+	itemProcSkills,
 	learnedSkillIds,
 	shouldAutoCastHealing,
 	skillHealthRequirementMet,
@@ -220,7 +220,6 @@ import {
 	effectTimeLabel,
 	equipSlotKeys,
 	extractedLearnedLevel,
-	spellExtractionTooltipLevels,
 	GOLD_TOOLTIP,
 	inspectedEquipment,
 	inventoryHoverRefreshAction,
@@ -230,9 +229,10 @@ import {
 	routineNoticeSurface,
 	SOULS_TOOLTIP,
 	scrapTooltip,
-	spellCatalogSlotsById,
 	spellCatalogFilterMatches,
 	spellCatalogResourceOrder,
+	spellCatalogSlotsById,
+	spellExtractionTooltipLevels,
 	spellRailSlots,
 	spellSlotKey,
 	spellTooltipLevels,
@@ -257,13 +257,13 @@ import {
 	extractButtonStatus,
 	extractionLearnsNewSkill,
 } from "../src/ui/inventoryAvailability";
+import { isKeyboardFormSubmission } from "../src/ui/keyboardFormSubmission";
 import {
 	formatPreviewValue,
 	formatProjectedValue,
 	previewTone,
 } from "../src/ui/preview";
 import { viewportTooltipPosition } from "../src/ui/tooltipPosition";
-import { isKeyboardFormSubmission } from "../src/ui/keyboardFormSubmission";
 
 function progress(): PlayerProgress {
 	return {
@@ -3909,7 +3909,7 @@ test("keeps touch movement behind login and scales mobile build panels", async (
 	);
 	expect(styles).not.toMatch(/\.touch-ui \.touch-joystick\s*\{/);
 	expect(styles).toMatch(
-		/\.touch-joystick\s*\{[^}]*z-index:\s*7;[^}]*bottom:\s*96px;[^}]*background:\s*rgba\(5, 20, 24, 0\.3\);/s,
+		/\.touch-joystick\s*\{[^}]*z-index:\s*7;[^}]*bottom:\s*96px;[^}]*background:\s*rgba\(16, 12, 9, 0\.3\);/s,
 	);
 	expect(styles).toMatch(
 		/@media \(max-width: 960px\)\s*\{[^}]*\.touch-ui \.character-panel\s*\{[^}]*scale:\s*0\.72;[^}]*transform-origin:\s*left top;/s,

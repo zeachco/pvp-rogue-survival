@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 import {
 	effectiveSkillCooldown,
 	MAX_RAGE,
@@ -23,8 +23,8 @@ import {
 	type UnitEffectTarget,
 	type UnitState,
 } from "../../common/unitState";
-import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
 import { clampToArenaBoundary } from "./bounds";
+import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
 import { GameObject } from "./GameObject";
 import { createManaShieldBubble } from "./render/ManaShieldBubble";
 import type { StatusEffectSnapshot, Vector2 } from "./types";

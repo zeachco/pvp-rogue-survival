@@ -6,10 +6,10 @@ import {
 	bucklerBlockChance,
 	bucklerBlockCost,
 	katarBlockChance,
-	MAX_BUCKLER_BLOCK_CHANCE,
 	MAX_BLOCK_CHANCE,
-	REFLECTIVE_SURGE_MAX_BLOCK_CHANCE,
+	MAX_BUCKLER_BLOCK_CHANCE,
 	RAGE_DECAY_PER_SECOND,
+	REFLECTIVE_SURGE_MAX_BLOCK_CHANCE,
 	reflectiveSurgeBlockChanceBonus,
 } from "./combat";
 import {

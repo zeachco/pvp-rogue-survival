@@ -33,9 +33,7 @@ export const MOBILE_DEFAULT_GRAPHICS_SETTINGS = {
 	shadowMode: "off",
 } as const satisfies GraphicsSettings;
 
-interface MediaQueryMatcher {
-	(query: string): Pick<MediaQueryList, "matches">;
-}
+type MediaQueryMatcher = (query: string) => Pick<MediaQueryList, "matches">;
 
 export function detectGraphicsDefaultProfile(
 	matchMedia: MediaQueryMatcher,

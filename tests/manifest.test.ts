@@ -20,7 +20,7 @@ describe("web app manifest", () => {
 		expect(html).toContain(
 			'<link rel="manifest" href="/manifest.webmanifest" />',
 		);
-		expect(html).toContain('<meta name="theme-color" content="#0d1418" />');
+		expect(html).toContain('<meta name="theme-color" content="#0c0a08" />');
 	});
 
 	test("provides standalone installation metadata and required icons", async () => {

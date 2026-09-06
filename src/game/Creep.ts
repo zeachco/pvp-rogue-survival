@@ -29,6 +29,7 @@ import {
 } from "./render/AnimatedCharacter";
 import { Z_CREEP, Z_CREEP_OVERLAY, Z_THREAT } from "./render/ThreeRenderer";
 import { SpellEffect } from "./SpellEffect";
+import { THEME, toonMaterial } from "./theme";
 import {
 	type CreepTimedStates,
 	clamp,
@@ -52,9 +53,19 @@ export function placeCreepSenderLabel(
 }
 
 export const ENEMY_ROLE_LIGHTS = {
-	champion: { color: 0xffd43b, intensity: 15, distance: 115, decay: 1 },
-	boss: { color: 0xff293d, intensity: 18, distance: 125, decay: 1 },
-	clone: { color: 0xb05cff, intensity: 14, distance: 110, decay: 1 },
+	champion: {
+		color: THEME.roleLightChampion,
+		intensity: 15,
+		distance: 115,
+		decay: 1,
+	},
+	boss: { color: THEME.roleLightBoss, intensity: 18, distance: 125, decay: 1 },
+	clone: {
+		color: THEME.roleLightClone,
+		intensity: 14,
+		distance: 110,
+		decay: 1,
+	},
 } as const;
 
 export function enemyRoleLight(role: EnemyRole): THREE.PointLight | undefined {
@@ -206,11 +217,11 @@ export class Creep extends Unit {
 		this.scoreValue = build.isRival ? 10 : 2;
 
 		const fillColor = build.isRival
-			? 0xffd166
+			? THEME.championBody
 			: build.kind === "bubbleShooter"
 				? 0x8c7cff
-				: 0xff6f7d;
-		const strokeColorStr = build.isRival ? "#704d00" : "#501721";
+				: THEME.creepBody;
+		const strokeColorStr = build.isRival ? "#4a3300" : "#2a1216";
 		const sentItem = [
 			build.mainHand,
 			build.offHand,
@@ -232,14 +243,14 @@ export class Creep extends Unit {
 			shape.closePath();
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.ShapeGeometry(shape),
-				new THREE.MeshStandardMaterial({ color: fillColor }),
+				toonMaterial(fillColor),
 			);
 		} else {
 			this.presentationHeight = this.radius * 2;
 			this.spriteCenterHeight = this.radius;
 			this.bodyMesh = new THREE.Mesh(
 				new THREE.CircleGeometry(this.radius, 24),
-				new THREE.MeshStandardMaterial({ color: fillColor }),
+				toonMaterial(fillColor),
 			);
 		}
 		if (this.kind === "melee") {
@@ -292,7 +303,9 @@ export class Creep extends Unit {
 
 		if (build.kind === "bubbleShooter") {
 			const eyeGeo = new THREE.CircleGeometry(5, 16);
-			const eyeMat = new THREE.MeshBasicMaterial({ color: 0xdff8ff });
+			const eyeMat = new THREE.MeshBasicMaterial({
+				color: THEME.bubbleEye,
+			});
 			this.bubbleEye = new THREE.Mesh(eyeGeo, eyeMat);
 			this.bubbleEye.position.set(5, -5, 0.01);
 			this.bubbleEye.renderOrder = Z_CREEP + 0.002;
@@ -405,7 +418,7 @@ export class Creep extends Unit {
 			ctx.textBaseline = "middle";
 			ctx.shadowColor = "rgba(0,0,0,.95)";
 			ctx.shadowBlur = 4;
-			ctx.fillStyle = "#eafffb";
+			ctx.fillStyle = "#f0e6d2";
 			ctx.fillText(this.emitterName, w / 2, h / 2);
 			const texture = new THREE.CanvasTexture(canvas);
 			const mat = new THREE.SpriteMaterial({
@@ -469,7 +482,7 @@ export class Creep extends Unit {
 		this.threatArrow = new THREE.Mesh(
 			new THREE.ShapeGeometry(arrowShape),
 			new THREE.MeshBasicMaterial({
-				color: build.isRival ? 0xffd166 : 0xff6f7d,
+				color: build.isRival ? THEME.championBody : THEME.creepBody,
 				depthTest: false,
 				depthWrite: false,
 			}),
@@ -726,17 +739,14 @@ export class Creep extends Unit {
 			? 0xffffff
 			: reflective
 				? 0x8a9197
-				: (this.bodyMesh.material as THREE.MeshBasicMaterial).map
+				: (this.bodyMesh.material as THREE.MeshToonMaterial).map
 					? 0xdddddd
 					: this.build.isRival
-						? 0xffd166
+						? THEME.championBody
 						: this.kind === "bubbleShooter"
 							? 0x8c7cff
-							: 0xff6f7d;
-		(this.bodyMesh.material as THREE.MeshBasicMaterial).color.set(fillColor);
-		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
-		bodyMaterial.metalness = reflective ? 0.9 : 0;
-		bodyMaterial.roughness = reflective ? 0.35 : 1;
+							: THEME.creepBody;
+		(this.bodyMesh.material as THREE.MeshToonMaterial).color.set(fillColor);
 
 		this.healthBarGroup.position.set(this.position.x, this.position.y, 0);
 		const hbW = this.barWidth;

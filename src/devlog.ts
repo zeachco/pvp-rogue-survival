@@ -1,11 +1,11 @@
 import "./devlog.css";
 import {
-	type CommunityRequestCompletionFilter,
 	COMMUNITY_REQUEST_KIND_LABELS,
-	DEVLOG_SUMMARY_BUCKETS,
+	type CommunityRequestCompletionFilter,
 	DEVLOG_SUMMARY_BUCKET_LABELS,
-	filterCommunityRequestsByCompletion,
+	DEVLOG_SUMMARY_BUCKETS,
 	type DevlogSummary,
+	filterCommunityRequestsByCompletion,
 } from "../common/devlog";
 import type { WeeklyDevlog } from "../scripts/changelog";
 import type { DevlogRequest } from "../server/DevlogRequestRepository";

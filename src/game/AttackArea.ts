@@ -4,6 +4,7 @@ import type { DamagePresentation } from "./CombatText";
 import { GameObject } from "./GameObject";
 import type { ImpactForce } from "./ImpactForce";
 import { Z_ATTACK } from "./render/ThreeRenderer";
+import { THEME } from "./theme";
 import { distance, type Vector2 } from "./types";
 
 export type AttackOwner = "hero" | "creep";
@@ -82,7 +83,7 @@ export class AttackArea extends GameObject {
 		this.fillMesh = new THREE.Mesh(
 			new THREE.ShapeGeometry(shape),
 			new THREE.MeshBasicMaterial({
-				color: 0x3affd4,
+				color: THEME.heroAccent,
 				transparent: true,
 				opacity: 0.12,
 				side: THREE.DoubleSide,
@@ -105,7 +106,7 @@ export class AttackArea extends GameObject {
 		this.strokeMesh = new THREE.Line(
 			strokeGeo,
 			new THREE.LineBasicMaterial({
-				color: 0x3affd4,
+				color: THEME.heroAccent,
 				transparent: true,
 				opacity: 0.8,
 			}),
@@ -175,8 +176,8 @@ export class AttackArea extends GameObject {
 			strokeColor = 0xb76cff;
 			fillOpacity = this.resolved ? 0.38 : 0.12;
 		} else {
-			fillColor = 0x3affd4;
-			strokeColor = 0x3affd4;
+			fillColor = THEME.heroAccent;
+			strokeColor = THEME.heroAccent;
 			fillOpacity = this.resolved ? 0.32 : 0.12;
 		}
 

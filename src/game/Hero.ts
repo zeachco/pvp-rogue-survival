@@ -16,6 +16,7 @@ import type { RandomSource } from "../../common/random";
 import { AnimatedCharacter } from "./render/AnimatedCharacter";
 import { updateStatusEffects } from "./render/statusEffects";
 import { Z_ATTACK, Z_AURA, Z_HERO } from "./render/ThreeRenderer";
+import { THEME, toonMaterial } from "./theme";
 import { normalize, type Vector2 } from "./types";
 import { MANA_OVERFILL_MULTIPLIER, Unit } from "./Unit";
 
@@ -28,7 +29,7 @@ export const AIM_LINE_RANGE_MULTIPLIER = 5;
 const AIM_LINE_WIDTH = 3;
 
 export const HERO_LIGHT = {
-	color: 0xffe8c2,
+	color: THEME.heroLight,
 	intensity: 180,
 	distance: 280,
 	decay: 1,
@@ -105,7 +106,7 @@ export class Hero extends Unit {
 		this.mesh.add(this.characterLight, this.characterLight.target);
 
 		const bodyGeo = new THREE.CircleGeometry(18, 32);
-		const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdffeff });
+		const bodyMat = toonMaterial(THEME.heroBody);
 		this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
 		this.bodyMesh.position.z = 18;
 		this.bodyMesh.renderOrder = Z_HERO;
@@ -115,7 +116,7 @@ export class Hero extends Unit {
 
 		const strokeGeo = new THREE.RingGeometry(16, 20, 32);
 		const strokeMat = new THREE.MeshBasicMaterial({
-			color: 0x3affd4,
+			color: THEME.heroAccent,
 			side: THREE.DoubleSide,
 		});
 		const stroke = new THREE.Mesh(strokeGeo, strokeMat);
@@ -129,7 +130,7 @@ export class Hero extends Unit {
 			new THREE.BufferAttribute(facingVerts, 3),
 		);
 		const facingMat = new THREE.MeshBasicMaterial({
-			color: 0x3affd4,
+			color: THEME.heroAccent,
 			side: THREE.DoubleSide,
 		});
 		this.facingMesh = new THREE.Mesh(facingGeo, facingMat);
@@ -151,7 +152,7 @@ export class Hero extends Unit {
 				varying vec2 vUv;
 				void main() {
 					float alpha = 1.0 - smoothstep(0.0, 1.0, vUv.x);
-					gl_FragColor = vec4(0.227, 1.0, 0.831, alpha);
+					gl_FragColor = vec4(1.0, 0.706, 0.329, alpha);
 				}
 			`,
 		});
@@ -167,7 +168,7 @@ export class Hero extends Unit {
 		this.aimRangeMesh = new THREE.Mesh(
 			new THREE.RingGeometry(0.995, 1, 96),
 			new THREE.MeshBasicMaterial({
-				color: 0x3affd4,
+				color: THEME.heroAccent,
 				transparent: true,
 				opacity: AIM_RANGE_OPACITY,
 				depthWrite: false,
@@ -362,10 +363,10 @@ export class Hero extends Unit {
 			reflectiveSurge: this.reflectiveSurgeRemaining > 0,
 		});
 		const reflective = this.reflectiveSurgeRemaining > 0;
-		const bodyMaterial = this.bodyMesh.material as THREE.MeshStandardMaterial;
-		bodyMaterial.color.set(flash ? 0xffffff : reflective ? 0x8a9197 : 0xdffeff);
-		bodyMaterial.metalness = reflective ? 0.9 : 0;
-		bodyMaterial.roughness = reflective ? 0.35 : 1;
+		const bodyMaterial = this.bodyMesh.material as THREE.MeshToonMaterial;
+		bodyMaterial.color.set(
+			flash ? 0xffffff : reflective ? 0x8a9197 : THEME.heroBody,
+		);
 		if (tint) {
 			(this.statusTint.material as THREE.MeshBasicMaterial).color.set(tint);
 			(this.statusTint.material as THREE.MeshBasicMaterial).opacity = 0.42;

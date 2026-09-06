@@ -50,8 +50,8 @@ import {
 	migrateLegacyStats,
 	STAT_KEYS,
 	type Stats,
-	scaledStats,
 	sameAllocation,
+	scaledStats,
 	validAllocation,
 } from "../common/progression.ts";
 import {
