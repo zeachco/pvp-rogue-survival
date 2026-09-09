@@ -1,0 +1,46 @@
+{
+	"week": "2026-W37",
+	"label": "Week of September 7, 2026",
+	"generatedAt": "2026-09-09T12:54:45.660Z",
+	"model": "qwen3.8",
+	"periods": [
+		{
+			"key": "2026-W37",
+			"label": "Week of September 7, 2026",
+			"summaryTitle": "Dungeon Theme Redesign",
+			"summary": {
+				"features": ["Full game visual redesign with a new dungeon theme"],
+				"graphics": [
+					"Updated devlog calendar and weekly navigation color palette for improved readability and contrast"
+				]
+			},
+			"commits": [
+				{
+					"hash": "ca7a69377ced8706ddb47f2f3e6284cf66141f5e",
+					"authoredAt": "2026-09-08T23:50:15-04:00",
+					"title": "feat(AI-dev): two-step GLM high thinking with qwen-coder subagent",
+					"description": "- pi harness now runs GLM-4.7-Flash at high thinking in both phases\n- plan phase writes precise, self-contained plans for a dumb executor\n- build phase orchestrates: delegates guided details to the coder subagent (qwen3.8, low thinking) and verifies the results\n- updated spec and tests for the new harness command"
+				},
+				{
+					"hash": "c3bbf823928eda99e4afa364f4b28a78b1a1a7df",
+					"authoredAt": "2026-09-08T22:40:08-04:00",
+					"title": "fix(devlog): updated calendar button colors for better readability",
+					"description": "- intensity-1: dark brown #262019 background with muted brown text\n- intensity-2: vibrant orange #ff8c2a background with dark text\n- intensity-3: green #26a641 background with dark text\n- intensity-4: bright green #57c46b background with dark text\n\nUses dark text (#0c0a08) on all color backgrounds for excellent readability following the dungeon theme palette."
+				},
+				{
+					"hash": "53699bfc46a4dcead9cd551124684c2eade058c8",
+					"authoredAt": "2026-09-08T21:16:01-04:00",
+					"title": "fix(devlog): updated color palette for weekly update navigation",
+					"description": "- Changed intensity-1 button from var(--line) to var(--line-soft) for better readability\n- Changed intensity-2 button from var(--accent) to var(--accent-soft) for more vibrant orange\n- Changed intensity-4 button background from #39d353 to var(--ok) for better green contrast\n\nFollows the new dungeon theme with more vibrant colors and dark text for active weeks."
+				},
+				{
+					"hash": "604997bdf7bff28ba57b195b2f464096bef93820",
+					"authoredAt": "2026-09-06T13:06:26-04:00",
+					"title": "feat: redeisgn the whole game with a dungeon theme",
+					"description": ""
+				}
+			],
+			"categories": ["Features", "Graphics & Sounds"]
+		}
+	]
+}

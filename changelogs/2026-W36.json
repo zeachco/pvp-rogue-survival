@@ -1,0 +1,41 @@
+{
+	"week": "2026-W36",
+	"label": "Week of August 31, 2026",
+	"generatedAt": "2026-09-09T12:54:45.585Z",
+	"model": "qwen3.8",
+	"periods": [
+		{
+			"key": "2026-W36",
+			"label": "Week of August 31, 2026",
+			"summaryTitle": "Performance gains and floor texture",
+			"summary": {
+				"performance": [
+					"HUD panel camera framing now recomputes only on layout changes (visibility, toggles, resize) instead of every frame",
+					"Removed a redundant per-frame skill-availability filter in combat that caused unnecessary allocation churn"
+				],
+				"graphics": ["Added a generated texture for the floor"]
+			},
+			"commits": [
+				{
+					"hash": "6de81db046b44bb4d62f372c6794b85fda4bb505",
+					"authoredAt": "2026-09-02T08:28:01-04:00",
+					"title": "perf(hud): recompute panel camera framing only on layout changes",
+					"description": "- dropped per-frame panel occlusion sampling from setPlayer\n- fire the layout callback only when join visibility flips, panel toggles, or resize"
+				},
+				{
+					"hash": "bcf84b9d6be72696de157b0b297bdf7981898242",
+					"authoredAt": "2026-08-31T14:35:25-04:00",
+					"title": "perf(combat): drop redundant skill-availability filter",
+					"description": "- removed no-op isSkillAvailable filter that re-derived learned/geared skill lists per element (O(n^2) alloc churn per frame) in availableSkillIds"
+				},
+				{
+					"hash": "05a92039daf6f7e9e36820d7297b9e6c43eb84ce",
+					"authoredAt": "2026-08-31T12:31:47-04:00",
+					"title": "ux(graphics): added generated texture for the floor",
+					"description": ""
+				}
+			],
+			"categories": ["Performance", "Graphics & Sounds"]
+		}
+	]
+}
