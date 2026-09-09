@@ -476,17 +476,20 @@
 	}
 
 	.calendar-grid button.intensity-1 {
-		background: var(--line-soft);
+		background: #262019;
+		color: #a99c82;
 	}
 	.calendar-grid button.intensity-2 {
-		background: var(--accent-soft);
+		background: #ff8c2a;
+		color: #0c0a08;
 	}
 	.calendar-grid button.intensity-3 {
 		background: #26a641;
+		color: #0c0a08;
 	}
 	.calendar-grid button.intensity-4 {
-		color: var(--panel);
-		background: var(--ok);
+		color: #0c0a08;
+		background: #57c46b;
 	}
 	.calendar-grid button.is-selected {
 		outline: 2px solid #f0ce72;
