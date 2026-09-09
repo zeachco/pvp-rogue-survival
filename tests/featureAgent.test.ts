@@ -55,11 +55,16 @@ describe("feature agent launcher", () => {
 			"--print",
 			"--no-session",
 			"--thinking",
-			"low",
+			"high",
 			"--model",
-			"llamacpp/qwen3.8",
+			"llamacpp/GLM-4.7-Flash-UD-Q4_K_XL",
 			"task",
 		]);
+		const piBuildCommand = harnessCommand("pi", "build", "task");
+		expect(piBuildCommand[piBuildCommand.length - 1]).toBe("task");
+		expect(piBuildCommand.slice(0, -1)).toEqual(
+			harnessCommand("pi", "plan", "task").slice(0, -1),
+		);
 		const planCommand = harnessCommand("opencode", "plan", "task");
 		const buildCommand = harnessCommand("opencode", "build", "task");
 		expect(planCommand).toEqual([
@@ -94,12 +99,17 @@ describe("feature agent launcher", () => {
 		expect(prompt).toContain("<untrusted-feature-request>");
 		expect(prompt).toContain('"title": "Controller support"');
 		expect(prompt).toContain("Do NOT modify, create, or delete any files");
+		expect(prompt).toContain("fast but very dumb coder subagent");
+		expect(prompt).toContain("Orchestration:");
 		expect(prompt).toContain(PLAN_RESULT_PREFIX);
 	});
 
 	test("wraps the plan as untrusted data in the build prompt", () => {
 		const prompt = buildPrompt(request, "1. Update specs\n2. Add tests");
 		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
+		expect(prompt).toContain("high-thinking orchestrator");
+		expect(prompt).toContain("Use the `subagent` tool with agent `coder`");
+		expect(prompt).toContain("If the `coder` subagent is not available");
 		expect(prompt).toContain("<untrusted-feature-plan>");
 		expect(prompt).toContain("1. Update specs\n2. Add tests");
 		expect(prompt).toContain("<untrusted-feature-request>");
@@ -114,11 +124,14 @@ describe("feature agent launcher", () => {
 		expect(plan).toContain(MAINTENANCE_TASK.title);
 		expect(plan).toContain("trusted launcher content");
 		expect(plan).toContain("Do NOT modify, create, or delete any files");
+		expect(plan).toContain("fast but very dumb coder subagent");
 		expect(plan).toContain(PLAN_RESULT_PREFIX);
 		const build = maintenanceBuildPrompt(
 			"1. Profile hot paths\n2. Fix the bug",
 		);
 		expect(build.startsWith(MAINTENANCE_AGENT_PROMPT)).toBeTrue();
+		expect(build).toContain("high-thinking orchestrator");
+		expect(build).toContain("Use the `subagent` tool with agent `coder`");
 		expect(build).toContain("<untrusted-feature-plan>");
 		expect(build).toContain("1. Profile hot paths\n2. Fix the bug");
 		expect(build).toContain("<maintenance-task>");
