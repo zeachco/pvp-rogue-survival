@@ -18,6 +18,7 @@ export const MAINTENANCE_TASK = {
 } as const;
 export const PLAN_RESULT_PREFIX = "FEATURE_PLAN ";
 export const FEATURE_AGENT_RESULT_PREFIX = "FEATURE_AGENT_RESULT ";
+export const PHASE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour timeout per phase
 
 export type FeatureHarness = "codex" | "claude" | "pi" | "opencode";
 export const DEFAULT_FEATURE_HARNESS: FeatureHarness = "pi";
@@ -41,19 +42,22 @@ const HARNESS_COMMANDS: Record<FeatureHarness, readonly string[]> = {
 
 // Model configuration per phase. The pi harness runs the high-thinking
 // GLM model in both phases: the plan phase thinks directly, and the build
-// phase uses the same model as an orchestrator that delegates the
-// mechanical guided details to the fast-but-dumb `coder` subagent (qwen
-// coder model, llamacpp/qwen3.8) through pi's subagent tool.
+// Model configuration per phase. The pi harness uses qwen3.8 (the deep model)
+// for both phases: the plan phase thinks directly, and the build phase uses
+// the same model as an orchestrator that delegates the mechanical work to
+// the worker subagent (GLM-4.7-Flash, the fast model). qwen3.8 is the planner
+// and orchestrator (review/decision work); GLM-4.7-Flash is the executor
+// (mechanical edits, tests, validation). This matches the local fleet design
+// and the project's AGENTS.md routing table.
 const PHASE_MODELS: Record<FeatureHarness, Record<FeaturePhase, string>> = {
 	codex: { plan: "", build: "" },
 	claude: { plan: "", build: "" },
 	pi: {
-		plan: "llamacpp/GLM-4.7-Flash-UD-Q4_K_XL",
-		build: "llamacpp/GLM-4.7-Flash-UD-Q4_K_XL",
+		plan: "llamacpp/qwen3.8",
+		build: "llamacpp/qwen3.8",
 	},
 	opencode: {
 		plan: "llamacpp/qwen3.8",
-		// Coder-model slot: replace with a stronger coding model when available.
 		build: "llamacpp/qwen3.8",
 	},
 };
@@ -125,15 +129,15 @@ export function selectHighestVotedFeature(
 
 // Shared by both plan prompts: the plan is the only thing the build phase
 // sees, and it is read by a fast but dumb executor, so it must stand alone.
-const PLAN_AUDIENCE = `The build phase will be executed by a fast but very dumb coder subagent (qwen coder model) that has NO memory of this conversation and executes briefs literally. Write the plan for that reader: it must be precise enough that a model which cannot infer intent, cannot ask questions, and cannot read the conversation can still implement it correctly on the first try.`;
+const PLAN_AUDIENCE = `The build phase will be executed by the worker subagent (GLM-4.7-Flash, the fast executor) that has NO memory of this conversation and executes briefs literally. Write the plan for that reader: it must be precise enough that a model which cannot infer intent, cannot ask questions, and cannot read the conversation can still implement it correctly on the first try.`;
 
 // Shared by both build prompts: the high-thinking model orchestrates, the
 // `coder` subagent does the mechanical work.
 const ORCHESTRATION_MODEL = `Execution model - the mechanical work is delegated to a subagent:
-- The file edits and command runs are done by the \`coder\` subagent: a fast but very dumb qwen coder model that has NO memory of this conversation and executes a brief literally.
-- Use the \`subagent\` tool with agent \`coder\`, one small brief at a time, in the plan's order. Every brief must be self-contained: exact file paths, exact functions, the exact change, and the exact validation command with its expected result. Never hand it open-ended work such as "make it work" or "finish the rest".
-- You own the thinking and the checking: split the work, delegate, read each result, inspect \`git diff\` yourself, re-run validations whenever a report is in doubt, and send a corrected follow-up brief when the subagent is wrong. Implement the changes yourself only for small fixes the subagent leaves behind.
-- If the \`coder\` subagent is not available, do the work yourself with your own tools.`;
+- The file edits and command runs are done by the worker subagent (GLM-4.7-Flash, the fast executor): a model that has NO memory of this conversation and executes briefs literally.
+- Use the subagent tool with agent worker, one small brief at a time, in the plan's order. Every brief must be self-contained: exact file paths, exact functions, the exact change, and the exact validation command with its expected result. Never hand it open-ended work such as "make it work" or "finish the rest".
+- You own the thinking and the checking: split the work, delegate, read each result, inspect git diff yourself, re-run validations whenever a report is in doubt, and send a corrected follow-up brief when the subagent is wrong. Implement the changes yourself only for small fixes the subagent leaves behind.
+- If the worker subagent is not available, do the work yourself with your own tools.`;
 
 export function planPrompt(request: DevlogRequest): string {
 	return `You are the planning phase of a two-phase feature agent. Produce a detailed implementation plan only. Do NOT modify, create, or delete any files.
@@ -178,9 +182,9 @@ The Bun launcher already selected the request below. Do not fetch or select anot
 ${JSON.stringify(request, null, 2)}
 </untrusted-feature-request>
 
-Follow AGENTS.md and the authoritative specs. Inspect the current worktree. If the selected request is not already fully implemented, update the relevant spec first when needed, implement focused tests, run the required validation, create one semantic commit containing only this completed request, and push that commit to the configured upstream branch. If the request was already fully implemented before this run (or the plan concluded already_done), do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
+Follow AGENTS.md and the authoritative specs. Inspect the current worktree. If the selected request is not already fully implemented, update the relevant spec first when needed, implement focused tests, run the required validation (bunx tsc --noEmit, bun test, bunx biome check), create one semantic commit containing only this completed request, but do NOT push it yet — the launcher will run gates and push. If the request was already fully implemented before this run (or the plan concluded already_done), do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
 
-Your final output line must be exactly ${FEATURE_AGENT_RESULT_PREFIX}{"status":"implemented"|"already_done","summary":"concise outcome","steps":["completed step", "completed step"]}. Use implemented only after creating and pushing the new feature commit. Use already_done only after confirming every part of the request already exists and the worktree remains unchanged. Include validations and other completed work in steps. Do not wrap this final line in Markdown.`;
+Your final output line must be exactly ${FEATURE_AGENT_RESULT_PREFIX}{"status":"implemented"|"already_done","summary":"concise outcome","steps":["completed step", "completed step"]}. Use implemented only after you have created and verified the commit locally (typecheck, tests, biome). Use already_done only after confirming every part of the request already exists and the worktree remains unchanged. Include validations and other completed work in steps. Do not wrap this final line in Markdown.`;
 }
 
 export function maintenancePlanPrompt(): string {
@@ -203,8 +207,9 @@ The plan must contain:
 - Validation commands to run and exactly what "pass" looks like.
 - Orchestration: the ordered, small, self-contained briefs the build-phase orchestrator should hand to the coder subagent one at a time, each ending with its own verification step.
 - The semantic commit message to use.
+- A list of files that will be modified (array of paths) to enable scope checking.
 
-Your final output line must be exactly ${PLAN_RESULT_PREFIX}{"already_done":boolean,"plan":"step-by-step implementation plan"}. The plan string must contain every item listed above. Do not wrap this final line in Markdown.`;
+Your final output line must be exactly ${PLAN_RESULT_PREFIX}{"already_done":boolean,"plan":"step-by-step implementation plan","files":["file/path.ts","file/path.ts"]}. The plan string must contain every item listed above. Do not wrap this final line in Markdown.`;
 }
 
 export function maintenanceBuildPrompt(plan: string): string {
@@ -226,14 +231,15 @@ The Bun launcher found no pending community request and selected the built-in ma
 ${JSON.stringify(MAINTENANCE_TASK, null, 2)}
 </maintenance-task>
 
-Follow AGENTS.md and the authoritative specs. Inspect the current worktree. Update the relevant spec first when needed, implement the chosen improvement with focused tests, run the required validation, create one semantic commit containing only this completed change, and push that commit to the configured upstream branch. If nothing worthwhile exists (or the plan concluded already_done), do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
+Follow AGENTS.md and the authoritative specs. Inspect the current worktree. Update the relevant spec first when needed, implement the chosen improvement with focused tests, run the required validation (bunx tsc --noEmit, bun test, bunx biome check), create one semantic commit containing only this completed change, but do NOT push it yet — the launcher will run gates and push. If nothing worthwhile exists (or the plan concluded already_done), do not manufacture a commit or make unrelated changes; verify the existing behavior and report already_done.
 
-Your final output line must be exactly ${FEATURE_AGENT_RESULT_PREFIX}{"status":"implemented"|"already_done","summary":"concise outcome","steps":["completed step", "completed step"]}. Use implemented only after creating and pushing the new commit. Use already_done only after confirming there was nothing worthwhile to change and the worktree remains unchanged. Include validations and other completed work in steps. Do not wrap this final line in Markdown.`;
+Your final output line must be exactly ${FEATURE_AGENT_RESULT_PREFIX}{"status":"implemented"|"already_done","summary":"concise outcome","steps":["completed step", "completed step"]}. Use implemented only after you have created and verified the commit locally (typecheck, tests, biome). Use already_done only after confirming there was nothing worthwhile to change and the worktree remains unchanged. Include validations and other completed work in steps. Do not wrap this final line in Markdown.`;
 }
 
 export function parsePlanResult(output: string): {
 	already_done: boolean;
 	plan: string;
+	files?: string[];
 } {
 	const lines = output.split(/\r?\n/);
 	let resultLine: string | undefined;
@@ -350,6 +356,30 @@ async function cleanWorktree(): Promise<boolean> {
 	if (result.exitCode !== 0)
 		throw new Error("Could not inspect the Git worktree.");
 	return result.stdout.toString().trim().length === 0;
+}
+
+async function runGates(): Promise<void> {
+	// Run the project's quality gates: typecheck, tests, biome.
+	const gates = [
+		{ name: "TypeScript", command: ["bunx", "tsc", "--noEmit"] },
+		{ name: "Tests", command: ["bun", "test"] },
+		{ name: "Biome", command: ["bunx", "biome", "check"] },
+	];
+
+	for (const gate of gates) {
+		console.log(`\nRunning ${gate.name} gate...`);
+		const result = Bun.spawnSync(gate.command, {
+			cwd: process.cwd(),
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		if (result.exitCode !== 0) {
+			const stdout = result.stdout.toString().trim() || "(no output)";
+			const stderr = result.stderr.toString().trim() || "";
+			throw new Error(`${gate.name} gate failed.\n\n${stdout}\n${stderr}`);
+		}
+		console.log(`${gate.name} gate passed.`);
+	}
 }
 
 export function pushedFeatureCommit(startingHead: string): string {
@@ -523,11 +553,27 @@ async function main(): Promise<void> {
 		stdin: "inherit",
 		stdout: "pipe",
 		stderr: "inherit",
+		timeout: PHASE_TIMEOUT_MS,
 	});
 	const planOutput = await readHarnessOutput(planChild);
 	const planExitCode = await planChild.exited;
 	if (planExitCode !== 0) process.exit(planExitCode);
 	const planResult = parsePlanResult(planOutput);
+
+	// Optional: scope check against planned files.
+	if (planResult.files && planResult.files.length > 0) {
+		const actualFiles = gitOutput(["diff", "--name-only"])
+			.split("\n")
+			.filter((f) => f.trim() !== "");
+		const plannedSet = new Set(planResult.files);
+		const actualSet = new Set(actualFiles);
+		const extraFiles = [...actualSet].filter((f) => !plannedSet.has(f));
+		if (extraFiles.length > 0) {
+			console.warn(
+				`Warning: build produced changes in ${extraFiles.length} file(s) not planned:\n${extraFiles.join("\n")}`,
+			);
+		}
+	}
 
 	const buildText =
 		task.source === "community"
@@ -539,6 +585,7 @@ async function main(): Promise<void> {
 		stdin: "inherit",
 		stdout: "pipe",
 		stderr: "inherit",
+		timeout: PHASE_TIMEOUT_MS,
 	});
 	const output = await readHarnessOutput(child);
 	const exitCode = await child.exited;
@@ -568,7 +615,11 @@ async function main(): Promise<void> {
 			`Commit added: ${commit} ${subject}`,
 			`Pushed to ${upstream}`,
 		);
+
+		// Run quality gates before accepting the work as done.
+		await runGates();
 	}
+
 	if (task.source === "community") {
 		await markFeatureCompleted(task.request.id);
 		verifiedSteps.push(`Marked ${task.request.id} Done with AI`);

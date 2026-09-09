@@ -57,7 +57,7 @@ describe("feature agent launcher", () => {
 			"--thinking",
 			"high",
 			"--model",
-			"llamacpp/GLM-4.7-Flash-UD-Q4_K_XL",
+			"llamacpp/qwen3.8",
 			"task",
 		]);
 		const piBuildCommand = harnessCommand("pi", "build", "task");
@@ -99,7 +99,7 @@ describe("feature agent launcher", () => {
 		expect(prompt).toContain("<untrusted-feature-request>");
 		expect(prompt).toContain('"title": "Controller support"');
 		expect(prompt).toContain("Do NOT modify, create, or delete any files");
-		expect(prompt).toContain("fast but very dumb coder subagent");
+		expect(prompt).toContain("worker subagent (GLM-4.7-Flash, the fast executor)");
 		expect(prompt).toContain("Orchestration:");
 		expect(prompt).toContain(PLAN_RESULT_PREFIX);
 	});
@@ -108,13 +108,13 @@ describe("feature agent launcher", () => {
 		const prompt = buildPrompt(request, "1. Update specs\n2. Add tests");
 		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
 		expect(prompt).toContain("high-thinking orchestrator");
-		expect(prompt).toContain("Use the `subagent` tool with agent `coder`");
-		expect(prompt).toContain("If the `coder` subagent is not available");
+		expect(prompt).toContain("Use the subagent tool with agent worker");
+		expect(prompt).toContain("If the worker subagent is not available");
 		expect(prompt).toContain("<untrusted-feature-plan>");
 		expect(prompt).toContain("1. Update specs\n2. Add tests");
 		expect(prompt).toContain("<untrusted-feature-request>");
 		expect(prompt).toContain("create one semantic commit");
-		expect(prompt).toContain("push that commit");
+		expect(prompt).toContain("do NOT push it yet");
 		expect(prompt).toContain(FEATURE_AGENT_RESULT_PREFIX);
 	});
 
@@ -124,19 +124,19 @@ describe("feature agent launcher", () => {
 		expect(plan).toContain(MAINTENANCE_TASK.title);
 		expect(plan).toContain("trusted launcher content");
 		expect(plan).toContain("Do NOT modify, create, or delete any files");
-		expect(plan).toContain("fast but very dumb coder subagent");
+		expect(plan).toContain("worker subagent (GLM-4.7-Flash, the fast executor)");
 		expect(plan).toContain(PLAN_RESULT_PREFIX);
 		const build = maintenanceBuildPrompt(
 			"1. Profile hot paths\n2. Fix the bug",
 		);
 		expect(build.startsWith(MAINTENANCE_AGENT_PROMPT)).toBeTrue();
 		expect(build).toContain("high-thinking orchestrator");
-		expect(build).toContain("Use the `subagent` tool with agent `coder`");
+		expect(build).toContain("Use the subagent tool with agent worker");
 		expect(build).toContain("<untrusted-feature-plan>");
 		expect(build).toContain("1. Profile hot paths\n2. Fix the bug");
 		expect(build).toContain("<maintenance-task>");
 		expect(build).toContain("create one semantic commit");
-		expect(build).toContain("push that commit");
+		expect(build).toContain("do NOT push it yet");
 		expect(build).toContain(FEATURE_AGENT_RESULT_PREFIX);
 	});
 
