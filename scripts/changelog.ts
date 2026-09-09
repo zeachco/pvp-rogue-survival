@@ -74,7 +74,7 @@ interface ChangelogOptions {
 }
 
 export const CHANGELOG_MODEL = "qwen3.8";
-export const CHANGELOG_BASE_URL = "http://oli-llms.local:8080/v1";
+export const CHANGELOG_BASE_URL = "http://oli-llms.local:7070/v1";
 export const CHANGELOG_MAX_TOKENS = 4096;
 export const CHANGELOG_CONCURRENCY = 2;
 export const CHANGELOG_REQUEST_TIMEOUT_MS = 1_800_000;
