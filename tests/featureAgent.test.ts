@@ -1,22 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import {
-	buildPrompt,
+	DEFAULT_MODEL,
 	FEATURE_AGENT_PROMPT,
 	FEATURE_AGENT_RESULT_PREFIX,
+	featurePrompt,
 	formattedFeatureRecap,
 	formattedFeatureRequest,
-	harnessCommand,
-	isFeatureHarness,
 	MAINTENANCE_AGENT_PROMPT,
 	MAINTENANCE_TASK,
-	maintenanceBuildPrompt,
-	maintenancePlanPrompt,
+	maintenancePrompt,
 	markFeatureCompleted,
-	PLAN_RESULT_PREFIX,
 	parseFeatureAgentResult,
-	parsePlanResult,
-	phaseBanner,
-	planPrompt,
+	piCommand,
 	securityFindings,
 	selectHighestVotedFeature,
 } from "../scripts/runFeatureAgent";
@@ -36,21 +31,8 @@ const request: DevlogRequest = {
 };
 
 describe("feature agent launcher", () => {
-	test("builds non-interactive commands for every supported harness", () => {
-		expect(harnessCommand("codex", "plan", "task")).toEqual([
-			"codex",
-			"exec",
-			"--approve-for-me",
-			"task",
-		]);
-		expect(harnessCommand("claude", "build", "task")).toEqual([
-			"claude",
-			"--print",
-			"--permission-mode",
-			"auto",
-			"task",
-		]);
-		expect(harnessCommand("pi", "plan", "task")).toEqual([
+	test("builds a single non-interactive pi command with the selected model", () => {
+		expect(piCommand(DEFAULT_MODEL, "task")).toEqual([
 			"pi",
 			"--print",
 			"--no-session",
@@ -60,84 +42,33 @@ describe("feature agent launcher", () => {
 			"llamacpp/qwen3.8",
 			"task",
 		]);
-		const piBuildCommand = harnessCommand("pi", "build", "task");
-		expect(piBuildCommand[piBuildCommand.length - 1]).toBe("task");
-		expect(piBuildCommand.slice(0, -1)).toEqual(
-			harnessCommand("pi", "plan", "task").slice(0, -1),
-		);
-		const planCommand = harnessCommand("opencode", "plan", "task");
-		const buildCommand = harnessCommand("opencode", "build", "task");
-		expect(planCommand).toEqual([
-			"opencode",
-			"run",
-			"--auto",
-			"--model",
-			"llamacpp/qwen3.8",
-			"task",
-		]);
-		expect(buildCommand.slice(0, -1)).toEqual(planCommand.slice(0, -1));
-		expect(
-			["codex", "claude", "pi", "opencode"].every(isFeatureHarness),
-		).toBeTrue();
-		expect(isFeatureHarness("other")).toBeFalse();
 	});
 
-	test("selects the highest-voted eligible request and wraps it as untrusted data", () => {
-		expect(
-			selectHighestVotedFeature([
-				request,
-				{
-					...request,
-					id: "bug-2",
-					kind: "bug",
-					score: 8,
-					upvotes: 8,
-				},
-			])?.id,
-		).toBe("bug-2");
-		const prompt = planPrompt(request);
+	test("wraps the selected request as untrusted data in the prompt", () => {
+		const prompt = featurePrompt(request);
+		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
 		expect(prompt).toContain("<untrusted-feature-request>");
 		expect(prompt).toContain('"title": "Controller support"');
-		expect(prompt).toContain("Do NOT modify, create, or delete any files");
-		expect(prompt).toContain("worker subagent (GLM-4.7-Flash, the fast executor)");
-		expect(prompt).toContain("Orchestration:");
-		expect(prompt).toContain(PLAN_RESULT_PREFIX);
-	});
-
-	test("wraps the plan as untrusted data in the build prompt", () => {
-		const prompt = buildPrompt(request, "1. Update specs\n2. Add tests");
-		expect(prompt.startsWith(FEATURE_AGENT_PROMPT)).toBeTrue();
-		expect(prompt).toContain("high-thinking orchestrator");
-		expect(prompt).toContain("Use the subagent tool with agent worker");
-		expect(prompt).toContain("If the worker subagent is not available");
-		expect(prompt).toContain("<untrusted-feature-plan>");
-		expect(prompt).toContain("1. Update specs\n2. Add tests");
-		expect(prompt).toContain("<untrusted-feature-request>");
-		expect(prompt).toContain("create one semantic commit");
-		expect(prompt).toContain("do NOT push it yet");
+		expect(prompt).toContain("plan briefly");
+		expect(prompt).toContain("bunx tsc --noEmit");
+		expect(prompt).toContain("bun test");
+		expect(prompt).toContain("bunx biome check");
+		expect(prompt).toContain("one semantic commit");
+		expect(prompt).toContain("Do NOT push");
 		expect(prompt).toContain(FEATURE_AGENT_RESULT_PREFIX);
 	});
 
 	test("falls back to the built-in maintenance task when no request is pending", () => {
-		const plan = maintenancePlanPrompt();
-		expect(plan).toContain("<maintenance-task>");
-		expect(plan).toContain(MAINTENANCE_TASK.title);
-		expect(plan).toContain("trusted launcher content");
-		expect(plan).toContain("Do NOT modify, create, or delete any files");
-		expect(plan).toContain("worker subagent (GLM-4.7-Flash, the fast executor)");
-		expect(plan).toContain(PLAN_RESULT_PREFIX);
-		const build = maintenanceBuildPrompt(
-			"1. Profile hot paths\n2. Fix the bug",
-		);
-		expect(build.startsWith(MAINTENANCE_AGENT_PROMPT)).toBeTrue();
-		expect(build).toContain("high-thinking orchestrator");
-		expect(build).toContain("Use the subagent tool with agent worker");
-		expect(build).toContain("<untrusted-feature-plan>");
-		expect(build).toContain("1. Profile hot paths\n2. Fix the bug");
-		expect(build).toContain("<maintenance-task>");
-		expect(build).toContain("create one semantic commit");
-		expect(build).toContain("do NOT push it yet");
-		expect(build).toContain(FEATURE_AGENT_RESULT_PREFIX);
+		const prompt = maintenancePrompt();
+		expect(prompt.startsWith(MAINTENANCE_AGENT_PROMPT)).toBeTrue();
+		expect(prompt).toContain("<maintenance-task>");
+		expect(prompt).toContain(MAINTENANCE_TASK.title);
+		expect(prompt).toContain("trusted launcher content");
+		expect(prompt).toContain("Pick exactly one focused improvement");
+		expect(prompt).toContain("bunx tsc --noEmit");
+		expect(prompt).toContain("one semantic commit");
+		expect(prompt).toContain("Do NOT push");
+		expect(prompt).toContain(FEATURE_AGENT_RESULT_PREFIX);
 	});
 
 	test("labels the maintenance task box in the formatted request", () => {
@@ -145,34 +76,6 @@ describe("feature agent launcher", () => {
 		expect(
 			formattedFeatureRequest(MAINTENANCE_TASK, "MAINTENANCE TASK"),
 		).toContain("╭─ MAINTENANCE TASK ");
-	});
-
-	test("parses the structured planning result", () => {
-		expect(
-			parsePlanResult(`thinking
-${PLAN_RESULT_PREFIX}{"already_done":false,"plan":"Update spec, add tests, implement"}
-done`),
-		).toEqual({
-			already_done: false,
-			plan: "Update spec, add tests, implement",
-		});
-		expect(() => parsePlanResult("no plan here")).toThrow(
-			"did not return a structured plan",
-		);
-		expect(() =>
-			parsePlanResult(`${PLAN_RESULT_PREFIX}{"already_done":true,"plan":""}`),
-		).toThrow("invalid plan result");
-	});
-
-	test("renders blue plan and orange build phase banners", () => {
-		expect(phaseBanner("plan")).toContain("\x1b[34m");
-		expect(phaseBanner("build")).toContain("\x1b[38;5;208m");
-	});
-
-	test("selects the highest-voted eligible request", () => {
-		expect(
-			selectHighestVotedFeature([{ ...request, completed: true }]),
-		).toBeUndefined();
 	});
 
 	test("parses the final structured harness result", () => {
@@ -204,7 +107,8 @@ tokens used 123`),
 				steps: ["Ran bun test"],
 			},
 			[
-				"Commit added: abc123 feat(input): add controller support",
+				"Commit created: abc123 feat(input): add controller support",
+				"Gates passed (tsc, tests, biome)",
 				"Pushed to origin/main",
 				"Marked feature-1 Done with AI",
 			],
@@ -213,9 +117,28 @@ tokens used 123`),
 		expect(recap.endsWith("\x1b[0m")).toBeTrue();
 		expect(recap).toContain("Initial request: Controller support");
 		expect(recap).toContain("Ran bun test");
-		expect(recap).toContain("Commit added: abc123");
+		expect(recap).toContain("Commit created: abc123");
+		expect(recap).toContain("Gates passed (tsc, tests, biome)");
 		expect(recap).toContain("Pushed to origin/main");
 		expect(recap).toContain("Marked feature-1 Done with AI");
+	});
+
+	test("selects the highest-voted eligible request", () => {
+		expect(
+			selectHighestVotedFeature([
+				request,
+				{
+					...request,
+					id: "bug-2",
+					kind: "bug",
+					score: 8,
+					upvotes: 8,
+				},
+			])?.id,
+		).toBe("bug-2");
+		expect(
+			selectHighestVotedFeature([{ ...request, completed: true }]),
+		).toBeUndefined();
 	});
 
 	test("breaks equal-score ties by creation time and then request id", () => {
@@ -228,7 +151,7 @@ tokens used 123`),
 		).toBe("feature-a");
 	});
 
-	test("marks a pushed feature completed through the public API", async () => {
+	test("marks a completed feature through the public API", async () => {
 		const calls: Array<{ url: string; init?: RequestInit }> = [];
 		const completed = await markFeatureCompleted(
 			request.id,
