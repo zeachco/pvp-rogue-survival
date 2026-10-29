@@ -469,6 +469,15 @@ export const STARTING_RAGE = 5;
 export function cappedSkillLevel(level: number): number {
 	return Math.max(1, Math.min(MAX_SKILL_LEVEL, level));
 }
+export function skillLevelScale(
+	level: number,
+	atLevel1: number,
+	atLevel99: number,
+): number {
+	return (
+		atLevel1 + (atLevel99 - atLevel1) * ((cappedSkillLevel(level) - 1) / 98)
+	);
+}
 export function healingRadius(level: number): number {
 	return (
 		HEALING_MIN_RADIUS +
