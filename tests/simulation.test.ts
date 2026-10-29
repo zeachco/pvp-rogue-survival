@@ -1190,7 +1190,7 @@ describe("arena systems", () => {
 		});
 		const hp = target.hp;
 		target.compileState(1, { next: () => 0 });
-		target.updateResources(1, { next: () => 0 });
+		target.updateResources(1);
 		target.advanceEffects(1);
 		expect(source.mana).toBeCloseTo(4.25);
 		expect(target.hp).toBeCloseTo(hp - 17 - 2.125 + 0.005);
@@ -3536,7 +3536,7 @@ describe("arena systems", () => {
 			hero.addStatus({ kind, remaining: 2, damagePerSecond: 4 });
 			const hp = hero.hp;
 			hero.compileState(1, { next: () => 0 });
-			hero.updateResources(1, { next: () => 0 });
+			hero.updateResources(1);
 			hero.advanceEffects(1);
 			expect(hero.hp).toBeCloseTo(hp - 4);
 			expect(hero.rage).toBeCloseTo(8.999);

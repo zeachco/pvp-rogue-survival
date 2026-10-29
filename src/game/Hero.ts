@@ -325,9 +325,9 @@ export class Hero extends Unit {
 		this.aimRangeMesh.scale.setScalar(dimensions.ringRadius);
 	}
 
-	update(deltaSeconds: number, random?: RandomSource, training = false): void {
+	update(deltaSeconds: number, _random?: RandomSource, training = false): void {
 		this.damageFloorOne = training;
-		this.updateResources(deltaSeconds, random, training);
+		this.updateResources(deltaSeconds);
 	}
 
 	override updateVisuals(time: number): void {

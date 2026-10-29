@@ -507,7 +507,7 @@ export class Creep extends Unit {
 		width: number,
 		height: number,
 	): CreepAttack | undefined {
-		this.updateResources(deltaSeconds, this.random);
+		this.updateResources(deltaSeconds);
 		const movement = ENEMY_ARCHETYPES[this.build.isRival ? "rival" : this.kind];
 		const rangedMovement = ENEMY_ARCHETYPES.bubbleShooter;
 		const maxSpeed =

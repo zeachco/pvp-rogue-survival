@@ -583,11 +583,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		this.rage = Math.max(0, Math.min(this.maxRage, currentRage));
 	}
 
-	updateResources(
-		deltaSeconds: number,
-		_random?: RandomSource,
-		_invulnerable = false,
-	): void {
+	updateResources(deltaSeconds: number): void {
 		this.damageSlowRemaining = Math.max(
 			0,
 			this.damageSlowRemaining - deltaSeconds,
