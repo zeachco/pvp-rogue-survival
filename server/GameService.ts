@@ -1168,7 +1168,7 @@ export class GameService {
 			carried,
 			bonusSkills: manaShield ? ["manaShield"] : [],
 			skillLevels: manaShield
-				? { manaShield: Math.min(99, Math.max(1, level)) }
+				? { manaShield: cappedSkillLevel(level) }
 				: undefined,
 			isRival,
 			enemyRole: isRival ? "champion" : "creep",
