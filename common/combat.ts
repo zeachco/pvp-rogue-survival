@@ -17,8 +17,7 @@ import type { RandomSource } from "./random";
 export const STAFF_BASIC_HALF_ARC = Math.PI / 3;
 
 export function manaShieldConversionFraction(level: number): number {
-	const clamped = Math.min(99, Math.max(1, level));
-	return 0.1 + ((clamped - 1) / 98) * 0.89;
+	return skillLevelScale(level, 0.1, 0.99);
 }
 
 export function rollWeaponDamage(
@@ -223,6 +222,10 @@ export function katarBlockChance(
 	);
 }
 
+// Single-rounding level-scaling forms below keep their original arithmetic on
+// purpose: a skillLevelScale rewrite shifts the last ulp and tests pin exact
+// values (FP check, complexity pass 2026-10-29).
+
 export function reflectiveSurgeCooldown(level: number): number {
 	return 30 - (10 * (cappedSkillLevel(level) - 1)) / 98;
 }
@@ -376,11 +379,8 @@ export function arcaneBoltExplosionRadius(level: number): number {
 	return 50 + (150 * (cappedSkillLevel(level) - 1)) / 98;
 }
 
-function blizzardLevelProgress(level: number): number {
-	return (cappedSkillLevel(level) - 1) / 98;
-}
 export function blizzardManaCost(level: number): number {
-	return 55 + 245 * blizzardLevelProgress(level);
+	return skillLevelScale(level, 55, 300);
 }
 export function blizzardProjectileDamage(
 	level: number,
@@ -389,18 +389,17 @@ export function blizzardProjectileDamage(
 	return cappedSkillLevel(level) + 1.2 * Math.max(0, intelligence);
 }
 export function blizzardDuration(level: number): number {
-	return 5 + 10 * blizzardLevelProgress(level);
+	return skillLevelScale(level, 5, 15);
 }
 export function blizzardProjectilesPerSecond(level: number): number {
-	return 1 + 2 * blizzardLevelProgress(level);
+	return skillLevelScale(level, 1, 3);
 }
 export function blizzardRadius(level: number): number {
-	return 100 + 100 * blizzardLevelProgress(level);
+	return skillLevelScale(level, 100, 200);
 }
 
 export function cleaveHalfArc(level: number): number {
-	const progress = (cappedSkillLevel(level) - 1) / 98;
-	const arcDegrees = 22.5 + 112.5 * progress;
+	const arcDegrees = skillLevelScale(level, 22.5, 135);
 	return (arcDegrees * Math.PI) / 360;
 }
 
@@ -431,7 +430,7 @@ export function cooldownScale(level: number, reduction: number): number {
 	);
 }
 export function spellCooldownFloor(level: number): number {
-	return 3 - (2 * (cappedSkillLevel(level) - 1)) / 98;
+	return skillLevelScale(level, 3, 1);
 }
 export function effectiveSkillCooldown(
 	skill: SkillId,
@@ -498,7 +497,7 @@ export function spiritWoundsConversionFraction(level: number): number {
 	return 0.01 + (cappedSkillLevel(level) - 1) * (0.24 / 98);
 }
 export function voodooPoisonMultiplier(level: number, spirit: number): number {
-	const levelScale = 1 + (cappedSkillLevel(level) - 1) / 98;
+	const levelScale = skillLevelScale(level, 1, 2);
 	return 1 + Math.min(1.5, 0.03 * Math.max(0, spirit)) * levelScale;
 }
 export function vampiricBoomerangHealingFraction(level: number): number {
@@ -508,19 +507,19 @@ export function whirlwindRadius(level: number): number {
 	return 90 + 1.2 * cappedSkillLevel(level);
 }
 export function whirlwindDuration(level: number): number {
-	return 3 + ((cappedSkillLevel(level) - 1) / 98) * 9;
+	return skillLevelScale(level, 3, 12);
 }
 export function orbitingHammerDuration(level: number): number {
-	return 2.4 + ((cappedSkillLevel(level) - 1) / 98) * 7.6;
+	return skillLevelScale(level, 2.4, 10);
 }
 export function whirlwindMovementSpeed(level: number): number {
-	return 0.5 + (cappedSkillLevel(level) - 1) / 98;
+	return skillLevelScale(level, 0.5, 1.5);
 }
 export function rapidRegenDuration(level: number): number {
-	return 10 + ((cappedSkillLevel(level) - 1) / 98) * 20;
+	return skillLevelScale(level, 10, 30);
 }
 export function rapidRegenMultiplier(level: number): number {
-	return 3.6 + ((cappedSkillLevel(level) - 1) / 98) * 1.4;
+	return skillLevelScale(level, 3.6, 5);
 }
 export function swampRadius(level: number): number {
 	return 200 + (cappedSkillLevel(level) - 1) * (300 / 98);
