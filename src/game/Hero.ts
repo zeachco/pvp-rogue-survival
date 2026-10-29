@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { auraRadius } from "../../common/auras";
 import {
-	RAGE_DECAY_PER_SECOND,
 	RAGE_GAIN_ON_BLOCK,
 	RAGE_GAIN_ON_DAMAGE,
 	RAGE_GAIN_ON_DODGE,
@@ -266,16 +265,6 @@ export class Hero extends Unit {
 		this.effects.length = 0;
 		this.lastHitDodged = false;
 		this.immunityRemaining = 0;
-	}
-
-	protected override updateRageResource(
-		deltaSeconds: number,
-		_regenPerSecond: number,
-	): void {
-		this.rage = Math.max(
-			0,
-			Math.min(this.maxRage, this.rage - RAGE_DECAY_PER_SECOND * deltaSeconds),
-		);
 	}
 
 	protected override grantDefensiveRage(
