@@ -801,7 +801,7 @@ export class HeroCombatSystem {
 		const equipped = equippedActiveSkillIds(progress);
 		const autoFire = new Set(autoFireSkillIds(progress));
 		const procSkills = itemProcSkills(progress);
-		const ordinarySlots = orderedSkillIds(progress).map((id) => {
+		const ordinarySlots = availableSkillIds(progress).map((id) => {
 			const cooldown = this.skillCooldowns.get(id);
 			return {
 				id,
@@ -1328,9 +1328,6 @@ export function isSkillAvailable(
 }
 export function availableSkillIds(progress: PlayerProgress): SkillId[] {
 	return [...learnedSkillIds(progress), ...gearedSkillIds(progress)];
-}
-export function orderedSkillIds(progress: PlayerProgress): SkillId[] {
-	return availableSkillIds(progress);
 }
 export function activeSkillIds(progress: PlayerProgress): SkillId[] {
 	const equipped = new Set(equippedActiveSkillIds(progress));
