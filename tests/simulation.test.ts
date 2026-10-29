@@ -1527,7 +1527,7 @@ describe("arena systems", () => {
 		);
 		expect(hero.rage).toBe(BASIC_ATTACK_RAGE_GAIN);
 		for (const attack of state.attacks) attack.update(0.2);
-		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, weapon, new SeededRandom(1));
 		expect(hero.rage).toBe(BASIC_ATTACK_RAGE_GAIN);
 	});
 	test("attack-triggered weapon skills ignore resource costs", () => {
@@ -2306,14 +2306,14 @@ describe("arena systems", () => {
 		const firstHp = first.hp;
 		const secondHp = second.hp;
 		boomerang.update(VAMPIRIC_BOOMERANG_COLLISION_INTERVAL - 0.1);
-		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, weapon, new SeededRandom(1));
 		expect(first.hp).toBe(firstHp);
 		expect(second.hp).toBe(secondHp);
 		boomerang.update(0.1);
-		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, weapon, new SeededRandom(1));
 		expect(first.hp).toBeCloseTo(firstHp - 1);
 		expect(second.hp).toBeCloseTo(secondHp - 1);
-		resolveCombat(state, hero, weapon, 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, weapon, new SeededRandom(1));
 		expect(first.hp).toBeCloseTo(firstHp - 1);
 		expect(second.hp).toBeCloseTo(secondHp - 1);
 	});
@@ -3066,7 +3066,7 @@ describe("arena systems", () => {
 		);
 		projectile.position = { ...creep.position };
 		state.projectiles.push(projectile);
-		resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, starterClub(), new SeededRandom(1));
 		expect(creep.statuses).toHaveLength(0);
 		expect(nearby.hp).toBeLessThan(nearbyBefore);
 		expect(state.spellEffects).toHaveLength(1);
@@ -3133,7 +3133,7 @@ describe("arena systems", () => {
 			),
 		);
 
-		resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, starterClub(), new SeededRandom(1));
 
 		expect(creeps.filter((creep) => creep.hp < creep.maxHp)).toHaveLength(2);
 		expect(
@@ -3163,7 +3163,7 @@ describe("arena systems", () => {
 			"hero",
 		);
 		state.projectiles.push(projectile);
-		resolveCombat(state, hero, starterClub(), 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, starterClub(), new SeededRandom(1));
 		expect(projectile.active).toBeTrue();
 	});
 
@@ -4112,7 +4112,7 @@ describe("Unique rarity arena effects", () => {
 		const directBefore = direct.hp;
 		const nearbyBefore = nearby.hp;
 		const outsideBefore = outside.hp;
-		resolveCombat(state, hero, uniqueStaff, 500, 500, new SeededRandom(1));
+		resolveCombat(state, hero, uniqueStaff, new SeededRandom(1));
 		const explosion = spellPower(1) * 0.5;
 		expect(direct.hp).toBeCloseTo(directBefore - (10 + explosion));
 		expect(nearby.hp).toBeCloseTo(nearbyBefore - explosion);
@@ -4165,7 +4165,7 @@ describe("Unique rarity arena effects", () => {
 				uniqueWeapon,
 			);
 			state.attacks.push(attack);
-			resolveCombat(state, hero, uniqueWeapon, 500, 500, new SeededRandom(1));
+			resolveCombat(state, hero, uniqueWeapon, new SeededRandom(1));
 			expect(nearProjectile.active).toBeFalse();
 			expect(farProjectile.active).toBeTrue();
 		}

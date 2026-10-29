@@ -1034,8 +1034,6 @@ export class Game {
 			this.arena,
 			this.hero,
 			this.player.progress.mainHand,
-			this.map.width,
-			this.map.height,
 			systemRandom,
 		);
 		if (this.duelOpponent) {

@@ -22,8 +22,6 @@ export function resolveCombat(
 	state: ArenaState,
 	hero: Hero,
 	equipped: ItemInstance | undefined,
-	_width: number,
-	_height: number,
 	random: RandomSource,
 ): void {
 	for (const attack of state.attacks) {
