@@ -1304,18 +1304,6 @@ export function itemProcTriggerChance(
 		effectiveSkillCooldown(proc.id, proc.item, stats, proc.level, reduction),
 	);
 }
-export function weaponProcTriggerChance(
-	progress: PlayerProgress,
-	skill: SkillId,
-	level: number,
-): number {
-	if (!progress.mainHand) return 0;
-	return itemProcTriggerChance(progress, {
-		id: skill,
-		level,
-		item: progress.mainHand,
-	});
-}
 export function gearedSkillIds(progress: PlayerProgress): SkillId[] {
 	const learned = new Set(learnedSkillIds(progress));
 	return [
