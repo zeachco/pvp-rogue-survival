@@ -1053,21 +1053,6 @@ export function equippedImmunities(
 		),
 	);
 }
-export function itemAutomationKey(item: ItemInstance): string {
-	return JSON.stringify({
-		itemKind: item.itemKind,
-		definitionId: item.definitionId,
-		hands: item.hands,
-		affixes: [...item.affixes].sort(),
-		statBonuses: orderedStats(item.statBonuses),
-		skills: [...item.skills].sort(),
-		reflectionComponents: [...item.reflectionComponents].sort(),
-		attractionSpeed: item.attractionSpeed,
-		accessoryBonuses: item.accessoryBonuses ?? {},
-		lifeStealBase: item.modifiers.lifeStealBase ?? 0,
-		strengthRegenMultiplier: item.modifiers.strengthRegenMultiplier ?? 0,
-	});
-}
 export function itemSkillLevelBonus(
 	item: ItemInstance | undefined,
 	resource: "mana" | "rage" | "life",
