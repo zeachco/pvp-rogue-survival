@@ -1176,7 +1176,10 @@ export class Game {
 		this.hud.setPlayer(player);
 		this.hud.setSpells(this.heroCombat.spellSlots(player.progress, this.hero));
 		if (!this.hero.active) this.handleDefeat();
-		this.updateCamera();
+		this.renderer.updateCameraPosition(
+			this.hero.position.x,
+			this.hero.position.y,
+		);
 	}
 
 	private collectKills(): void {
@@ -1368,7 +1371,7 @@ export class Game {
 	}
 
 	private updateHover(event: MouseEvent): void {
-		const world = this.eventWorld(event);
+		const world = this.renderer.eventWorld(event);
 		clampToArenaBoundary(world, 0, this.map.width, this.map.height);
 		this.pointerWorld = world;
 		const dropDistance = (drop: ItemDrop): number =>
@@ -1447,9 +1450,6 @@ export class Game {
 				(this.waveMode === "solo" ? 0.5 : this.waveMode === "training" ? 0 : 1),
 		);
 	}
-	private eventWorld(event: MouseEvent): Vector2 {
-		return this.renderer.eventWorld(event);
-	}
 	private closestLivingCreep(): Creep | undefined {
 		let closest: Creep | undefined;
 		let closestDistance = Number.POSITIVE_INFINITY;
@@ -1462,12 +1462,6 @@ export class Game {
 			}
 		}
 		return closest;
-	}
-	private updateCamera(): void {
-		this.renderer.updateCameraPosition(
-			this.hero.position.x,
-			this.hero.position.y,
-		);
 	}
 	private render(): void {
 		this.map.update(performance.now() / 1000, this.renderer.camera);
@@ -1489,7 +1483,10 @@ export class Game {
 		const height = this.canvas.clientHeight || innerHeight;
 		this.renderer.resize(width, height);
 		this.updatePanelCameraFraming();
-		this.updateCamera();
+		this.renderer.updateCameraPosition(
+			this.hero.position.x,
+			this.hero.position.y,
+		);
 	}
 	private updatePanelCameraFraming(): void {
 		const width = this.canvas.clientWidth || innerWidth;
