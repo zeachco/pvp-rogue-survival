@@ -581,20 +581,15 @@ export function isEquippedTile(
 	return equippedCopies(progress, tile) > 0;
 }
 function equippedCopies(progress: PlayerProgress, tile: InventoryTile): number {
-	return (
-		Number(
-			Boolean(
-				progress.mainHand && itemStackKey(progress.mainHand) === tile.key,
-			),
-		) +
-		Number(
-			Boolean(progress.offHand && itemStackKey(progress.offHand) === tile.key),
-		) +
-		Number(
-			Boolean(progress.amulet && itemStackKey(progress.amulet) === tile.key),
-		) +
-		Number(Boolean(progress.charm && itemStackKey(progress.charm) === tile.key))
-	);
+	const slots: (ItemInstance | undefined)[] = [
+		progress.mainHand,
+		progress.offHand,
+		progress.amulet,
+		progress.charm,
+	];
+	return slots.filter(
+		(slot) => slot !== undefined && itemStackKey(slot) === tile.key,
+	).length;
 }
 function missing(): InventoryResult {
 	return { changed: false, reason: "That equipment is no longer available." };
