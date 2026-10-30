@@ -541,33 +541,31 @@ export class HeroCombatSystem {
 					true,
 				),
 			);
-		if (activeSkill) {
-			if (
-				this.pendingItemProcs[0]?.id === activeSkill.id &&
-				this.pendingItemProcs[0]?.item.id === procSkill?.item.id
-			)
-				this.pendingItemProcs.shift();
-			const duration = effectiveSkillCooldown(
-				activeSkill.id,
-				item,
-				effectiveStats,
-				activeSkill.level,
-				Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
-			);
-			if (!candidateIsProc)
-				this.skillCooldowns.set(activeSkill.id, {
-					remaining: duration,
-					maximum: duration,
-				});
-			if (!candidateIsProc && this.manualSkill === activeSkill.id)
-				this.manualSkill = undefined;
-			const castIndex = orderedSkills.findIndex(
-				({ id }) => id === activeSkill.id,
-			);
-			this.skillPriorityCursor = orderedSkills.length
-				? (castIndex + 1) % orderedSkills.length
-				: 0;
-		}
+		if (
+			this.pendingItemProcs[0]?.id === activeSkill.id &&
+			this.pendingItemProcs[0]?.item.id === procSkill?.item.id
+		)
+			this.pendingItemProcs.shift();
+		const duration = effectiveSkillCooldown(
+			activeSkill.id,
+			item,
+			effectiveStats,
+			activeSkill.level,
+			Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
+		);
+		if (!candidateIsProc)
+			this.skillCooldowns.set(activeSkill.id, {
+				remaining: duration,
+				maximum: duration,
+			});
+		if (!candidateIsProc && this.manualSkill === activeSkill.id)
+			this.manualSkill = undefined;
+		const castIndex = orderedSkills.findIndex(
+			({ id }) => id === activeSkill.id,
+		);
+		this.skillPriorityCursor = orderedSkills.length
+			? (castIndex + 1) % orderedSkills.length
+			: 0;
 		const automaticSkills = orderedSkills.filter((skill) =>
 			autoFire.has(skill.id),
 		);
