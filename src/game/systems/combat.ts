@@ -12,7 +12,7 @@ import {
 import type { RandomSource } from "../../../common/random";
 import type { ArenaState } from "../ArenaState";
 import type { Hero } from "../Hero";
-import { applyImpactForce } from "../ImpactForce";
+import { applyImpactForce, type ImpactForce } from "../ImpactForce";
 import { pushDrops } from "../ItemDrop";
 import { SpellEffect } from "../SpellEffect";
 import { damageStatusDuration, distance } from "../types";
@@ -52,12 +52,15 @@ export function resolveCombat(
 						false,
 						attack.presentation,
 					);
-					if (dealt > 0) {
-						applyImpactForce(creep, attack.force);
-					}
-					if (attack.weapon && !creep.lastHitDodged) {
-						applyWeaponEffects(creep, attack.weapon, random, source);
-						applyLifeSteal(source, attack.weapon, dealt);
+					resolveHitEffects(
+						creep,
+						source,
+						attack.weapon,
+						dealt,
+						attack.force,
+						random,
+					);
+					if (attack.weapon && !creep.lastHitDodged)
 						applyPhysicalAccessoryDamage(
 							creep,
 							source,
@@ -65,7 +68,6 @@ export function resolveCombat(
 							attack.presentation.kind === "physical",
 							random,
 						);
-					}
 					if (attack.skill === "bash")
 						creep.addStatus({
 							kind: "stun",
@@ -114,16 +116,14 @@ export function resolveCombat(
 				false,
 				attack.presentation,
 			);
-			if (dealt > 0) applyImpactForce(hero, attack.force);
-			if (attack.weapon && !hero.lastHitDodged) {
-				applyWeaponEffects(
-					hero,
-					attack.weapon,
-					random,
-					attack.source as Unit | undefined,
-				);
-				applyLifeSteal(attack.source as Unit | undefined, attack.weapon, dealt);
-			}
+			resolveHitEffects(
+				hero,
+				attack.source as Unit | undefined,
+				attack.weapon,
+				dealt,
+				attack.force,
+				random,
+			);
 			if (attack.skill === "fireBreath" && !hero.lastHitDodged)
 				hero.addStatus({
 					kind: "burn",
@@ -175,13 +175,20 @@ export function resolveCombat(
 						projectile.presentation,
 					);
 					projectile.recordDamage(dealt);
+					if (projectile.skill !== "vampiricBoomerang")
+						resolveHitEffects(
+							hit,
+							projectile.source,
+							weapon,
+							dealt,
+							projectile.force,
+							random,
+						);
 					if (
 						weapon &&
 						!hit.lastHitDodged &&
 						projectile.skill !== "vampiricBoomerang"
 					) {
-						applyWeaponEffects(hit, weapon, random, projectile.source);
-						applyLifeSteal(projectile.source, weapon, dealt);
 						applyPhysicalAccessoryDamage(
 							hit,
 							projectile.source,
@@ -203,9 +210,6 @@ export function resolveCombat(
 								damagePerSecond: 0.25,
 								source: projectile.source,
 							});
-					}
-					if (dealt > 0) {
-						applyImpactForce(hit, projectile.force);
 					}
 					if (projectile.skill === "arcaneBolt") {
 						const unique =
@@ -271,16 +275,33 @@ export function resolveCombat(
 				false,
 				projectile.presentation,
 			);
-			if (dealt > 0) applyImpactForce(hero, projectile.force);
-			if (weapon && !hero.lastHitDodged) {
-				applyWeaponEffects(hero, weapon, random, projectile.source);
-				applyLifeSteal(projectile.source, weapon, dealt);
-			}
+			resolveHitEffects(
+				hero,
+				projectile.source,
+				weapon,
+				dealt,
+				projectile.force,
+				random,
+			);
 			projectile.active = false;
 		}
 	}
 }
 
+function resolveHitEffects(
+	target: Unit,
+	source: Unit | undefined,
+	weapon: ItemInstance | undefined,
+	dealt: number,
+	force: ImpactForce | undefined,
+	random: RandomSource,
+): void {
+	if (dealt > 0) applyImpactForce(target, force);
+	if (weapon && !target.lastHitDodged) {
+		applyWeaponEffects(target, weapon, random, source);
+		applyLifeSteal(source, weapon, dealt);
+	}
+}
 export function applyWeaponEffects(
 	target: Unit,
 	item: ItemInstance,
