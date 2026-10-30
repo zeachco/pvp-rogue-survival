@@ -221,117 +221,126 @@ export class Projectile extends GameObject {
 	}
 
 	private createMesh(): THREE.Object3D {
-		if (this.skill === "frostOrb") {
-			const outerStar = new THREE.Mesh(
-				lowPolyStarGeometry(18),
-				new THREE.MeshBasicMaterial({
-					color: 0x67c9ed,
-				}),
-			);
-			outerStar.renderOrder = Z_PROJECTILE;
-			const innerStar = new THREE.Mesh(
-				lowPolyStarGeometry(13),
-				new THREE.MeshBasicMaterial({
-					color: 0xb7efff,
-				}),
-			);
-			innerStar.position.z = 2.5;
-			innerStar.renderOrder = Z_PROJECTILE + 0.001;
-			const group = new THREE.Group();
-			group.add(outerStar, innerStar);
-			return group as unknown as THREE.Mesh;
-		}
-
-		if (this.skill === "frostSpike") {
-			const mesh = new THREE.Mesh(
-				new THREE.ConeGeometry(4.5, 20, 5),
-				new THREE.MeshBasicMaterial({
-					color: 0xbdefff,
-				}),
-			);
-			const group = new THREE.Group();
-			group.add(mesh);
-			return group as unknown as THREE.Mesh;
-		}
-
-		if (this.skill === "vampiricBoomerang") {
-			const arc = new THREE.Mesh(
-				new THREE.RingGeometry(30, 48, 20, 1, -0.9, 1.8),
-				new THREE.MeshBasicMaterial({
-					color: HERO_BLOOD_SPELL_COLOR,
-					side: THREE.DoubleSide,
-				}),
-			);
-			arc.renderOrder = Z_PROJECTILE;
-			const inner = new THREE.Mesh(
-				new THREE.RingGeometry(33, 42, 20, 1, -0.9, 1.8),
-				new THREE.MeshBasicMaterial({
-					color: 0x3d1a63,
-					side: THREE.DoubleSide,
-				}),
-			);
-			inner.renderOrder = Z_PROJECTILE + 0.001;
-			const group = new THREE.Group();
-			group.add(arc, inner);
-			return group as unknown as THREE.Mesh;
-		}
-
+		if (this.skill === "frostOrb") return this.frostOrbMesh();
+		if (this.skill === "frostSpike") return this.frostSpikeMesh();
+		if (this.skill === "vampiricBoomerang") return this.vampiricBoomerangMesh();
 		if (
 			this.skill === "rendingThrow" ||
 			this.weapon?.definitionId === "throwingAxe"
-		) {
-			const rending = this.skill === "rendingThrow";
-			const handle = new THREE.Mesh(
-				new THREE.PlaneGeometry(rending ? 24 : 18, rending ? 5 : 4),
-				new THREE.MeshBasicMaterial({ color: rending ? 0x3d1a63 : 0x8a552f }),
-			);
-			const bladeShape = new THREE.Shape();
-			bladeShape.moveTo(2, -3);
-			bladeShape.quadraticCurveTo(11, -12, 12, 0);
-			bladeShape.quadraticCurveTo(11, 12, 2, 3);
-			bladeShape.closePath();
-			const blade = new THREE.Mesh(
-				new THREE.ShapeGeometry(bladeShape),
+		)
+			return this.axeMesh(this.skill === "rendingThrow");
+		if (this.skill === "orbitingHammers") return this.hammerMesh();
+		return this.defaultOrbMesh();
+	}
+
+	private frostOrbMesh(): THREE.Object3D {
+		const outerStar = new THREE.Mesh(
+			lowPolyStarGeometry(18),
+			new THREE.MeshBasicMaterial({
+				color: 0x67c9ed,
+			}),
+		);
+		outerStar.renderOrder = Z_PROJECTILE;
+		const innerStar = new THREE.Mesh(
+			lowPolyStarGeometry(13),
+			new THREE.MeshBasicMaterial({
+				color: 0xb7efff,
+			}),
+		);
+		innerStar.position.z = 2.5;
+		innerStar.renderOrder = Z_PROJECTILE + 0.001;
+		const group = new THREE.Group();
+		group.add(outerStar, innerStar);
+		return group as unknown as THREE.Mesh;
+	}
+
+	private frostSpikeMesh(): THREE.Object3D {
+		const mesh = new THREE.Mesh(
+			new THREE.ConeGeometry(4.5, 20, 5),
+			new THREE.MeshBasicMaterial({
+				color: 0xbdefff,
+			}),
+		);
+		const group = new THREE.Group();
+		group.add(mesh);
+		return group as unknown as THREE.Mesh;
+	}
+
+	private vampiricBoomerangMesh(): THREE.Object3D {
+		const arc = new THREE.Mesh(
+			new THREE.RingGeometry(30, 48, 20, 1, -0.9, 1.8),
+			new THREE.MeshBasicMaterial({
+				color: HERO_BLOOD_SPELL_COLOR,
+				side: THREE.DoubleSide,
+			}),
+		);
+		arc.renderOrder = Z_PROJECTILE;
+		const inner = new THREE.Mesh(
+			new THREE.RingGeometry(33, 42, 20, 1, -0.9, 1.8),
+			new THREE.MeshBasicMaterial({
+				color: 0x3d1a63,
+				side: THREE.DoubleSide,
+			}),
+		);
+		inner.renderOrder = Z_PROJECTILE + 0.001;
+		const group = new THREE.Group();
+		group.add(arc, inner);
+		return group as unknown as THREE.Mesh;
+	}
+
+	private axeMesh(rending: boolean): THREE.Object3D {
+		const handle = new THREE.Mesh(
+			new THREE.PlaneGeometry(rending ? 24 : 18, rending ? 5 : 4),
+			new THREE.MeshBasicMaterial({ color: rending ? 0x3d1a63 : 0x8a552f }),
+		);
+		const bladeShape = new THREE.Shape();
+		bladeShape.moveTo(2, -3);
+		bladeShape.quadraticCurveTo(11, -12, 12, 0);
+		bladeShape.quadraticCurveTo(11, 12, 2, 3);
+		bladeShape.closePath();
+		const blade = new THREE.Mesh(
+			new THREE.ShapeGeometry(bladeShape),
+			new THREE.MeshBasicMaterial({
+				color: rending ? HERO_BLOOD_SPELL_COLOR : 0xb9c4ca,
+			}),
+		);
+		blade.position.x = 5;
+		const group = new THREE.Group();
+		if (rending) {
+			const oppositeBlade = blade.clone();
+			oppositeBlade.rotation.z = Math.PI;
+			oppositeBlade.position.x = -5;
+			const aura = new THREE.Mesh(
+				new THREE.RingGeometry(14, 18, 20),
 				new THREE.MeshBasicMaterial({
-					color: rending ? HERO_BLOOD_SPELL_COLOR : 0xb9c4ca,
+					color: 0x7138b8,
+					transparent: true,
+					opacity: 0.38,
+					side: THREE.DoubleSide,
 				}),
 			);
-			blade.position.x = 5;
-			const group = new THREE.Group();
-			if (rending) {
-				const oppositeBlade = blade.clone();
-				oppositeBlade.rotation.z = Math.PI;
-				oppositeBlade.position.x = -5;
-				const aura = new THREE.Mesh(
-					new THREE.RingGeometry(14, 18, 20),
-					new THREE.MeshBasicMaterial({
-						color: 0x7138b8,
-						transparent: true,
-						opacity: 0.38,
-						side: THREE.DoubleSide,
-					}),
-				);
-				aura.name = "rending-aura";
-				group.add(aura, handle, blade, oppositeBlade);
-			} else group.add(handle, blade);
-			return group as unknown as THREE.Mesh;
-		}
+			aura.name = "rending-aura";
+			group.add(aura, handle, blade, oppositeBlade);
+		} else group.add(handle, blade);
+		return group as unknown as THREE.Mesh;
+	}
 
-		if (this.skill === "orbitingHammers") {
-			const handle = new THREE.Mesh(
-				new THREE.PlaneGeometry(5, 28),
-				new THREE.MeshBasicMaterial({ color: 0x8a552f }),
-			);
-			const head = new THREE.Mesh(
-				new THREE.PlaneGeometry(22, 10),
-				new THREE.MeshBasicMaterial({ color: 0xd8c078 }),
-			);
-			head.position.y = 11;
-			const group = new THREE.Group();
-			group.add(handle, head);
-			return group;
-		}
+	private hammerMesh(): THREE.Object3D {
+		const handle = new THREE.Mesh(
+			new THREE.PlaneGeometry(5, 28),
+			new THREE.MeshBasicMaterial({ color: 0x8a552f }),
+		);
+		const head = new THREE.Mesh(
+			new THREE.PlaneGeometry(22, 10),
+			new THREE.MeshBasicMaterial({ color: 0xd8c078 }),
+		);
+		head.position.y = 11;
+		const group = new THREE.Group();
+		group.add(handle, head);
+		return group;
+	}
 
+	private defaultOrbMesh(): THREE.Object3D {
 		const defaultMesh = new THREE.Mesh(
 			new THREE.CircleGeometry(this.radius, 16),
 			new THREE.MeshBasicMaterial({
@@ -353,7 +362,6 @@ export class Projectile extends GameObject {
 		group.add(defaultMesh, highlight);
 		return group as unknown as THREE.Mesh;
 	}
-
 	private async loadHammerModel(): Promise<void> {
 		try {
 			const gltf = await loadOrbitingHammerModel();
