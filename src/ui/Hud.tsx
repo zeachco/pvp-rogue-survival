@@ -44,7 +44,7 @@ import {
 	whirlwindDuration,
 	whirlwindMovementSpeed,
 } from "../../common/combat";
-import { trimTo2Decimals } from "../../common/format";
+import { capitalize, trimTo2Decimals } from "../../common/format";
 import { SKILLS } from "../../common/content";
 import {
 	inventoryCapacity,
@@ -4223,10 +4223,6 @@ function rankedName(name: string, receivesDeathEchoes: boolean): Node {
 	) as HTMLElement;
 	return wrapper;
 }
-function capitalize(value: string): string {
-	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
-}
-
 export function spellTooltipLevels(
 	level: number,
 	maxLearnedLevel: number,

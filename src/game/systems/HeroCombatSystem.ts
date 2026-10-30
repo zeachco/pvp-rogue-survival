@@ -42,7 +42,7 @@ import {
 	whirlwindRadius,
 } from "../../../common/combat";
 import { SKILLS } from "../../../common/content";
-import { trimTo2Decimals } from "../../../common/format";
+import { capitalize, trimTo2Decimals } from "../../../common/format";
 import {
 	equippedSkillLevelContribution,
 	type ItemInstance,
@@ -1141,7 +1141,7 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 			? "1% max Mana / block; +1 Rage"
 			: `${trimTo2Decimals(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.passive && definition.upkeep)
-		return `${trimTo2Decimals(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`;
+		return `${trimTo2Decimals(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalize(definition.upkeep.resource)}/s`;
 	if (skill === "healing") {
 		const multiplier = 1 - resourceReduction(progress, "mana", stats);
 		const baseCost =
@@ -1155,9 +1155,6 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 			? "max(3% Remaining HP, 1 HP)"
 			: `${trimTo2Decimals(10 * (1 - resourceReduction(progress, "life", stats)))}% Remaining HP`;
 	return `${trimTo2Decimals(skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.rageCost ?? 1) + 0.35)} Rage`;
-}
-function capitalizeResource(resource: "mana" | "rage" | "life"): string {
-	return resource[0].toUpperCase() + resource.slice(1);
 }
 export function forceField(
 	target: {
