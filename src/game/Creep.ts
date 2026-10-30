@@ -8,7 +8,7 @@ import {
 	healingRadius,
 } from "../../common/combat";
 import { ENEMY_ARCHETYPES } from "../../common/content";
-import type { SkillId } from "../../common/items";
+import type { ItemInstance, SkillId } from "../../common/items";
 import type {
 	CreepKind,
 	EnemyRole,
@@ -142,11 +142,11 @@ export class Creep extends Unit {
 	readonly bonusSkillRing: THREE.Mesh;
 	readonly threatArrow: THREE.Mesh;
 
-	private readonly bodyMesh: THREE.Mesh;
+	private bodyMesh!: THREE.Mesh;
 	private readonly spriteGroup = new THREE.Group();
-	private readonly animatedCharacter?: AnimatedCharacter;
-	private readonly modelKind?: CharacterModelKind;
-	private readonly strokeMesh: THREE.Mesh;
+	private animatedCharacter?: AnimatedCharacter;
+	private modelKind?: CharacterModelKind;
+	private strokeMesh!: THREE.Mesh;
 	private readonly healthBg: THREE.Mesh;
 	private readonly healthFill: THREE.Mesh;
 	private readonly manaBg: THREE.Mesh;
@@ -155,14 +155,14 @@ export class Creep extends Unit {
 	private readonly rageFill: THREE.Mesh;
 	private readonly reflectiveSurgeIcon: THREE.Mesh;
 	private readonly stateIcons: THREE.Mesh[] = [];
-	private readonly bubbleEye?: THREE.Mesh;
+	private bubbleEye?: THREE.Mesh;
 	readonly resourceBarAnchorY: number;
 	private barWidth = 32;
 	private healthBarHeight = 4;
 	private manaBarHeight = 2;
 	private rageBarHeight = 2;
-	private readonly spriteCenterHeight: number;
-	private readonly presentationHeight: number;
+	private spriteCenterHeight!: number;
+	private presentationHeight!: number;
 
 	get presentationTop(): number {
 		return this.presentationHeight;
@@ -216,102 +216,13 @@ export class Creep extends Unit {
 		this.bounty = Math.max(1, build.mainHand?.sellValue ?? 1);
 		this.scoreValue = build.isRival ? 10 : 2;
 
-		const fillColor = build.isRival
-			? THEME.championBody
-			: build.kind === "bubbleShooter"
-				? 0x8c7cff
-				: THEME.creepBody;
-		const strokeColorStr = build.isRival ? "#4a3300" : "#2a1216";
 		const sentItem = [
 			build.mainHand,
 			build.offHand,
 			build.amulet,
 			build.charm,
 		].find((item) => item?.id.includes("sent"));
-
-		if (this.kind === "melee") {
-			this.presentationHeight = this.radius * 2;
-			this.spriteCenterHeight = this.radius;
-			const shape = new THREE.Shape();
-			for (let i = 0; i < 6; i += 1) {
-				const a = -Math.PI / 2 + (i * Math.PI) / 3;
-				const px = Math.cos(a) * this.radius;
-				const py = Math.sin(a) * this.radius;
-				if (i === 0) shape.moveTo(px, py);
-				else shape.lineTo(px, py);
-			}
-			shape.closePath();
-			this.bodyMesh = new THREE.Mesh(
-				new THREE.ShapeGeometry(shape),
-				toonMaterial(fillColor),
-			);
-		} else {
-			this.presentationHeight = this.radius * 2;
-			this.spriteCenterHeight = this.radius;
-			this.bodyMesh = new THREE.Mesh(
-				new THREE.CircleGeometry(this.radius, 24),
-				toonMaterial(fillColor),
-			);
-		}
-		if (this.kind === "melee") {
-			const shape = new THREE.Shape();
-			for (let i = 0; i < 6; i += 1) {
-				const a = -Math.PI / 2 + (i * Math.PI) / 3;
-				const px = Math.cos(a) * this.radius;
-				const py = Math.sin(a) * this.radius;
-				if (i === 0) shape.moveTo(px, py);
-				else shape.lineTo(px, py);
-			}
-			shape.closePath();
-			this.strokeMesh = new THREE.Mesh(
-				new THREE.ShapeGeometry(shape),
-				new THREE.MeshBasicMaterial({
-					color: sentItem ? dropRarityColor(sentItem.rarity) : strokeColorStr,
-					wireframe: true,
-				}),
-			);
-		} else {
-			this.strokeMesh = new THREE.Mesh(
-				new THREE.RingGeometry(this.radius - 1.5, this.radius + 1.5, 24),
-				new THREE.MeshBasicMaterial({
-					color: sentItem ? dropRarityColor(sentItem.rarity) : strokeColorStr,
-					side: THREE.DoubleSide,
-				}),
-			);
-		}
-		this.bodyMesh.renderOrder = Z_CREEP;
-		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
-		this.spriteGroup.add(this.bodyMesh);
-		const role = enemyRole(build);
-		const characterLight = enemyRoleLight(role);
-		if (characterLight) {
-			characterLight.position.z = this.spriteCenterHeight;
-			this.mesh.add(characterLight);
-		}
-		const modelKind = enemyRoleModelKind(role);
-		this.modelKind = modelKind;
-		if (modelKind) {
-			this.animatedCharacter = new AnimatedCharacter(
-				modelKind,
-				this.spriteGroup,
-				true,
-			);
-			this.mesh.add(this.animatedCharacter.root);
-		}
-		this.spriteGroup.add(this.strokeMesh);
-		this.spriteGroup.position.z = this.spriteCenterHeight;
-
-		if (build.kind === "bubbleShooter") {
-			const eyeGeo = new THREE.CircleGeometry(5, 16);
-			const eyeMat = new THREE.MeshBasicMaterial({
-				color: THEME.bubbleEye,
-			});
-			this.bubbleEye = new THREE.Mesh(eyeGeo, eyeMat);
-			this.bubbleEye.position.set(5, -5, 0.01);
-			this.bubbleEye.renderOrder = Z_CREEP + 0.002;
-			this.spriteGroup.add(this.bubbleEye);
-		}
-		this.mesh.add(this.spriteGroup);
+		this.buildCreepModel(build, sentItem);
 		this.resourceBarAnchorY = creepResourceBarAnchorY(this.presentationHeight);
 
 		this.healthBarGroup = new THREE.Group();
@@ -491,6 +402,104 @@ export class Creep extends Unit {
 		this.threatArrow.visible = false;
 
 		this.mesh.renderOrder = Z_CREEP;
+	}
+
+	private buildCreepModel(
+		build: UnitBuild,
+		sentItem: ItemInstance | undefined,
+	): void {
+		const fillColor = build.isRival
+			? THEME.championBody
+			: build.kind === "bubbleShooter"
+				? 0x8c7cff
+				: THEME.creepBody;
+		const strokeColor = sentItem
+			? dropRarityColor(sentItem.rarity)
+			: build.isRival
+				? "#4a3300"
+				: "#2a1216";
+
+		this.presentationHeight = this.radius * 2;
+		this.spriteCenterHeight = this.radius;
+		if (this.kind === "melee") {
+			const shape = new THREE.Shape();
+			for (let i = 0; i < 6; i += 1) {
+				const a = -Math.PI / 2 + (i * Math.PI) / 3;
+				const px = Math.cos(a) * this.radius;
+				const py = Math.sin(a) * this.radius;
+				if (i === 0) shape.moveTo(px, py);
+				else shape.lineTo(px, py);
+			}
+			shape.closePath();
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.ShapeGeometry(shape),
+				toonMaterial(fillColor),
+			);
+		} else {
+			this.bodyMesh = new THREE.Mesh(
+				new THREE.CircleGeometry(this.radius, 24),
+				toonMaterial(fillColor),
+			);
+		}
+		if (this.kind === "melee") {
+			const shape = new THREE.Shape();
+			for (let i = 0; i < 6; i += 1) {
+				const a = -Math.PI / 2 + (i * Math.PI) / 3;
+				const px = Math.cos(a) * this.radius;
+				const py = Math.sin(a) * this.radius;
+				if (i === 0) shape.moveTo(px, py);
+				else shape.lineTo(px, py);
+			}
+			shape.closePath();
+			this.strokeMesh = new THREE.Mesh(
+				new THREE.ShapeGeometry(shape),
+				new THREE.MeshBasicMaterial({
+					color: strokeColor,
+					wireframe: true,
+				}),
+			);
+		} else {
+			this.strokeMesh = new THREE.Mesh(
+				new THREE.RingGeometry(this.radius - 1.5, this.radius + 1.5, 24),
+				new THREE.MeshBasicMaterial({
+					color: strokeColor,
+					side: THREE.DoubleSide,
+				}),
+			);
+		}
+		this.bodyMesh.renderOrder = Z_CREEP;
+		this.strokeMesh.renderOrder = Z_CREEP + 0.001;
+		this.spriteGroup.add(this.bodyMesh);
+		const role = enemyRole(build);
+		const characterLight = enemyRoleLight(role);
+		if (characterLight) {
+			characterLight.position.z = this.spriteCenterHeight;
+			this.mesh.add(characterLight);
+		}
+		const modelKind = enemyRoleModelKind(role);
+		this.modelKind = modelKind;
+		if (modelKind) {
+			this.animatedCharacter = new AnimatedCharacter(
+				modelKind,
+				this.spriteGroup,
+				true,
+			);
+			this.mesh.add(this.animatedCharacter.root);
+		}
+		this.spriteGroup.add(this.strokeMesh);
+		this.spriteGroup.position.z = this.spriteCenterHeight;
+
+		if (build.kind === "bubbleShooter") {
+			const eyeGeo = new THREE.CircleGeometry(5, 16);
+			const eyeMat = new THREE.MeshBasicMaterial({
+				color: THEME.bubbleEye,
+			});
+			this.bubbleEye = new THREE.Mesh(eyeGeo, eyeMat);
+			this.bubbleEye.position.set(5, -5, 0.01);
+			this.bubbleEye.renderOrder = Z_CREEP + 0.002;
+			this.spriteGroup.add(this.bubbleEye);
+		}
+		this.mesh.add(this.spriteGroup);
 	}
 
 	readonly kind: CreepKind;
