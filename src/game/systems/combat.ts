@@ -44,14 +44,10 @@ export function resolveCombat(
 			for (const creep of state.creeps)
 				if (creep.active && attack.contains(creep.position, creep.radius)) {
 					const source = attack.source as Unit | undefined;
-					const dealt = creep.receiveDamage(
-						attack.damage,
-						random,
-						source,
-						true,
-						false,
-						attack.presentation,
-					);
+					const dealt = creep.receiveDamage(attack.damage, random, {
+						source: source,
+						presentation: attack.presentation,
+					});
 					resolveHitEffects(
 						creep,
 						source,
@@ -108,14 +104,10 @@ export function resolveCombat(
 						});
 				}
 		} else if (hero.active && attack.contains(hero.position, hero.radius)) {
-			const dealt = hero.receiveDamage(
-				attack.damage,
-				random,
-				attack.source as Unit | undefined,
-				true,
-				false,
-				attack.presentation,
-			);
+			const dealt = hero.receiveDamage(attack.damage, random, {
+				source: attack.source as Unit | undefined,
+				presentation: attack.presentation,
+			});
 			resolveHitEffects(
 				hero,
 				attack.source as Unit | undefined,
@@ -166,14 +158,10 @@ export function resolveCombat(
 						projectile.skill === "vampiricBoomerang"
 							? projectile.damage * projectile.overlapDamageSeconds
 							: projectile.damage;
-					const dealt = hit.receiveDamage(
-						damage,
-						random,
-						projectile.source,
-						true,
-						false,
-						projectile.presentation,
-					);
+					const dealt = hit.receiveDamage(damage, random, {
+						source: projectile.source,
+						presentation: projectile.presentation,
+					});
 					projectile.recordDamage(dealt);
 					if (projectile.skill !== "vampiricBoomerang")
 						resolveHitEffects(
@@ -234,14 +222,11 @@ export function resolveCombat(
 								distance(projectile.position, enemy.position) <=
 									radius + enemy.radius
 							) {
-								enemy.receiveDamage(
-									explosion,
-									random,
-									projectile.source,
-									false,
-									false,
-									{ kind: "magic" },
-								);
+								enemy.receiveDamage(explosion, random, {
+									source: projectile.source,
+									reflectable: false,
+									presentation: { kind: "magic" },
+								});
 								if (unique)
 									enemy.addStatus({
 										kind: "freeze",
@@ -267,14 +252,10 @@ export function resolveCombat(
 			projectile.radius + hero.radius
 		) {
 			const weapon = projectile.weapon ?? projectile.source?.mainHand;
-			const dealt = hero.receiveDamage(
-				projectile.damage,
-				random,
-				projectile.source,
-				true,
-				false,
-				projectile.presentation,
-			);
+			const dealt = hero.receiveDamage(projectile.damage, random, {
+				source: projectile.source,
+				presentation: projectile.presentation,
+			});
 			resolveHitEffects(
 				hero,
 				projectile.source,
@@ -373,12 +354,9 @@ function applyPhysicalAccessoryDamage(
 		0,
 	);
 	if (fraction > 0)
-		target.receiveDamage(
-			physicalDamage * fraction,
-			random,
-			source,
-			false,
-			false,
-			{ kind: "magic" },
-		);
+		target.receiveDamage(physicalDamage * fraction, random, {
+			source: source,
+			reflectable: false,
+			presentation: { kind: "magic" },
+		});
 }

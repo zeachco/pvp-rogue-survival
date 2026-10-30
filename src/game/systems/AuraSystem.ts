@@ -109,10 +109,7 @@ export class AuraSystem {
 				creep.receiveDamage(
 					creep.maxHp * sunburnFraction(stats.intelligence),
 					random,
-					hero,
-					false,
-					false,
-					{ kind: "fire" },
+					{ source: hero, reflectable: false, presentation: { kind: "fire" } },
 				);
 			this.sunburnRemaining = sunburnInterval(stats.spirit);
 		}
@@ -128,10 +125,11 @@ export class AuraSystem {
 				first.receiveDamage(
 					damage * (critical ? hero.state.critMultiplier : 1),
 					random,
-					hero,
-					false,
-					false,
-					{ kind: "electric", critical },
+					{
+						source: hero,
+						reflectable: false,
+						presentation: { kind: "electric", critical },
+					},
 				);
 				spellEffects.push(thunderImpact(first));
 				if (critical) {
@@ -145,8 +143,12 @@ export class AuraSystem {
 								]
 							: undefined;
 					if (chained) {
-						chained.receiveDamage(damage * 0.6, random, hero, false, false, {
-							kind: "electric",
+						chained.receiveDamage(damage * 0.6, random, {
+							source: hero,
+							reflectable: false,
+							presentation: {
+								kind: "electric",
+							},
 						});
 						spellEffects.push(thunderImpact(chained));
 					}
@@ -169,8 +171,12 @@ export class AuraSystem {
 					target.active &&
 					distanceSquared(pending.position, target.position) <= radiusSquared
 				)
-					target.receiveDamage(pending.damage, random, hero, false, false, {
-						kind: "magic",
+					target.receiveDamage(pending.damage, random, {
+						source: hero,
+						reflectable: false,
+						presentation: {
+							kind: "magic",
+						},
 					});
 		}
 		this.pendingBursts = [];

@@ -122,9 +122,13 @@ export class Blizzard extends GameObject {
 					(this.radius + creep.radius) ** 2
 			)
 				continue;
-			creep.receiveDamage(this.damage, random, this.source, false, false, {
-				kind: "cold",
-				critical: this.critical,
+			creep.receiveDamage(this.damage, random, {
+				source: this.source,
+				reflectable: false,
+				presentation: {
+					kind: "cold",
+					critical: this.critical,
+				},
 			});
 			creep.addStatus({
 				kind: "freeze",

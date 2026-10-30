@@ -1091,10 +1091,18 @@ describe("arena systems", () => {
 			target.onCombatText = (text) => texts.push(text);
 			const hp = target.hp;
 			expect(
-				target.receiveDamage(20, { next: () => 1 }, source, false, false, {
-					kind,
-					critical: true,
-				}),
+				target.receiveDamage(
+					20,
+					{ next: () => 1 },
+					{
+						source: source,
+						reflectable: false,
+						presentation: {
+							kind,
+							critical: true,
+						},
+					},
+				),
 			).toBe(20);
 			expect(target.hp).toBeCloseTo(hp - 20.2);
 			expect(texts).toMatchObject([
@@ -1139,10 +1147,18 @@ describe("arena systems", () => {
 		const target = new Hero({ x: 10, y: 0 });
 		target.configureStats({ ...ZERO_STATS, strength: 100 });
 		const hp = target.hp;
-		target.receiveDamage(20, { next: () => 1 }, source, false, false, {
-			kind: "magic",
-			critical: false,
-		});
+		target.receiveDamage(
+			20,
+			{ next: () => 1 },
+			{
+				source: source,
+				reflectable: false,
+				presentation: {
+					kind: "magic",
+					critical: false,
+				},
+			},
+		);
 		expect(source.mana).toBe(0);
 		expect(target.hp).toBe(hp - 20);
 	});
@@ -1154,10 +1170,18 @@ describe("arena systems", () => {
 		source.mana = source.maxMana;
 		const target = new Hero({ x: 10, y: 0 });
 		target.configureStats({ ...ZERO_STATS, strength: 1_000 });
-		target.receiveDamage(100, { next: () => 1 }, source, false, false, {
-			kind: "magic",
-			critical: true,
-		});
+		target.receiveDamage(
+			100,
+			{ next: () => 1 },
+			{
+				source: source,
+				reflectable: false,
+				presentation: {
+					kind: "magic",
+					critical: true,
+				},
+			},
+		);
 		expect(source.mana).toBe(source.maxMana * 3);
 		source.compileState(1);
 		source.updateResources(1);
@@ -2798,9 +2822,16 @@ describe("arena systems", () => {
 		const hero = new Hero({ x: 0, y: 0 });
 		hero.configureStats(ZERO_STATS, undefined, ward);
 		expect(
-			hero.receiveDamage(5, { next: () => 1 }, undefined, false, false, {
-				kind: "cold",
-			}),
+			hero.receiveDamage(
+				5,
+				{ next: () => 1 },
+				{
+					reflectable: false,
+					presentation: {
+						kind: "cold",
+					},
+				},
+			),
 		).toBe(0);
 		hero.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 });
 		hero.addStatus({ kind: "burn", remaining: 4, damagePerSecond: 1 });
@@ -3412,12 +3443,12 @@ describe("arena systems", () => {
 		defender.compileState(1 / 60);
 		const random = { next: () => 1 };
 		const before = attacker.hp;
-		defender.receiveDamage(20, random, attacker);
+		defender.receiveDamage(20, random, { source: attacker });
 		expect(attacker.hp).toBe(before - 1);
 		attacker.hp = before;
 		defender.reflectiveSurgeRemaining = 6;
 		defender.compileState(1 / 60);
-		defender.receiveDamage(20, random, attacker);
+		defender.receiveDamage(20, random, { source: attacker });
 		expect(attacker.hp).toBe(before - 2.2);
 	});
 
@@ -3432,20 +3463,34 @@ describe("arena systems", () => {
 		defender.compileState(1 / 60);
 		const before = attacker.hp;
 		expect(defender.reflectiveSurgeRemaining).toBe(0);
-		defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-			critical: false,
-		});
+		defender.receiveDamage(
+			5,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+					critical: false,
+				},
+			},
+		);
 		expect(defender.rage).toBe(3);
 		expect(defender.reflectiveSurgeRemaining).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBeGreaterThan(0);
 		expect(attacker.hp).toBeCloseTo(before - 0.25);
 		const cooldown = defender.reflectiveSurgeCooldown;
 		defender.compileState(1 / 60);
-		defender.receiveDamage(5, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-			critical: false,
-		});
+		defender.receiveDamage(
+			5,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+					critical: false,
+				},
+			},
+		);
 		expect(defender.rage).toBe(5);
 		expect(defender.reflectiveSurgeCooldown).toBe(cooldown);
 		expect(attacker.hp).toBeCloseTo(before - 0.8);
@@ -3472,7 +3517,7 @@ describe("arena systems", () => {
 		};
 		const combat = new HeroCombatSystem();
 		combat.syncSkills(progress, hero);
-		hero.receiveDamage(1, { next: () => 1 }, attacker);
+		hero.receiveDamage(1, { next: () => 1 }, { source: attacker });
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
 		expect(hero.rage).toBe(7);
 
@@ -3539,7 +3584,7 @@ describe("arena systems", () => {
 		expect(hero.reflectiveSurgeRemaining).toBe(0);
 		expect(hero.rage).toBe(5);
 
-		hero.receiveDamage(1, { next: () => 1 }, attacker);
+		hero.receiveDamage(1, { next: () => 1 }, { source: attacker });
 		expect(hero.reflectiveSurgeRemaining).toBe(5);
 		expect(hero.rage).toBe(4);
 		expect(hero.reflectiveSurgeCooldown).toBeGreaterThan(0);
@@ -3625,10 +3670,17 @@ describe("arena systems", () => {
 		const texts: CombatText[] = [];
 		defender.onCombatText = (text) => texts.push(text);
 		attacker.onCombatText = (text) => texts.push(text);
-		defender.receiveDamage(2, { next: () => 1 }, attacker, true, false, {
-			kind: "magic",
-			critical: true,
-		});
+		defender.receiveDamage(
+			2,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "magic",
+					critical: true,
+				},
+			},
+		);
 		defender.heal(1);
 		expect(texts.map(({ kind, critical }) => ({ kind, critical }))).toEqual([
 			{ kind: "magic", critical: true },
@@ -3645,10 +3697,17 @@ describe("arena systems", () => {
 			buckler,
 		);
 		texts.length = 0;
-		defender.receiveDamage(2, { next: () => 0 }, attacker, true, false, {
-			kind: "fire",
-			critical: true,
-		});
+		defender.receiveDamage(
+			2,
+			{ next: () => 0 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "fire",
+					critical: true,
+				},
+			},
+		);
 		expect(
 			texts.some(
 				(text) =>
@@ -4088,9 +4147,16 @@ describe("Unique rarity arena effects", () => {
 		const attacker = new Hero({ x: 10, y: 0 });
 		attacker.configureStats(ZERO_STATS);
 		const before = hero.hp;
-		hero.receiveDamage(20, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-		});
+		hero.receiveDamage(
+			20,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+				},
+			},
+		);
 		expect(reflected).toHaveLength(1);
 		expect(reflected[0]).toBeCloseTo(1);
 		expect(attacker.hp).toBe(attacker.maxHp);
@@ -4176,14 +4242,28 @@ describe("Unique rarity arena effects", () => {
 		const attacker = new Hero({ x: 10, y: 0 });
 		attacker.configureStats(ZERO_STATS);
 		const heroBefore = hero.hp;
-		hero.receiveDamage(20, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-		});
+		hero.receiveDamage(
+			20,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+				},
+			},
+		);
 		const heroDamage = heroBefore - hero.hp;
 		const controlBefore = control.hp;
-		control.receiveDamage(20, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-		});
+		control.receiveDamage(
+			20,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+				},
+			},
+		);
 		const controlDamage = controlBefore - control.hp;
 		expect(controlDamage).toBeGreaterThan(0);
 		expect(heroDamage).toBeCloseTo(controlDamage * 0.8);
@@ -4203,21 +4283,42 @@ describe("Unique rarity arena effects", () => {
 		const attacker = new Hero({ x: 10, y: 0 });
 		attacker.configureStats(ZERO_STATS);
 		const maxHp = hero.hp;
-		hero.receiveDamage(maxHp + 50, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-		});
+		hero.receiveDamage(
+			maxHp + 50,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+				},
+			},
+		);
 		expect(hero.hp).toBe(1);
 		expect(hero.immunityRemaining).toBe(1);
 		expect(hero.deathPreventionWaveUsed).toBe(5);
-		hero.receiveDamage(50, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-		});
+		hero.receiveDamage(
+			50,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+				},
+			},
+		);
 		expect(hero.hp).toBe(1);
 		hero.updateResources(1);
 		expect(hero.immunityRemaining).toBe(0);
-		hero.receiveDamage(50, { next: () => 1 }, attacker, true, false, {
-			kind: "physical",
-		});
+		hero.receiveDamage(
+			50,
+			{ next: () => 1 },
+			{
+				source: attacker,
+				presentation: {
+					kind: "physical",
+				},
+			},
+		);
 		expect(hero.hp).toBe(0);
 		expect(hero.active).toBeFalse();
 	});

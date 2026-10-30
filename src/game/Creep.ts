@@ -688,8 +688,12 @@ export class Creep extends Unit {
 			this.mainHand.rarity === "unique" &&
 			distance(this.position, enemy.position) <= radius
 		)
-			enemy.receiveDamage(restored * 0.25, this.random, this, false, false, {
-				kind: "magic",
+			enemy.receiveDamage(restored * 0.25, this.random, {
+				source: this,
+				reflectable: false,
+				presentation: {
+					kind: "magic",
+				},
 			});
 		effects.push(new SpellEffect("healing", this.position, 0, radius));
 		this.healingCooldown = healingCooldown(level);

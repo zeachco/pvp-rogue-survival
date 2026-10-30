@@ -684,11 +684,7 @@ export class Game {
 		this.hero.receiveDamage(
 			this.hero.maxHp * message.damageFraction,
 			{ next: () => 1 },
-			undefined,
-			false,
-			false,
-			{ kind: "physical" },
-			false,
+			{ reflectable: false, blockable: false },
 		);
 		this.syncHeroState();
 		this.hud.setPlayer(this.player!);
@@ -1296,7 +1292,11 @@ export class Game {
 				distance(creep.position, this.hero.position) > 300
 			)
 				return;
-			this.hero.receiveDamage(reflected, random, creep, false, false, { kind });
+			this.hero.receiveDamage(reflected, random, {
+				source: creep,
+				reflectable: false,
+				presentation: { kind },
+			});
 		};
 		this.creeps.push(creep);
 	}
@@ -1305,8 +1305,12 @@ export class Game {
 			if (!hero.active) return;
 			for (const creep of this.creeps)
 				if (creep.active && distance(hero.position, creep.position) <= 300)
-					creep.receiveDamage(reflected, random, hero, false, false, {
-						kind,
+					creep.receiveDamage(reflected, random, {
+						source: hero,
+						reflectable: false,
+						presentation: {
+							kind,
+						},
 					});
 		};
 	}

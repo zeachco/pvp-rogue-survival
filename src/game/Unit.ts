@@ -82,6 +82,14 @@ class StatusUnitEffect extends UnitEffect {
 	}
 }
 
+interface ReceiveDamageOptions {
+	source?: Unit;
+	reflectable?: boolean;
+	invulnerable?: boolean;
+	presentation?: DamagePresentation;
+	blockable?: boolean;
+}
+
 export abstract class Unit extends GameObject implements UnitEffectTarget {
 	position: Vector2;
 	velocity: Vector2 = { x: 0, y: 0 };
@@ -259,15 +267,13 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			this.takeDamage(amount);
 			return Math.max(0, before - this.hp);
 		}
-		return this.receiveDamage(
-			amount,
-			this.effectRandom,
-			source instanceof Unit ? source : undefined,
-			false,
-			this.effectInvulnerable,
-			{ kind: isDamageKind(kind) ? kind : "physical" },
-			false,
-		);
+		return this.receiveDamage(amount, this.effectRandom, {
+			source: source instanceof Unit ? source : undefined,
+			reflectable: false,
+			invulnerable: this.effectInvulnerable,
+			presentation: { kind: isDamageKind(kind) ? kind : "physical" },
+			blockable: false,
+		});
 	}
 
 	takeDamage(amount: number): void {
@@ -362,12 +368,15 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	receiveDamage(
 		amount: number,
 		random: RandomSource,
-		source?: Unit,
-		reflectable = true,
-		invulnerable = false,
-		presentation: DamagePresentation = { kind: "physical" },
-		blockable = true,
+		options: ReceiveDamageOptions = {},
 	): number {
+		const {
+			source,
+			reflectable = true,
+			invulnerable = false,
+			presentation = { kind: "physical" },
+			blockable = true,
+		} = options;
 		if (this.immunityRemaining > 0) return 0;
 		this.lastHitDodged = false;
 		let critical = presentation.critical ?? false;
@@ -426,9 +435,13 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 				);
 			source.restoreMana(spiritDamage, MANA_OVERFILL_MULTIPLIER);
 			if (this.active && spiritDamage > 0)
-				this.receiveDamage(spiritDamage, random, source, false, false, {
-					kind: "cold",
-					critical: false,
+				this.receiveDamage(spiritDamage, random, {
+					source: source,
+					reflectable: false,
+					presentation: {
+						kind: "cold",
+						critical: false,
+					},
 				});
 		}
 		if (activateSurgeAfterHit) this.activateReflectiveSurge();
@@ -526,8 +539,12 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		if (radial && this.radialReflect)
 			this.radialReflect(reflected, random, presentation.kind);
 		else
-			source.receiveDamage(reflected, random, this, false, false, {
-				kind: presentation.kind,
+			source.receiveDamage(reflected, random, {
+				source: this,
+				reflectable: false,
+				presentation: {
+					kind: presentation.kind,
+				},
 			});
 	}
 

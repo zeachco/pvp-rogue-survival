@@ -168,14 +168,10 @@ export class HeroCombatSystem {
 						distance(hero.position, creep.position) <=
 							this.whirlwindRange + creep.radius
 					) {
-						const dealt = creep.receiveDamage(
-							this.whirlwindHitDamage,
-							random,
-							hero,
-							false,
-							false,
-							{ kind: "physical" },
-						);
+						const dealt = creep.receiveDamage(this.whirlwindHitDamage, random, {
+							source: hero,
+							reflectable: false,
+						});
 						if (dealt > 0) applyImpactForce(creep, force);
 					}
 				this.whirlwindPulse += 0.25;
@@ -842,8 +838,12 @@ export class HeroCombatSystem {
 						creep.active &&
 						distance(hero.position, creep.position) <= radius + creep.radius
 					)
-						creep.receiveDamage(healDamage, random, hero, false, false, {
-							kind: "magic",
+						creep.receiveDamage(healDamage, random, {
+							source: hero,
+							reflectable: false,
+							presentation: {
+								kind: "magic",
+							},
 						});
 			}
 			this.healingCooldown = healingCooldown(level);
@@ -1339,10 +1339,7 @@ export function castForceFieldTargets(
 		const dealt = target.receiveDamage(
 			forceFieldDamage(level, targetDistance),
 			random,
-			source,
-			false,
-			false,
-			{ kind: "magic" },
+			{ source: source, reflectable: false, presentation: { kind: "magic" } },
 		);
 		if (dealt > 0 && transferred)
 			target.addStatus({
