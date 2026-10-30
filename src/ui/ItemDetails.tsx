@@ -7,6 +7,7 @@ import {
 	weaponDamage,
 	weaponSkillTriggerChance,
 } from "../../common/combat";
+import { trimTo2Decimals } from "../../common/format";
 import { SKILLS } from "../../common/content";
 import {
 	ITEM_PERKS,
@@ -95,7 +96,7 @@ export function itemDetails(
 					{detailValue(
 						baselineItem?.rageCost ?? item.rageCost,
 						item.rageCost,
-						precise,
+						trimTo2Decimals,
 					)}
 				</span>
 			) : null}
@@ -145,7 +146,8 @@ export function itemDetails(
 					</span>
 					{effectiveness < 1 ? (
 						<em tabindex="0">
-							{precise((1 - effectiveness) * 100)}% penalty to item stats
+							{trimTo2Decimals((1 - effectiveness) * 100)}% penalty to item
+							stats
 						</em>
 					) : null}
 				</span>
@@ -458,7 +460,10 @@ function itemEffectSummary(
 	};
 	for (const affix of item.affixes) push(`affix:${affix}`, capitalize(affix));
 	if (item.blockChance > 0) {
-		push("block", `${precise(item.blockChance * effectiveness * 100)}% block`);
+		push(
+			"block",
+			`${trimTo2Decimals(item.blockChance * effectiveness * 100)}% block`,
+		);
 		push(
 			"blockcost",
 			item.rarity === "unique"
@@ -469,7 +474,7 @@ function itemEffectSummary(
 	if (item.itemKind === "weapon" && item.definitionId === "katars")
 		push(
 			"block",
-			`${precise(0.01 * item.level * effectiveStats.agility * effectiveness)}% block (0.01%×level×AGI)`,
+			`${trimTo2Decimals(0.01 * item.level * effectiveStats.agility * effectiveness)}% block (0.01%×level×AGI)`,
 		);
 	if (item.attractionSpeed > 0)
 		push(
@@ -481,45 +486,48 @@ function itemEffectSummary(
 	if (item.modifiers.critChance > 0)
 		push(
 			"crit",
-			`${precise(item.modifiers.critChance * effectiveness * 100)}% crit`,
+			`${trimTo2Decimals(item.modifiers.critChance * effectiveness * 100)}% crit`,
 		);
 	if (item.modifiers.bleedChance > 0)
 		push(
 			"bleed",
-			`${precise(item.modifiers.bleedChance * effectiveness * 100)}% bleed`,
+			`${trimTo2Decimals(item.modifiers.bleedChance * effectiveness * 100)}% bleed`,
 		);
 	if (item.modifiers.poisonChance > 0)
 		push(
 			"poison",
-			`${precise(item.modifiers.poisonChance * effectiveness * 100)}% poison`,
+			`${trimTo2Decimals(item.modifiers.poisonChance * effectiveness * 100)}% poison`,
 		);
 	if (item.modifiers.stunChance > 0)
 		push(
 			"stun",
-			`${precise(item.modifiers.stunChance * effectiveness * 100)}% stun`,
+			`${trimTo2Decimals(item.modifiers.stunChance * effectiveness * 100)}% stun`,
 		);
 	if (item.modifiers.magicAmp > 0)
 		push(
 			"magic",
-			`+${precise(item.modifiers.magicAmp * effectiveness * 100)}% magic`,
+			`+${trimTo2Decimals(item.modifiers.magicAmp * effectiveness * 100)}% magic`,
 		);
 	if (item.modifiers.lifeStealBase > 0)
 		push(
 			"lifesteal",
-			`${precise(item.modifiers.lifeStealBase * effectiveness * 100)}% + 0.1%/Spirit life steal`,
+			`${trimTo2Decimals(item.modifiers.lifeStealBase * effectiveness * 100)}% + 0.1%/Spirit life steal`,
 		);
 	if (item.modifiers.strengthRegenMultiplier > 0)
 		push(
 			"vigorous",
-			`Vigorous regen: 0.01 + ${precise(item.modifiers.strengthRegenMultiplier * effectiveness)}× Strength/s`,
+			`Vigorous regen: 0.01 + ${trimTo2Decimals(item.modifiers.strengthRegenMultiplier * effectiveness)}× Strength/s`,
 		);
 	if (item.modifiers.goldGain > 0)
 		push(
 			"gold",
-			`+${precise(item.modifiers.goldGain * effectiveness * 100)}% Gold gain`,
+			`+${trimTo2Decimals(item.modifiers.goldGain * effectiveness * 100)}% Gold gain`,
 		);
 	if (item.modifiers.magicFind > 0)
-		push("rarity", `+${precise(item.modifiers.magicFind * 100)}% Magic find`);
+		push(
+			"rarity",
+			`+${trimTo2Decimals(item.modifiers.magicFind * 100)}% Magic find`,
+		);
 	if (item.reflectionComponents.length) {
 		const power = RARITY_POWER[item.rarity];
 		const parts: string[] = [];
@@ -529,7 +537,7 @@ function itemEffectSummary(
 			parts.push(`${fmt(0.2 * effectiveStats.strength * power)} (20%×STR)`);
 		if (item.reflectionComponents.includes("return"))
 			parts.push(
-				`${precise((0.15 + 0.004 * effectiveStats.agility) * power * 100)}% of incoming (15%+0.4%×AGI)`,
+				`${trimTo2Decimals((0.15 + 0.004 * effectiveStats.agility) * power * 100)}% of incoming (15%+0.4%×AGI)`,
 			);
 		push("reflection", `Reflect on block: ${parts.join(" + ")}`);
 	}
@@ -553,24 +561,24 @@ function itemEffectSummary(
 	if ((accessory?.globalCooldownReduction ?? 0) > 0)
 		push(
 			"gcd",
-			`${precise(accessory!.globalCooldownReduction! * effectiveness * 100)}% global cooldown reduction`,
+			`${trimTo2Decimals(accessory!.globalCooldownReduction! * effectiveness * 100)}% global cooldown reduction`,
 		);
 	if ((accessory?.manaCostReduction ?? 0) > 0)
 		push(
 			"manaCost",
-			`${precise(accessory!.manaCostReduction! * effectiveness * 100)}% Mana cost reduction`,
+			`${trimTo2Decimals(accessory!.manaCostReduction! * effectiveness * 100)}% Mana cost reduction`,
 		);
 	if ((accessory?.lifeCostReduction ?? 0) > 0)
 		push(
 			"lifeCost",
-			`${precise(accessory!.lifeCostReduction! * effectiveness * 100)}% Life cost reduction`,
+			`${trimTo2Decimals(accessory!.lifeCostReduction! * effectiveness * 100)}% Life cost reduction`,
 		);
 	for (const [kind, fraction] of Object.entries(
 		accessory?.physicalDamage ?? {},
 	))
 		push(
 			`physical:${kind}`,
-			`+${precise((fraction ?? 0) * effectiveness * 100)}% ${capitalize(kind)} damage on physical hits`,
+			`+${trimTo2Decimals((fraction ?? 0) * effectiveness * 100)}% ${capitalize(kind)} damage on physical hits`,
 		);
 	if (statDeltas && baselineItem) {
 		effects.push(
@@ -595,7 +603,7 @@ function itemEffectSummary(
 		if ((item.perks?.[key] ?? 0) > 0)
 			push(
 				`perk:${key}`,
-				`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]! * effectiveness) : `${precise(item.perks![key]! * effectiveness * 100)}%`}`,
+				`${capitalize(key.replace(/([A-Z])/g, " $1"))} ${key === "defense" ? fmt(item.perks![key]! * effectiveness) : `${trimTo2Decimals(item.perks![key]! * effectiveness * 100)}%`}`,
 			);
 	for (const immunity of item.immunities ?? [])
 		push(
@@ -608,9 +616,6 @@ function itemEffectSummary(
 }
 function fmt(value: number): string {
 	return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-function precise(value: number): string {
-	return Number(value.toFixed(2)).toString();
 }
 function capitalize(value: string): string {
 	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;

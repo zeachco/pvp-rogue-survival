@@ -44,6 +44,7 @@ import {
 	whirlwindDuration,
 	whirlwindMovementSpeed,
 } from "../../common/combat";
+import { trimTo2Decimals } from "../../common/format";
 import { SKILLS } from "../../common/content";
 import {
 	inventoryCapacity,
@@ -146,9 +147,10 @@ declare global {
 }
 
 function formatSkillDamage(damage: SkillDamagePreview): string {
-	if (damage.kind === "multiplier") return `${fmt(damage.value)}×`;
-	if (damage.kind === "flat") return `${fmt(damage.value)} ${damage.detail}`;
-	return `${fmt(damage.value * 100)}% ${damage.detail}`;
+	if (damage.kind === "multiplier") return `${trimTo2Decimals(damage.value)}×`;
+	if (damage.kind === "flat")
+		return `${trimTo2Decimals(damage.value)} ${damage.detail}`;
+	return `${trimTo2Decimals(damage.value * 100)}% ${damage.detail}`;
 }
 function formatSpellLevel(activeLevel: number): string {
 	return String(activeLevel);
@@ -1034,7 +1036,7 @@ export class Hud {
 				{STAT_KEYS.map((key) => (
 					<span>
 						<small>{key}</small>
-						<b>{fmt(stats[key])}</b>
+						<b>{trimTo2Decimals(stats[key])}</b>
 					</span>
 				))}
 			</div>,
@@ -1168,7 +1170,8 @@ export class Hud {
 			<div class="inspection-health">
 				<small>HP</small>
 				<strong>
-					{fmt(health ?? maxHp ?? 0)} / {fmt(maxHp ?? 0)}
+					{trimTo2Decimals(health ?? maxHp ?? 0)} /{" "}
+					{trimTo2Decimals(maxHp ?? 0)}
 				</strong>
 			</div>,
 			creepStateBadges(states),
@@ -1182,7 +1185,7 @@ export class Hud {
 				{STAT_KEYS.map((key) => (
 					<span data-stat={key}>
 						<small>{key}</small>
-						<b>{fmt(build.stats[key])}</b>
+						<b>{trimTo2Decimals(build.stats[key])}</b>
 					</span>
 				))}
 			</div>,
@@ -1962,7 +1965,7 @@ export class Hud {
 				? progress.offHand?.itemKind === "buckler" &&
 					progress.offHand.rarity === "unique"
 					? "1% max Mana / block; no cooldown; +1 Rage"
-					: `${fmt(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`
+					: `${trimTo2Decimals(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`
 				: spell.costLabel;
 		if (spell.procChancesOnAttacks !== undefined) {
 			const procChance = weaponSkillTriggerChance(cooldownSeconds);
@@ -1984,12 +1987,12 @@ export class Hud {
 						</span>
 						<span>
 							<small>Proc chance on attacks</small>
-							<strong>{fmt(procChance * 100)}%</strong>
+							<strong>{trimTo2Decimals(procChance * 100)}%</strong>
 						</span>
 						{spell.procChancesOnDamage !== undefined ? (
 							<span>
 								<small>Proc chance on damage</small>
-								<strong>{fmt(procChance * 100)}%</strong>
+								<strong>{trimTo2Decimals(procChance * 100)}%</strong>
 							</span>
 						) : null}
 						{damage ? (
@@ -2000,12 +2003,12 @@ export class Hud {
 						) : null}
 						<span>
 							<small>Cooldown</small>
-							<strong>{fmt(cooldownSeconds)}s</strong>
+							<strong>{trimTo2Decimals(cooldownSeconds)}s</strong>
 						</span>
 						<span>
 							<small>Range</small>
 							<strong>
-								{range ? `${fmt(pixelsToMeters(range))} m` : "Self"}
+								{range ? `${trimTo2Decimals(pixelsToMeters(range))} m` : "Self"}
 							</strong>
 						</span>
 					</span>
@@ -2039,7 +2042,8 @@ export class Hud {
 							<span>
 								<small>Upkeep</small>
 								<strong>
-									{fmt(upkeep)} {capitalize(skill.upkeep.resource)}/s
+									{trimTo2Decimals(upkeep)} {capitalize(skill.upkeep.resource)}
+									/s
 								</strong>
 							</span>
 						) : null}
@@ -2069,7 +2073,7 @@ export class Hud {
 						<span>
 							<small>Upkeep</small>
 							<strong>
-								{fmt(
+								{trimTo2Decimals(
 									skillUpkeepPerSecond(
 										spell.id,
 										shownLevel,
@@ -2088,75 +2092,89 @@ export class Hud {
 					) : null}
 					<span>
 						<small>Cooldown</small>
-						<strong>{fmt(cooldownSeconds)}s</strong>
+						<strong>{trimTo2Decimals(cooldownSeconds)}s</strong>
 					</span>
 					{castTime > 0 ? (
 						<span>
 							<small>Cast time</small>
-							<strong>{fmt(castTime)}s</strong>
+							<strong>{trimTo2Decimals(castTime)}s</strong>
 						</span>
 					) : null}
 					<span>
 						<small>Range</small>
 						<strong>
-							{range ? `${fmt(pixelsToMeters(range))} m` : "Self"}
+							{range ? `${trimTo2Decimals(pixelsToMeters(range))} m` : "Self"}
 						</strong>
 					</span>
 					{spell.id === "whirlwind" ? (
 						<span>
 							<small>Duration</small>
-							<strong>{fmt(whirlwindDuration(shownLevel))}s</strong>
+							<strong>{trimTo2Decimals(whirlwindDuration(shownLevel))}s</strong>
 						</span>
 					) : null}
 					{spell.id === "blizzard" ? (
 						<span>
 							<small>Duration</small>
-							<strong>{fmt(blizzardDuration(shownLevel))}s</strong>
+							<strong>{trimTo2Decimals(blizzardDuration(shownLevel))}s</strong>
 						</span>
 					) : null}
 					{spell.id === "blizzard" ? (
 						<span>
 							<small>Rainfall</small>
-							<strong>{fmt(blizzardProjectilesPerSecond(shownLevel))}/s</strong>
+							<strong>
+								{trimTo2Decimals(blizzardProjectilesPerSecond(shownLevel))}/s
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "blizzard" ? (
 						<span>
 							<small>Impact area</small>
 							<strong>
-								{fmt(pixelsToMeters(blizzardRadius(shownLevel)))} m
+								{trimTo2Decimals(pixelsToMeters(blizzardRadius(shownLevel)))} m
 							</strong>
 						</span>
 					) : null}
 					{spell.id === "whirlwind" ? (
 						<span>
 							<small>Movement</small>
-							<strong>{fmt(whirlwindMovementSpeed(shownLevel))}×</strong>
+							<strong>
+								{trimTo2Decimals(whirlwindMovementSpeed(shownLevel))}×
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "orbitingHammers" ? (
 						<span>
 							<small>Duration</small>
-							<strong>{fmt(orbitingHammerDuration(shownLevel))}s</strong>
+							<strong>
+								{trimTo2Decimals(orbitingHammerDuration(shownLevel))}s
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "rapidRegen" ? (
 						<span>
 							<small>Duration</small>
-							<strong>{fmt(rapidRegenDuration(shownLevel))}s</strong>
+							<strong>
+								{trimTo2Decimals(rapidRegenDuration(shownLevel))}s
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "reflectiveSurge" ? (
 						<span>
 							<small>Duration</small>
-							<strong>{fmt(reflectiveSurgeDuration(shownLevel))}s</strong>
+							<strong>
+								{trimTo2Decimals(reflectiveSurgeDuration(shownLevel))}s
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "reflectiveSurge" ? (
 						<span>
 							<small>Block chance</small>
 							<strong>
-								+{fmt(reflectiveSurgeBlockChanceBonus(shownLevel) * 100)}%
+								+
+								{trimTo2Decimals(
+									reflectiveSurgeBlockChanceBonus(shownLevel) * 100,
+								)}
+								%
 							</strong>
 						</span>
 					) : null}
@@ -2187,7 +2205,9 @@ export class Hud {
 					{spell.id === "healing" ? (
 						<span>
 							<small>Current HP heal</small>
-							<strong>{fmt(healingFraction(shownLevel) * 100)}%</strong>
+							<strong>
+								{trimTo2Decimals(healingFraction(shownLevel) * 100)}%
+							</strong>
 						</span>
 					) : null}
 					{spell.id === "healing" ? (
@@ -2200,7 +2220,8 @@ export class Hud {
 						<span>
 							<small>Regen</small>
 							<strong>
-								{fmt(rapidRegenMultiplier(shownLevel) * 100)}% +0.1/s
+								{trimTo2Decimals(rapidRegenMultiplier(shownLevel) * 100)}%
+								+0.1/s
 							</strong>
 						</span>
 					) : null}
@@ -2309,8 +2330,10 @@ export class Hud {
 						<div class="inspection-health">
 							<small>HP</small>
 							<strong>
-								{fmt(this.inspectedHealth ?? this.inspectedMaxHp ?? 0)} /{" "}
-								{fmt(this.inspectedMaxHp ?? 0)}
+								{trimTo2Decimals(
+									this.inspectedHealth ?? this.inspectedMaxHp ?? 0,
+								)}{" "}
+								/ {trimTo2Decimals(this.inspectedMaxHp ?? 0)}
 							</strong>
 						</div>,
 					]
@@ -2325,7 +2348,11 @@ export class Hud {
 				{STAT_KEYS.map((key) => (
 					<span data-stat={key}>
 						<small>{key}</small>
-						<b>{fmt(creepInspection ? stats[key] : effectiveStats[key])}</b>
+						<b>
+							{trimTo2Decimals(
+								creepInspection ? stats[key] : effectiveStats[key],
+							)}
+						</b>
 					</span>
 				))}
 			</div>,
@@ -2745,7 +2772,7 @@ export class Hud {
 				currentVal: currentStats[key],
 				newVal: highlight ? nextStats[key] : currentStats[key],
 			};
-			setText(node, formatPreviewValue(value, fmt));
+			setText(node, formatPreviewValue(value, trimTo2Decimals));
 			applyPreviewClass(node, previewTone(value));
 		}
 		const currentMain = this.sheetNode.querySelector<HTMLElement>(
@@ -3227,7 +3254,7 @@ export class Hud {
 							? projectedEffective[key]
 							: currentEffective[key],
 					};
-					setText(node, formatPreviewValue(value, fmt));
+					setText(node, formatPreviewValue(value, trimTo2Decimals));
 					applyPreviewClass(node, previewTone(value));
 				}
 			}
@@ -3746,24 +3773,27 @@ export function effectiveStatRows(
 	const reflection = state.reflection;
 	const surge = buffs?.reflectiveSurge;
 	return [
-		["Damage", fmt(state.attack.damage)],
-		["Attacks/s", fmt(state.attack.attacksPerSecond)],
-		["Attack cost", `${fmt(state.attack.rageCost)} rage`],
-		["Attack range", `${fmt(pixelsToMeters(state.attack.range))} m`],
+		["Damage", trimTo2Decimals(state.attack.damage)],
+		["Attacks/s", trimTo2Decimals(state.attack.attacksPerSecond)],
+		["Attack cost", `${trimTo2Decimals(state.attack.rageCost)} rage`],
+		[
+			"Attack range",
+			`${trimTo2Decimals(pixelsToMeters(state.attack.range))} m`,
+		],
 		["Crit chance", percent(state.critChance)],
 		["Crit damage", percent(state.critMultiplier)],
 		["Magic amp", percent(Math.max(0, state.magicAmp - 1))],
 		["Cooldown reduction", percent(state.cooldownReduction)],
-		["Turn speed", `${fmt(state.turnSpeedDegrees)}°/s`],
+		["Turn speed", `${trimTo2Decimals(state.turnSpeedDegrees)}°/s`],
 		[
 			"Spell range/Lv",
-			`+${fmt(pixelsToMeters(0.5 * state.attributes.spirit))} m`,
+			`+${trimTo2Decimals(pixelsToMeters(0.5 * state.attributes.spirit))} m`,
 		],
 		["Spell power/Lv", "+15%"],
-		["Max health", fmt(maxHp ?? state.maxHp)],
-		["Max rage", fmt(state.maxRage)],
-		["Max mana", fmt(state.maxMana)],
-		["Defense", fmt(state.defense)],
+		["Max health", trimTo2Decimals(maxHp ?? state.maxHp)],
+		["Max rage", trimTo2Decimals(state.maxRage)],
+		["Max mana", trimTo2Decimals(state.maxMana)],
+		["Defense", trimTo2Decimals(state.defense)],
 		["Dodge chance", percent(state.dodgeChance)],
 		[
 			"Physical resist",
@@ -3808,15 +3838,15 @@ export function effectiveStatRows(
 			buckler?.rarity === "unique"
 				? "1% max mana; no cooldown; +1 rage"
 				: buckler
-					? `${fmt(state.blockCost)} rage`
+					? `${trimTo2Decimals(state.blockCost)} rage`
 					: "0",
 		],
-		["Health regen", `${fmt(state.healthRegen)}/s`],
-		["Mana regen", `${fmt(state.manaRegen)}/s`],
-		["Rage decay", `−${fmt(state.rageDecay)}/s`],
+		["Health regen", `${trimTo2Decimals(state.healthRegen)}/s`],
+		["Mana regen", `${trimTo2Decimals(state.manaRegen)}/s`],
+		["Rage decay", `−${trimTo2Decimals(state.rageDecay)}/s`],
 		["Bonus XP", percent(state.bonusXp)],
-		["HP on kill", fmt(state.healthOnKill)],
-		["Mana on kill", fmt(state.manaOnKill)],
+		["HP on kill", trimTo2Decimals(state.healthOnKill)],
+		["Mana on kill", trimTo2Decimals(state.manaOnKill)],
 		["Life steal", percent(state.lifeSteal)],
 		["Mana cost reduction", percent(state.manaCostReduction)],
 		["Life cost reduction", percent(state.lifeCostReduction)],
@@ -3826,23 +3856,26 @@ export function effectiveStatRows(
 		["Gold gain", percent(state.goldGain)],
 		["Magic find", percent(state.magicFind)],
 		["Attraction Gold find", percent(state.attractionGoldFind)],
-		["Attraction", `${fmt(pixelsToMeters(state.attractionSpeed))} m/s`],
+		[
+			"Attraction",
+			`${trimTo2Decimals(pixelsToMeters(state.attractionSpeed))} m/s`,
+		],
 		[
 			"Reflection",
 			buckler?.reflectionComponents.length || thornsActive
 				? (() => {
 						const parts: string[] = [];
 						if (buckler?.reflectionComponents.includes("flat"))
-							parts.push(fmt(reflection.flat));
+							parts.push(trimTo2Decimals(reflection.flat));
 						if (buckler?.reflectionComponents.includes("strength"))
-							parts.push(`${fmt(reflection.strength)} (20%×STR)`);
+							parts.push(`${trimTo2Decimals(reflection.strength)} (20%×STR)`);
 						if (buckler?.reflectionComponents.includes("return"))
 							parts.push(
-								`${fmt(reflection.incomingFraction * 100)}% inc. (15%+0.4%×AGI)`,
+								`${trimTo2Decimals(reflection.incomingFraction * 100)}% inc. (15%+0.4%×AGI)`,
 							);
 						if (thornsActive)
 							parts.push(
-								`${fmt(reflection.thornsFraction * 100)}% inc. (Thorns)`,
+								`${trimTo2Decimals(reflection.thornsFraction * 100)}% inc. (Thorns)`,
 							);
 						if (surge) parts.push("1% inc. (Surge)");
 						return `Reflect: ${parts.join(" + ")}${surge ? " · 2× Surge" : ""}`;
@@ -3996,64 +4029,69 @@ export function passiveSkillMetrics(
 	};
 	const radius = (): { label: string; value: string } => ({
 		label: "Radius",
-		value: `${fmt(pixelsToMeters(auraRadius(level, effectiveStats.spirit)))} m`,
+		value: `${trimTo2Decimals(pixelsToMeters(auraRadius(level, effectiveStats.spirit)))} m`,
 	});
 	switch (skill) {
 		case "manaShield":
 			return [
 				{
 					label: "Damage to Mana",
-					value: `${fmt(manaShieldConversionFraction(level) * 100)}%`,
+					value: `${trimTo2Decimals(manaShieldConversionFraction(level) * 100)}%`,
 				},
 			];
 		case "attraction":
 			return [
 				{
 					label: "Pull speed",
-					value: `${fmt(
+					value: `${trimTo2Decimals(
 						pixelsToMeters(35 * attractionSpeedMultiplier(level)),
 					)} m/s`,
 				},
 				{
 					label: "Magic find",
-					value: `+${fmt(attractionFindBonus(level) * 100)}%`,
+					value: `+${trimTo2Decimals(attractionFindBonus(level) * 100)}%`,
 				},
 				{
 					label: "Gold find",
-					value: `+${fmt(attractionFindBonus(level) * 100)}%`,
+					value: `+${trimTo2Decimals(attractionFindBonus(level) * 100)}%`,
 				},
 			];
 		case "manaDrain":
 			return [
 				{
 					label: "Mana + Cold",
-					value: `${fmt(spiritWoundsConversionFraction(level) * 100)}% crit damage`,
+					value: `${trimTo2Decimals(spiritWoundsConversionFraction(level) * 100)}% crit damage`,
 				},
 			];
 		case "penance":
 			return [
 				{
 					label: "Conversion",
-					value: `${fmt(manaConversionFraction(level) * 100)}%`,
+					value: `${trimTo2Decimals(manaConversionFraction(level) * 100)}%`,
 				},
 				{ label: "Minimum return", value: "1% max Mana" },
 			];
 		case "blocking":
-			return [{ label: "Base block chance", value: `+${fmt(level * 0.5)}%` }];
+			return [
+				{
+					label: "Base block chance",
+					value: `+${trimTo2Decimals(level * 0.5)}%`,
+				},
+			];
 		case "thorns":
 			return [{ label: "Damage returned", value: "5%" }];
 		case "voodoo":
 			return [
 				{
 					label: "Poison damage",
-					value: `+${fmt((voodooPoisonMultiplier(level, effectiveStats.spirit) - 1) * 100)}%`,
+					value: `+${trimTo2Decimals((voodooPoisonMultiplier(level, effectiveStats.spirit) - 1) * 100)}%`,
 				},
 			];
 		case "slowAura":
 			return [
 				{
 					label: "Enemy movement",
-					value: `${fmt(auraSlowMultiplier(level) * 100)}%`,
+					value: `${trimTo2Decimals(auraSlowMultiplier(level) * 100)}%`,
 				},
 				radius(),
 			];
@@ -4061,7 +4099,7 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Enemy attack speed",
-					value: `${fmt(auraSlowMultiplier(level) * 100)}%`,
+					value: `${trimTo2Decimals(auraSlowMultiplier(level) * 100)}%`,
 				},
 				radius(),
 			];
@@ -4070,7 +4108,7 @@ export function passiveSkillMetrics(
 				{ label: "Burst damage", value: "20% enemy HP" },
 				{
 					label: "Blast radius",
-					value: `${fmt(
+					value: `${trimTo2Decimals(
 						pixelsToMeters(auraRadius(level, effectiveStats.spirit) * 0.45),
 					)} m`,
 				},
@@ -4080,11 +4118,11 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Damage / pulse",
-					value: `${fmt(sunburnFraction(effectiveStats.intelligence) * 100)}% enemy HP`,
+					value: `${trimTo2Decimals(sunburnFraction(effectiveStats.intelligence) * 100)}% enemy HP`,
 				},
 				{
 					label: "Pulse interval",
-					value: `${fmt(sunburnInterval(effectiveStats.spirit))}s`,
+					value: `${trimTo2Decimals(sunburnInterval(effectiveStats.spirit))}s`,
 				},
 				radius(),
 			];
@@ -4092,16 +4130,19 @@ export function passiveSkillMetrics(
 			return [
 				{
 					label: "Lightning damage",
-					value: fmt(thunderDamage(effectiveStats.intelligence)),
+					value: trimTo2Decimals(thunderDamage(effectiveStats.intelligence)),
 				},
-				{ label: "Pulse interval", value: `${fmt(thunderInterval(level))}s` },
+				{
+					label: "Pulse interval",
+					value: `${trimTo2Decimals(thunderInterval(level))}s`,
+				},
 				radius(),
 			];
 		case "timeHarvest":
 			return [
 				{
 					label: "Cooldown removal",
-					value: `${fmt(timeHarvestCooldownReduction(level))}s / kill`,
+					value: `${trimTo2Decimals(timeHarvestCooldownReduction(level))}s / kill`,
 				},
 			];
 		default:
@@ -4293,9 +4334,6 @@ export function spellCatalogFilterMatches(
 function spellResourceLabel(resource: SpellSlot["resource"]): string {
 	return resource === "life" ? "HP" : resource === "rage" ? "Rage" : "Mana";
 }
-function fmt(value: number): string {
-	return Number(value.toFixed(2)).toString();
-}
 function percent(value: number): string {
-	return `${fmt(value * 100)}%`;
+	return `${trimTo2Decimals(value * 100)}%`;
 }

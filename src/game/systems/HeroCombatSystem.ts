@@ -42,6 +42,7 @@ import {
 	whirlwindRadius,
 } from "../../../common/combat";
 import { SKILLS } from "../../../common/content";
+import { trimTo2Decimals } from "../../../common/format";
 import {
 	equippedSkillLevelContribution,
 	type ItemInstance,
@@ -1138,25 +1139,22 @@ function skillCostLabel(skill: SkillId, progress: PlayerProgress): string {
 		return progress.offHand?.itemKind === "buckler" &&
 			progress.offHand.rarity === "unique"
 			? "1% max Mana / block; +1 Rage"
-			: `${formatCost(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
+			: `${trimTo2Decimals(progress.offHand ? bucklerBlockCost(progress.offHand, stats) : 0)} Rage / block`;
 	if (definition.passive && definition.upkeep)
-		return `${formatCost(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`;
+		return `${trimTo2Decimals(skillUpkeepPerSecond(skill, effectiveSkillLevel(progress, skill), resourceReduction(progress, "mana", stats)))} ${capitalizeResource(definition.upkeep.resource)}/s`;
 	if (skill === "healing") {
 		const multiplier = 1 - resourceReduction(progress, "mana", stats);
 		const baseCost =
 			healingBaseManaCost(effectiveSkillLevel(progress, skill)) * multiplier;
-		return `${formatCost(baseCost)} Mana + ${formatCost(0.25 * multiplier)} Mana / HP`;
+		return `${trimTo2Decimals(baseCost)} Mana + ${trimTo2Decimals(0.25 * multiplier)} Mana / HP`;
 	}
 	if (definition.resource === "mana")
-		return `${formatCost(skillManaCost(skill, effectiveSkillLevel(progress, skill)) * (1 - resourceReduction(progress, "mana", stats)))} Mana`;
+		return `${trimTo2Decimals(skillManaCost(skill, effectiveSkillLevel(progress, skill)) * (1 - resourceReduction(progress, "mana", stats)))} Mana`;
 	if (definition.resource === "life")
 		return skill === "vampiricBoomerang"
 			? "max(3% Remaining HP, 1 HP)"
-			: `${formatCost(10 * (1 - resourceReduction(progress, "life", stats)))}% Remaining HP`;
-	return `${formatCost(skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.rageCost ?? 1) + 0.35)} Rage`;
-}
-function formatCost(value: number): string {
-	return Number(value.toFixed(2)).toString();
+			: `${trimTo2Decimals(10 * (1 - resourceReduction(progress, "life", stats)))}% Remaining HP`;
+	return `${trimTo2Decimals(skill === "reflectiveSurge" || skill === "whirlwind" ? 3 : (progress.mainHand?.rageCost ?? 1) + 0.35)} Rage`;
 }
 function capitalizeResource(resource: "mana" | "rage" | "life"): string {
 	return resource[0].toUpperCase() + resource.slice(1);

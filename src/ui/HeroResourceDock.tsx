@@ -4,6 +4,7 @@ import {
 	rapidRegenMultiplier,
 	reflectiveSurgeBlockChanceBonus,
 } from "../../common/combat";
+import { trimTo2Decimals } from "../../common/format";
 import {
 	cumulativeXpForLevel,
 	lerpXpDisplay,
@@ -152,7 +153,10 @@ export class HeroResourceDock {
 		this.rageLine.setAttribute("aria-valuenow", String(player.rage));
 		(this.rageLine.firstElementChild as HTMLElement).style.width =
 			`${rage * 100}%`;
-		setText(this.rageValue, `${fmt(player.rage)} / ${fmt(player.maxRage)}`);
+		setText(
+			this.rageValue,
+			`${trimTo2Decimals(player.rage)} / ${trimTo2Decimals(player.maxRage)}`,
+		);
 		this.xpBadge.style.setProperty("--xp-angle", `${xpRatio * 360}deg`);
 		this.xpBadge.setAttribute("aria-valuemax", String(needed));
 		this.xpBadge.setAttribute("aria-valuenow", String(into));
@@ -216,12 +220,12 @@ export class HeroResourceDock {
 			return;
 		const buff = xpSendBuffSummary(player.xpSendBuffs);
 		const rapidRegenLevel = effectiveSkillLevel(player.progress, "rapidRegen");
-		const rapidRegenTooltip = `Rapid Regeneration — ${fmt(rapidRegenMultiplier(rapidRegenLevel) * 100)}% normal regeneration + 0.1 HP/s`;
+		const rapidRegenTooltip = `Rapid Regeneration — ${trimTo2Decimals(rapidRegenMultiplier(rapidRegenLevel) * 100)}% normal regeneration + 0.1 HP/s`;
 		const reflectiveSurgeLevel = effectiveSkillLevel(
 			player.progress,
 			"reflectiveSurge",
 		);
-		const reflectiveSurgeTooltip = `Reflective Surge — doubles returned damage and adds ${fmt(reflectiveSurgeBlockChanceBonus(reflectiveSurgeLevel) * 100)}% block chance`;
+		const reflectiveSurgeTooltip = `Reflective Surge — doubles returned damage and adds ${trimTo2Decimals(reflectiveSurgeBlockChanceBonus(reflectiveSurgeLevel) * 100)}% block chance`;
 		this.beneficialEffects.replaceChildren(
 			...(player.rapidRegenRemaining > 0
 				? [
@@ -329,8 +333,11 @@ function updateResourceBar(
 	const previous = bar.previous;
 	bar.node.setAttribute("aria-valuemax", String(safeMaximum));
 	bar.node.setAttribute("aria-valuenow", String(safeCurrent));
-	setText(bar.value, `${fmt(safeCurrent)} / ${fmt(safeMaximum)}`);
-	setText(bar.regen, `+${fmt(Math.max(0, regen))}/s`);
+	setText(
+		bar.value,
+		`${trimTo2Decimals(safeCurrent)} / ${trimTo2Decimals(safeMaximum)}`,
+	);
+	setText(bar.regen, `+${trimTo2Decimals(Math.max(0, regen))}/s`);
 	bar.fill.style.width = `${ratio * 100}%`;
 	if (bar.overflow && bar.overflowFill) {
 		const overfillRatio =
@@ -400,7 +407,7 @@ export function xpSendBuffSummary(
 	return {
 		multiplier: buff.multiplier,
 		remaining,
-		label: `x${fmt(buff.multiplier)}`,
+		label: `x${trimTo2Decimals(buff.multiplier)}`,
 		tooltip: `XP Send bonus — ${percent}% XP`,
 	};
 }
@@ -446,7 +453,7 @@ export function statusEffectSummaries(
 		const details: string[] = [];
 		if (summary.stacks > 1) details.push(`${summary.stacks} stacks`);
 		if (summary.damagePerSecond > 0)
-			details.push(`${fmt(summary.damagePerSecond)} damage/s`);
+			details.push(`${trimTo2Decimals(summary.damagePerSecond)} damage/s`);
 		return {
 			...summary,
 			tooltip: details.length > 0 ? `${name} — ${details.join(" · ")}` : name,
@@ -462,8 +469,4 @@ function flatValue(value: string | number): string {
 
 function setText(node: HTMLElement, value: string): void {
 	if (node.textContent !== value) node.textContent = value;
-}
-
-function fmt(value: number): string {
-	return Number(value.toFixed(2)).toString();
 }
