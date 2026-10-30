@@ -4,3 +4,7 @@ export function trimTo2Decimals(value: number): string {
 export function capitalize(value: string): string {
 	return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
 }
+
+export function percent(value: number): string {
+	return `${trimTo2Decimals(value * 100)}%`;
+}
