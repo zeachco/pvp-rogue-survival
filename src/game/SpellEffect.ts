@@ -46,34 +46,49 @@ export function rentSlashAngle(progress: number): number {
 	return Math.PI / 4 - Math.max(0, Math.min(1, progress)) * Math.PI * 2;
 }
 
+const NO_LIGHT_SPELL_KINDS = new Set<SpellEffectKind>([
+	"arcaneBolt",
+	"frostOrb",
+	"orbitingHammers",
+	"rendingThrow",
+	"vampiricBoomerang",
+	"swamp",
+	"blizzard",
+]);
+
+const SPELL_LIGHT_COLORS: Partial<Record<SpellEffectKind, number>> = {
+	arcaneBoltExplosion: 0x73d7ff,
+	rent: HERO_BLOOD_SPELL_COLOR,
+	healing: 0x68ff9c,
+	rapidRegen: 0x68ff9c,
+	fireBreath: 0xff5a24,
+	gravityPull: 0xb98cff,
+	reflectiveSurge: 0xffe46b,
+	thunderAura: THUNDER_IMPACT_LIGHT_COLOR,
+	deathBurst: 0xff1838,
+	whirlwind: 0xd8f4ff,
+	flurry: 0xd9c2ff,
+	sweep: 0xbafcff,
+	cleave: 0xffcf76,
+	bash: 0xe7c889,
+	shockwave: 0xe7c889,
+};
+
 export function spellEffectLightColor(
 	kind: SpellEffectKind,
 ): number | undefined {
-	if (
-		kind === "arcaneBolt" ||
-		kind === "frostOrb" ||
-		kind === "orbitingHammers" ||
-		kind === "rendingThrow" ||
-		kind === "vampiricBoomerang" ||
-		kind === "swamp" ||
-		kind === "blizzard"
-	)
-		return undefined;
-	if (kind === "arcaneBoltExplosion") return 0x73d7ff;
-	if (kind === "rent") return HERO_BLOOD_SPELL_COLOR;
-	if (kind === "healing" || kind === "rapidRegen") return 0x68ff9c;
-	if (kind === "fireBreath") return 0xff5a24;
-	if (kind === "gravityPull") return 0xb98cff;
-	if (kind === "reflectiveSurge") return 0xffe46b;
-	if (kind === "thunderAura") return THUNDER_IMPACT_LIGHT_COLOR;
-	if (kind === "deathBurst") return 0xff1838;
-	if (kind === "whirlwind") return 0xd8f4ff;
-	if (kind === "flurry") return 0xd9c2ff;
-	if (kind === "sweep") return 0xbafcff;
-	if (kind === "cleave") return 0xffcf76;
-	if (kind === "bash" || kind === "shockwave") return 0xe7c889;
-	return 0xddeeff;
+	if (NO_LIGHT_SPELL_KINDS.has(kind)) return undefined;
+	return SPELL_LIGHT_COLORS[kind] ?? 0xddeeff;
 }
+
+const SPELL_EFFECT_LIFETIMES: Partial<Record<SpellEffectKind, number>> = {
+	healing: HEALING_GROUND_DURATION + HEALING_LIGHT_LINGER_DURATION,
+	arcaneBolt: 0.65,
+	arcaneBoltExplosion: 0.65,
+	orbitingHammers: 0.8,
+	rent: 0.7,
+	gravityPull: FORCE_FIELD_ANIMATION_DURATION + FORCE_FIELD_LIGHT_FADE_DURATION,
+};
 
 export function spellEffectLightDistance(
 	kind: SpellEffectKind,
@@ -114,20 +129,7 @@ export class SpellEffect extends GameObject {
 		this.range = range;
 		this.source = source;
 		this.heroOwned = heroOwned;
-		this.lifetime =
-			lifetime ??
-			(kind === "healing"
-				? HEALING_GROUND_DURATION + HEALING_LIGHT_LINGER_DURATION
-				: kind === "arcaneBolt" || kind === "arcaneBoltExplosion"
-					? 0.65
-					: kind === "orbitingHammers"
-						? 0.8
-						: kind === "rent"
-							? 0.7
-							: kind === "gravityPull"
-								? FORCE_FIELD_ANIMATION_DURATION +
-									FORCE_FIELD_LIGHT_FADE_DURATION
-								: 0.55);
+		this.lifetime = lifetime ?? SPELL_EFFECT_LIFETIMES[kind] ?? 0.55;
 
 		this.effectGroup = new THREE.Group();
 		if (kind === "rent" || kind === "whirlwind")
