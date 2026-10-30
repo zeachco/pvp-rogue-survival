@@ -552,34 +552,11 @@ export class Game {
 			this.lastBonkAttackerId = message.attackerId;
 			this.hero.hp = Math.max(0, this.hero.hp - message.amount);
 		} else if (message.type === "incomingWave") this.enqueueWave(message.wave);
-		else if (message.type === "creepDefeatResolved" && this.player) {
-			this.player.score = message.score;
-			this.player.progress = message.progress;
-			this.player.xpSendBuffs = message.xpSendBuffs;
-			this.player.gold = message.progress.gold;
-			const position = this.arena.defeatedPositions.get(message.unitId);
-			this.arena.defeatedPositions.delete(message.unitId);
-			if (position)
-				for (const drop of message.drops) {
-					this.drops.push(new ItemDrop(drop, { ...position }));
-					if (drop.kind === "gold") this.audio.play("goldDrop");
-				}
-			this.hero.applyProgress(message.progress, true);
-			this.syncHeroState();
-			this.hud.setPlayer(this.player);
-			if (this.waveMode !== "training") this.hud.setNotice(message.reason);
-		} else if (message.type === "progressionUpdated" && this.player) {
-			this.player.progress = message.progress;
-			this.player.xpSendBuffs = message.xpSendBuffs;
-			this.player.gold = message.progress.gold;
-			this.hero.applyProgress(message.progress, true);
-			this.syncHeroState();
-			this.hud.setPlayer(this.player);
-			this.hud.setSpells(
-				this.heroCombat.spellSlots(message.progress, this.hero),
-			);
-			this.hud.setNotice(message.reason);
-		} else if (message.type === "groundDropCreated") {
+		else if (message.type === "creepDefeatResolved" && this.player)
+			this.handleCreepDefeatResolved(message);
+		else if (message.type === "progressionUpdated" && this.player)
+			this.handleProgressionUpdated(message);
+		else if (message.type === "groundDropCreated") {
 			this.drops.push(new ItemDrop(message.drop, { ...this.hero.position }));
 			if (message.drop.kind === "gold") this.audio.play("goldDrop");
 		} else if (message.type === "scoreAwarded" && this.player) {
@@ -764,6 +741,43 @@ export class Game {
 		opponent.facing = message.facing;
 		opponent.hp = Math.min(opponent.maxHp, message.hp);
 		this.duelOpponentHp = opponent.hp;
+	}
+
+	private handleCreepDefeatResolved(
+		message: Extract<ServerMessage, { type: "creepDefeatResolved" }>,
+	): void {
+		const player = this.player;
+		if (!player) return;
+		player.score = message.score;
+		player.progress = message.progress;
+		player.xpSendBuffs = message.xpSendBuffs;
+		player.gold = message.progress.gold;
+		const position = this.arena.defeatedPositions.get(message.unitId);
+		this.arena.defeatedPositions.delete(message.unitId);
+		if (position)
+			for (const drop of message.drops) {
+				this.drops.push(new ItemDrop(drop, { ...position }));
+				if (drop.kind === "gold") this.audio.play("goldDrop");
+			}
+		this.hero.applyProgress(message.progress, true);
+		this.syncHeroState();
+		this.hud.setPlayer(player);
+		if (this.waveMode !== "training") this.hud.setNotice(message.reason);
+	}
+
+	private handleProgressionUpdated(
+		message: Extract<ServerMessage, { type: "progressionUpdated" }>,
+	): void {
+		const player = this.player;
+		if (!player) return;
+		player.progress = message.progress;
+		player.xpSendBuffs = message.xpSendBuffs;
+		player.gold = message.progress.gold;
+		this.hero.applyProgress(message.progress, true);
+		this.syncHeroState();
+		this.hud.setPlayer(player);
+		this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero));
+		this.hud.setNotice(message.reason);
 	}
 
 	private enqueueWave(wave: CreepWave): void {
