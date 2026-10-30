@@ -1553,6 +1553,22 @@ export class GameService {
 		}
 	}
 
+	private autoSendToOpposingRealm(player: Player, item: ItemInstance): boolean {
+		const target = this.nextTarget(player);
+		if (!target || this.queuedBy(player.id) >= MAX_QUEUE) return false;
+		const sent = { ...item, id: `${item.id}-sent` };
+		const queue = target.incomingQueues.get(player.id) ?? [];
+		queue.push({
+			item: sent,
+			senderId: player.id,
+			senderName: player.name,
+			backlash: false,
+		});
+		target.incomingQueues.set(player.id, queue);
+		this.enqueueXpSendBuff(player, sent);
+		this.broadcastRealms();
+		return true;
+	}
 	private collectDrop(player: Player, dropId: string): void {
 		const drop = player.groundDrops.get(dropId);
 		if (!drop)
@@ -1573,24 +1589,9 @@ export class GameService {
 		} else {
 			const autoAction = applyAutoAction(player.progress, drop.item);
 			if (autoAction === "send") {
-				const target = this.nextTarget(player);
-				if (target && this.queuedBy(player.id) < MAX_QUEUE) {
-					const sent = {
-						...drop.item,
-						id: `${drop.item.id}-sent`,
-					};
-					const queue = target.incomingQueues.get(player.id) ?? [];
-					queue.push({
-						item: sent,
-						senderId: player.id,
-						senderName: player.name,
-						backlash: false,
-					});
-					target.incomingQueues.set(player.id, queue);
-					this.enqueueXpSendBuff(player, sent);
+				if (this.autoSendToOpposingRealm(player, drop.item)) {
 					changed = true;
 					reason = `Auto-sent ${drop.item.name} for the enemy realm.`;
-					this.broadcastRealms();
 				} else {
 					const result = collectIntoInventory(
 						player.progress,
@@ -1669,20 +1670,8 @@ export class GameService {
 		for (const item of deferred) {
 			const autoAction = applyAutoAction(player.progress, item);
 			if (autoAction === "send") {
-				const target = this.nextTarget(player);
-				if (target && this.queuedBy(player.id) < MAX_QUEUE) {
-					const sent = { ...item, id: `${item.id}-sent` };
-					const queue = target.incomingQueues.get(player.id) ?? [];
-					queue.push({
-						item: sent,
-						senderId: player.id,
-						senderName: player.name,
-						backlash: false,
-					});
-					target.incomingQueues.set(player.id, queue);
-					this.enqueueXpSendBuff(player, sent);
+				if (this.autoSendToOpposingRealm(player, item)) {
 					stored += 1;
-					this.broadcastRealms();
 					continue;
 				}
 			} else if (autoAction.changed) {
