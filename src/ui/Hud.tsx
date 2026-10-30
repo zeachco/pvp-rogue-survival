@@ -56,6 +56,8 @@ import {
 } from "./characterSheet";
 export { inspectedEquipment } from "./characterSheet";
 import { rankedName, realmMemberSignature } from "./realmPanel";
+import { equipSlotKeys, loadoutCell } from "./inventoryPreview";
+export { equipSlotKeys } from "./inventoryPreview";
 import { h } from "./dom";
 import { GameSettings } from "./GameSettings";
 import { HeroResourceDock } from "./HeroResourceDock";
@@ -3232,35 +3234,6 @@ export class Hud {
 			this.callbacks.onPanelLayoutChange();
 		}
 	}
-}
-
-function loadoutCell(slot: string, item?: ItemInstance): HTMLElement {
-	const label = `${slot}: ${item?.name ?? "Empty"}`;
-	return (
-		<span
-			class={`loadout-cell${item ? ` rarity-${item.rarity}` : " is-empty"}`}
-			data-equip-slot={slot.toLowerCase().replace(" ", "-")}
-			data-stack-key={item ? itemStackKey(item) : ""}
-			tabindex="0"
-			aria-label={label}
-		>
-			<small>{slot}</small>
-			<strong>{item?.name ?? "Empty"}</strong>
-			<span role="tooltip">{label}</span>
-		</span>
-	) as HTMLElement;
-}
-
-export function equipSlotKeys(item: ItemInstance): string[] {
-	return item.itemKind === "weapon"
-		? item.hands === 2
-			? ["main-hand", "offhand"]
-			: ["main-hand"]
-		: item.itemKind === "amulet"
-			? ["amulet"]
-			: item.itemKind === "charm"
-				? ["charm"]
-				: ["offhand"];
 }
 
 export interface ActiveStatBuffs {
