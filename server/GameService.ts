@@ -997,8 +997,49 @@ export class GameService {
 			true,
 			intro ? meleeClasses : undefined,
 		);
-		const spawns: CreepWave["spawns"] = [];
 		const queued = this.takeQueued(player, count, mode !== "training");
+		this.announceQueuedChallengers(player, queued);
+		const spawns: CreepWave["spawns"] = this.composeRegularSpawns(
+			player,
+			mode,
+			template,
+			count,
+			queued,
+			intro,
+		);
+		this.composeChampionSpawns(player, mode, intro, meleeClasses, spawns);
+		if (boss) {
+			const build = this.playerBoss(boss);
+			player.issuedUnits.set(build.id, { build, mode });
+			spawns.push({ build, spawnAtMs: this.options.balance.wave.prepareMs });
+		}
+		spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
+		this.options.send(player.id, {
+			type: "incomingWave",
+			wave: {
+				id: this.createId(),
+				targetId: player.id,
+				waveNumber: player.waveNumber,
+				durationMs: this.options.balance.wave.intervalMs,
+				mode,
+				resetHero,
+				spawns,
+			},
+		});
+		this.options.send(player.id, {
+			type: "chatMessage",
+			senderId: "",
+			senderName: "",
+			text: `Wave ${player.waveNumber} · ${waveModeLabel(mode)}`,
+			kind: "system",
+		});
+		this.returnDeferredItems(player);
+	}
+
+	private announceQueuedChallengers(
+		player: Player,
+		queued: QueuedEquipment[],
+	): void {
 		const fromSender = new Map<string, { id: string; count: number }>();
 		for (const entry of queued)
 			if (!entry.backlash && entry.senderId !== player.id)
@@ -1013,6 +1054,16 @@ export class GameService {
 				senderName,
 				text: `sent you ${sent.count} challenger${sent.count > 1 ? "s" : ""} this round`,
 			});
+	}
+	private composeRegularSpawns(
+		player: Player,
+		mode: "competitive" | "solo" | "training",
+		template: UnitBuild,
+		count: number,
+		queued: QueuedEquipment[],
+		intro: boolean,
+	): CreepWave["spawns"] {
+		const spawns: CreepWave["spawns"] = [];
 		const skilledCount = ENEMY_BONUS_SKILLS.length
 			? creepsWithSpellsCount(player.waveNumber, count)
 			: 0;
@@ -1052,6 +1103,15 @@ export class GameService {
 					spawnAtMs: this.options.balance.wave.prepareMs,
 				});
 			}
+		return spawns;
+	}
+	private composeChampionSpawns(
+		player: Player,
+		mode: "competitive" | "solo" | "training",
+		intro: boolean,
+		meleeClasses: WeaponClass[],
+		spawns: CreepWave["spawns"],
+	): void {
 		const opponents = this.realmOpponents(player);
 		const opponent = opponents[0];
 		const championLevel = rivalLevel(player.waveNumber, this.options.balance);
@@ -1087,34 +1147,7 @@ export class GameService {
 					Math.floor(7.5 * this.options.balance.wave.batchIntervalMs),
 			});
 		}
-		if (boss) {
-			const build = this.playerBoss(boss);
-			player.issuedUnits.set(build.id, { build, mode });
-			spawns.push({ build, spawnAtMs: this.options.balance.wave.prepareMs });
-		}
-		spawns.sort((a, b) => a.spawnAtMs - b.spawnAtMs);
-		this.options.send(player.id, {
-			type: "incomingWave",
-			wave: {
-				id: this.createId(),
-				targetId: player.id,
-				waveNumber: player.waveNumber,
-				durationMs: this.options.balance.wave.intervalMs,
-				mode,
-				resetHero,
-				spawns,
-			},
-		});
-		this.options.send(player.id, {
-			type: "chatMessage",
-			senderId: "",
-			senderName: "",
-			text: `Wave ${player.waveNumber} · ${waveModeLabel(mode)}`,
-			kind: "system",
-		});
-		this.returnDeferredItems(player);
 	}
-
 	private generateBuild(
 		name: string,
 		level: number,
