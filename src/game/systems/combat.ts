@@ -8,6 +8,7 @@ import {
 	type ItemInstance,
 	itemPhysicalBonusFraction,
 	itemRequirementMultiplier,
+	type SkillId,
 } from "../../../common/items";
 import type { RandomSource } from "../../../common/random";
 import type { ArenaState } from "../ArenaState";
@@ -16,7 +17,56 @@ import { applyImpactForce, type ImpactForce } from "../ImpactForce";
 import { pushDrops } from "../ItemDrop";
 import { SpellEffect } from "../SpellEffect";
 import { damageStatusDuration, distance } from "../types";
-import type { Unit } from "../Unit";
+import type { StatusEffect, Unit } from "../Unit";
+
+const SKILL_HIT_STATUSES: {
+	[skill: string]: {
+		kind: StatusEffect["kind"];
+		remaining: number;
+		damagePerSecond: number;
+		withSource?: boolean;
+	};
+} = {
+	bash: { kind: "stun", remaining: 1.1, damagePerSecond: 0 },
+	shockwave: { kind: "stun", remaining: 0.6, damagePerSecond: 0 },
+	sweep: {
+		kind: "bleed",
+		remaining: damageStatusDuration(3),
+		damagePerSecond: 0.35,
+	},
+	cleave: {
+		kind: "bleed",
+		remaining: damageStatusDuration(2),
+		damagePerSecond: 0.45,
+		withSource: true,
+	},
+};
+
+function applySkillHitStatus(
+	skill: SkillId | undefined,
+	hit: Unit,
+	source: Unit | undefined,
+): void {
+	const spec = skill ? SKILL_HIT_STATUSES[skill] : undefined;
+	if (!spec) return;
+	const status: StatusEffect = {
+		kind: spec.kind,
+		remaining: spec.remaining,
+		damagePerSecond: spec.damagePerSecond,
+	};
+	if (spec.withSource) status.source = source;
+	hit.addStatus(status);
+}
+
+function applyFireBreathBurn(target: Unit, source: Unit | undefined): void {
+	if (target.lastHitDodged) return;
+	target.addStatus({
+		kind: "burn",
+		remaining: damageStatusDuration(8),
+		damagePerSecond: 0.25 + 0.03 * (source?.stats.spirit ?? 0),
+		source,
+	});
+}
 
 export function resolveCombat(
 	state: ArenaState,
@@ -64,44 +114,9 @@ export function resolveCombat(
 							attack.presentation.kind === "physical",
 							random,
 						);
-					if (attack.skill === "bash")
-						creep.addStatus({
-							kind: "stun",
-							remaining: 1.1,
-							damagePerSecond: 0,
-						});
-					if (attack.skill === "shockwave")
-						creep.addStatus({
-							kind: "stun",
-							remaining: 0.6,
-							damagePerSecond: 0,
-						});
-					if (attack.skill === "sweep")
-						creep.addStatus({
-							kind: "bleed",
-							remaining: damageStatusDuration(3),
-							damagePerSecond: 0.35,
-						});
-					if (attack.skill === "rent")
-						(attack.source as Unit | undefined)?.heal(
-							(attack.source as Unit).maxHp * 0.01,
-						);
-					if (attack.skill === "cleave")
-						creep.addStatus({
-							kind: "bleed",
-							remaining: damageStatusDuration(2),
-							damagePerSecond: 0.45,
-							source: attack.source as Unit | undefined,
-						});
-					if (attack.skill === "fireBreath" && !creep.lastHitDodged)
-						creep.addStatus({
-							kind: "burn",
-							remaining: damageStatusDuration(8),
-							damagePerSecond:
-								0.25 +
-								0.03 * ((attack.source as Unit | undefined)?.stats.spirit ?? 0),
-							source: attack.source as Unit | undefined,
-						});
+					applySkillHitStatus(attack.skill, creep, source);
+					if (attack.skill === "rent") source?.heal(source.maxHp * 0.01);
+					if (attack.skill === "fireBreath") applyFireBreathBurn(creep, source);
 				}
 		} else if (hero.active && attack.contains(hero.position, hero.radius)) {
 			const dealt = hero.receiveDamage(attack.damage, random, {
@@ -116,15 +131,8 @@ export function resolveCombat(
 				attack.force,
 				random,
 			);
-			if (attack.skill === "fireBreath" && !hero.lastHitDodged)
-				hero.addStatus({
-					kind: "burn",
-					remaining: damageStatusDuration(8),
-					damagePerSecond:
-						0.25 +
-						0.03 * ((attack.source as Unit | undefined)?.stats.spirit ?? 0),
-					source: attack.source as Unit | undefined,
-				});
+			if (attack.skill === "fireBreath")
+				applyFireBreathBurn(hero, attack.source as Unit | undefined);
 		}
 	}
 	for (const projectile of state.projectiles) {
