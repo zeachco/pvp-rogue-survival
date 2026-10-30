@@ -2240,25 +2240,12 @@ describe("arena systems", () => {
 		hero.configureStats({ ...ZERO_STATS, spirit: 10 });
 		hero.knownSkills.add("voodoo");
 		hero.skillLevels.set("voodoo", 99);
-		const creep = new Creep(
-			{
-				id: "swamped",
-				name: "Swamped",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"swamped",
 			{ x: 20, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Swamped", level: 0 },
 		);
 		const swamp = new GroundSwamp({ x: 0, y: 0 }, 100, hero);
 		const fill = swamp.mesh.children[0];
@@ -2299,25 +2286,12 @@ describe("arena systems", () => {
 	});
 	test("Blizzard impacts deal Cold area damage and add one Frost stack", () => {
 		const hero = new Hero({ x: 0, y: 0 });
-		const creep = new Creep(
-			{
-				id: "blizzard-target",
-				name: "Blizzard Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"blizzard-target",
 			{ x: 20, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Blizzard Target", level: 0 },
 		);
 		const hpBefore = creep.hp;
 		const blizzard = new Blizzard({ x: 0, y: 0 }, 100, 5, 1, 13, hero, false);
@@ -2403,25 +2377,12 @@ describe("arena systems", () => {
 	});
 	test("Force Field moves an inward-rushing creep away on the next simulation frame", () => {
 		const weapon = starterClub();
-		const creep = new Creep(
-			{
-				id: "force-target",
-				name: "Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: weapon,
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"force-target",
 			{ x: 100, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			weapon,
+			{ ...ZERO_STATS },
+			{ name: "Target", level: 0 },
 		);
 		creep.velocity = { x: -400, y: 0 };
 		forceField(creep, { x: 0, y: 0 }, 180);
@@ -2430,25 +2391,12 @@ describe("arena systems", () => {
 		expect(creep.position.x).toBeGreaterThan(before);
 	});
 	test("a creep carrying Force Field casts it against the hero", () => {
-		const creep = new Creep(
-			{
-				id: "force-caster",
-				name: "Caster",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS, intelligence: 2 },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"force-caster",
 			{ x: 100, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS, intelligence: 2 },
+			{ name: "Caster", level: 0 },
 		);
 		creep.knownSkills.add("gravityPull");
 		creep.mana = 8;
@@ -2748,25 +2696,12 @@ describe("arena systems", () => {
 		}
 	});
 	test("billboards a non-3D creep body, outline, and details as one group", () => {
-		const creep = new Creep(
-			{
-				id: "billboard-creep",
-				name: "Billboard",
-				kind: "bubbleShooter",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"billboard-creep",
 			{ x: 0, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Billboard", kind: "bubbleShooter", level: 0 },
 		);
 		const cameraRotation = new THREE.Quaternion().setFromEuler(
 			new THREE.Euler(0.4, -0.2, 0.1),
@@ -2844,25 +2779,12 @@ describe("arena systems", () => {
 		expect(resistant.frozen).toBeFalse();
 		resistant.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 });
 		expect(resistant.frozen).toBeTrue();
-		const creep = new Creep(
-			{
-				id: "chilled",
-				name: "Chilled",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"chilled",
 			{ x: 0, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Chilled", level: 0 },
 		);
 		creep.addStatus({ kind: "freeze", remaining: 4, damagePerSecond: 0 });
 		creep.pursue({ x: 500, y: 0 }, 1, 1_000, 1_000);
@@ -2890,45 +2812,24 @@ describe("arena systems", () => {
 		const state = new ArenaState();
 		const hero = new Hero({ x: 0, y: 0 });
 		hero.configureStats({ ...ZERO_STATS, strength: 10 });
-		const creep = new Creep(
-			{
-				id: "arcane-target",
-				name: "Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"arcane-target",
 			{ x: 20, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Target", level: 0 },
 		);
-		const nearby = new Creep(
-			{
-				id: "arcane-nearby",
-				name: "Nearby",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 2,
-			},
-			"neutral",
-			"neutral",
+		const nearby = makeCreep(
+			"arcane-nearby",
 			{ x: 80, y: 0 },
-			BALANCE,
-			new SeededRandom(2),
+			undefined,
+			{ ...ZERO_STATS },
+			{
+				name: "Nearby",
+				level: 0,
+				seed: 2,
+				random: new SeededRandom(2),
+			},
 		);
 		state.creeps.push(creep, nearby);
 		const nearbyBefore = nearby.hp;
@@ -2969,31 +2870,34 @@ describe("arena systems", () => {
 	test("Rending Throw pierces its level-scaled target count and applies its doubled bleed", () => {
 		const state = new ArenaState();
 		const hero = new Hero({ x: 0, y: 0 });
-		const makeCreep = (id: string) =>
-			new Creep(
-				{
-					id,
-					name: id,
-					kind: "melee",
-					level: 0,
-					stats: { ...ZERO_STATS },
-					mainHand: starterClub(),
-					carried: [],
-					isRival: false,
-					xpReward: 0,
-					goldReward: 0,
-					seed: 1,
-				},
-				"neutral",
-				"neutral",
-				{ x: 20, y: 0 },
-				BALANCE,
-				new SeededRandom(1),
-			);
 		const creeps = [
-			makeCreep("first"),
-			makeCreep("second"),
-			makeCreep("third"),
+			makeCreep(
+				"first",
+				{ x: 20, y: 0 },
+				undefined,
+				{ ...ZERO_STATS },
+				{
+					level: 0,
+				},
+			),
+			makeCreep(
+				"second",
+				{ x: 20, y: 0 },
+				undefined,
+				{ ...ZERO_STATS },
+				{
+					level: 0,
+				},
+			),
+			makeCreep(
+				"third",
+				{ x: 20, y: 0 },
+				undefined,
+				{ ...ZERO_STATS },
+				{
+					level: 0,
+				},
+			),
 		];
 		state.creeps.push(...creeps);
 		state.projectiles.push(
