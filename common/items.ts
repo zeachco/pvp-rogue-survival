@@ -1,4 +1,5 @@
 import { AFFIXES, WEAPONS } from "./content";
+import { capitalize } from "./format";
 import { STAT_KEYS, type StatKey, type Stats } from "./progression";
 import { SeededRandom } from "./random";
 
@@ -1165,9 +1166,6 @@ function applyAffix(
 		AFFIXES[affix].modifierPerPower,
 	) as [keyof ItemModifiers, number][])
 		modifiers[key] += value * power;
-}
-function capitalize(value: string): string {
-	return value[0].toUpperCase() + value.slice(1);
 }
 function orderedStats(
 	stats: Partial<Record<StatKey, number>>,
