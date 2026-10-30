@@ -1,4 +1,5 @@
 import { SQL } from "bun";
+import { addColumnIfMissing } from "./addColumn.ts";
 
 export type DevlogRequestKind = "feature" | "bug" | "balance" | "graphics";
 export const MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH = 1_024;
@@ -222,42 +223,18 @@ export class SqlDevlogRequestStore implements DevlogRequestStore {
 				PRIMARY KEY (request_id, voter_id)
 			)
 		`;
-		try {
-			await this
-				.sql`ALTER TABLE devlog_requests ADD COLUMN completed BOOLEAN NOT NULL DEFAULT FALSE`;
-		} catch (error) {
-			const message = String(error).toLowerCase();
-			if (
-				!message.includes("duplicate column") &&
-				!message.includes("already exists")
-			)
-				throw error;
-		}
-		for (const column of ["proposer_id TEXT", "proposer_name TEXT"]) {
-			try {
-				await this.sql.unsafe(
-					`ALTER TABLE devlog_requests ADD COLUMN ${column}`,
-				);
-			} catch (error) {
-				const message = String(error).toLowerCase();
-				if (
-					!message.includes("duplicate column") &&
-					!message.includes("already exists")
-				)
-					throw error;
-			}
-		}
-		try {
-			await this
-				.sql`ALTER TABLE devlog_request_votes ADD COLUMN voter_name TEXT`;
-		} catch (error) {
-			const message = String(error).toLowerCase();
-			if (
-				!message.includes("duplicate column") &&
-				!message.includes("already exists")
-			)
-				throw error;
-		}
+		await addColumnIfMissing(
+			this.sql,
+			"devlog_requests",
+			"completed BOOLEAN NOT NULL DEFAULT FALSE",
+		);
+		for (const column of ["proposer_id TEXT", "proposer_name TEXT"])
+			await addColumnIfMissing(this.sql, "devlog_requests", column);
+		await addColumnIfMissing(
+			this.sql,
+			"devlog_request_votes",
+			"voter_name TEXT",
+		);
 		await this
 			.sql`CREATE INDEX IF NOT EXISTS devlog_requests_month ON devlog_requests (scheduled_month)`;
 	}

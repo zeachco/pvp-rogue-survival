@@ -15,6 +15,7 @@ import type {
 	PanelTriggers,
 	PlayerProgress,
 } from "../common/protocol.ts";
+import { addColumnIfMissing } from "./addColumn.ts";
 import type { Player, PlayerRepository } from "./domain.ts";
 
 interface HeroBlob {
@@ -162,39 +163,14 @@ export class SqlPlayerRepository implements PlayerRepository {
 	private async initialize(): Promise<void> {
 		await this
 			.sql`CREATE TABLE IF NOT EXISTS heroes (id TEXT PRIMARY KEY, username TEXT NOT NULL, level INTEGER NOT NULL, password_hash TEXT, is_moderator INTEGER NOT NULL DEFAULT 0, hero TEXT NOT NULL)`;
-		try {
-			await this.sql`ALTER TABLE heroes ADD COLUMN password_hash TEXT`;
-		} catch (error) {
-			const message = String(error).toLowerCase();
-			if (
-				!message.includes("duplicate column") &&
-				!message.includes("already exists")
-			)
-				throw error;
-		}
-		try {
-			await this
-				.sql`ALTER TABLE heroes ADD COLUMN is_moderator INTEGER NOT NULL DEFAULT 0`;
-		} catch (error) {
-			const message = String(error).toLowerCase();
-			if (
-				!message.includes("duplicate column") &&
-				!message.includes("already exists")
-			)
-				throw error;
-		}
-		for (const column of ["account_id TEXT", "account_username TEXT"]) {
-			try {
-				await this.sql.unsafe(`ALTER TABLE heroes ADD COLUMN ${column}`);
-			} catch (error) {
-				const message = String(error).toLowerCase();
-				if (
-					!message.includes("duplicate column") &&
-					!message.includes("already exists")
-				)
-					throw error;
-			}
-		}
+		await addColumnIfMissing(this.sql, "heroes", "password_hash TEXT");
+		await addColumnIfMissing(
+			this.sql,
+			"heroes",
+			"is_moderator INTEGER NOT NULL DEFAULT 0",
+		);
+		for (const column of ["account_id TEXT", "account_username TEXT"])
+			await addColumnIfMissing(this.sql, "heroes", column);
 		await this
 			.sql`CREATE UNIQUE INDEX IF NOT EXISTS heroes_username_ci ON heroes (lower(username))`;
 		await this.sql`CREATE INDEX IF NOT EXISTS heroes_level ON heroes (level)`;
