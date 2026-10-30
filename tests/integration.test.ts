@@ -7,7 +7,6 @@ import {
 	parseServerMessage,
 	type ServerMessage,
 } from "../common/protocol";
-import type { RandomSource } from "../common/random";
 import {
 	broadcastAnonymousLeaderboard,
 	broadcastRestartNotice,
@@ -15,13 +14,7 @@ import {
 	RESTART_NOTICE,
 } from "../server/createApp";
 import { InMemoryPlayerRepository } from "../server/domain";
-import { GameService } from "../server/GameService";
-
-class FixedRandom implements RandomSource {
-	next(): number {
-		return 0;
-	}
-}
+import { makeGameService } from "./gameServiceFixture";
 
 describe("server protocol integration", () => {
 	test("broadcasts the restart countdown only to joined players", () => {
@@ -49,10 +42,7 @@ describe("server protocol integration", () => {
 		const repository = new InMemoryPlayerRepository();
 		const messages: ServerMessage[] = [];
 		let id = 0;
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
+		const game = makeGameService(repository, {
 			createId: () => `id-${++id}`,
 			send: (_playerId, message) => messages.push(message),
 		});
@@ -121,12 +111,7 @@ describe("server protocol integration", () => {
 
 	test("pushes current presence only to anonymous hero lists", () => {
 		const repository = new InMemoryPlayerRepository();
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
-			send: () => {},
-		});
+		const game = makeGameService(repository);
 		const hero = game.join("Presence");
 		const anonymousMessages: string[] = [];
 		const joinedMessages: string[] = [];
@@ -179,12 +164,7 @@ describe("server protocol integration", () => {
 
 	test("changes the shared account password to a hash for every character", async () => {
 		const repository = new InMemoryPlayerRepository();
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
-			send: () => {},
-		});
+		const game = makeGameService(repository);
 		const first = game.join("PasswordOwner");
 		const second = game.createCharacter(first, "PasswordAlt");
 

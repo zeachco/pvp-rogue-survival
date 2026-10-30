@@ -16,18 +16,13 @@ import type { PlayerId, ServerMessage, UnitBuild } from "../common/protocol";
 import type { RandomSource } from "../common/random";
 import { InMemoryPlayerRepository } from "../server/domain";
 import {
-	GameService,
+	type GameService,
 	magicFindExtraDropChance,
 	magicFindExtraDropCount,
 	magicFindRarityForRoll,
 } from "../server/GameService";
+import { FixedRandom, makeGameService } from "./gameServiceFixture";
 
-class FixedRandom implements RandomSource {
-	constructor(private readonly value = 0) {}
-	next(): number {
-		return this.value;
-	}
-}
 class SequenceRandom implements RandomSource {
 	private values: number[] = [];
 	set(...values: number[]): void {
@@ -44,9 +39,7 @@ function harness(
 	const messages = new Map<PlayerId, ServerMessage[]>();
 	const repository = new InMemoryPlayerRepository();
 	let nextId = 0;
-	const game = new GameService({
-		repository,
-		balance: BALANCE,
+	const game = makeGameService(repository, {
 		random,
 		now,
 		createId: () => `id-${++nextId}`,
@@ -356,12 +349,8 @@ describe("realm game service", () => {
 			name: string;
 		}> = [];
 		let nextId = 0;
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
+		const game = makeGameService(repository, {
 			createId: () => `id-${++nextId}`,
-			send: () => {},
 			logPlayerLifecycle: (event, player) =>
 				events.push({ event, id: player.id, name: player.name }),
 		});
@@ -381,12 +370,8 @@ describe("realm game service", () => {
 			opponentIds: string[];
 		}> = [];
 		let nextId = 0;
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
+		const game = makeGameService(repository, {
 			createId: () => `id-${++nextId}`,
-			send: () => {},
 			logRealmLifecycle: (event, playerId, realmId, opponentIds) =>
 				events.push({ event, playerId, realmId, opponentIds }),
 		});

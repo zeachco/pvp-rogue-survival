@@ -2,17 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BALANCE } from "../common/balance";
-import type { RandomSource } from "../common/random";
 import { createApp } from "../server/createApp";
-import { GameService } from "../server/GameService";
 import { SqlPlayerRepository } from "../server/SqlPlayerRepository";
-
-class FixedRandom implements RandomSource {
-	next(): number {
-		return 0.5;
-	}
-}
+import { FixedRandom, makeGameService } from "./gameServiceFixture";
 
 describe("Bun SQL player persistence", () => {
 	test("round-trips independent hero inventories with shared resources", async () => {
@@ -20,11 +12,8 @@ describe("Bun SQL player persistence", () => {
 		const url = `sqlite://${join(directory, "players.sqlite")}`;
 		try {
 			const repository = await SqlPlayerRepository.open(url);
-			const game = new GameService({
-				repository,
-				balance: BALANCE,
-				random: new FixedRandom(),
-				send: () => {},
+			const game = makeGameService(repository, {
+				random: new FixedRandom(0.5),
 			});
 			const first = game.join("AccountOwner");
 			const second = game.createCharacter(first, "Alternate");
@@ -56,11 +45,8 @@ describe("Bun SQL player persistence", () => {
 		const url = `sqlite://${join(directory, "players.sqlite")}`;
 		try {
 			const firstRepository = await SqlPlayerRepository.open(url);
-			const game = new GameService({
-				repository: firstRepository,
-				balance: BALANCE,
-				random: new FixedRandom(),
-				send: () => {},
+			const game = makeGameService(firstRepository, {
+				random: new FixedRandom(0.5),
 			});
 			const passwordHash = await Bun.password.hash("password123");
 			const player = game.join(
@@ -114,12 +100,7 @@ describe("Bun SQL player persistence", () => {
 
 	test("looks up usernames without case and orders leaderboard by Souls then name", async () => {
 		const repository = await SqlPlayerRepository.open(":memory:");
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
-			send: () => {},
-		});
+		const game = makeGameService(repository, { random: new FixedRandom(0.5) });
 		const low = game.join("zeta");
 		low.connected = false;
 		const highB = game.join("Beta");
@@ -140,12 +121,7 @@ describe("Bun SQL player persistence", () => {
 
 	test("selects one persisted boss candidate from the requested inclusive level window", async () => {
 		const repository = await SqlPlayerRepository.open(":memory:");
-		const game = new GameService({
-			repository,
-			balance: BALANCE,
-			random: new FixedRandom(),
-			send: () => {},
-		});
+		const game = makeGameService(repository, { random: new FixedRandom(0.5) });
 		const low = game.join("TooLow");
 		low.progress.level = 1;
 		const eligible = game.join("Eligible");
@@ -168,11 +144,8 @@ describe("Bun SQL player persistence", () => {
 		const url = `sqlite://${join(directory, "players.sqlite")}`;
 		try {
 			const repository = await SqlPlayerRepository.open(url);
-			const game = new GameService({
-				repository,
-				balance: BALANCE,
-				random: new FixedRandom(),
-				send: () => {},
+			const game = makeGameService(repository, {
+				random: new FixedRandom(0.5),
 			});
 			const changed = game.join("Changed");
 			const untouched = game.join("Untouched");
