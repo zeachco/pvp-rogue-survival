@@ -33,6 +33,7 @@ import {
 	backgroundFrameDue,
 } from "./FrameScheduler";
 import { GameAudio } from "./GameAudio";
+import type { GamepadInput } from "./GamepadInput";
 import {
 	GAMEPAD_ORBIT_PIXELS_PER_SECOND,
 	readStandardGamepad,
@@ -847,6 +848,20 @@ export class Game {
 			if (this.defeatCooldown <= 0) this.resetArena();
 			return;
 		}
+		const movementInput = this.readMovementInput(gamepadInput);
+		this.tickSystems(deltaSeconds, movementInput);
+		this.tickCreeps(deltaSeconds);
+		this.tickCollisions();
+		this.tickEffects(deltaSeconds);
+		this.tickDrops(deltaSeconds);
+		this.tickCombat();
+		this.tickEndOfFrame(deltaSeconds);
+	}
+
+	private readMovementInput(gamepadInput: GamepadInput): {
+		x: number;
+		y: number;
+	} {
 		const rawMovementInput = this.isChatting
 			? { x: 0, y: 0 }
 			: {
@@ -862,15 +877,19 @@ export class Game {
 						gamepadInput.movement.y,
 				};
 		const movementInput = this.renderer.movementForCamera(rawMovementInput);
-		this.heroCombat.syncSkills(this.player.progress, this.hero);
+		return movementInput;
+	}
+	private tickSystems(
+		deltaSeconds: number,
+		movementInput: { x: number; y: number },
+	): void {
+		const player = this.player;
+		if (!player) return;
+		this.heroCombat.syncSkills(player.progress, this.hero);
 		this.hero.movementSpeedMultiplier = this.heroCombat.whirlwindMovementSpeed;
 		this.hero.clearFrameEffects();
 		for (const creep of this.creeps) creep.clearFrameEffects();
-		this.auraSystem.collectEffects(
-			this.hero,
-			this.player.progress,
-			this.creeps,
-		);
+		this.auraSystem.collectEffects(this.hero, player.progress, this.creeps);
 		for (const swamp of this.arena.swamps) swamp.collectEffects(this.creeps);
 		this.hero.compileState(
 			deltaSeconds,
@@ -892,7 +911,7 @@ export class Game {
 			movementInput,
 			this.hero,
 			this.arena,
-			this.player.progress,
+			player.progress,
 			this.balance,
 			systemRandom,
 			this.aimingHero ? this.renderer.cameraFacing() : undefined,
@@ -909,7 +928,7 @@ export class Game {
 		this.auraSystem.update(
 			deltaSeconds,
 			this.hero,
-			this.player.progress,
+			player.progress,
 			this.creeps,
 			systemRandom,
 			this.arena.spellEffects,
@@ -918,6 +937,10 @@ export class Game {
 			swamp.update(deltaSeconds, this.creeps);
 		for (const blizzard of this.arena.blizzards)
 			blizzard.update(deltaSeconds, this.creeps, systemRandom);
+	}
+	private tickCreeps(deltaSeconds: number): void {
+		const player = this.player;
+		if (!player) return;
 		for (const creep of this.creeps) {
 			if (!creep.active) continue;
 			if (creep === this.duelOpponent) continue;
@@ -1027,6 +1050,8 @@ export class Game {
 				);
 			}
 		}
+	}
+	private tickCollisions(): void {
 		const activeUnits = [
 			...(this.hero.active ? [this.hero] : []),
 			...this.creeps.filter((creep) => creep.active),
@@ -1038,6 +1063,8 @@ export class Game {
 			else
 				correctArenaBoundary(unit as Creep, this.map.width, this.map.height, 0);
 		});
+	}
+	private tickEffects(deltaSeconds: number): void {
 		for (const attack of this.attacks) attack.update(deltaSeconds);
 		const emittedProjectiles: Projectile[] = [];
 		for (const projectile of this.projectiles) {
@@ -1049,10 +1076,14 @@ export class Game {
 		this.projectiles.push(...emittedProjectiles);
 		for (const effect of this.arena.spellEffects) effect.update(deltaSeconds);
 		for (const death of this.arena.characterDeaths) death.update(deltaSeconds);
-		const baseStats = this.player.progress.stats;
+	}
+	private tickDrops(deltaSeconds: number): void {
+		const player = this.player;
+		if (!player) return;
+		const baseStats = player.progress.stats;
 		const attractionEnabled = this.hero.isSkillOperational("attraction");
 		const attractionLevel = this.hero.skillLevels.get("attraction") ?? 1;
-		const universalAttraction = this.player.progress.universalSkills.includes(
+		const universalAttraction = player.progress.universalSkills.includes(
 			"attraction",
 		)
 			? 35
@@ -1061,10 +1092,10 @@ export class Game {
 			? Math.max(
 					universalAttraction,
 					...[
-						this.player.progress.mainHand,
-						this.player.progress.offHand,
-						this.player.progress.amulet,
-						this.player.progress.charm,
+						player.progress.mainHand,
+						player.progress.offHand,
+						player.progress.amulet,
+						player.progress.charm,
 					].map(
 						(item) =>
 							(item?.attractionSpeed ?? 0) *
@@ -1078,10 +1109,14 @@ export class Game {
 			drop.move(deltaSeconds);
 			correctArenaBoundary(drop, this.map.width, this.map.height, deltaSeconds);
 		}
+	}
+	private tickCombat(): void {
+		const player = this.player;
+		if (!player) return;
 		resolveCombat(
 			this.arena,
 			this.hero,
-			this.player.progress.mainHand,
+			player.progress.mainHand,
 			systemRandom,
 		);
 		if (this.duelOpponent) {
@@ -1099,11 +1134,15 @@ export class Game {
 				});
 			}
 		}
+	}
+	private tickEndOfFrame(deltaSeconds: number): void {
+		const player = this.player;
+		if (!player) return;
 		this.hero.advanceEffects(deltaSeconds);
 		for (const creep of this.creeps) creep.advanceEffects(deltaSeconds);
 		this.auraSystem.resolveDeaths(
 			this.hero,
-			this.player.progress,
+			player.progress,
 			this.creeps,
 			systemRandom,
 			this.arena.spellEffects,
@@ -1138,10 +1177,8 @@ export class Game {
 			this.hoverPeeking = false;
 		}
 		this.syncHeroState();
-		this.hud.setPlayer(this.player);
-		this.hud.setSpells(
-			this.heroCombat.spellSlots(this.player.progress, this.hero),
-		);
+		this.hud.setPlayer(player);
+		this.hud.setSpells(this.heroCombat.spellSlots(player.progress, this.hero));
 		if (!this.hero.active) this.handleDefeat();
 		this.updateCamera();
 	}
