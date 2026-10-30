@@ -376,115 +376,43 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			critical = random.next() < source.state.critChance;
 			if (critical) incomingAmount *= source.state.critMultiplier;
 		}
-		if (reflectable && random.next() < this.state.dodgeChance) {
-			this.lastHitDodged = true;
-			this.grantDefensiveRage("dodge");
-			this.emitOutcome("dodge", "DODGE");
-			return 0;
-		}
+		if (this.tryDodge(reflectable, random)) return 0;
 		const hpBefore = this.hp;
 		const element = DAMAGE_KIND_TO_ELEMENT[presentation.kind];
 		if (this.state.immunities.has(element)) return 0;
 		const resistance = this.state.resistances[element];
 		let remaining =
 			Math.max(0, incomingAmount - this.state.flatDefense) * (1 - resistance);
-		let blockReflection = 0;
-		let blocked = false;
-		const buckler = this.offHand;
-		const katars =
-			this.mainHand?.itemKind === "weapon" &&
-			this.mainHand.definitionId === "katars";
-		const blockCost = this.state.blockCost;
-		const uniqueBuckler =
-			buckler?.itemKind === "buckler" && buckler.rarity === "unique";
-		const blockManaCost = uniqueBuckler ? this.maxMana * 0.01 : 0;
 		const activateSurgeAfterHit = Boolean(
 			source && incomingAmount > 0 && this.reflectiveSurgeAutomatic,
 		);
-		if (
-			blockable &&
-			((buckler?.itemKind === "buckler" &&
-				this.isSkillOperational("blocking")) ||
-				katars) &&
-			this.rage >= blockCost &&
-			this.mana >= blockManaCost
-		) {
-			const chance = Math.min(
-				this.state.blockChanceCap,
-				this.state.blockChance,
-			);
-			if (random.next() < chance) {
-				blocked = true;
-				this.emitOutcome("block", "BLOCK");
-				if (uniqueBuckler) this.spendMana(blockManaCost);
-				else if (!katars) this.spendRage(blockCost);
-				this.grantDefensiveRage("block");
-				const beforeBlock = remaining;
-				remaining = Math.max(
-					0,
-					incomingAmount - Math.min(incomingAmount, this.stats.strength),
-				);
-				if (this.isSkillOperational("penance"))
-					this.restoreMana(
-						Math.max(
-							this.maxMana * 0.01,
-							Math.max(0, beforeBlock - remaining) *
-								Math.max(0, this.stats.spirit) *
-								manaConversionFraction(this.skillLevels.get("penance") ?? 1),
-						),
-					);
-				if (reflectable && source)
-					blockReflection =
-						this.state.reflection.flat +
-						this.state.reflection.strength +
-						incomingAmount * this.state.reflection.incomingFraction;
-			}
-		}
-		if (reflectable && source) {
-			const reflected =
-				blockReflection +
-				incomingAmount *
-					(this.state.reflection.thornsFraction +
-						this.state.reflection.surgeFraction);
-			if (reflected > 0) {
-				const radial =
-					buckler?.itemKind === "buckler" && buckler.rarity === "unique";
-				if (radial && this.radialReflect)
-					this.radialReflect(reflected, random, presentation.kind);
-				else
-					source.receiveDamage(reflected, random, this, false, false, {
-						kind: presentation.kind,
-					});
-			}
-		}
+		const block = this.tryBlock(
+			blockable,
+			reflectable,
+			source,
+			random,
+			incomingAmount,
+			remaining,
+		);
+		remaining = block.remaining;
+		this.reflectIncoming(
+			reflectable,
+			source,
+			random,
+			presentation,
+			block.blockReflection,
+			incomingAmount,
+		);
 		if (source && "build" in source)
 			this.lastDamageSourceId = (
 				source as Unit & { build: { id: string } }
 			).build.id;
 		remaining *= 1 - voodooDamageReduction(this);
-		if (invulnerable || this.damageFloorOne) {
-			this.takeDamage(remaining);
-			if (this.hp <= 0) {
-				this.hp = 1;
-				this.active = true;
-			}
-		} else {
-			const canPreventDeath =
-				reflectable &&
-				this.amulet?.rarity === "unique" &&
-				this.deathPreventionWaveUsed !== this.currentWave;
-			this.takeDamage(remaining);
-			if (canPreventDeath && this.hp <= 0) {
-				this.hp = 1;
-				this.active = true;
-				this.immunityRemaining = 1;
-				this.deathPreventionWaveUsed = this.currentWave;
-			}
-		}
+		this.applyIncomingDamage(remaining, invulnerable, reflectable);
 		const damageDealt = Math.max(0, hpBefore - this.hp);
 		if (remaining > 0)
 			this.emitCombatText(remaining, presentation.kind, critical);
-		if (damageDealt > 0 && !blocked && !this.lastHitDodged)
+		if (damageDealt > 0 && !block.blocked && !this.lastHitDodged)
 			this.grantDefensiveRage("damage");
 		if (
 			critical &&
@@ -505,6 +433,128 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 		}
 		if (activateSurgeAfterHit) this.activateReflectiveSurge();
 		return damageDealt;
+	}
+
+	private tryDodge(reflectable: boolean, random: RandomSource): boolean {
+		if (!reflectable) return false;
+		if (random.next() >= this.state.dodgeChance) return false;
+		this.lastHitDodged = true;
+		this.grantDefensiveRage("dodge");
+		this.emitOutcome("dodge", "DODGE");
+		return true;
+	}
+
+	private tryBlock(
+		blockable: boolean,
+		reflectable: boolean,
+		source: Unit | undefined,
+		random: RandomSource,
+		incomingAmount: number,
+		remaining: number,
+	): { blocked: boolean; blockReflection: number; remaining: number } {
+		let blockReflection = 0;
+		let blocked = false;
+		const buckler = this.offHand;
+		const katars =
+			this.mainHand?.itemKind === "weapon" &&
+			this.mainHand.definitionId === "katars";
+		const blockCost = this.state.blockCost;
+		const uniqueBuckler =
+			buckler?.itemKind === "buckler" && buckler.rarity === "unique";
+		const blockManaCost = uniqueBuckler ? this.maxMana * 0.01 : 0;
+		let nextRemaining = remaining;
+		if (
+			blockable &&
+			((buckler?.itemKind === "buckler" &&
+				this.isSkillOperational("blocking")) ||
+				katars) &&
+			this.rage >= blockCost &&
+			this.mana >= blockManaCost
+		) {
+			const chance = Math.min(
+				this.state.blockChanceCap,
+				this.state.blockChance,
+			);
+			if (random.next() < chance) {
+				blocked = true;
+				this.emitOutcome("block", "BLOCK");
+				if (uniqueBuckler) this.spendMana(blockManaCost);
+				else if (!katars) this.spendRage(blockCost);
+				this.grantDefensiveRage("block");
+				const beforeBlock = nextRemaining;
+				nextRemaining = Math.max(
+					0,
+					incomingAmount - Math.min(incomingAmount, this.stats.strength),
+				);
+				if (this.isSkillOperational("penance"))
+					this.restoreMana(
+						Math.max(
+							this.maxMana * 0.01,
+							Math.max(0, beforeBlock - nextRemaining) *
+								Math.max(0, this.stats.spirit) *
+								manaConversionFraction(this.skillLevels.get("penance") ?? 1),
+						),
+					);
+				if (reflectable && source)
+					blockReflection =
+						this.state.reflection.flat +
+						this.state.reflection.strength +
+						incomingAmount * this.state.reflection.incomingFraction;
+			}
+		}
+		return { blocked, blockReflection, remaining: nextRemaining };
+	}
+
+	private reflectIncoming(
+		reflectable: boolean,
+		source: Unit | undefined,
+		random: RandomSource,
+		presentation: DamagePresentation,
+		blockReflection: number,
+		incomingAmount: number,
+	): void {
+		if (!reflectable || !source) return;
+		const reflected =
+			blockReflection +
+			incomingAmount *
+				(this.state.reflection.thornsFraction +
+					this.state.reflection.surgeFraction);
+		if (reflected <= 0) return;
+		const buckler = this.offHand;
+		const radial =
+			buckler?.itemKind === "buckler" && buckler.rarity === "unique";
+		if (radial && this.radialReflect)
+			this.radialReflect(reflected, random, presentation.kind);
+		else
+			source.receiveDamage(reflected, random, this, false, false, {
+				kind: presentation.kind,
+			});
+	}
+
+	private applyIncomingDamage(
+		remaining: number,
+		invulnerable: boolean,
+		reflectable: boolean,
+	): void {
+		if (invulnerable || this.damageFloorOne) {
+			this.takeDamage(remaining);
+			if (this.hp <= 0) {
+				this.hp = 1;
+				this.active = true;
+			}
+		} else {
+			const canPreventDeath =
+				reflectable &&
+				this.amulet?.rarity === "unique" &&
+				this.deathPreventionWaveUsed !== this.currentWave;
+			this.takeDamage(remaining);
+			if (canPreventDeath && this.hp <= 0) {
+				this.hp = 1;
+				this.active = true;
+				this.immunityRemaining = 1;
+				this.deathPreventionWaveUsed = this.currentWave;
+			}
+		}
 	}
 
 	heal(amount: number): void {
