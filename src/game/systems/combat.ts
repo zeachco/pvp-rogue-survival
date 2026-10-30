@@ -119,20 +119,20 @@ export function resolveCombat(
 					if (attack.skill === "fireBreath") applyFireBreathBurn(creep, source);
 				}
 		} else if (hero.active && attack.contains(hero.position, hero.radius)) {
+			const source = attack.source as Unit | undefined;
 			const dealt = hero.receiveDamage(attack.damage, random, {
-				source: attack.source as Unit | undefined,
+				source: source,
 				presentation: attack.presentation,
 			});
 			resolveHitEffects(
 				hero,
-				attack.source as Unit | undefined,
+				source,
 				attack.weapon,
 				dealt,
 				attack.force,
 				random,
 			);
-			if (attack.skill === "fireBreath")
-				applyFireBreathBurn(hero, attack.source as Unit | undefined);
+			if (attack.skill === "fireBreath") applyFireBreathBurn(hero, source);
 		}
 	}
 	for (const projectile of state.projectiles) {
