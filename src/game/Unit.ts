@@ -27,8 +27,24 @@ import { clampToArenaBoundary } from "./bounds";
 import type { CombatText, DamageKind, DamagePresentation } from "./CombatText";
 import { GameObject } from "./GameObject";
 import { createManaShieldBubble } from "./render/ManaShieldBubble";
-import type { StatusEffectSnapshot, Vector2 } from "./types";
+import type { StatusEffectKind, StatusEffectSnapshot, Vector2 } from "./types";
 
+const DAMAGE_KIND_TO_ELEMENT: Record<DamageKind, ItemImmunity> = {
+	physical: "physical",
+	magic: "magic",
+	electric: "magic",
+	cold: "frost",
+	fire: "fire",
+	poison: "poison",
+	bleed: "bleed",
+};
+const STATUS_KIND_TO_IMMUNITY: Partial<Record<StatusEffectKind, ItemImmunity>> =
+	{
+		freeze: "frost",
+		burn: "fire",
+		poison: "poison",
+		bleed: "bleed",
+	};
 export interface StatusEffect extends StatusEffectSnapshot {
 	tick?: number;
 	source?: Unit;
@@ -367,43 +383,9 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 			return 0;
 		}
 		const hpBefore = this.hp;
-		const immunity =
-			presentation.kind === "magic" || presentation.kind === "electric"
-				? "magic"
-				: presentation.kind === "cold"
-					? "frost"
-					: presentation.kind === "fire"
-						? "fire"
-						: presentation.kind === "poison"
-							? "poison"
-							: presentation.kind === "bleed"
-								? "bleed"
-								: "physical";
-		if (this.state.immunities.has(immunity)) return 0;
-		const resistKey =
-			presentation.kind === "magic" || presentation.kind === "electric"
-				? "magicResist"
-				: presentation.kind === "cold"
-					? "frostResist"
-					: presentation.kind === "fire"
-						? "fireResist"
-						: presentation.kind === "poison"
-							? "poisonResist"
-							: presentation.kind === "bleed"
-								? "bleedResist"
-								: "physicalResist";
-		const resistance =
-			resistKey === "magicResist"
-				? this.state.resistances.magic
-				: resistKey === "frostResist"
-					? this.state.resistances.frost
-					: resistKey === "fireResist"
-						? this.state.resistances.fire
-						: resistKey === "poisonResist"
-							? this.state.resistances.poison
-							: resistKey === "bleedResist"
-								? this.state.resistances.bleed
-								: this.state.resistances.physical;
+		const element = DAMAGE_KIND_TO_ELEMENT[presentation.kind];
+		if (this.state.immunities.has(element)) return 0;
+		const resistance = this.state.resistances[element];
 		let remaining =
 			Math.max(0, incomingAmount - this.state.flatDefense) * (1 - resistance);
 		let blockReflection = 0;
@@ -682,16 +664,7 @@ export abstract class Unit extends GameObject implements UnitEffectTarget {
 	}
 
 	addStatus(status: StatusEffect): void {
-		const immunity: ItemImmunity | undefined =
-			status.kind === "freeze"
-				? "frost"
-				: status.kind === "burn"
-					? "fire"
-					: status.kind === "poison"
-						? "poison"
-						: status.kind === "bleed"
-							? "bleed"
-							: undefined;
+		const immunity = STATUS_KIND_TO_IMMUNITY[status.kind];
 		if (immunity && this.state.immunities.has(immunity)) return;
 		if (status.kind === "freeze") this.removeOneStatus("burn");
 		if (status.kind === "burn") this.removeOneStatus("freeze");
