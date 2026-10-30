@@ -1503,6 +1503,28 @@ export class Hud {
 			},
 			{ passive: false },
 		);
+
+		this.renderCatalogEntries(scroll, available);
+		this.spellCatalog.replaceChildren(
+			<h2>Available Spells</h2>,
+			<p>Tap a spell, then tap one of the six destination slots.</p>,
+			close,
+			filters,
+			slots,
+			scroll,
+		);
+		scroll.scrollTop = previousScrollTop;
+		this.updateCatalogFilters();
+		this.updateCatalogSelection();
+		if (typeof searchText === "string") {
+			searchInput.value = searchText;
+			searchInput.select();
+		}
+	}
+	private renderCatalogEntries(
+		scroll: HTMLElement,
+		available: Map<SkillId, SpellSlot>,
+	): void {
 		const sortedIds = (Object.keys(SKILLS) as SkillId[]).sort(
 			(a, b) =>
 				spellCatalogResourceOrder(SKILLS[a].resource) -
@@ -1586,21 +1608,6 @@ export class Hud {
 				};
 			}
 			grid?.append(card);
-		}
-		this.spellCatalog.replaceChildren(
-			<h2>Available Spells</h2>,
-			<p>Tap a spell, then tap one of the six destination slots.</p>,
-			close,
-			filters,
-			slots,
-			scroll,
-		);
-		scroll.scrollTop = previousScrollTop;
-		this.updateCatalogFilters();
-		this.updateCatalogSelection();
-		if (typeof searchText === "string") {
-			searchInput.value = searchText;
-			searchInput.select();
 		}
 	}
 	private updateCatalogFilters(): void {
