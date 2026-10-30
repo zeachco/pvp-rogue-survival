@@ -54,7 +54,11 @@ import {
 	type SkillId,
 	statsWithItemBonuses,
 } from "../../../common/items";
-import { derivedStats, type Stats } from "../../../common/progression";
+import {
+	type DerivedStats,
+	derivedStats,
+	type Stats,
+} from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
 import { RapidRegenerationEffect } from "../../../common/unitState";
@@ -181,16 +185,6 @@ export class HeroCombatSystem {
 		const effectiveStats = hero.state.attributes;
 		const derived = hero.state.derived;
 		this.syncSkills(progress, hero);
-		const healing = healingCast(
-			hero.hp,
-			hero.maxHp,
-			hero.rage,
-			hero.maxRage,
-			effectiveSkillLevel(progress, "healing"),
-		);
-		const healingManaCost =
-			healing.manaCost *
-			(1 - resourceReduction(progress, "mana", effectiveStats));
 		const autoFire = new Set(autoFireSkillIds(progress));
 		if (
 			this.manualSkill &&
@@ -201,102 +195,22 @@ export class HeroCombatSystem {
 			if (!autoFire.has("reflectiveSurge")) hero.activateReflectiveSurge();
 			this.manualSkill = undefined;
 		}
-		if (
-			isSkillActive(progress, "healing") &&
-			(autoFire.has("healing") || this.manualSkill === "healing") &&
-			hero.hp < hero.maxHp &&
-			(this.manualSkill === "healing" ||
-				shouldAutoCastHealing(hero.hp, hero.maxHp)) &&
-			this.healingCooldown === 0 &&
-			healing.restoredHp > 0 &&
-			hero.mana >= healingManaCost
-		) {
-			const level = effectiveSkillLevel(progress, "healing");
-			hero.spendMana(healingManaCost);
-			const hpBeforeHeal = hero.hp;
-			hero.heal(healing.restoredHp);
-			const restored = hero.hp - hpBeforeHeal;
-			state.spellEffects.push(
-				new SpellEffect(
-					"healing",
-					hero.position,
-					0,
-					healingRadius(level),
-					undefined,
-					undefined,
-					true,
-				),
-			);
-			this.castVersion += 1;
-			if (
-				item?.definitionId === "mace" &&
-				item.rarity === "unique" &&
-				restored > 0
-			) {
-				const radius = healingRadius(level);
-				const healDamage = restored * 0.25;
-				for (const creep of state.creeps)
-					if (
-						creep.active &&
-						distance(hero.position, creep.position) <= radius + creep.radius
-					)
-						creep.receiveDamage(healDamage, random, hero, false, false, {
-							kind: "magic",
-						});
-			}
-			this.healingCooldown = healingCooldown(level);
-			this.healingCooldownMax = this.healingCooldown;
-			if (this.manualSkill === "healing") this.manualSkill = undefined;
-		}
-		const rapidRegenLevel = effectiveSkillLevel(progress, "rapidRegen");
-		const rapidRegenCost =
-			skillManaCost("rapidRegen") *
-			(1 - resourceReduction(progress, "mana", effectiveStats));
-		const manualRapidRegen = this.manualSkill === "rapidRegen";
-		if (
-			isSkillActive(progress, "rapidRegen") &&
-			(autoFire.has("rapidRegen") || manualRapidRegen) &&
-			rapidRegenLevel > 0 &&
-			(manualRapidRegen || hero.hp < hero.maxHp) &&
-			hero.effectRemaining("rapidRegen") === 0 &&
-			(this.skillCooldowns.get("rapidRegen")?.remaining ?? 0) === 0 &&
-			hero.mana >= rapidRegenCost
-		) {
-			hero.spendMana(rapidRegenCost);
-			const rapidDuration = rapidRegenDuration(rapidRegenLevel);
-			hero.addEffect(
-				new RapidRegenerationEffect(
-					rapidRegenMultiplier(rapidRegenLevel),
-					0.1,
-					rapidDuration,
-				),
-			);
-			state.spellEffects.push(
-				new SpellEffect(
-					"rapidRegen",
-					hero.position,
-					0,
-					0,
-					rapidDuration,
-					hero,
-					true,
-				),
-			);
-			this.castVersion += 1;
-			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
-			const duration = effectiveSkillCooldown(
-				"rapidRegen",
-				item,
-				effectiveStats,
-				rapidRegenLevel,
-				Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
-			);
-			this.skillCooldowns.set("rapidRegen", {
-				remaining: duration,
-				maximum: duration,
-			});
-			if (this.manualSkill === "rapidRegen") this.manualSkill = undefined;
-		}
+		this.tryAutoCastHealing(
+			hero,
+			state,
+			progress,
+			item,
+			effectiveStats,
+			random,
+		);
+		this.tryAutoCastRapidRegen(
+			hero,
+			state,
+			progress,
+			item,
+			effectiveStats,
+			derived,
+		);
 		const target = closestTarget(hero, state.creeps, targetIsVisible);
 		if (aimFacing !== undefined) hero.facing = aimFacing;
 		else if (target)
@@ -869,6 +783,132 @@ export class HeroCombatSystem {
 				),
 			),
 		);
+	}
+	private tryAutoCastHealing(
+		hero: Hero,
+		state: ArenaState,
+		progress: PlayerProgress,
+		item: ItemInstance | undefined,
+		effectiveStats: Stats,
+		random: RandomSource,
+	): void {
+		const healing = healingCast(
+			hero.hp,
+			hero.maxHp,
+			hero.rage,
+			hero.maxRage,
+			effectiveSkillLevel(progress, "healing"),
+		);
+		const healingManaCost =
+			healing.manaCost *
+			(1 - resourceReduction(progress, "mana", effectiveStats));
+		const autoFire = new Set(autoFireSkillIds(progress));
+		if (
+			isSkillActive(progress, "healing") &&
+			(autoFire.has("healing") || this.manualSkill === "healing") &&
+			hero.hp < hero.maxHp &&
+			(this.manualSkill === "healing" ||
+				shouldAutoCastHealing(hero.hp, hero.maxHp)) &&
+			this.healingCooldown === 0 &&
+			healing.restoredHp > 0 &&
+			hero.mana >= healingManaCost
+		) {
+			const level = effectiveSkillLevel(progress, "healing");
+			hero.spendMana(healingManaCost);
+			const hpBeforeHeal = hero.hp;
+			hero.heal(healing.restoredHp);
+			const restored = hero.hp - hpBeforeHeal;
+			state.spellEffects.push(
+				new SpellEffect(
+					"healing",
+					hero.position,
+					0,
+					healingRadius(level),
+					undefined,
+					undefined,
+					true,
+				),
+			);
+			this.castVersion += 1;
+			if (
+				item?.definitionId === "mace" &&
+				item.rarity === "unique" &&
+				restored > 0
+			) {
+				const radius = healingRadius(level);
+				const healDamage = restored * 0.25;
+				for (const creep of state.creeps)
+					if (
+						creep.active &&
+						distance(hero.position, creep.position) <= radius + creep.radius
+					)
+						creep.receiveDamage(healDamage, random, hero, false, false, {
+							kind: "magic",
+						});
+			}
+			this.healingCooldown = healingCooldown(level);
+			this.healingCooldownMax = this.healingCooldown;
+			if (this.manualSkill === "healing") this.manualSkill = undefined;
+		}
+	}
+	private tryAutoCastRapidRegen(
+		hero: Hero,
+		state: ArenaState,
+		progress: PlayerProgress,
+		item: ItemInstance | undefined,
+		effectiveStats: Stats,
+		derived: DerivedStats,
+	): void {
+		const autoFire = new Set(autoFireSkillIds(progress));
+		const rapidRegenLevel = effectiveSkillLevel(progress, "rapidRegen");
+		const rapidRegenCost =
+			skillManaCost("rapidRegen") *
+			(1 - resourceReduction(progress, "mana", effectiveStats));
+		const manualRapidRegen = this.manualSkill === "rapidRegen";
+		if (
+			isSkillActive(progress, "rapidRegen") &&
+			(autoFire.has("rapidRegen") || manualRapidRegen) &&
+			rapidRegenLevel > 0 &&
+			(manualRapidRegen || hero.hp < hero.maxHp) &&
+			hero.effectRemaining("rapidRegen") === 0 &&
+			(this.skillCooldowns.get("rapidRegen")?.remaining ?? 0) === 0 &&
+			hero.mana >= rapidRegenCost
+		) {
+			hero.spendMana(rapidRegenCost);
+			const rapidDuration = rapidRegenDuration(rapidRegenLevel);
+			hero.addEffect(
+				new RapidRegenerationEffect(
+					rapidRegenMultiplier(rapidRegenLevel),
+					0.1,
+					rapidDuration,
+				),
+			);
+			state.spellEffects.push(
+				new SpellEffect(
+					"rapidRegen",
+					hero.position,
+					0,
+					0,
+					rapidDuration,
+					hero,
+					true,
+				),
+			);
+			this.castVersion += 1;
+			const equipmentCooldown = itemCooldownReduction(...accessories(progress));
+			const duration = effectiveSkillCooldown(
+				"rapidRegen",
+				item,
+				effectiveStats,
+				rapidRegenLevel,
+				Math.min(0.6, derived.cooldownReduction + equipmentCooldown),
+			);
+			this.skillCooldowns.set("rapidRegen", {
+				remaining: duration,
+				maximum: duration,
+			});
+			if (this.manualSkill === "rapidRegen") this.manualSkill = undefined;
+		}
 	}
 	spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
 		const equipped = equippedActiveSkillIds(progress);
