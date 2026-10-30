@@ -87,7 +87,6 @@ export function itemTile(
 	const spare = tile.quantity - equippedCopies;
 	const skills = extractableSkills(item);
 	const extractCost = extractionCost(progress, skills);
-	const extractStatus = extractButtonStatus(tile, progress);
 	const extractionLevels = skills.map((skill) => {
 		const currentLevel = Math.min(
 			MAX_SKILL_LEVEL,
@@ -168,10 +167,6 @@ export function itemTile(
 			</div>
 		</div>
 	) as HTMLElement;
-	const buttons = [...node.querySelectorAll("button")];
-	buttons.forEach((button) => {
-		(button as HTMLButtonElement).disabled = tile.quantity === 0;
-	});
 	const menu = node.querySelector<HTMLElement>(".item-menu");
 	const closeMenu = bindItemContextMenu(node, menu);
 	if (tile.quantity > 0 && onPreview) {
@@ -226,6 +221,54 @@ export function itemTile(
 			onPreview();
 		});
 	}
+	buildTileActions(
+		node,
+		tile,
+		item,
+		progress,
+		spare,
+		canSend,
+		callbacks,
+		closeMenu,
+	);
+	bindActionPreviews(node, tile, item, skills, extractCost, equipped, spare, {
+		onPreview,
+		onCurrencyPreview,
+		onSpellPreview,
+		onHoverChange,
+	});
+	return node;
+}
+
+type TilePreviewHooks = {
+	onPreview?: (
+		item?: InventoryTile["item"],
+		equipped?: boolean,
+		action?: "inspect" | "equip" | "upgrade" | "reroll",
+		baselineItem?: InventoryTile["item"],
+	) => void;
+	onCurrencyPreview?: (preview?: CurrencyPreview) => void;
+	onSpellPreview?: (skills?: InventoryTile["item"]["skills"]) => void;
+	onHoverChange?: (tileId?: string, actionIndex?: number) => void;
+};
+
+function buildTileActions(
+	node: HTMLElement,
+	tile: InventoryTile,
+	item: InventoryTile["item"],
+	progress: PlayerProgress,
+	spare: number,
+	canSend: boolean,
+	callbacks: HudCallbacks,
+	closeMenu: () => void,
+): void {
+	const skills = extractableSkills(item);
+	const extractCost = extractionCost(progress, skills);
+	const extractStatus = extractButtonStatus(tile, progress);
+	const buttons = [...node.querySelectorAll("button")];
+	buttons.forEach((button) => {
+		(button as HTMLButtonElement).disabled = tile.quantity === 0;
+	});
 	if (spare <= 0)
 		for (const index of [1, 2, 4, 6])
 			if (buttons[index]) (buttons[index] as HTMLButtonElement).disabled = true;
@@ -299,6 +342,20 @@ export function itemTile(
 			extractButton.title = `Extracting costs ${extractCost} gold`;
 		}
 	}
+}
+
+function bindActionPreviews(
+	node: HTMLElement,
+	tile: InventoryTile,
+	item: InventoryTile["item"],
+	skills: InventoryTile["item"]["skills"],
+	extractCost: number,
+	equipped: boolean,
+	spare: number,
+	hooks: TilePreviewHooks,
+): void {
+	const { onPreview, onCurrencyPreview, onSpellPreview, onHoverChange } = hooks;
+	const buttons = [...node.querySelectorAll("button")];
 	const upgraded = levelUpItem(item, item.seed);
 	const bindActionPreview = (
 		index: number,
@@ -343,6 +400,7 @@ export function itemTile(
 			? { souls: purgeYield(item) }
 			: { [item.rarity]: purgeYield(item) },
 	);
+	const costs = upgradeCosts(item);
 	const upgradeCurrency: CurrencyPreview =
 		costs.souls > 0
 			? { souls: -costs.souls }
@@ -369,7 +427,6 @@ export function itemTile(
 		undefined,
 		node.querySelector<HTMLElement>(".extract-tooltip-anchor") ?? undefined,
 	);
-	return node;
 }
 
 export type InventoryActionIcon =
