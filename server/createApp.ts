@@ -17,7 +17,7 @@ import {
 import type { PlayerRepository } from "./domain.ts";
 import { InMemoryPlayerRepository } from "./domain.ts";
 import { GameService } from "./GameService.ts";
-import { json, serveRequest } from "./httpRouter.ts";
+import { closeServer, json, serveRequest } from "./httpRouter.ts";
 import { SqlPlayerRepository } from "./SqlPlayerRepository.ts";
 
 export { MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH } from "./DevlogRequestRepository.ts";
@@ -448,13 +448,4 @@ function hasSocket(
 		(socket) =>
 			socket.playerId === playerId && socket.readyState === WebSocket.OPEN,
 	);
-}
-function closeServer(server: ReturnType<typeof createServer>): Promise<void> {
-	return new Promise((resolve, reject) => {
-		if (!server.listening) {
-			resolve();
-			return;
-		}
-		server.close((error) => (error ? reject(error) : resolve()));
-	});
 }

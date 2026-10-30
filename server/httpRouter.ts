@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { extname, join, normalize } from "node:path";
 import type { PlayerId } from "../common/protocol.ts";
 import type {
@@ -8,6 +8,15 @@ import type {
 } from "./DevlogRequestRepository.ts";
 import { MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH } from "./DevlogRequestRepository.ts";
 
+export function closeServer(server: Server): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (!server.listening) {
+			resolve();
+			return;
+		}
+		server.close((error) => (error ? reject(error) : resolve()));
+	});
+}
 export async function serveRequest(
 	request: IncomingMessage,
 	response: ServerResponse,
