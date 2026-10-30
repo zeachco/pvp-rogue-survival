@@ -55,6 +55,7 @@ import {
 	inspectedEquipment,
 } from "./characterSheet";
 export { inspectedEquipment } from "./characterSheet";
+import { rankedName, realmMemberSignature } from "./realmPanel";
 import { h } from "./dom";
 import { GameSettings } from "./GameSettings";
 import { HeroResourceDock } from "./HeroResourceDock";
@@ -3594,32 +3595,6 @@ function currencyCell(
 
 function setText(node: HTMLElement, value: string): void {
 	if (node.textContent !== value) node.textContent = value;
-}
-function realmMemberSignature(member: RealmState["guards"][number]): string {
-	return `${member.id},${member.name},${member.level},${Number(member.down)},${Number(member.receivesDeathEchoes)}`;
-}
-function rankedName(name: string, receivesDeathEchoes: boolean): Node {
-	if (!receivesDeathEchoes) return document.createTextNode(name);
-	const warning = (
-		<span
-			class="death-echo-warning"
-			tabindex="0"
-			aria-label="Highest-ranked hero: receives all other players' death echoes in this realm to fight against"
-		>
-			⚠
-			<span role="tooltip">
-				Highest-ranked hero: receives all other players' death echoes in this
-				realm to fight against.
-			</span>
-		</span>
-	) as HTMLElement;
-	const wrapper = (
-		<span class="ranked-name">
-			{warning}
-			{name}
-		</span>
-	) as HTMLElement;
-	return wrapper;
 }
 
 export function spellExtractionTooltipLevels(
