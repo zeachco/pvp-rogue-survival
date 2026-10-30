@@ -21,6 +21,7 @@ import {
 	generateRelic,
 	type ItemInstance,
 	RARITY_COLORS,
+	type SkillId,
 	starterClub,
 } from "../common/items";
 import {
@@ -28,8 +29,8 @@ import {
 	type Stats,
 	ZERO_STATS,
 } from "../common/progression";
-import type { PlayerProgress } from "../common/protocol";
-import { SeededRandom } from "../common/random";
+import type { CreepKind, PlayerId, PlayerProgress } from "../common/protocol";
+import { type RandomSource, SeededRandom } from "../common/random";
 import { ArenaState } from "../src/game/ArenaState";
 import { AttackArea } from "../src/game/AttackArea";
 import { BLIZZARD_ICICLES_PER_VOLLEY, Blizzard } from "../src/game/Blizzard";
@@ -475,25 +476,12 @@ describe("animated 3D characters", () => {
 		);
 		expect(heroBody?.position.z).toBe(18);
 
-		const creep = new Creep(
-			{
-				id: "grounded-creep",
-				name: "Grounded",
-				kind: "melee",
-				level: 1,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"grounded-creep",
 			{ x: 10, y: 20 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Grounded" },
 		);
 		expect(
 			creep.mesh.children.some(
@@ -517,25 +505,12 @@ describe("animated 3D characters", () => {
 		hero.updateVisuals(2 / 60);
 		expect(heroBody.material.color.getHex()).toBe(0x8a9197);
 
-		const creep = new Creep(
-			{
-				id: "flash-creep",
-				name: "Flash Creep",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"flash-creep",
 			{ x: 0, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Flash Creep", level: 0 },
 		);
 		let creepBody:
 			| THREE.Mesh<THREE.BufferGeometry, THREE.MeshToonMaterial>
@@ -735,25 +710,12 @@ describe("arena systems", () => {
 		expect(resourceBarWidth(1, 0)).toBe(0);
 	});
 	test("keeps creep resource bars slightly in front of sprite depth", () => {
-		const creep = new Creep(
-			{
-				id: "front-bars",
-				name: "Front Bars",
-				kind: "melee",
-				level: 1,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const creep = makeCreep(
+			"front-bars",
 			{ x: 10, y: 20 },
-			BALANCE,
-			new SeededRandom(1),
+			undefined,
+			{ ...ZERO_STATS },
+			{ name: "Front Bars" },
 		);
 		creep.healthBarGroup.position.set(10, 20, 0);
 		expect(creep.resourceBarAnchorY).toBe(creepResourceBarAnchorY(32));
@@ -804,26 +766,16 @@ describe("arena systems", () => {
 		expect(resourceBarGroup.quaternion.equals(cameraRotation)).toBeTrue();
 	});
 	test("applies passive upkeep suspension to spawned enemies", () => {
-		const creep = new Creep(
+		const creep = makeCreep(
+			"upkeep",
+			{ x: 100, y: 0 },
+			undefined,
+			{ ...ZERO_STATS },
 			{
-				id: "upkeep",
 				name: "Upkeep",
-				kind: "melee",
 				level: 99,
-				stats: { ...ZERO_STATS },
-				mainHand: starterClub(),
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
 				skillLevels: { deathBurst: 99 },
 			},
-			"neutral",
-			"neutral",
-			{ x: 100, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
 		);
 		creep.mana = 0;
 		creep.pursue({ x: 0, y: 0 }, 1, 1_000, 1_000);
@@ -966,43 +918,26 @@ describe("arena systems", () => {
 		).toBeTrue();
 	});
 	test("lets an affordable healing creep restore itself and nearby allies", () => {
-		const build = {
-			id: "healer",
+		const stats = { ...ZERO_STATS, strength: 20, intelligence: 10 };
+		const healer = makeCreep("healer", { x: 0, y: 0 }, undefined, stats, {
 			name: "Healer",
-			kind: "melee" as const,
-			level: 1,
-			stats: { ...ZERO_STATS, strength: 20, intelligence: 10 },
-			mainHand: starterClub(),
-			carried: [],
-			isRival: false,
-			xpReward: 0,
-			goldReward: 0,
-			seed: 1,
 			skillLevels: { healing: 1 },
-		};
-		const healer = new Creep(
-			build,
-			"neutral",
-			"neutral",
-			{ x: 0, y: 0 },
-			BALANCE,
-			new SeededRandom(1),
-		);
-		const ally = new Creep(
-			{ ...build, id: "ally", skillLevels: {} },
-			"neutral",
-			"neutral",
-			{ x: 140, y: 0 },
-			BALANCE,
-			new SeededRandom(2),
-		);
-		const distantAlly = new Creep(
-			{ ...build, id: "distant-ally", skillLevels: {} },
-			"neutral",
-			"neutral",
+		});
+		const ally = makeCreep("ally", { x: 140, y: 0 }, undefined, stats, {
+			name: "Healer",
+			skillLevels: {},
+			random: new SeededRandom(2),
+		});
+		const distantAlly = makeCreep(
+			"distant-ally",
 			{ x: 160, y: 0 },
-			BALANCE,
-			new SeededRandom(3),
+			undefined,
+			stats,
+			{
+				name: "Healer",
+				skillLevels: {},
+				random: new SeededRandom(3),
+			},
 		);
 		healer.hp = healer.maxHp * 0.51;
 		expect(healer.castHealing([healer, ally, distantAlly], [])).toBeFalse();
@@ -1233,25 +1168,12 @@ describe("arena systems", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		const weapon = starterClub();
 		hero.configureStats(ZERO_STATS, undefined, weapon);
-		const target = new Creep(
-			{
-				id: "cast-target",
-				name: "Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: weapon,
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const target = makeCreep(
+			"cast-target",
 			{ x: 80, y: 50 },
-			BALANCE,
-			new SeededRandom(1),
+			weapon,
+			{ ...ZERO_STATS },
+			{ name: "Target", level: 0 },
 		);
 		const state = new ArenaState();
 		state.creeps.push(target);
@@ -1353,25 +1275,12 @@ describe("arena systems", () => {
 			skills: ["vampiricBoomerang" as const],
 		};
 		hero.configureStats(ZERO_STATS, undefined, weapon, undefined, charm);
-		const target = new Creep(
-			{
-				id: "accessory-proc-target",
-				name: "Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: weapon,
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const target = makeCreep(
+			"accessory-proc-target",
 			{ x: 80, y: 50 },
-			BALANCE,
-			new SeededRandom(1),
+			weapon,
+			{ ...ZERO_STATS },
+			{ name: "Target", level: 0 },
 		);
 		const state = new ArenaState();
 		state.creeps.push(target);
@@ -1408,25 +1317,12 @@ describe("arena systems", () => {
 		const weapon = starterClub();
 		hero.configureStats(ZERO_STATS, undefined, weapon);
 		hero.facing = Math.PI / 2;
-		const target = new Creep(
-			{
-				id: "facing-target",
-				name: "Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: weapon,
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const target = makeCreep(
+			"facing-target",
 			{ x: 80, y: 50 },
-			BALANCE,
-			new SeededRandom(1),
+			weapon,
+			{ ...ZERO_STATS },
+			{ name: "Target", level: 0 },
 		);
 		const state = new ArenaState();
 		state.creeps.push(target);
@@ -1480,25 +1376,12 @@ describe("arena systems", () => {
 		const weapon = starterClub();
 		hero.configureStats(ZERO_STATS, undefined, weapon);
 		hero.rage = 0;
-		const target = new Creep(
-			{
-				id: "rage-target",
-				name: "Target",
-				kind: "melee",
-				level: 0,
-				stats: { ...ZERO_STATS },
-				mainHand: weapon,
-				carried: [],
-				isRival: false,
-				xpReward: 0,
-				goldReward: 0,
-				seed: 1,
-			},
-			"neutral",
-			"neutral",
+		const target = makeCreep(
+			"rage-target",
 			{ x: 80, y: 50 },
-			BALANCE,
-			new SeededRandom(1),
+			weapon,
+			{ ...ZERO_STATS },
+			{ name: "Target", level: 0 },
 		);
 		const state = new ArenaState();
 		state.creeps.push(target);
@@ -2270,29 +2153,24 @@ describe("arena systems", () => {
 		const hero = new Hero({ x: 50, y: 50 });
 		hero.configureStats(ZERO_STATS);
 		const weapon = starterClub();
-		const makeCreep = (id: string, x: number) =>
-			new Creep(
-				{
-					id,
-					name: id,
-					kind: "melee",
-					level: 0,
-					stats: { ...ZERO_STATS },
-					mainHand: weapon,
-					carried: [],
-					isRival: false,
-					xpReward: 0,
-					goldReward: 0,
-					seed: 1,
-				},
-				"neutral",
-				"neutral",
-				{ x, y: 50 },
-				BALANCE,
-				new SeededRandom(1),
-			);
-		const first = makeCreep("first", 140);
-		const second = makeCreep("second", 155);
+		const first = makeCreep(
+			"first",
+			{ x: 140, y: 50 },
+			weapon,
+			{
+				...ZERO_STATS,
+			},
+			{ level: 0 },
+		);
+		const second = makeCreep(
+			"second",
+			{ x: 155, y: 50 },
+			weapon,
+			{
+				...ZERO_STATS,
+			},
+			{ level: 0 },
+		);
 		state.creeps.push(first, second);
 		const boomerang = Projectile.vampiricBoomerang(
 			hero,
@@ -4023,26 +3901,46 @@ function makeCreep(
 		spirit: 100,
 		intelligence: 100,
 	},
+	options: {
+		kind?: CreepKind;
+		level?: number;
+		name?: string;
+		emitterId?: PlayerId | "neutral";
+		emitterName?: string;
+		carried?: ItemInstance[];
+		isRival?: boolean;
+		xpReward?: number;
+		goldReward?: number;
+		seed?: number;
+		skillLevels?: Partial<Record<SkillId, number>>;
+		balance?: BalanceConfig;
+		random?: RandomSource;
+		movementMultiplier?: number;
+	} = {},
 ): Creep {
 	return new Creep(
 		{
 			id,
-			name: id,
-			kind: "melee",
-			level: 1,
+			name: options.name ?? id,
+			kind: options.kind ?? "melee",
+			level: options.level ?? 1,
 			stats,
 			mainHand,
-			carried: [],
-			isRival: false,
-			xpReward: 0,
-			goldReward: 0,
-			seed: 1,
+			carried: options.carried ?? [],
+			isRival: options.isRival ?? false,
+			xpReward: options.xpReward ?? 0,
+			goldReward: options.goldReward ?? 0,
+			seed: options.seed ?? 1,
+			...(options.skillLevels !== undefined
+				? { skillLevels: options.skillLevels }
+				: {}),
 		},
-		"neutral",
-		"neutral",
+		options.emitterId ?? "neutral",
+		options.emitterName ?? "neutral",
 		position,
-		BALANCE,
-		new SeededRandom(1),
+		options.balance ?? BALANCE,
+		options.random ?? new SeededRandom(1),
+		options.movementMultiplier ?? 1,
 	);
 }
 
