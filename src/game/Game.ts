@@ -530,141 +530,25 @@ export class Game {
 		this.socket.send({ type: "enterRealm", waveNumber });
 	}
 	private handleServerMessage(message: ServerMessage): void {
-		if (message.type === "welcome") {
-			if (this.player && this.player.id !== message.playerId) {
-				this.arena.clear();
-				this.pendingPickupAt.clear();
-				this.heroCombat.reset();
-			}
-			this.player = {
-				id: message.playerId,
-				name: message.player.name,
-				receivesDeathEchoes: message.player.receivesDeathEchoes,
-				score: message.player.score,
-				waveNumber: message.player.waveNumber,
-				maxWaveReached: message.player.maxWaveReached,
-				health: 1,
-				maxHealth: 1,
-				healthRegen: 0,
-				mana: 0,
-				maxMana: 0,
-				rage: STARTING_RAGE,
-				maxRage: MAX_RAGE,
-				attackProgress: 1,
-				statuses: [],
-				reflectiveSurgeRemaining: 0,
-				rapidRegenRemaining: 0,
-				xpSendBuffs: message.xpSendBuffs,
-				gold: message.progress.gold,
-				progress: message.progress,
-			};
-			this.balance = message.config.balance;
-			this.realmMode = message.realm.mode;
-			this.hero.applyProgress(message.progress);
-			this.syncHeroState();
-			this.debugName = message.player.name;
-			this.savedSession = {
-				heroId: message.playerId,
-				username: message.accountName,
-			};
-			this.sessionStorage.save(this.savedSession);
-			this.hud.configurePanelTriggers(message.panelTriggers);
-			this.hud.setAccountCharacters(message.accountCharacters);
-			this.hud.setPlayer(this.player);
-			this.hud.setPublicHero();
-			this.hud.setSpells(
-				this.heroCombat.spellSlots(message.progress, this.hero),
-			);
-			this.hud.setRealm(message.realm);
-			this.hud.setNotice("");
-			this.hud.showCenterToast(
-				"WASD moves. Combat and skills cast automatically. Walk over glowing item drops.",
-			);
-			this.reconcileDrops();
-		} else if (message.type === "authenticationRequired") {
+		if (message.type === "welcome") this.handleWelcome(message);
+		else if (message.type === "authenticationRequired") {
 			this.hud.showAuthentication(message.username, message.mode);
-		} else if (message.type === "loggedOut") {
-			this.sessionStorage.clear();
-			this.savedSession = undefined;
-			this.player = undefined;
-			this.arena.clear();
-			this.pendingPickupAt.clear();
-			this.heroCombat.reset();
-			this.hud.clearPlayer();
-			this.hud.setPublicHero();
-		} else if (message.type === "leaderboard")
+		} else if (message.type === "loggedOut") this.handleLoggedOut();
+		else if (message.type === "leaderboard")
 			this.hud.setLeaderboard(message.heroes, message.onlineCount);
 		else if (message.type === "heroProfile")
 			this.hud.setPublicHero(message.hero);
-		else if (message.type === "realmUpdated") {
-			this.realmMode = message.realm.mode;
-			if (this.player) {
-				const playerId = this.player.id;
-				const member = [
-					...message.realm.guards,
-					...message.realm.attackers,
-				].find(({ id }) => id === playerId);
-				if (member) {
-					this.player.receivesDeathEchoes = member.receivesDeathEchoes;
-					this.player.maxWaveReached = member.maxWaveReached;
-				}
-			}
-			this.hud.setRealm(message.realm);
-			if (this.player) this.hud.setPlayer(this.player);
-		} else if (message.type === "forceNextWaveResult") {
+		else if (message.type === "realmUpdated") this.handleRealmUpdated(message);
+		else if (message.type === "forceNextWaveResult") {
 			this.hud.setForceNextWaveReadyAt(message.readyAt);
 			if (message.accepted) expediteQueuedSpawns(this.arena, performance.now());
-		} else if (message.type === "playerBonked") {
-			this.lastBonkAttackerId = message.attackerId;
-			this.hero.lastDamageSourceId = undefined;
-			this.hero.receiveDamage(
-				this.hero.maxHp * message.damageFraction,
-				{ next: () => 1 },
-				undefined,
-				false,
-				false,
-				{ kind: "physical" },
-				false,
-			);
-			this.syncHeroState();
-			this.hud.setPlayer(this.player!);
-			this.hud.showCenterToast(`${message.attackerName} bonked you!`);
-		} else if (message.type === "duelStarted") {
-			this.arena.clear();
-			this.hero.resetForRealm();
-			this.hero.position = {
-				x: message.side === 0 ? 120 : this.map.width - 120,
-				y: this.map.center.y,
-			};
-			this.spawnCreep(message.opponent);
-			this.duelOpponent = this.creeps.at(-1);
-			if (this.duelOpponent) {
-				this.duelOpponent.position = {
-					x: message.side === 0 ? this.map.width - 120 : 120,
-					y: this.map.center.y,
-				};
-				this.duelOpponentHp = this.duelOpponent.hp;
-			}
-			this.hud.showCenterToast("Challenge Realm deathmatch!");
-		} else if (message.type === "duelEnded") {
-			if (message.outcome === "victory") {
-				this.resetArena();
-				this.hud.showCenterToast("Challenge Realm victory!");
-			} else {
-				this.duelOpponent = undefined;
-				this.hero.hp = 0;
-				if (this.defeatCooldown <= 0) {
-					this.defeatDropPosition = { ...this.hero.position };
-					this.defeatCooldown = 1.8;
-					this.hud.showDeathModal("Your ass got looted by a bonker.");
-				}
-			}
-		} else if (message.type === "duelState" && this.duelOpponent) {
-			this.duelOpponent.position = { x: message.x, y: message.y };
-			this.duelOpponent.facing = message.facing;
-			this.duelOpponent.hp = Math.min(this.duelOpponent.maxHp, message.hp);
-			this.duelOpponentHp = this.duelOpponent.hp;
-		} else if (message.type === "duelDamage") {
+		} else if (message.type === "playerBonked")
+			this.handlePlayerBonked(message);
+		else if (message.type === "duelStarted") this.handleDuelStarted(message);
+		else if (message.type === "duelEnded") this.handleDuelEnded(message);
+		else if (message.type === "duelState" && this.duelOpponent)
+			this.handleDuelState(message);
+		else if (message.type === "duelDamage") {
 			this.lastBonkAttackerId = message.attackerId;
 			this.hero.hp = Math.max(0, this.hero.hp - message.amount);
 		} else if (message.type === "incomingWave") this.enqueueWave(message.wave);
@@ -730,6 +614,156 @@ export class Game {
 			);
 		else if (message.type === "serverNotice")
 			this.hud.setNotice(message.message, message.tone);
+	}
+
+	private handleWelcome(
+		message: Extract<ServerMessage, { type: "welcome" }>,
+	): void {
+		if (this.player && this.player.id !== message.playerId) {
+			this.arena.clear();
+			this.pendingPickupAt.clear();
+			this.heroCombat.reset();
+		}
+		this.player = {
+			id: message.playerId,
+			name: message.player.name,
+			receivesDeathEchoes: message.player.receivesDeathEchoes,
+			score: message.player.score,
+			waveNumber: message.player.waveNumber,
+			maxWaveReached: message.player.maxWaveReached,
+			health: 1,
+			maxHealth: 1,
+			healthRegen: 0,
+			mana: 0,
+			maxMana: 0,
+			rage: STARTING_RAGE,
+			maxRage: MAX_RAGE,
+			attackProgress: 1,
+			statuses: [],
+			reflectiveSurgeRemaining: 0,
+			rapidRegenRemaining: 0,
+			xpSendBuffs: message.xpSendBuffs,
+			gold: message.progress.gold,
+			progress: message.progress,
+		};
+		this.balance = message.config.balance;
+		this.realmMode = message.realm.mode;
+		this.hero.applyProgress(message.progress);
+		this.syncHeroState();
+		this.debugName = message.player.name;
+		this.savedSession = {
+			heroId: message.playerId,
+			username: message.accountName,
+		};
+		this.sessionStorage.save(this.savedSession);
+		this.hud.configurePanelTriggers(message.panelTriggers);
+		this.hud.setAccountCharacters(message.accountCharacters);
+		this.hud.setPlayer(this.player);
+		this.hud.setPublicHero();
+		this.hud.setSpells(this.heroCombat.spellSlots(message.progress, this.hero));
+		this.hud.setRealm(message.realm);
+		this.hud.setNotice("");
+		this.hud.showCenterToast(
+			"WASD moves. Combat and skills cast automatically. Walk over glowing item drops.",
+		);
+		this.reconcileDrops();
+	}
+
+	private handleLoggedOut(): void {
+		this.sessionStorage.clear();
+		this.savedSession = undefined;
+		this.player = undefined;
+		this.arena.clear();
+		this.pendingPickupAt.clear();
+		this.heroCombat.reset();
+		this.hud.clearPlayer();
+		this.hud.setPublicHero();
+	}
+
+	private handleRealmUpdated(
+		message: Extract<ServerMessage, { type: "realmUpdated" }>,
+	): void {
+		this.realmMode = message.realm.mode;
+		if (this.player) {
+			const playerId = this.player.id;
+			const member = [...message.realm.guards, ...message.realm.attackers].find(
+				({ id }) => id === playerId,
+			);
+			if (member) {
+				this.player.receivesDeathEchoes = member.receivesDeathEchoes;
+				this.player.maxWaveReached = member.maxWaveReached;
+			}
+		}
+		this.hud.setRealm(message.realm);
+		if (this.player) this.hud.setPlayer(this.player);
+	}
+
+	private handlePlayerBonked(
+		message: Extract<ServerMessage, { type: "playerBonked" }>,
+	): void {
+		this.lastBonkAttackerId = message.attackerId;
+		this.hero.lastDamageSourceId = undefined;
+		this.hero.receiveDamage(
+			this.hero.maxHp * message.damageFraction,
+			{ next: () => 1 },
+			undefined,
+			false,
+			false,
+			{ kind: "physical" },
+			false,
+		);
+		this.syncHeroState();
+		this.hud.setPlayer(this.player!);
+		this.hud.showCenterToast(`${message.attackerName} bonked you!`);
+	}
+
+	private handleDuelStarted(
+		message: Extract<ServerMessage, { type: "duelStarted" }>,
+	): void {
+		this.arena.clear();
+		this.hero.resetForRealm();
+		this.hero.position = {
+			x: message.side === 0 ? 120 : this.map.width - 120,
+			y: this.map.center.y,
+		};
+		this.spawnCreep(message.opponent);
+		this.duelOpponent = this.creeps.at(-1);
+		if (this.duelOpponent) {
+			this.duelOpponent.position = {
+				x: message.side === 0 ? this.map.width - 120 : 120,
+				y: this.map.center.y,
+			};
+			this.duelOpponentHp = this.duelOpponent.hp;
+		}
+		this.hud.showCenterToast("Challenge Realm deathmatch!");
+	}
+
+	private handleDuelEnded(
+		message: Extract<ServerMessage, { type: "duelEnded" }>,
+	): void {
+		if (message.outcome === "victory") {
+			this.resetArena();
+			this.hud.showCenterToast("Challenge Realm victory!");
+		} else {
+			this.duelOpponent = undefined;
+			this.hero.hp = 0;
+			if (this.defeatCooldown <= 0) {
+				this.defeatDropPosition = { ...this.hero.position };
+				this.defeatCooldown = 1.8;
+				this.hud.showDeathModal("Your ass got looted by a bonker.");
+			}
+		}
+	}
+
+	private handleDuelState(
+		message: Extract<ServerMessage, { type: "duelState" }>,
+	): void {
+		const opponent = this.duelOpponent;
+		if (!opponent) return;
+		opponent.position = { x: message.x, y: message.y };
+		opponent.facing = message.facing;
+		opponent.hp = Math.min(opponent.maxHp, message.hp);
+		this.duelOpponentHp = opponent.hp;
 	}
 
 	private enqueueWave(wave: CreepWave): void {
