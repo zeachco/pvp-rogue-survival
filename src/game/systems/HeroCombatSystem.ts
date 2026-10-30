@@ -54,7 +54,7 @@ import {
 	type SkillId,
 	statsWithItemBonuses,
 } from "../../../common/items";
-import { derivedStats } from "../../../common/progression";
+import { derivedStats, type Stats } from "../../../common/progression";
 import type { PlayerProgress } from "../../../common/protocol";
 import type { RandomSource } from "../../../common/random";
 import { RapidRegenerationEffect } from "../../../common/unitState";
@@ -74,6 +74,23 @@ import type { Unit } from "../Unit";
 
 export function shouldAutoCastHealing(hp: number, maxHp: number): boolean {
 	return healingAutoCastThresholdMet(hp, maxHp);
+}
+
+interface SkillCastContext {
+	id: SkillId;
+	level: number;
+	state: ArenaState;
+	hero: Hero;
+	target: Creep;
+	item: ItemInstance | undefined;
+	progress: PlayerProgress;
+	stats: Stats;
+	damage: number;
+	range: number;
+	facingTarget: Vector2;
+	presentation: { kind: "magic" | "physical"; critical: boolean };
+	strike: { damage: number; critical: boolean };
+	random: RandomSource;
 }
 
 export class HeroCombatSystem {
@@ -548,164 +565,55 @@ export class HeroCombatSystem {
 				activeSkill.id !== "reflectiveSurge")
 		)
 			hero.grantRage(BASIC_ATTACK_RAGE_GAIN);
-		if (activeSkill?.id === "orbitingHammers") {
-			const sequence = this.orbitCastSequence++;
-			const lifetime = orbitingHammerDuration(activeSkill.level);
-			const followSource =
-				item?.definitionId === "hammer" && item.rarity === "unique";
-			for (let index = 0; index < 3; index += 1) {
-				const drift = (((sequence * 3 + index) % 7) - 3) * 0.035;
-				state.projectiles.push(
-					Projectile.orbitingHammer(
-						hero,
-						hero.facing + (index * Math.PI * 2) / 3,
-						damage,
-						{ kind: "magic", critical: strike.critical },
-						drift,
-						lifetime,
-						followSource,
-						index === 0,
-					),
-				);
-			}
-		} else if (activeSkill?.id === "vampiricBoomerang" && item)
-			state.projectiles.push(
-				Projectile.vampiricBoomerang(
-					hero,
-					facingTarget,
-					damage,
-					range,
-					vampiricBoomerangHealingFraction(activeSkill.level),
-					item,
-				),
-			);
-		else if (activeSkill?.id === "frostOrb")
-			state.projectiles.push(
-				new Projectile(
-					hero.position,
-					facingTarget,
-					damage,
-					"hero",
-					"frostOrb",
-					hero,
-					presentation,
-					item,
-				),
-			);
-		else if (activeSkill?.id === "swamp") {
-			const gooey =
-				progress.offHand?.itemKind === "relic" &&
-				progress.offHand.rarity === "unique";
-			const radius = swampRadius(activeSkill.level) * (gooey ? 4 : 1);
-			const center = gooey ? { ...hero.position } : facingTarget;
-			state.swamps.push(new GroundSwamp(center, radius, hero, gooey));
-		} else if (activeSkill?.id === "blizzard") {
-			state.blizzards.push(
-				new Blizzard(
-					{ ...target.position },
-					blizzardRadius(activeSkill.level),
-					blizzardDuration(activeSkill.level),
-					blizzardProjectilesPerSecond(activeSkill.level),
-					damage,
-					hero,
-					strike.critical,
-				),
-			);
-		} else if (activeSkill?.id === "gravityPull" && item)
-			castForceField(state, hero, activeSkill.level, random);
-		else if (activeSkill?.id === "reflectiveSurge")
-			hero.reflectiveSurgeRemaining = reflectiveSurgeDuration(
-				activeSkill.level,
-			);
-		else if (activeSkill?.id === "whirlwind") {
-			this.whirlwindRemaining = whirlwindDuration(activeSkill.level);
-			this.whirlwindPulse = 0;
-			this.whirlwindRange = whirlwindRadius(activeSkill.level);
-			this.whirlwindHitDamage = whirlwindDamage(effectiveStats.strength);
-			this.whirlwindSpeed = whirlwindMovementSpeed(activeSkill.level);
-			state.spellEffects.push(
-				new SpellEffect(
-					"whirlwind",
-					hero.position,
-					0,
-					this.whirlwindRange,
-					this.whirlwindRemaining,
-					hero,
-					true,
-				),
-			);
-		} else if (activeSkill?.id === "fireBreath")
-			state.attacks.push(
-				new AttackArea(
-					"hero",
-					{ ...hero.position },
-					hero.facing,
-					range,
-					0.62,
-					0.22,
-					0.18,
-					damage,
-					hero,
-					"fireBreath",
-					item,
-					{ kind: "fire", critical: strike.critical },
-				),
-			);
-		else if (ranged)
-			state.projectiles.push(
-				new Projectile(
-					hero.position,
-					facingTarget,
-					damage,
-					"hero",
-					activeSkill?.id === "arcaneBolt" || activeSkill?.id === "rendingThrow"
-						? activeSkill.id
-						: undefined,
-					hero,
-					presentation,
-					item,
-					true,
-					activeSkill?.level ?? 1,
-				),
-			);
-		else {
-			const origin = { ...hero.position };
-			state.attacks.push(
-				new AttackArea(
-					"hero",
-					origin,
-					hero.facing,
-					range,
-					activeSkill?.id === "bash" ||
-						activeSkill?.id === "sweep" ||
-						activeSkill?.id === "shockwave" ||
-						activeSkill?.id === "rent" ||
-						(!activeSkill &&
-							(item?.definitionId === "mace" ||
-								item?.definitionId === "club" ||
-								item?.definitionId === "hammer"))
-						? Math.PI
-						: activeSkill?.id === "cleave"
-							? cleaveHalfArc(activeSkill.level)
-							: activeSkill?.id === "flurry"
-								? FLURRY_HALF_ARC
-								: 0.72,
-					0.18,
-					0.13,
-					damage,
-					hero,
-					activeSkill?.id,
-					item,
-					presentation,
-					emittedImpactForce(
-						hero,
-						"radial",
-						origin,
-						undefined,
-						skillImpactForceScale(activeSkill?.id),
-					),
-				),
-			);
+		const castContext: SkillCastContext = {
+			id: activeSkill.id,
+			level: activeSkill.level,
+			state,
+			hero,
+			target,
+			item,
+			progress,
+			stats: effectiveStats,
+			damage,
+			range,
+			facingTarget,
+			presentation,
+			strike,
+			random,
+		};
+		switch (activeSkill.id) {
+			case "orbitingHammers":
+				this.castOrbitingHammers(castContext);
+				break;
+			case "vampiricBoomerang":
+				if (item) this.castVampiricBoomerang(castContext);
+				else this.castMeleeArc(castContext);
+				break;
+			case "frostOrb":
+				this.castFrostOrb(castContext);
+				break;
+			case "swamp":
+				this.castSwamp(castContext);
+				break;
+			case "blizzard":
+				this.castBlizzard(castContext);
+				break;
+			case "gravityPull":
+				if (item) this.castGravityPull(castContext);
+				else this.castMeleeArc(castContext);
+				break;
+			case "reflectiveSurge":
+				this.castReflectiveSurge(castContext);
+				break;
+			case "whirlwind":
+				this.castWhirlwind(castContext);
+				break;
+			case "fireBreath":
+				this.castFireBreath(castContext);
+				break;
+			default:
+				if (ranged) this.castRangedProjectile(castContext);
+				else this.castMeleeArc(castContext);
 		}
 		if (
 			activeSkill &&
@@ -798,6 +706,170 @@ export class HeroCombatSystem {
 		);
 	}
 
+	private castOrbitingHammers(ctx: SkillCastContext): void {
+		const sequence = this.orbitCastSequence++;
+		const lifetime = orbitingHammerDuration(ctx.level);
+		const followSource =
+			ctx.item?.definitionId === "hammer" && ctx.item.rarity === "unique";
+		for (let index = 0; index < 3; index += 1) {
+			const drift = (((sequence * 3 + index) % 7) - 3) * 0.035;
+			ctx.state.projectiles.push(
+				Projectile.orbitingHammer(
+					ctx.hero,
+					ctx.hero.facing + (index * Math.PI * 2) / 3,
+					ctx.damage,
+					{ kind: "magic", critical: ctx.strike.critical },
+					drift,
+					lifetime,
+					followSource,
+					index === 0,
+				),
+			);
+		}
+	}
+	private castVampiricBoomerang(ctx: SkillCastContext): void {
+		if (!ctx.item) return; // the dispatcher only calls this with a weapon
+		ctx.state.projectiles.push(
+			Projectile.vampiricBoomerang(
+				ctx.hero,
+				ctx.facingTarget,
+				ctx.damage,
+				ctx.range,
+				vampiricBoomerangHealingFraction(ctx.level),
+				ctx.item,
+			),
+		);
+	}
+	private castFrostOrb(ctx: SkillCastContext): void {
+		ctx.state.projectiles.push(
+			new Projectile(
+				ctx.hero.position,
+				ctx.facingTarget,
+				ctx.damage,
+				"hero",
+				"frostOrb",
+				ctx.hero,
+				ctx.presentation,
+				ctx.item,
+			),
+		);
+	}
+	private castSwamp(ctx: SkillCastContext): void {
+		const gooey =
+			ctx.progress.offHand?.itemKind === "relic" &&
+			ctx.progress.offHand.rarity === "unique";
+		const radius = swampRadius(ctx.level) * (gooey ? 4 : 1);
+		const center = gooey ? { ...ctx.hero.position } : ctx.facingTarget;
+		ctx.state.swamps.push(new GroundSwamp(center, radius, ctx.hero, gooey));
+	}
+	private castBlizzard(ctx: SkillCastContext): void {
+		ctx.state.blizzards.push(
+			new Blizzard(
+				{ ...ctx.target.position },
+				blizzardRadius(ctx.level),
+				blizzardDuration(ctx.level),
+				blizzardProjectilesPerSecond(ctx.level),
+				ctx.damage,
+				ctx.hero,
+				ctx.strike.critical,
+			),
+		);
+	}
+	private castGravityPull(ctx: SkillCastContext): void {
+		castForceField(ctx.state, ctx.hero, ctx.level, ctx.random);
+	}
+	private castReflectiveSurge(ctx: SkillCastContext): void {
+		ctx.hero.reflectiveSurgeRemaining = reflectiveSurgeDuration(ctx.level);
+	}
+	private castWhirlwind(ctx: SkillCastContext): void {
+		this.whirlwindRemaining = whirlwindDuration(ctx.level);
+		this.whirlwindPulse = 0;
+		this.whirlwindRange = whirlwindRadius(ctx.level);
+		this.whirlwindHitDamage = whirlwindDamage(ctx.stats.strength);
+		this.whirlwindSpeed = whirlwindMovementSpeed(ctx.level);
+		ctx.state.spellEffects.push(
+			new SpellEffect(
+				"whirlwind",
+				ctx.hero.position,
+				0,
+				this.whirlwindRange,
+				this.whirlwindRemaining,
+				ctx.hero,
+				true,
+			),
+		);
+	}
+	private castFireBreath(ctx: SkillCastContext): void {
+		ctx.state.attacks.push(
+			new AttackArea(
+				"hero",
+				{ ...ctx.hero.position },
+				ctx.hero.facing,
+				ctx.range,
+				0.62,
+				0.22,
+				0.18,
+				ctx.damage,
+				ctx.hero,
+				"fireBreath",
+				ctx.item,
+				{ kind: "fire", critical: ctx.strike.critical },
+			),
+		);
+	}
+	private castRangedProjectile(ctx: SkillCastContext): void {
+		ctx.state.projectiles.push(
+			new Projectile(
+				ctx.hero.position,
+				ctx.facingTarget,
+				ctx.damage,
+				"hero",
+				ctx.id === "arcaneBolt" || ctx.id === "rendingThrow"
+					? ctx.id
+					: undefined,
+				ctx.hero,
+				ctx.presentation,
+				ctx.item,
+				true,
+				ctx.level,
+			),
+		);
+	}
+	private castMeleeArc(ctx: SkillCastContext): void {
+		const origin = { ...ctx.hero.position };
+		ctx.state.attacks.push(
+			new AttackArea(
+				"hero",
+				origin,
+				ctx.hero.facing,
+				ctx.range,
+				ctx.id === "bash" ||
+					ctx.id === "sweep" ||
+					ctx.id === "shockwave" ||
+					ctx.id === "rent"
+					? Math.PI
+					: ctx.id === "cleave"
+						? cleaveHalfArc(ctx.level)
+						: ctx.id === "flurry"
+							? FLURRY_HALF_ARC
+							: 0.72,
+				0.18,
+				0.13,
+				ctx.damage,
+				ctx.hero,
+				ctx.id,
+				ctx.item,
+				ctx.presentation,
+				emittedImpactForce(
+					ctx.hero,
+					"radial",
+					origin,
+					undefined,
+					skillImpactForceScale(ctx.id),
+				),
+			),
+		);
+	}
 	spellSlots(progress: PlayerProgress, hero: Hero): SpellSlot[] {
 		const equipped = equippedActiveSkillIds(progress);
 		const autoFire = new Set(autoFireSkillIds(progress));
