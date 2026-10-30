@@ -7,17 +7,19 @@ import {
 	fetchCommunityRequests,
 } from "../scripts/listFeatureRequests";
 import {
-	activeAccountId,
-	activeModeratorAccountId,
 	createApp,
-	isLocalDevelopmentOrigin,
 	MAX_DEVLOG_REQUEST_DESCRIPTION_LENGTH,
-	parseDevlogRequestInput,
 } from "../server/createApp";
 import {
 	nextUtcMonth,
 	SqlDevlogRequestStore,
 } from "../server/DevlogRequestRepository";
+import {
+	activeAccountId,
+	activeModeratorAccountId,
+	isLocalDevelopmentOrigin,
+	parseDevlogRequestInput,
+} from "../server/httpRouter";
 
 const cleanupDirectories: string[] = [];
 
@@ -323,7 +325,7 @@ describe("devlog requests", () => {
 
 	test("requires an active proposer or moderator to return completed work to editing", async () => {
 		const [serverSource, devlogSource] = await Promise.all([
-			Bun.file(new URL("../server/createApp.ts", import.meta.url)).text(),
+			Bun.file(new URL("../server/httpRouter.ts", import.meta.url)).text(),
 			Bun.file(new URL("../src/devlog.ts", import.meta.url)).text(),
 		]);
 		expect(serverSource).toContain("if (input?.completed === false)");
